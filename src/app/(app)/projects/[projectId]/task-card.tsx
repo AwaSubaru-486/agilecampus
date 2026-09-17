@@ -74,12 +74,14 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`ac-card p-3 text-sm transition hover:shadow-md ${isDragging ? "opacity-50" : ""}`}
+      className={`ac-card select-none p-3 text-sm transition-[box-shadow,transform,opacity] duration-150 will-change-transform hover:-translate-y-0.5 hover:shadow-md ${
+        isDragging ? "scale-[0.98] opacity-20" : ""
+      }`}
     >
       <div
         {...listeners}
         {...attributes}
-        className={canWrite && !editing ? "cursor-grab" : ""}
+        className={canWrite && !editing ? "cursor-grab touch-none active:cursor-grabbing" : ""}
       >
         <p className="font-medium text-ink">{task.title}</p>
         <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
