@@ -10,6 +10,7 @@ import {
   type AgentRuntime,
   type AgentStatus,
 } from "@/db/schema";
+import { createApiToken } from "./api-token";
 import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership } from "./team";
 
@@ -43,7 +44,7 @@ export async function createAgent(actorId: string, teamId: string, input: AgentI
   if (!name) throw new AppError("请给这个 agent 起个名字");
   if (!input.provider.trim()) throw new AppError("请指明它跑在什么上");
 
-  return db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     // 合成邮箱：users.email 非空唯一，而 agent 没有真实邮箱。
     // 它同时也没有 passwordHash，故登不进来（auth.ts 另有两道闸门）。
     const [user] = await tx
@@ -80,8 +81,32 @@ export async function createAgent(actorId: string, teamId: string, input: AgentI
       })
       .returning();
 
-    return { ...agent, name: user.name, email: user.email };
+    return { agent, user };
   });
+
+  // 顺手发一枚 Personal API Token——agent 也是 user，既有的令牌层原样适用。
+  // 明文只此一次返回，注册页要当场显示给用户，让他贴进 agent 的配置里。
+  const token = await createApiToken(created.user.id, `${name} 的接入令牌`);
+
+  return {
+    ...created.agent,
+    name: created.user.name,
+    email: created.user.email,
+    token: token.token,
+  };
+}
+
+/** 给某个 agent 重发一枚令牌（原令牌丢了或泄露时用）。 */
+export async function reissueAgentToken(actorId: string, agentUserId: string) {
+  const [agent] = await db.select().from(agents).where(eq(agents.userId, agentUserId));
+  if (!agent) throw new AppError("该 agent 不存在");
+  if (actorId !== agent.ownerId) {
+    const membership = await getTeamMembership(actorId, agent.teamId);
+    if (!membership || membership.role !== "admin") throw new ForbiddenError();
+  }
+  const [user] = await db.select().from(users).where(eq(users.id, agentUserId));
+  const token = await createApiToken(agentUserId, `${user?.name ?? "agent"} 的接入令牌`);
+  return { token: token.token };
 }
 
 export type AgentRow = {
