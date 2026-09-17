@@ -76,6 +76,12 @@ function Column({
           dependencies={dependencies}
         />
       ))}
+      {tasks.length === 0 && (
+        <div className="rounded-lg border border-dashed border-line-strong px-3 py-7 text-center">
+          <p className="text-xs text-ink-faint">这里还没有任务</p>
+          {canWrite && <a href="#quick-task" className="mt-1 inline-block text-xs text-primary hover:underline">添加一项</a>}
+        </div>
+      )}
     </div>
   );
 }

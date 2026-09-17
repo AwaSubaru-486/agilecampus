@@ -59,6 +59,13 @@ export function TaskCard({
     .map((d) => allTasks.find((t) => t.id === d.successorId)?.title)
     .filter(Boolean);
 
+  function askAi() {
+    window.dispatchEvent(new CustomEvent("agilecampus:ask-ai", {
+      detail: { taskId: task.id, title: task.title },
+    }));
+    document.getElementById("ai-collaboration")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -112,15 +119,24 @@ export function TaskCard({
         )}
       </div>
 
-      {canWrite && (
+      <div className="mt-2 flex items-center gap-3 border-t border-line pt-2">
+        {canWrite && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-xs text-ink-faint hover:text-primary hover:underline"
+          >
+            编辑
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => setEditing(true)}
-          className="mt-2 text-xs text-ink-faint hover:text-primary hover:underline"
+          onClick={askAi}
+          className="text-xs text-ink-faint hover:text-primary hover:underline"
         >
-          编辑
+          带此任务问 AI
         </button>
-      )}
+      </div>
 
       {editing && (
         <EditModal
