@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DraftCards, type Draft } from "./draft-cards";
 
 type Option = { id: string; name: string };
@@ -60,6 +60,20 @@ export function ChatPanel({
     () => conversations.find((item) => item.id === conversationId) ?? null,
     [conversations, conversationId],
   );
+
+  useEffect(() => {
+    function startTaskConversation(event: Event) {
+      const detail = (event as CustomEvent<{ taskId: string; title: string }>).detail;
+      if (!detail?.taskId) return;
+      setNewTaskId(detail.taskId);
+      setNewTitle(`任务：${detail.title}`);
+      setNewVisibility("project");
+      setCreating(true);
+      setError(null);
+    }
+    window.addEventListener("agilecampus:ask-ai", startTaskConversation);
+    return () => window.removeEventListener("agilecampus:ask-ai", startTaskConversation);
+  }, []);
 
   async function refreshConversation(id: string) {
     setLoadingConversation(true);
@@ -214,7 +228,7 @@ export function ChatPanel({
   }
 
   return (
-    <section className="ac-card overflow-hidden">
+    <section id="ai-collaboration" className="ac-card scroll-mt-20 overflow-hidden">
       <div className="border-b border-line px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div>

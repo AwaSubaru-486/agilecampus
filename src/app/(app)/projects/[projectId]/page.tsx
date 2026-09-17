@@ -15,6 +15,7 @@ import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
 import { ChatPanel } from "./chat-panel";
 import { FilterBar } from "./filter-bar";
+import { ProjectSummary } from "./project-summary";
 
 export default async function ProjectPage({
   params,
@@ -72,24 +73,23 @@ export default async function ProjectPage({
     }));
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8 py-8">
-      <header>
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="font-display text-2xl font-semibold text-ink">{project.name}</h1>
-          <a
-            href={`/projects/${projectId}/timeline`}
-            className="ac-btn-ghost whitespace-nowrap"
-          >
-            时间线
-          </a>
-        </div>
-        {project.description && (
-          <p className="mt-1 text-sm text-ink-soft">{project.description}</p>
-        )}
-        <p className="mt-1 text-xs text-ink-faint">
-          {project.startDate ?? "?"} ~ {project.endDate ?? "?"} · {project.status}
-        </p>
-      </header>
+    <main className="mx-auto max-w-6xl space-y-7 py-6 sm:py-8">
+      <ProjectSummary
+        projectId={projectId}
+        name={project.name}
+        description={project.description}
+        status={project.status}
+        startDate={project.startDate}
+        endDate={project.endDate}
+        currentUserId={session.user.id}
+        tasks={projectTasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          status: task.status,
+          assigneeId: task.assigneeId,
+          dueDate: task.dueDate,
+        }))}
+      />
 
       <MilestoneSection
         projectId={projectId}
@@ -97,8 +97,21 @@ export default async function ProjectPage({
         isAdmin={isAdmin}
       />
 
-      <section className="space-y-3">
-        <h2 className="font-medium text-ink">看板</h2>
+      <section id="board" className="scroll-mt-20 space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold text-ink">任务看板</h2>
+            <p className="mt-0.5 text-xs text-ink-faint">拖动任务即可推进状态，常用信息保持在卡片表面。</p>
+          </div>
+          <a href="#quick-task" className="ac-btn px-3 py-2 text-sm">＋ 添加任务</a>
+        </div>
+        {canWrite && (
+          <NewTaskForm
+            projectId={projectId}
+            members={members}
+            milestones={projectMilestones.map((m) => ({ id: m.id, title: m.title }))}
+          />
+        )}
         <FilterBar
           members={members.map((m) => ({ id: m.id, name: m.name }))}
           milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
@@ -146,14 +159,6 @@ export default async function ProjectPage({
         milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
         tasks={projectTasks.map((task) => ({ id: task.id, name: task.title }))}
       />
-
-      {canWrite && (
-        <NewTaskForm
-          projectId={projectId}
-          members={members}
-          milestones={projectMilestones.map((m) => ({ id: m.id, title: m.title }))}
-        />
-      )}
     </main>
   );
 }

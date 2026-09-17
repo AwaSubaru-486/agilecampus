@@ -9,6 +9,7 @@ import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
 export type FormState = { error: string } | null;
+export type CreateTaskState = { error: string } | { ok: true; revision: string } | null;
 // 更新任务专用：成功回 { ok: true }，供编辑弹窗据以自闭
 export type UpdateTaskState = { error: string } | { ok: true } | null;
 
@@ -24,9 +25,9 @@ const createTaskSchema = z.object({
 });
 
 export async function createTaskAction(
-  _prev: FormState,
+  _prev: CreateTaskState,
   formData: FormData,
-): Promise<FormState> {
+): Promise<CreateTaskState> {
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
 
@@ -50,7 +51,7 @@ export async function createTaskAction(
     throw e;
   }
   revalidatePath(`/projects/${projectId}`);
-  return null;
+  return { ok: true, revision: crypto.randomUUID() };
 }
 
 const createMilestoneSchema = z.object({
