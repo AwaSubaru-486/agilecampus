@@ -529,7 +529,13 @@ export async function submitTask(
     type: "task_submitted",
     taskId,
     summary: describe.taskSubmitted(updated.title),
-    payload: { title: updated.title, completionNote: input.completionNote },
+    payload: {
+      title: updated.title,
+      completionNote: input.completionNote,
+      // 冻结交付人：贡献记录要按「谁交的」归属，而任务事后可能改派，
+      // 事后再查任务行会张冠李戴
+      assigneeId: updated.assigneeId,
+    },
   });
   void notifyTaskSubmitted(updated);
   return updated;
@@ -576,7 +582,14 @@ export async function reviewTask(
     summary: accepted
       ? describe.taskAccepted(updated.title)
       : describe.taskRejected(updated.title, input.note ?? ""),
-    payload: { title: updated.title, note: input.note ?? null },
+    payload: {
+      title: updated.title,
+      note: input.note ?? null,
+      // 同 submitTask：把交付人冻在这一笔事件里。
+      // 贡献记录的头条数字（被验收通过的任务数）就数它。
+      assigneeId: updated.assigneeId,
+      reviewerId: actorId,
+    },
   });
   // 通过时才通知创建者「完成了」——退回走另一张卡片
   if (accepted) void notifyTaskCompleted(updated, actorId);

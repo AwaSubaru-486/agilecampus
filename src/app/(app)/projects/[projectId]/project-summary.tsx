@@ -69,6 +69,7 @@ export function ProjectSummary({
             <a href="#ai-collaboration" className="ac-btn-ghost">AI 协作</a>
             <a href={`/projects/${projectId}/timeline`} className="ac-btn-ghost">时间线</a>
             <a href={`/projects/${projectId}/activity`} className="ac-btn-ghost">活动流</a>
+            <a href={`/projects/${projectId}/retrospective`} className="ac-btn-ghost">复盘</a>
           </nav>
         </div>
 
