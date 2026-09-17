@@ -22,10 +22,6 @@ import { today } from "./today";
 // 全部走确定性规则，不碰 AI：规则可复现、可单测、不会漏也不会编。
 
 const DAY_MS = 86_400_000;
-/** 实际耗时超出预估这个倍数，才算「做得比想的费劲」 */
-export const OVER_ESTIMATE_RATIO = 1.5;
-/** 超预估至少这么多小时才记——差半小时不算事 */
-export const OVER_ESTIMATE_MIN_HOURS = 2;
 
 export type MilestoneProgress = {
   id: string;
@@ -63,7 +59,6 @@ export type Highlight = {
 export const HIGHLIGHT_LABEL: Record<HighlightKind, string> = {
   delivered_by_agent: "AI 交付",
   reworked: "返工过",
-  over_estimate: "超预估",
   unblocked: "卡过又解决",
   late_done: "逾期完成",
   first_delivery: "首件交付",
@@ -114,17 +109,10 @@ export function extractHighlights(
     out.push({ kind: "reworked", note: `${who}的交付被退回 ${task.rejectCount} 次后通过` });
   }
 
-  // 实际耗时：从认领（承诺）到交付。没认领过就算不出，不猜。
-  if (task.estimatedHours && task.committedAt && task.submittedAt) {
-    const actual = (task.submittedAt.getTime() - task.committedAt.getTime()) / 3_600_000;
-    const over = actual - task.estimatedHours;
-    if (actual >= task.estimatedHours * OVER_ESTIMATE_RATIO && over >= OVER_ESTIMATE_MIN_HOURS) {
-      out.push({
-        kind: "over_estimate",
-        note: `实际约 ${Math.round(actual)} 小时，超出预估 ${Math.round(over)} 小时`,
-      });
-    }
-  }
+  // 这里本该有一条「实际耗时超出预估」。删了——挂钟时间不是投入时长：
+  // 任务在那儿放着七天，不等于干了七天。贡献记录里已把「实际投入」
+  // 列为量不到的维度，此处若拿它当规则，就是自相矛盾。
+  // 「做得费劲」这件事，返工、卡住、逾期三条已经覆盖。
 
   if (ctx.wasBlockedAndResolved) {
     out.push({ kind: "unblocked", note: `${who}卡住后求助，问题解决才做成` });

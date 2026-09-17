@@ -9,9 +9,10 @@ import {
   extractHighlights,
   listMilestoneProgress,
   syncMilestoneAchievement,
-  OVER_ESTIMATE_RATIO,
 } from "@/lib/milestone";
 import { resetDb } from "./helpers";
+
+const HOUR = 3_600_000;
 
 async function makeUser(email: string) {
   return createUser({ email, password: "password123", name: email.split("@")[0] });
@@ -26,8 +27,6 @@ async function scene() {
   const agent = await createAgent(owner.id, team.id, { name: "小码", provider: "claude-code" });
   return { owner, team, student, project, agent };
 }
-
-const HOUR = 3_600_000;
 
 function taskRow(over: Partial<Parameters<typeof extractHighlights>[0]> = {}) {
   return {
@@ -75,33 +74,23 @@ describe("高光提取（纯函数）", () => {
     expect(out[0].note).toContain("2 次");
   });
 
-  it("实际耗时远超预估才记，差一点点不算", () => {
+  // 这条守护一个已经做过的决定，而不是一个功能。
+  //
+  // 曾有一条「实际耗时超出预估」的规则，写了又删：它拿「认领到交付的
+  // 挂钟时间」当「实际投入」，而任务在那儿放着七天不等于干了七天。
+  // 贡献记录里已把「实际投入时长」列为量不到的维度，此处若拿它当规则
+  // 就是自相矛盾。谁日后想把它加回来，先读这段，再看这条测试为什么红。
+  it("不拿挂钟时间冒充实际投入——测得再久也不记这一笔", () => {
     const committedAt = new Date(Date.UTC(2026, 8, 1, 0, 0, 0));
-    const base = { committedAt, estimatedHours: 4 };
-
-    // 用了 4.5 小时：比例到了但差值不足 2 小时，不记
-    const marginal = extractHighlights(
-      taskRow({ ...base, submittedAt: new Date(committedAt.getTime() + 4.5 * HOUR) }),
-      ctx,
-    );
-    expect(marginal.map((x) => x.kind)).not.toContain("over_estimate");
-
-    // 用了 12 小时：都到了，记
-    const way = extractHighlights(
-      taskRow({ ...base, submittedAt: new Date(committedAt.getTime() + 12 * HOUR) }),
-      ctx,
-    );
-    const hit = way.find((x) => x.kind === "over_estimate");
-    expect(hit).toBeDefined();
-    expect(hit!.note).toContain("超出预估");
-  });
-
-  it("没认领过就算不出实际耗时，不猜", () => {
     const out = extractHighlights(
-      taskRow({ estimatedHours: 4, committedAt: null, submittedAt: new Date() }),
+      taskRow({
+        committedAt,
+        estimatedHours: 2,
+        submittedAt: new Date(committedAt.getTime() + 200 * HOUR), // 跨了八天
+      }),
       ctx,
     );
-    expect(out.map((x) => x.kind)).not.toContain("over_estimate");
+    expect(out).toEqual([]);
   });
 
   it("卡过又解决要记一笔", () => {
@@ -140,25 +129,13 @@ describe("高光提取（纯函数）", () => {
   });
 
   it("一件事可以同时占好几格", () => {
-    const committedAt = new Date(Date.UTC(2026, 8, 1, 0, 0, 0));
     const out = extractHighlights(
-      taskRow({
-        assigneeKind: "agent",
-        assigneeName: "小码",
-        rejectCount: 1,
-        committedAt,
-        estimatedHours: 2,
-        submittedAt: new Date(committedAt.getTime() + 10 * HOUR),
-      }),
+      taskRow({ assigneeKind: "agent", assigneeName: "小码", rejectCount: 1 }),
       { wasBlockedAndResolved: true, isFirstDelivery: false },
     );
     expect(out.map((x) => x.kind).sort()).toEqual(
-      ["delivered_by_agent", "over_estimate", "reworked", "unblocked"].sort(),
+      ["delivered_by_agent", "reworked", "unblocked"].sort(),
     );
-  });
-
-  it("超预估阈值是个可讨论的设计参数", () => {
-    expect(OVER_ESTIMATE_RATIO).toBeGreaterThan(1);
   });
 });
 

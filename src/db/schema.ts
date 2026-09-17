@@ -123,10 +123,13 @@ export const milestones = pgTable(
 // 于是它要么空着，要么沦为事后补记。改成从既有数据自动提取：
 // 一件事做得艰难（返工过、超了预估、卡过）、或由 AI 交付，
 // 达成时就在里程碑上留一笔。人什么都不用做，痕迹自己在那儿。
+// 曾经还有一条 over_estimate（实际耗时超出预估），写出来又删了：
+// 它拿「认领到交付的挂钟时间」当「实际投入」，而任务在那儿放着七天
+// 不等于干了七天。贡献记录里我明明把「实际投入时长」列为**量不到**的维度，
+// 此处却又拿它当规则——自相矛盾。做得费不费劲本已由返工、卡过、逾期三条覆盖。
 export const highlightKindEnum = pgEnum("highlight_kind", [
   "delivered_by_agent", // 由 AI 交付
   "reworked", // 经过返工
-  "over_estimate", // 实际耗时超出预估
   "unblocked", // 卡过之后被解决
   "late_done", // 逾期完成
   "first_delivery", // 该项目的第一件交付
