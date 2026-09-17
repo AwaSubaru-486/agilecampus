@@ -11,6 +11,8 @@ import {
 } from "@/lib/agent/conversation";
 import { parseFilters, applyFilters } from "@/lib/board-filters";
 import { today } from "@/lib/today";
+import { listProjectBlockers } from "@/lib/blocker";
+import { BlockerStrip } from "./blocker-strip";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
@@ -35,15 +37,23 @@ export default async function ProjectPage({
   if (!access) notFound();
   const { project, role } = access;
 
-  const [projectMilestones, projectTasks, members, dependencies, teamLabels, projectConversations] =
-    await Promise.all([
-      listProjectMilestones(session.user.id, projectId),
-      listProjectTasks(session.user.id, projectId),
-      listTeamMembers(project.teamId),
-      listProjectDependencies(session.user.id, projectId),
-      listTeamLabels(session.user.id, project.teamId),
-      listProjectConversations(session.user.id, projectId),
-    ]);
+  const [
+    projectMilestones,
+    projectTasks,
+    members,
+    dependencies,
+    teamLabels,
+    projectConversations,
+    openBlockers,
+  ] = await Promise.all([
+    listProjectMilestones(session.user.id, projectId),
+    listProjectTasks(session.user.id, projectId),
+    listTeamMembers(project.teamId),
+    listProjectDependencies(session.user.id, projectId),
+    listTeamLabels(session.user.id, project.teamId),
+    listProjectConversations(session.user.id, projectId),
+    listProjectBlockers(session.user.id, projectId, { status: ["open"] }),
+  ]);
 
   const filters = parseFilters(
     new URLSearchParams(
@@ -92,6 +102,22 @@ export default async function ProjectPage({
           status: task.status,
           assigneeId: task.assigneeId,
           dueDate: task.dueDate,
+        }))}
+      />
+
+      {/* 求助条置于看板之上：有人卡住是当下最该被看见的事，
+          沉到页面底部等于没提 */}
+      <BlockerStrip
+        projectId={projectId}
+        blockers={openBlockers.map((b) => ({
+          id: b.id,
+          taskId: b.taskId,
+          taskTitle: b.taskTitle,
+          raisedByName: b.raisedByName,
+          reason: b.reason,
+          detail: b.detail,
+          helpNeeded: b.helpNeeded,
+          ageHours: b.ageHours,
         }))}
       />
 

@@ -57,6 +57,11 @@ export const describe = {
   taskSubmitted: (title: string) => `提交了「${title}」待验收`,
   taskAccepted: (title: string) => `验收通过「${title}」`,
   taskRejected: (title: string, note: string) => `退回「${title}」：${note}`,
+  // 阻塞与互助。摘要里带上「需要什么」——「我卡住了」四个字本身不含信息，
+  // 队友看到也不知道该做什么。
+  blockerRaised: (reasonLabel: string, helpNeeded: string | null) =>
+    helpNeeded ? `求助：${reasonLabel}，需要${helpNeeded}` : `求助：${reasonLabel}`,
+  blockerResolved: (reasonLabel: string) => `解决了一次求助（${reasonLabel}）`,
   milestoneCreated: (title: string) => `新建里程碑「${title}」`,
   projectCreated: (name: string) => `创建了项目「${name}」`,
   projectUpdated: (name: string) => `更新了项目「${name}」`,

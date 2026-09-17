@@ -16,6 +16,7 @@ import {
 // 状态值取自 lib/task-status.ts（零依赖叶子模块），使看板等客户端组件无需引 schema 即可复用。
 // 依赖方向：db/schema → lib/task-status。仍是单一真相源。
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
+import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
 export type TeamRole = (typeof teamRoleEnum.enumValues)[number];
@@ -316,6 +317,75 @@ export const taskLabels = pgTable(
   (t) => [
     primaryKey({ columns: [t.taskId, t.labelId] }),
     index("task_labels_label_idx").on(t.labelId),
+  ],
+);
+
+// 取值取自 lib/blocker-labels.ts（零依赖叶子模块），使悬浮求助入口等客户端组件
+// 无需引 schema 即可复用文案。依赖方向：db/schema → lib/blocker-labels。
+export const blockerReasonEnum = pgEnum("blocker_reason", BLOCKER_REASONS);
+export type BlockerReason = (typeof blockerReasonEnum.enumValues)[number];
+
+export const blockerStatusEnum = pgEnum("blocker_status", BLOCKER_STATUSES);
+export type BlockerStatus = (typeof blockerStatusEnum.enumValues)[number];
+
+// 阻塞上报。三条设计要点：
+//   1. taskId 可空——全局悬浮入口不强制「先找到那个任务」，
+//      而人卡住时恰恰最不想先翻到任务页去
+//   2. 独立成表而非给 tasks 加 blocked 状态：一件事可能同时被几样东西卡住，
+//      且解除后不该在任务历史里留下状态噪声
+//   3. 带 helpNeeded 自由文本：求助的关键是「说清需要什么」，
+//      光标记「我卡住了」等于把问题原样抛给队友
+export const blockers = pgTable(
+  "blockers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    // cascade 而非 set null：阻塞是一条「未了的事」，不是历史。
+    // 若置空，任务删掉后会留下一个永远 open 却无所指的阻塞，健康度里再也清不掉。
+    // 历史由 activity_events 保存（那里的 taskId 才是 set null），此处不必重复承载。
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+    raisedById: uuid("raised_by_id").references(() => users.id, { onDelete: "set null" }),
+    reason: blockerReasonEnum("reason").notNull(),
+    detail: text("detail"),
+    helpNeeded: text("help_needed"),
+    status: blockerStatusEnum("status").notNull().default("open"),
+    resolvedById: uuid("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
+    resolutionNote: text("resolution_note"),
+    resolvedAt: timestamp("resolved_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("blockers_project_status_idx").on(t.projectId, t.status),
+    index("blockers_task_idx").on(t.taskId),
+    index("blockers_raised_by_idx").on(t.raisedById),
+    // 跨项目「待我帮忙」页按状态扫全库未解决者
+    index("blockers_status_time_idx").on(t.status, t.createdAt),
+  ],
+);
+
+// 协作邀请：记下推荐了谁、推荐时的分数与理由。
+// 存分数与理由不是为了算账，而是为了在可用性测试里回答「推荐准不准」——
+// 这是本项目少数能拿数据说话的交互决策之一。
+export const blockerInvites = pgTable(
+  "blocker_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    blockerId: uuid("blocker_id")
+      .notNull()
+      .references(() => blockers.id, { onDelete: "cascade" }),
+    inviteeId: uuid("invitee_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invitedById: uuid("invited_by_id").references(() => users.id, { onDelete: "set null" }),
+    score: doublePrecision("score"),
+    reasons: jsonb("reasons"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("blocker_invites_unique").on(t.blockerId, t.inviteeId),
+    index("blocker_invites_invitee_idx").on(t.inviteeId),
   ],
 );
 

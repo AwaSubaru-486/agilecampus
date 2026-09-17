@@ -5,6 +5,7 @@ import { sendCardMessage } from "./feishu";
 import { today } from "./today";
 import {
   buildAssignedCard,
+  buildBlockerCard,
   buildCompletedCard,
   buildDueReminderCard,
   buildReviewedCard,
@@ -116,6 +117,83 @@ export async function notifyTaskReviewed(
   const openId = await openIdOf(task.assigneeId);
   if (!openId) return;
   await safeSend(openId, buildReviewedCard(await enrich(task), decision, note));
+}
+
+// 求助 → 通知被点名的人，以及本项目的组长与教师。
+//
+// 这与「任务指派」不同：指派是告知，求助是求援，收件人需要真的动一下。
+// 故即便没人被点名也要发给组长与教师——否则一条求助发出去可能一个人都不知道。
+export async function notifyBlockerRaised(input: {
+  projectId: string;
+  raisedById: string;
+  reasonLabel: string;
+  detail: string | null;
+  helpNeeded: string | null;
+  taskId: string | null;
+  inviteeIds: string[];
+}): Promise<void> {
+  const [proj] = await db
+    .select({ name: projects.name, teamId: projects.teamId })
+    .from(projects)
+    .where(eq(projects.id, input.projectId));
+  if (!proj) return;
+
+  const [raiser] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, input.raisedById));
+
+  let taskTitle: string | null = null;
+  if (input.taskId) {
+    const [t] = await db
+      .select({ title: tasks.title })
+      .from(tasks)
+      .where(eq(tasks.id, input.taskId));
+    taskTitle = t?.title ?? null;
+  }
+
+  // 收件人 = 被点名者 ∪ 组长 ∪ 教师，去重，排除求助人自己
+  const reviewers = await db
+    .select({ userId: teamMembers.userId, openId: users.feishuOpenId })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(
+      and(
+        eq(teamMembers.teamId, proj.teamId),
+        inArray(teamMembers.role, ["admin", "teacher"] as const),
+        isNotNull(users.feishuOpenId),
+      ),
+    );
+
+  const invitees =
+    input.inviteeIds.length > 0
+      ? await db
+          .select({ userId: users.id, name: users.name, openId: users.feishuOpenId })
+          .from(users)
+          .where(inArray(users.id, input.inviteeIds))
+      : [];
+
+  const recipients = new Map<string, string>(); // userId → openId
+  for (const r of reviewers) {
+    if (r.openId && r.userId !== input.raisedById) recipients.set(r.userId, r.openId);
+  }
+  for (const i of invitees) {
+    if (i.openId && i.userId !== input.raisedById) recipients.set(i.userId, i.openId);
+  }
+  if (recipients.size === 0) return;
+
+  const card = buildBlockerCard({
+    projectId: input.projectId,
+    projectName: proj.name,
+    raisedByName: raiser?.name ?? "某位成员",
+    reasonLabel: input.reasonLabel,
+    detail: input.detail,
+    helpNeeded: input.helpNeeded,
+    taskTitle,
+    inviteeNames: invitees.filter((i) => i.userId !== input.raisedById).map((i) => i.name),
+  });
+
+  for (const openId of recipients.values()) await safeSend(openId, card);
 }
 
 // 扫全库临期(明日到期)+逾期(已过期未 done)，按负责人聚合为一封卡片日报。返回发送人数与扫描任务数。

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
+import { listMyProjects } from "@/lib/project";
 import { AppNavigation } from "./app-navigation";
+import { StuckButton } from "./stuck-button";
 
 export default async function AppLayout({
   children,
@@ -10,6 +12,11 @@ export default async function AppLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  // 悬浮求助入口要一份「我在哪些项目」以供选择。每页多一次查询，
+  // 换来的是无论身处哪一页都能一键求助——这个代价值得。
+  const myProjects = await listMyProjects(session.user.id);
+  const projectOptions = myProjects.map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
@@ -66,6 +73,8 @@ export default async function AppLayout({
         </div>
         <div className="mx-auto max-w-[90rem] p-4 sm:p-6 lg:p-8">{children}</div>
       </section>
+
+      <StuckButton projects={projectOptions} />
     </div>
   );
 }
