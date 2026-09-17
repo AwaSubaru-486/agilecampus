@@ -228,13 +228,14 @@ export function ChatPanel({
   }
 
   return (
-    <section id="ai-collaboration" className="ac-card scroll-mt-20 overflow-hidden">
-      <div className="border-b border-line px-4 py-3">
+    <section id="ai-collaboration" className="ac-card scroll-mt-20 overflow-hidden rounded-3xl">
+      <div className="border-b border-line px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-medium text-ink">AI 协作空间</h2>
-            <p className="mt-0.5 text-xs text-ink-faint">
-              团队共享会话、继承上下文，并从任意 AI 回复探索新的方案分支
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-primary">CONTEXT LAB</p>
+            <h2 className="mt-1 font-display text-xl font-bold text-ink">AI 上下文实验室</h2>
+            <p className="mt-1 text-xs text-ink-faint">
+              每次讨论都关联项目与任务；从关键回复分叉，不覆盖原来的思路
             </p>
           </div>
           <button type="button" onClick={() => setCreating((value) => !value)} className="ac-btn px-3 py-2 text-sm">
@@ -268,9 +269,9 @@ export function ChatPanel({
         )}
       </div>
 
-      <div className="grid min-h-[30rem] md:grid-cols-[15rem_1fr]">
-        <aside className="border-b border-line bg-sunken/60 p-2 md:border-b-0 md:border-r">
-          <p className="px-2 py-1 text-xs font-medium text-ink-faint">项目会话</p>
+      <div className="grid min-h-[30rem] md:grid-cols-[16rem_1fr]">
+        <aside className="border-b border-line bg-[#f3f5f9] p-2.5 md:border-b-0 md:border-r">
+          <p className="px-2 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-faint">CONVERSATIONS</p>
           <div className="max-h-[28rem] space-y-1 overflow-y-auto">
             {conversations.map((conversation) => (
               <button
@@ -278,7 +279,7 @@ export function ChatPanel({
                 type="button"
                 onClick={() => refreshConversation(conversation.id)}
                 className={`w-full rounded-lg px-2.5 py-2 text-left transition ${
-                  conversation.id === conversationId ? "bg-primary-soft" : "hover:bg-canvas"
+                  conversation.id === conversationId ? "bg-surface shadow-sm ring-1 ring-line" : "hover:bg-surface/70"
                 }`}
               >
                 <span className="block truncate text-sm font-medium text-ink">
@@ -328,7 +329,7 @@ export function ChatPanel({
             {loadingConversation && <p className="text-center text-sm text-ink-faint">正在加载会话…</p>}
             {!loadingConversation && messages.map((message) => (
               <div key={message.id}>
-                <div className={`rounded-lg p-3 text-sm ${message.role === "user" ? "bg-sunken" : "bg-primary-soft"}`}>
+                <div className={`rounded-2xl p-3.5 text-sm ${message.role === "user" ? "ml-8 bg-sunken" : "mr-8 border border-primary/10 bg-[#f2f5ff]"}`}>
                   <div className="mb-1 flex items-center gap-2 text-xs text-ink-faint">
                     <span>{message.role === "user" ? message.authorName || "成员" : "AI 助手"}</span>
                     {message.sourceMessageId && <span className="rounded bg-canvas/70 px-1.5 py-0.5">继承内容</span>}

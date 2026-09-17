@@ -1,63 +1,54 @@
 @import "tailwindcss";
 
-/* ============================================================
-   AgileCampus 设计系统 · 「学术工作台」
-   净暖白纸背景 · 雅靛蓝主色 · 琥珀点缀 · 衬线标题 + Geist 正文
-   ============================================================ */
+/* AgileCampus UI · 由任务、协作与 AI 上下文组成的轻量团队工作台 */
 
 @theme {
-  /* 中性 · 净暖白纸感（略提对比，更清透） */
-  --color-canvas: #f3f1ea;
+  --color-canvas: #f6f7f9;
   --color-surface: #ffffff;
-  --color-sunken: #f0ede4;
-  --color-ink: #1a1913;
-  --color-ink-soft: #514c43;
-  --color-ink-faint: #928b7e;
-  --color-line: #e8e3d8;
-  --color-line-strong: #d8d1c2;
+  --color-sunken: #eef1f5;
+  --color-ink: #151b26;
+  --color-ink-soft: #536070;
+  --color-ink-faint: #8c97a6;
+  --color-line: #e5e9ef;
+  --color-line-strong: #d7dde6;
 
-  /* 主色 · 藏青（更沉稳有分量） */
-  --color-primary: #294a78;
-  --color-primary-hover: #1e3a60;
-  --color-primary-soft: #e8eef8;
-  --color-primary-ring: #bcccea;
+  --color-primary: #315cf5;
+  --color-primary-hover: #2448d8;
+  --color-primary-soft: #eaf0ff;
+  --color-primary-ring: #c9d6ff;
 
-  /* 点缀 · 赭陶（更暖润） */
-  --color-accent: #bf6a34;
-  --color-accent-soft: #f6e7d5;
+  --color-accent: #ff7657;
+  --color-accent-soft: #fff0eb;
 
   /* 语义 · 看板列 */
-  --color-todo: #7c8698;
-  --color-doing: #35548c;
-  --color-done: #3f7a58;
+  --color-todo: #8692a3;
+  --color-doing: #315cf5;
+  --color-done: #168a63;
 
   /* 语义 · 优先级 */
-  --color-high: #b6482f;
-  --color-high-soft: #f7e4dd;
-  --color-medium: #a9722a;
-  --color-medium-soft: #f5e9d2;
-  --color-low: #6f7987;
-  --color-low-soft: #ecedf0;
+  --color-high: #d94a55;
+  --color-high-soft: #ffecef;
+  --color-medium: #b67817;
+  --color-medium-soft: #fff5dc;
+  --color-low: #697789;
+  --color-low-soft: #edf0f4;
 
   /* 字体 */
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-display: var(--font-display), Georgia, "Songti SC", serif;
+  --font-display: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 
   /* 形状 */
-  --radius-card: 0.75rem;
-  --radius-field: 0.5rem;
+  --radius-card: 1rem;
+  --radius-field: 0.625rem;
 }
 
 :root {
-  --shadow-card: 0 1px 2px rgba(28, 22, 12, 0.05), 0 8px 22px -10px rgba(28, 22, 12, 0.10);
-  --shadow-pop: 0 4px 10px rgba(28, 22, 12, 0.07), 0 18px 40px -14px rgba(28, 22, 12, 0.18);
+  --shadow-card: 0 1px 2px rgba(21, 27, 38, 0.03), 0 10px 28px -18px rgba(21, 27, 38, 0.22);
+  --shadow-pop: 0 18px 50px -22px rgba(21, 27, 38, 0.32);
 }
 
 body {
   background-color: var(--color-canvas);
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(28, 22, 12, 0.024) 1px, transparent 0);
-  background-size: 24px 24px;
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01";
@@ -65,10 +56,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* 衬线标题工具类 */
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
 }
 
 @layer components {
@@ -78,6 +68,13 @@ body {
     border: 1px solid var(--color-line);
     background-color: var(--color-surface);
     box-shadow: var(--shadow-card);
+  }
+
+  .ac-toolbar {
+    border: 1px solid var(--color-line);
+    border-radius: 0.875rem;
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    box-shadow: 0 1px 2px rgba(21, 27, 38, 0.03);
   }
 
   /* 表单控件统一 */

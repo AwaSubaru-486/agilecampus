@@ -59,10 +59,39 @@ export function FilterBar({
     filters.label.length > 0 ||
     filters.milestone.length > 0 ||
     filters.overdue;
+  const activeCount =
+    filters.assignee.length +
+    filters.priority.length +
+    filters.label.length +
+    filters.milestone.length +
+    (filters.overdue ? 1 : 0);
 
   return (
-    <div className="space-y-2 rounded-xl border border-line bg-sunken p-3 text-sm">
-      <div className="flex flex-wrap items-center gap-3">
+    <details className="ac-toolbar group text-sm">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-3 py-2.5">
+        <span className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+          <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-sunken text-primary">⌁</span>
+          筛选与视图
+          {activeCount > 0 && <span className="ac-badge bg-primary text-white">{activeCount}</span>}
+        </span>
+        <span className="flex items-center gap-2" onClick={(event) => event.preventDefault()}>
+          <span className="text-[11px] text-ink-faint">{visible} / {total} 项</span>
+          <select
+            value={filters.group}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(e) => push({ ...filters, group: e.target.value as GroupBy })}
+            className="ac-field w-auto py-1 text-xs"
+            aria-label="分组依据"
+          >
+            {(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => (
+              <option key={g} value={g}>按{GROUP_LABEL[g]}分组</option>
+            ))}
+          </select>
+          <span className="text-ink-faint transition-transform group-open:rotate-180">⌄</span>
+        </span>
+      </summary>
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-line px-3 py-3">
         <Group name="指派人">
           {[...members, { id: "none", name: "未指派" }].map((m) => (
             <Chip
@@ -118,24 +147,6 @@ export function FilterBar({
         <Chip on={filters.overdue} onClick={() => push({ ...filters, overdue: !filters.overdue })}>
           仅看逾期
         </Chip>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
-        <span className="text-xs font-medium text-ink-soft">分组依据</span>
-        <select
-          value={filters.group}
-          onChange={(e) => push({ ...filters, group: e.target.value as GroupBy })}
-          className="ac-field w-auto py-1 text-sm"
-        >
-          {(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => (
-            <option key={g} value={g}>
-              {GROUP_LABEL[g]}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-ink-faint">
-          显示 {visible} / {total} 个任务
-        </span>
         {dirty && (
           <button
             type="button"
@@ -155,7 +166,7 @@ export function FilterBar({
           </button>
         )}
       </div>
-    </div>
+    </details>
   );
 }
 

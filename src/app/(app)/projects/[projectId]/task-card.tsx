@@ -21,6 +21,18 @@ const PRIORITY_BADGE: Record<string, string> = {
   low: "bg-low-soft text-low",
 };
 
+const PRIORITY_LABEL: Record<string, string> = {
+  high: "高优先级",
+  medium: "中优先级",
+  low: "低优先级",
+};
+
+const PRIORITY_RAIL: Record<string, string> = {
+  high: "before:bg-high",
+  medium: "before:bg-medium",
+  low: "before:bg-low",
+};
+
 export function TaskCard({
   task,
   projectId,
@@ -74,7 +86,7 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`ac-card select-none p-3 text-sm transition-[box-shadow,transform,opacity] duration-150 will-change-transform hover:-translate-y-0.5 hover:shadow-md ${
+      className={`ac-card group relative select-none overflow-hidden p-3.5 text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full transition-[box-shadow,transform,opacity,border-color] duration-150 will-change-transform hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
         isDragging ? "scale-[0.98] opacity-20" : ""
       }`}
     >
@@ -83,14 +95,22 @@ export function TaskCard({
         {...attributes}
         className={canWrite && !editing ? "cursor-grab touch-none active:cursor-grabbing" : ""}
       >
-        <p className="font-medium text-ink">{task.title}</p>
-        <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
-          <span>{task.assigneeName ?? "未分配"}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-ink-faint">TASK {task.id.slice(0, 4).toUpperCase()}</p>
+            <p className="font-medium leading-5 text-ink">{task.title}</p>
+          </div>
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-sunken text-[10px] font-semibold text-ink-soft" title={task.assigneeName ?? "未分配"}>
+            {(task.assigneeName ?? "?").slice(0, 1).toUpperCase()}
+          </span>
+        </div>
+        <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
+          <span>{task.assigneeName ?? "待认领"}</span>
           {(task.startDate || task.dueDate) && (
-            <span>· {task.startDate ?? "…"}→{task.dueDate ?? "…"}</span>
+            <span>· {task.dueDate ?? task.startDate}</span>
           )}
           <span className={`ac-badge ${PRIORITY_BADGE[task.priority] ?? "bg-low-soft text-low"}`}>
-            {task.priority}
+            {PRIORITY_LABEL[task.priority] ?? task.priority}
           </span>
         </p>
         {task.labels.length > 0 && (
@@ -121,7 +141,7 @@ export function TaskCard({
         )}
       </div>
 
-      <div className="mt-2 flex items-center gap-3 border-t border-line pt-2">
+      <div className="mt-3 flex items-center gap-3 border-t border-line pt-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
         {canWrite && (
           <button
             type="button"

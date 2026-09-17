@@ -57,16 +57,19 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-40 w-72 shrink-0 space-y-2 rounded-xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+      className={`min-h-48 w-[19rem] shrink-0 space-y-2.5 rounded-2xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-200 ${
         isOver
           ? "scale-[1.01] border-primary bg-primary-soft shadow-[0_0_0_3px_var(--color-primary-ring)]"
-          : "border-line bg-sunken"
+          : "border-line bg-[#f1f3f7]"
       }`}
     >
-      <h3 className={`flex items-center gap-2 text-sm font-semibold ${column.tone}`}>
-        {column.label}
-        <span className="ac-badge bg-surface text-ink-soft">{tasks.length}</span>
-      </h3>
+      <div className="flex items-center justify-between px-1 pb-1">
+        <h3 className={`flex items-center gap-2 text-xs font-semibold ${column.tone}`}>
+          <span className="size-1.5 rounded-full bg-current" />
+          {column.label}
+        </h3>
+        <span className="grid min-w-5 place-items-center rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink-soft shadow-sm">{tasks.length}</span>
+      </div>
       {tasks.map((t) => (
         <TaskCard
           key={t.id}
@@ -81,7 +84,7 @@ function Column({
         />
       ))}
       {tasks.length === 0 && (
-        <div className="rounded-lg border border-dashed border-line-strong px-3 py-7 text-center">
+        <div className="rounded-xl border border-dashed border-line-strong bg-surface/40 px-3 py-8 text-center">
           <p className="text-xs text-ink-faint">这里还没有任务</p>
           {canWrite && <a href="#quick-task" className="mt-1 inline-block text-xs text-primary hover:underline">添加一项</a>}
         </div>
@@ -161,7 +164,7 @@ export function Board({
     >
       {error && <p className="text-sm text-high">{error}</p>}
       {/* 列数随分组维度而变，故横向滚动而非固定三栏 */}
-      <div className="flex gap-4 overflow-x-auto pb-2">
+      <div className="flex gap-3 overflow-x-auto pb-3 [scrollbar-width:thin]">
         {columns.map((col) => (
           <Column
             key={col.key}
@@ -184,7 +187,7 @@ export function Board({
         }}
       >
         {activeTask && (
-          <div className="w-72 rotate-[1.2deg] scale-[1.02] rounded-xl border border-primary/30 bg-surface p-3 text-sm shadow-[0_18px_45px_-14px_rgba(28,22,12,0.38)]">
+          <div className="w-[19rem] rotate-[1.2deg] scale-[1.02] rounded-2xl border border-primary/30 bg-surface p-4 text-sm shadow-[0_24px_55px_-18px_rgba(21,27,38,0.42)]">
             <p className="font-medium text-ink">{activeTask.title}</p>
             <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-soft">
               <span>{activeTask.assigneeName ?? "未分配"}</span>

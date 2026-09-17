@@ -73,7 +73,7 @@ export default async function ProjectPage({
     }));
 
   return (
-    <main className="mx-auto max-w-6xl space-y-7 py-6 sm:py-8">
+    <main className="mx-auto max-w-[82rem] space-y-7 py-1 sm:py-3">
       <ProjectSummary
         projectId={projectId}
         name={project.name}
@@ -100,8 +100,9 @@ export default async function ProjectPage({
       <section id="board" className="scroll-mt-20 space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-xl font-semibold text-ink">任务看板</h2>
-            <p className="mt-0.5 text-xs text-ink-faint">拖动任务即可推进状态，常用信息保持在卡片表面。</p>
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-primary">EXECUTION</p>
+            <h2 className="mt-1 font-display text-2xl font-bold text-ink">任务流</h2>
+            <p className="mt-1 text-xs text-ink-faint">拖动卡片推进任务；只有需要的信息才会留在表面。</p>
           </div>
           <a href="#quick-task" className="ac-btn px-3 py-2 text-sm">＋ 添加任务</a>
         </div>
