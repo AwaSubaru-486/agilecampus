@@ -22,6 +22,7 @@ const createTaskSchema = z.object({
   dueDate: z.iso.date("日期格式不正确").optional(),
   milestoneId: z.uuid().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  status: z.enum(["todo", "doing", "done"]).optional(),
 });
 
 export async function createTaskAction(
@@ -39,6 +40,7 @@ export async function createTaskAction(
     dueDate: raw.dueDate || undefined,
     milestoneId: raw.milestoneId || undefined,
     priority: raw.priority || undefined,
+    status: raw.status || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 

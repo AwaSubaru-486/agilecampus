@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
 import type { BoardTask } from "./board";
+import type { CardDensity } from "./board";
 
 export type Option = { id: string; name: string };
 type TaskOption = { id: string; title: string };
@@ -42,6 +43,7 @@ export function TaskCard({
   allTasks,
   allLabels,
   dependencies,
+  density = "comfortable",
 }: {
   task: BoardTask;
   projectId: string;
@@ -51,6 +53,7 @@ export function TaskCard({
   allTasks: TaskOption[];
   allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
+  density?: CardDensity;
 }) {
   const [editing, setEditing] = useState(false);
   const searchParams = useSearchParams();
@@ -86,7 +89,7 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`ac-card group relative select-none overflow-hidden p-3.5 text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full transition-[box-shadow,transform,opacity,border-color] duration-150 will-change-transform hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
+      className={`ac-card group relative select-none overflow-hidden ${density === "compact" ? "p-2.5" : "p-3.5"} text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full transition-[box-shadow,transform,opacity,border-color] duration-150 will-change-transform hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
         isDragging ? "scale-[0.98] opacity-20" : ""
       }`}
     >
@@ -113,7 +116,7 @@ export function TaskCard({
             {PRIORITY_LABEL[task.priority] ?? task.priority}
           </span>
         </p>
-        {task.labels.length > 0 && (
+        {density === "comfortable" && task.labels.length > 0 && (
           <p className="mt-1 flex flex-wrap items-center gap-1">
             {task.labels.slice(0, 3).map((l) => (
               <span
@@ -128,15 +131,15 @@ export function TaskCard({
             )}
           </p>
         )}
-        {task.description && (
+        {density === "comfortable" && task.description && (
           <p className="mt-1 text-xs text-ink-soft line-clamp-2">{task.description}</p>
         )}
-        {task.status === "done" && task.completionNote && (
+        {density === "comfortable" && task.status === "done" && task.completionNote && (
           <p className="mt-1 rounded bg-done/10 px-2 py-1 text-xs text-done">
             完成情况：{task.completionNote}
           </p>
         )}
-        {successorTitles.length > 0 && (
+        {density === "comfortable" && successorTitles.length > 0 && (
           <p className="mt-1 text-xs text-ink-faint">后置：{successorTitles.join("、")}</p>
         )}
       </div>

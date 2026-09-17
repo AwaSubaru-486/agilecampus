@@ -17,6 +17,7 @@ export function NewTaskForm({
     null,
   );
   const [open, setOpen] = useState(false);
+  const [targetStatus, setTargetStatus] = useState<"todo" | "doing" | "done">("todo");
   const titleRef = useRef<HTMLInputElement>(null);
   const created = Boolean(state && "ok" in state);
 
@@ -39,7 +40,19 @@ export function NewTaskForm({
     return () => window.removeEventListener("keydown", openComposer);
   }, []);
 
+  useEffect(() => {
+    function openForColumn(event: Event) {
+      const status = (event as CustomEvent<{ status?: "todo" | "doing" | "done" }>).detail?.status;
+      setTargetStatus(status ?? "todo");
+      setOpen(true);
+      requestAnimationFrame(() => titleRef.current?.focus());
+    }
+    window.addEventListener("agilecampus:new-task", openForColumn);
+    return () => window.removeEventListener("agilecampus:new-task", openForColumn);
+  }, []);
+
   function begin() {
+    setTargetStatus("todo");
     setOpen(true);
     requestAnimationFrame(() => titleRef.current?.focus());
   }
@@ -65,6 +78,12 @@ export function NewTaskForm({
           className="ac-card space-y-3 p-3"
         >
           <input type="hidden" name="projectId" value={projectId} />
+          <input type="hidden" name="status" value={targetStatus} />
+          {targetStatus !== "todo" && (
+            <p className="text-xs font-medium text-primary">
+              将添加到“{targetStatus === "doing" ? "进行中" : "已完成"}”
+            </p>
+          )}
           <div className="flex items-center gap-2">
             <input
               ref={titleRef}

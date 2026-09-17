@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -31,6 +31,9 @@ export type BoardTask = {
   labels: { id: string; name: string; color: string }[];
 };
 
+type ViewMode = "board" | "list";
+export type CardDensity = "comfortable" | "compact";
+
 function Column({
   column,
   tasks,
@@ -41,6 +44,8 @@ function Column({
   allTasks,
   allLabels,
   dependencies,
+  viewMode,
+  density,
 }: {
   column: BoardColumn;
   tasks: BoardTask[];
@@ -51,13 +56,15 @@ function Column({
   allTasks: { id: string; title: string }[];
   allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
+  viewMode: ViewMode;
+  density: CardDensity;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
 
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-48 w-[19rem] shrink-0 space-y-2.5 rounded-2xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+      className={`${viewMode === "list" ? "w-full" : "w-[19rem] shrink-0"} min-h-48 space-y-2.5 rounded-2xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-200 ${
         isOver
           ? "scale-[1.01] border-primary bg-primary-soft shadow-[0_0_0_3px_var(--color-primary-ring)]"
           : "border-line bg-[#f1f3f7]"
@@ -70,24 +77,40 @@ function Column({
         </h3>
         <span className="grid min-w-5 place-items-center rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink-soft shadow-sm">{tasks.length}</span>
       </div>
-      {tasks.map((t) => (
-        <TaskCard
-          key={t.id}
-          task={t}
-          projectId={projectId}
-          canWrite={canWrite}
-          members={members}
-          milestones={milestones}
-          allTasks={allTasks}
-          allLabels={allLabels}
-          dependencies={dependencies}
-        />
-      ))}
-      {tasks.length === 0 && (
-        <div className="rounded-xl border border-dashed border-line-strong bg-surface/40 px-3 py-8 text-center">
-          <p className="text-xs text-ink-faint">这里还没有任务</p>
-          {canWrite && <a href="#quick-task" className="mt-1 inline-block text-xs text-primary hover:underline">添加一项</a>}
-        </div>
+      <div className={viewMode === "list" ? "grid gap-2 md:grid-cols-2 xl:grid-cols-3" : "space-y-2.5"}>
+        {tasks.map((t) => (
+          <TaskCard
+            key={t.id}
+            task={t}
+            projectId={projectId}
+            canWrite={canWrite}
+            members={members}
+            milestones={milestones}
+            allTasks={allTasks}
+            allLabels={allLabels}
+            dependencies={dependencies}
+            density={density}
+          />
+        ))}
+        {tasks.length === 0 && (
+          <div className="rounded-xl border border-dashed border-line-strong bg-surface/40 px-3 py-8 text-center">
+            <p className="text-xs text-ink-faint">这里还没有任务</p>
+          </div>
+        )}
+      </div>
+      {canWrite && column.patch.status && (
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("agilecampus:new-task", {
+              detail: { status: column.patch.status },
+            }));
+            document.getElementById("quick-task")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+          className="w-full rounded-lg px-2 py-1.5 text-left text-xs text-ink-faint transition hover:bg-surface hover:text-primary"
+        >
+          ＋ 在“{column.label}”添加任务
+        </button>
       )}
     </div>
   );
@@ -117,6 +140,8 @@ export function Board({
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("board");
+  const [density, setDensity] = useState<CardDensity>("comfortable");
   const [optimisticTasks, moveOptimistic] = useOptimistic(
     tasks,
     (current, move: { taskId: string; patch: ColumnPatch }) =>
@@ -127,6 +152,19 @@ export function Board({
   );
 
   const columns = deriveColumns(groupBy, { members, milestones });
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
+      if (event.key === "1") setViewMode("board");
+      if (event.key === "2") setViewMode("list");
+      if (event.key.toLowerCase() === "f") setDensity("comfortable");
+      if (event.key.toLowerCase() === "m") setDensity("compact");
+    }
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
@@ -163,8 +201,19 @@ export function Board({
       onDragEnd={handleDragEnd}
     >
       {error && <p className="text-sm text-high">{error}</p>}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-1.5 shadow-sm">
+        <div className="flex items-center gap-1" aria-label="任务视图">
+          <ModeButton active={viewMode === "board"} onClick={() => setViewMode("board")} hint="1">看板</ModeButton>
+          <ModeButton active={viewMode === "list"} onClick={() => setViewMode("list")} hint="2">列表</ModeButton>
+        </div>
+        <div className="flex items-center gap-1" aria-label="卡片密度">
+          <span className="mr-1 text-[10px] font-medium text-ink-faint">卡片密度</span>
+          <ModeButton active={density === "comfortable"} onClick={() => setDensity("comfortable")} hint="F">完整</ModeButton>
+          <ModeButton active={density === "compact"} onClick={() => setDensity("compact")} hint="M">紧凑</ModeButton>
+        </div>
+      </div>
       {/* 列数随分组维度而变，故横向滚动而非固定三栏 */}
-      <div className="flex gap-3 overflow-x-auto pb-3 [scrollbar-width:thin]">
+      <div className={`${viewMode === "list" ? "flex-col" : "overflow-x-auto"} flex gap-3 pb-3 [scrollbar-width:thin]`}>
         {columns.map((col) => (
           <Column
             key={col.key}
@@ -177,6 +226,8 @@ export function Board({
             allTasks={allTasks}
             allLabels={allLabels}
             dependencies={dependencies}
+            viewMode={viewMode}
+            density={density}
           />
         ))}
       </div>
@@ -197,5 +248,28 @@ export function Board({
         )}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  hint,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${active ? "bg-ink text-white" : "text-ink-soft hover:bg-sunken"}`}
+    >
+      {children}<span className={`ml-1 text-[9px] ${active ? "text-white/45" : "text-ink-faint"}`}>{hint}</span>
+    </button>
   );
 }

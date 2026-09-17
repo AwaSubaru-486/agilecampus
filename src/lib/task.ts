@@ -65,6 +65,7 @@ export async function createTask(
     dueDate?: string;
     milestoneId?: string;
     priority?: TaskPriority;
+    status?: TaskStatus;
     parentTaskId?: string;
   },
   opts?: { tx?: DbTx },
@@ -88,6 +89,7 @@ export async function createTask(
       milestoneId: input.milestoneId,
       parentTaskId: input.parentTaskId,
       priority: input.priority ?? "medium",
+      status: input.status ?? "todo",
       sortOrder: Date.now(),
     })
     .returning();
