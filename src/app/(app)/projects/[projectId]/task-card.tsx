@@ -10,6 +10,7 @@ import {
   type UpdateTaskState,
 } from "./actions";
 import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
+import { isCompleted, isInFlight } from "@/lib/task-status";
 import type { BoardTask } from "./board";
 import type { CardDensity } from "./board";
 
@@ -134,9 +135,15 @@ export function TaskCard({
         {density === "comfortable" && task.description && (
           <p className="mt-1 text-xs text-ink-soft line-clamp-2">{task.description}</p>
         )}
-        {density === "comfortable" && task.status === "done" && task.completionNote && (
-          <p className="mt-1 rounded bg-done/10 px-2 py-1 text-xs text-done">
-            完成情况：{task.completionNote}
+        {/* 提交验收时正是要填完成说明的时刻，故只要交出去了（含待验收）就得显示，
+            不能等到 done——否则成员填了却看不见自己填了什么 */}
+        {density === "comfortable" && !isInFlight(task.status) && task.completionNote && (
+          <p
+            className={`mt-1 rounded px-2 py-1 text-xs ${
+              isCompleted(task.status) ? "bg-done/10 text-done" : "bg-review-soft text-review"
+            }`}
+          >
+            {isCompleted(task.status) ? "完成情况" : "已提交"}：{task.completionNote}
           </p>
         )}
         {density === "comfortable" && successorTitles.length > 0 && (

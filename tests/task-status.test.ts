@@ -10,11 +10,62 @@ import {
   emptyByStatus,
   statusLabel,
   isCompleted,
+  isInReview,
   isTerminal,
   isActive,
   isInFlight,
+  canTransition,
+  assertTransition,
   type TaskStatus,
 } from "@/lib/task-status";
+
+describe("状态转移", () => {
+  const ROLES = ["admin", "teacher", "student"] as const;
+
+  it("四档都承认自己是自己", () => {
+    for (const from of TASK_STATUSES)
+      for (const role of ROLES) expect(canTransition(from, from, role)).toBe(true);
+  });
+
+  // 本项目的核心那条边：学生做完只能交出去，判完成的权力在组长与教师手里。
+  // 排除 from === "done"：那在同档判真之前就已返回，属无操作而非转移。
+  it("学生推不动任何一个任务到 done", () => {
+    for (const from of TASK_STATUSES)
+      if (from !== "done") expect(canTransition(from, "done", "student")).toBe(false);
+  });
+
+  it("组长与教师可直接判 done", () => {
+    for (const from of TASK_STATUSES)
+      for (const role of ["admin", "teacher"] as const)
+        expect(canTransition(from, "done", role)).toBe(true);
+  });
+
+  it("打回与重开都走得通", () => {
+    expect(canTransition("review", "doing", "admin")).toBe(true); // 退回修改
+    expect(canTransition("done", "doing", "student")).toBe(true); // 重开
+  });
+
+  it("待验收只去往 doing 或 done，回不到待办", () => {
+    expect(canTransition("review", "todo", "admin")).toBe(false);
+  });
+
+  it("学生可从待办直提交验收，但不可直跳完成", () => {
+    expect(canTransition("todo", "done", "student")).toBe(false);
+    expect(canTransition("todo", "review", "student")).toBe(true);
+  });
+
+  it("非法转移的提示是给人看的话", () => {
+    expect(() => assertTransition("doing", "done", "student")).toThrow(
+      "任务须先提交验收，由组长或教师通过后才能标记完成",
+    );
+    expect(() => assertTransition("review", "todo", "admin")).toThrow("不能将任务由");
+  });
+
+  it("合法转移不抛", () => {
+    expect(() => assertTransition("doing", "review", "student")).not.toThrow();
+    expect(() => assertTransition("review", "done", "teacher")).not.toThrow();
+  });
+});
 
 describe("状态单一真相源", () => {
   // 这条是防漂移的闸门：lib/task-status.ts 定义常量，db/schema.ts 由此建 pgEnum。
@@ -74,12 +125,28 @@ describe("状态谓词", () => {
     }
   });
 
+  it("isInReview 只认待验收", () => {
+    expect(isInReview("review")).toBe(true);
+    expect(isInReview("doing")).toBe(false);
+    expect(isInReview("done")).toBe(false);
+  });
+
   // 成员负荷的口径：任务交出待验收后，负责人肩上不该再计它。
-  // 此断言把「在办」钉死在收活阶段，日后引入验收档时若误改成含 review，此处即红。
+  // 此断言把「在办」钉死在收活阶段，若日后误改成把 review 也算进来，此处即红。
   it("isInFlight 只算人还攥在手里的活", () => {
     expect(isInFlight("todo")).toBe(true);
     expect(isInFlight("doing")).toBe(true);
+    expect(isInFlight("review")).toBe(false);
     expect(isInFlight("done")).toBe(false);
+  });
+
+  // 三个谓词恰好把四档分完：进度、负荷、待验收各管一段，互不重叠也不遗漏。
+  // 谁若把它们合并成一个 isClosed，此断言立刻报出重复计数。
+  it("三谓词穷尽且互斥地划分四档", () => {
+    for (const s of TASK_STATUSES) {
+      const hits = [isInFlight(s), isInReview(s), isCompleted(s)].filter(Boolean);
+      expect(hits).toHaveLength(1);
+    }
   });
 });
 

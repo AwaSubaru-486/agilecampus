@@ -1,3 +1,6 @@
+import { isActive, isCompleted, isInFlight } from "@/lib/task-status";
+import { today } from "@/lib/today";
+
 type SummaryTask = {
   id: string;
   title: string;
@@ -32,20 +35,22 @@ export function ProjectSummary({
   currentUserId: string;
   tasks: SummaryTask[];
 }) {
-  const today = new Date().toLocaleDateString("sv-SE");
-  const soonDate = new Date(`${today}T00:00:00`);
+  const day = today();
+  const soonDate = new Date(`${day}T00:00:00`);
   soonDate.setDate(soonDate.getDate() + 7);
   const inSevenDays = soonDate.toLocaleDateString("sv-SE");
-  const done = tasks.filter((task) => task.status === "done").length;
-  const active = tasks.length - done;
-  const mine = tasks.filter((task) => task.status !== "done" && task.assigneeId === currentUserId);
+  // 进度分子只认已验收：待验收的活交出去了但没判过，算它完成会让进度虚高
+  const done = tasks.filter((task) => isCompleted(task.status)).length;
+  // 在办＝人还攥在手里的活，不含待验收（那已交到验收人手上）
+  const active = tasks.filter((task) => isInFlight(task.status)).length;
+  const mine = tasks.filter((task) => isInFlight(task.status) && task.assigneeId === currentUserId);
   const dueSoon = tasks.filter(
-    (task) => task.status !== "done" && task.dueDate && task.dueDate >= today && task.dueDate <= inSevenDays,
+    (task) => isActive(task.status) && task.dueDate && task.dueDate >= day && task.dueDate <= inSevenDays,
   );
   const overdue = tasks.filter(
-    (task) => task.status !== "done" && task.dueDate && task.dueDate < today,
+    (task) => isActive(task.status) && task.dueDate && task.dueDate < day,
   );
-  const unassigned = tasks.filter((task) => task.status !== "done" && !task.assigneeId);
+  const unassigned = tasks.filter((task) => isInFlight(task.status) && !task.assigneeId);
   const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
 
   return (

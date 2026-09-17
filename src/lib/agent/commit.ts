@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { createMilestone, createProject, getProjectForUser } from "@/lib/project";
 import { createTask, listProjectTasks, updateTask } from "@/lib/task";
 import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
-import { TASK_STATUSES } from "@/lib/task-status";
+import { TASK_STATUSES, canTransition, isCompleted } from "@/lib/task-status";
 import { ForbiddenError } from "@/lib/errors";
 import type { WriteToolName } from "./tools";
 
@@ -93,6 +93,14 @@ export async function commitDraft(
           conflicts.push(u.taskId);
           return false;
         }
+        // 状态转移非法者亦推入 conflicts，不拖累同批其余项。
+        // 否则一批八条里一条非法，整批事务回滚、其余七条白做，
+        // 且用户只看到一句笼统的失败。此举复用既有概念，界面上仍是「有 N 项未落库」。
+        const prev = prevStatus.get(u.taskId);
+        if (prev && u.patch.status !== undefined && !canTransition(prev, u.patch.status, access.role)) {
+          conflicts.push(u.taskId);
+          return false;
+        }
         return true;
       });
       const updatedRows = await db.transaction(async (tx) => {
@@ -102,7 +110,7 @@ export async function commitDraft(
       });
       // 事务提交后补发完成通知：状态由非 done 转 done 者，知会创建者
       for (const t of updatedRows) {
-        if (t.status === "done" && prevStatus.get(t.id) !== "done")
+        if (isCompleted(t.status) && !isCompleted(prevStatus.get(t.id) ?? ""))
           void notifyTaskCompleted(t, actorId);
       }
       return { committed: updatedRows.length, conflicts };

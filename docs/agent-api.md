@@ -39,9 +39,13 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/tasks" \
   -d '{"projectId":"...","title":"撰写调研问卷","priority":"high"}'
 ```
 
-### 2. 填写完成情况 — `POST /api/agent/tasks/complete`
+### 2. 提交成果 — `POST /api/agent/tasks/complete`
 
-将任务标记为 `done` 并附完成说明。
+将任务置为 `review`（待验收）并附完成说明。
+
+> **契约已变更**：此前此处直跳 `done`。引入验收档后改为提交语义——
+> 判断完成的权力归组长或教师，外部程序携令牌也不能替人自证。
+> 验收走 `POST /api/agent/tasks/review`。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
@@ -104,7 +108,7 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/projects" \
 ```bash
 curl "$AGILECAMPUS_URL/api/agent/projects/$PID" -H "Authorization: Bearer $AGILECAMPUS_TOKEN"
 # → {"id":"...","name":"赤壁演习","status":"active","myRole":"admin","taskTotal":12,
-#     "byStatus":{"todo":5,"doing":2,"done":5},
+#     "byStatus":{"todo":5,"doing":2,"review":1,"done":5},
 #     "milestones":[{"id":"...","title":"中期答辩","status":"open","targetDate":"2026-09-01"}]}
 ```
 
@@ -127,7 +131,7 @@ curl -X PATCH "$AGILECAMPUS_URL/api/agent/projects/$PID" \
 
 ### 8. 列项目下的任务 — `GET /api/agent/projects/{projectId}/tasks`
 
-可选查询参数：`status`（`todo`/`doing`/`done`）、`assigneeId`（uuid）、`dueBefore`（`YYYY-MM-DD`，含当日）。
+可选查询参数：`status`（`todo`/`doing`/`review`/`done`）、`assigneeId`（uuid）、`dueBefore`（`YYYY-MM-DD`，含当日）。
 
 ```bash
 curl "$AGILECAMPUS_URL/api/agent/projects/$PID/tasks?status=todo" \

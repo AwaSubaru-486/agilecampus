@@ -77,7 +77,7 @@ describe("POST /api/agent/tasks", () => {
 describe("POST /api/agent/tasks/complete", () => {
   beforeEach(resetDb);
 
-  it("填完成情况：status=done + completionNote", async () => {
+  it("提交成果：落入待验收 + completionNote，不再直跳完成", async () => {
     const { owner, project, token } = await scene();
     const created = await tasksRoute(req({ projectId: project.id, title: "待办" }, token));
     expect(created.status).toBe(200);
@@ -87,8 +87,11 @@ describe("POST /api/agent/tasks/complete", () => {
       req({ taskId: task.id, completionNote: "已跑通演武" }, token),
     );
     expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe("review");
     const [after] = await listProjectTasks(owner.id, project.id);
-    expect(after.status).toBe("done");
+    // 此处由 done 改判为 review：判断完成的权力归组长或教师，
+    // 外部程序携令牌也不能替人自证。验收走 POST /api/agent/tasks/review
+    expect(after.status).toBe("review");
     expect(after.completionNote).toBe("已跑通演武");
   });
 

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
+import { isActive } from "@/lib/task-status";
 
 const DAY = 86_400_000;
 
@@ -145,15 +146,19 @@ function Gantt({
   };
   for (const m of milestones) ensure(m.id, m.title);
 
+  // 补 review 一色。兜底仍在（见下方 ?? "bg-todo"），但那是给未知状态用的，
+  // 加档时若忘了往这里补，后果是静默错色而非报错——故改档位时务必回来核一眼。
   const STATUS_BAR: Record<string, string> = {
     todo: "bg-todo",
     doing: "bg-doing",
+    review: "bg-review",
     done: "bg-done",
   };
 
   for (const { task, start, end } of scheduled) {
+    // 待验收仍算逾期：活没过验收就没交付完
     const overdue =
-      task.status !== "done" && task.dueDate !== null && (parseDay(task.dueDate) ?? 0) < todayMs;
+      isActive(task.status) && task.dueDate !== null && (parseDay(task.dueDate) ?? 0) < todayMs;
     const bar: Bar = {
       id: task.id,
       title: task.title,
@@ -226,6 +231,7 @@ function Gantt({
       <div className="flex flex-wrap items-center gap-4 border-t border-line px-4 py-2 text-[11px] text-ink-soft">
         <Legend cls="bg-todo" label="待办" />
         <Legend cls="bg-doing" label="进行中" />
+        <Legend cls="bg-review" label="待验收" />
         <Legend cls="bg-done" label="已完成" />
         <Legend cls="bg-high" label="逾期" />
         <span className="flex items-center gap-1">

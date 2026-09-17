@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks, users, projects } from "@/db/schema";
 import { sendCardMessage } from "./feishu";
@@ -91,7 +91,10 @@ export async function scanAndNotifyDue(): Promise<{ notified: number; tasksScann
     .innerJoin(users, eq(tasks.assigneeId, users.id))
     .where(
       and(
-        ne(tasks.status, "done"),
+        // 只催在办的活。待验收的不催负责人——球已交到验收人脚下，
+        // 此时催他等于系统不懂他干了什么，比不催更伤。
+        // 待验收的催办归验收人，随「验收」一图补上。
+        inArray(tasks.status, ["todo", "doing"]),
         isNotNull(tasks.dueDate),
         isNotNull(users.feishuOpenId),
         // dueDate <= 明日（date 列与 CURRENT_DATE 比较）

@@ -15,7 +15,7 @@ import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership } from "./team";
 import { getProjectForUser } from "./project";
 import { notifyTaskAssigned, notifyTaskCompleted } from "./notify";
-import { DEFAULT_STATUS } from "./task-status";
+import { DEFAULT_STATUS, assertTransition, isCompleted } from "./task-status";
 import { describe, recordEvent } from "./activity";
 import type { ActivityType } from "@/db/schema";
 
@@ -28,10 +28,40 @@ async function requireProjectAccess(actorId: string, projectId: string) {
   return access;
 }
 
-// 供 lib/label.ts 复用：贴标签属任务写操作，权限口径须与 createTask/updateTask 一致
+// 供 lib/label.ts 复用：贴标签属任务写操作，权限口径须与 createTask/updateTask 一致。
+// ⚠️ 语义与签名冻结，勿动——lib/label.ts 依赖它。收窄或放宽都会连带改动贴标签权限。
 export async function requireTaskWrite(actorId: string, projectId: string) {
   const access = await requireProjectAccess(actorId, projectId);
   if (!TASK_WRITE_ROLES.includes(access.role)) throw new ForbiddenError();
+  return access;
+}
+
+// 执行类动作（认领、提交成果）：负责人本人，或 admin 代操作。
+// teacher 被拒——验收人不能同时是提交人，这条边界是「学生可自证」的前提。
+export async function requireTaskExecution(
+  actorId: string,
+  task: { projectId: string; assigneeId: string | null },
+) {
+  const access = await requireProjectAccess(actorId, task.projectId);
+  if (access.role === "admin") return access;
+  if (task.assigneeId !== actorId) throw new ForbiddenError("只有任务负责人本人可以执行此操作");
+  return access;
+}
+
+// 验收类动作（通过、退回）：admin 或 teacher。
+// teacher 由此从纯只读升为可验收——这是全项目里教师第一次拿到写入能力，
+// 也正是开题报告「组长或教师进行验收或退回」那句的落点。
+export async function requireTaskReview(actorId: string, projectId: string) {
+  const access = await requireProjectAccess(actorId, projectId);
+  if (access.role !== "admin" && access.role !== "teacher")
+    throw new ForbiddenError("只有组长或教师可以验收任务");
+  return access;
+}
+
+// 阻塞上报：admin 或 student。teacher 不报自身阻塞（他不是干活的人）。
+export async function requireTaskReport(actorId: string, projectId: string) {
+  const access = await requireProjectAccess(actorId, projectId);
+  if (access.role === "teacher") throw new ForbiddenError();
   return access;
 }
 
@@ -150,9 +180,13 @@ export async function updateTask(
   const [task] = await exec.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
 
+  // 顺序不可易：先权限，再归属，最后状态机。
+  // 若状态机前置，「无权限者改状态」会得到状态机文案而非「没有权限」，
+  // 既是信息泄露，也会让 tests/task.test.ts 的越权断言失准。
   const access = await requireTaskWrite(actorId, task.projectId);
   if (patch.assigneeId) await validateAssignee(access.project.teamId, patch.assigneeId);
   if (patch.milestoneId) await validateMilestone(task.projectId, patch.milestoneId);
+  if (patch.status !== undefined) assertTransition(task.status, patch.status, access.role);
 
   // 显式白名单构造，勿用 ...patch 展开：运行时宽对象可夹带 projectId/sortOrder 等越权字段
   const [updated] = await exec
@@ -210,8 +244,10 @@ export async function updateTask(
   if (!opts?.tx) {
     // 改派：通知新负责人
     if (patch.assigneeId && patch.assigneeId !== task.assigneeId) void notifyTaskAssigned(updated);
-    // 完成：通知创建者(≠操作者)
-    if (patch.status === "done" && task.status !== "done") void notifyTaskCompleted(updated, actorId);
+    // 完成：通知创建者(≠操作者)。注意是「转为已完成」才发——
+    // 提交验收（→review）只算交活，不该惊动创建者
+    if (patch.status !== undefined && isCompleted(patch.status) && !isCompleted(task.status))
+      void notifyTaskCompleted(updated, actorId);
   }
   return updated;
 }

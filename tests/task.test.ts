@@ -106,9 +106,12 @@ describe("updateTask", () => {
     const { owner, team, student, project } = await scene();
     const other = await createProject(owner.id, team.id, { name: "另一项目" });
     const t = await createTask(student.id, project.id, { title: "任务" });
-    const evil = { status: "done", projectId: other.id, sortOrder: -1 } as Parameters<typeof updateTask>[2];
+    // 用 doing 而非 done：本用例考的是「越权字段不被写入」，
+    // 与目标档位无关；而 done 会被状态机拦下（学生不得自证完成），
+    // 拦在前头就测不到越权字段这条了。
+    const evil = { status: "doing", projectId: other.id, sortOrder: -1 } as Parameters<typeof updateTask>[2];
     const updated = await updateTask(student.id, t.id, evil);
-    expect(updated.status).toBe("done");
+    expect(updated.status).toBe("doing");
     expect(updated.projectId).toBe(project.id);  // 未被挪走
     expect(updated.sortOrder).toBe(t.sortOrder); // 未被篡改
   });

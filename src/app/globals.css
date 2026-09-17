@@ -23,6 +23,9 @@
   /* 语义 · 看板列 */
   --color-todo: #8692a3;
   --color-doing: #315cf5;
+  /* 待验收取紫：琥珀已被 --color-medium 占作中优先级，同色则「待验收」与「中优先级」两义相混 */
+  --color-review: #7a5af8;
+  --color-review-soft: #f1edff;
   --color-done: #168a63;
 
   /* 语义 · 优先级 */

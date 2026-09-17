@@ -128,7 +128,8 @@ describe("GET /api/agent/projects/:projectId", () => {
     expect(body.name).toBe("赤壁演习");
     expect(body.myRole).toBe("admin");
     expect(body.taskTotal).toBe(1);
-    expect(body.byStatus).toEqual({ todo: 1, doing: 0, done: 0 });
+    // review 键随验收档新增——对外 API 契约变更，docs/agent-api.md 同步
+    expect(body.byStatus).toEqual({ todo: 1, doing: 0, review: 0, done: 0 });
   });
 
   it("非成员 → 403", async () => {
