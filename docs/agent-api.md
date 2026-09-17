@@ -59,6 +59,27 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/tasks/complete" \
   -d '{"taskId":"...","completionNote":"已跑通全部演武，79 战皆捷"}'
 ```
 
+### 2b. 验收任务 — `POST /api/agent/tasks/review`
+
+通过则落 `done`，退回则回 `doing` 并计入一次返工。**主体限组长或教师**，学生调用返回 403。
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `taskId` | uuid | 是 | 目标任务，须处于 `review` |
+| `decision` | `accept`\|`reject` | 是 | 通过 / 退回 |
+| `note` | string | 退回时必填 | 验收意见；退回不写理由会被拒 |
+
+```bash
+curl -X POST "$AGILECAMPUS_URL/api/agent/tasks/review" \
+  -H "Authorization: Bearer $AGILECAMPUS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"taskId":"...","decision":"reject","note":"样本量不够，补到 100 份"}'
+# → { "id": "...", "status": "doing", "rejectCount": 1 }
+```
+
+> 另有两条规则在此收口：不能验收**自己交付**的任务（教师既干活又当验收时亦然）；
+> 提交人不能是验收人。两条都是为了让「验收」不只是走个过场。
+
 ### 3. 登记资源占用 — `POST /api/agent/resource-usage`
 
 | 字段 | 类型 | 必填 | 说明 |

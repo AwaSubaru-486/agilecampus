@@ -4,13 +4,16 @@ import { useActionState, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import {
+  claimTaskAction,
   deleteTaskAction,
+  reviewTaskAction,
+  submitTaskAction,
   updateTaskAction,
   type FormState,
   type UpdateTaskState,
 } from "./actions";
 import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
-import { isCompleted, isInFlight } from "@/lib/task-status";
+import { isCompleted, isInFlight, isInReview } from "@/lib/task-status";
 import type { BoardTask } from "./board";
 import type { CardDensity } from "./board";
 
@@ -39,6 +42,8 @@ export function TaskCard({
   task,
   projectId,
   canWrite,
+  canReview,
+  currentUserId,
   members,
   milestones,
   allTasks,
@@ -49,6 +54,9 @@ export function TaskCard({
   task: BoardTask;
   projectId: string;
   canWrite: boolean;
+  /** 组长或教师：可验收。与 canWrite 并列而非包含——教师能验收却仍不能编辑 */
+  canReview: boolean;
+  currentUserId: string;
   members: Option[];
   milestones: Option[];
   allTasks: TaskOption[];
@@ -57,6 +65,16 @@ export function TaskCard({
   density?: CardDensity;
 }) {
   const [editing, setEditing] = useState(false);
+  // 动作面板：同一时刻只开一个。null 表示无
+  const [panel, setPanel] = useState<null | "claim" | "submit" | "review">(null);
+
+  // 三枚动作各按「我能不能做这件事」判定。做不了的不显示，
+  // 比显示了再报错友好——尤其对初次使用的人。
+  const isMine = task.assigneeId === currentUserId;
+  const canClaim = canWrite && isInFlight(task.status) && !task.assigneeId;
+  const canSubmit = isMine && isInFlight(task.status);
+  // 不能验收自己的活：既不能自证，也不能自判
+  const canReviewThis = canReview && isInReview(task.status) && !isMine;
   const searchParams = useSearchParams();
   // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）。
   // 于渲染期调整而非 useEffect：避免多渲染一轮，且用户手动关闭后不会被 effect 重开。
@@ -149,26 +167,155 @@ export function TaskCard({
         {density === "comfortable" && successorTitles.length > 0 && (
           <p className="mt-1 text-xs text-ink-faint">后置：{successorTitles.join("、")}</p>
         )}
+        {/* 承诺常驻展示——这是「承诺」这个概念唯一能被看见的地方。
+            紧凑态省掉，免得卡片过高 */}
+        {density === "comfortable" && task.commitmentNote && (
+          <p className="mt-1.5 rounded border-l-2 border-primary/40 bg-primary-soft/50 px-2 py-1 text-xs text-ink-soft">
+            <span className="text-ink-faint">承诺</span> {task.commitmentNote}
+            {task.estimatedHours ? (
+              <span className="ml-1 text-ink-faint">· 预估 {task.estimatedHours} 小时</span>
+            ) : null}
+          </p>
+        )}
+        {/* 退回意见要显眼：成员最需要知道的就是「哪里不行」 */}
+        {task.status === "doing" && task.reviewNote && (
+          <p className="mt-1.5 rounded bg-high-soft px-2 py-1 text-xs text-high">
+            退回意见：{task.reviewNote}
+          </p>
+        )}
       </div>
 
-      <div className="mt-3 flex items-center gap-3 border-t border-line pt-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-        {canWrite && (
+      <div className="mt-3 space-y-2 border-t border-line pt-2">
+        {/* 主行动区：做不了的动作不显示。这三枚是闭环的入口，
+            故常驻可见，不像下面两个次要链接那样要悬停才现身 */}
+        {(canClaim || canSubmit || canReviewThis) && (
+          <div className="flex flex-wrap gap-1.5">
+            {canClaim && (
+              <button
+                type="button"
+                onClick={() => setPanel(panel === "claim" ? null : "claim")}
+                className="ac-btn px-2.5 py-1 text-xs"
+              >
+                我接手
+              </button>
+            )}
+            {canSubmit && (
+              <button
+                type="button"
+                onClick={() => setPanel(panel === "submit" ? null : "submit")}
+                className="ac-btn px-2.5 py-1 text-xs"
+              >
+                提交成果
+              </button>
+            )}
+            {canReviewThis && (
+              <button
+                type="button"
+                onClick={() => setPanel(panel === "review" ? null : "review")}
+                className="ac-btn bg-review px-2.5 py-1 text-xs hover:bg-review/90"
+              >
+                验收
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+          {canWrite && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-xs text-ink-faint hover:text-primary hover:underline"
+            >
+              编辑
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={askAi}
             className="text-xs text-ink-faint hover:text-primary hover:underline"
           >
-            编辑
+            带此任务问 AI
           </button>
-        )}
-        <button
-          type="button"
-          onClick={askAi}
-          className="text-xs text-ink-faint hover:text-primary hover:underline"
-        >
-          带此任务问 AI
-        </button>
+        </div>
       </div>
+
+      {panel === "claim" && (
+        <ActionForm
+          action={claimTaskAction}
+          projectId={projectId}
+          taskId={task.id}
+          submitLabel="认下这件活"
+          onDone={() => setPanel(null)}
+          onCancel={() => setPanel(null)}
+        >
+          <label className="block space-y-1 text-xs text-ink-faint">
+            你打算怎么做？
+            <textarea
+              name="commitmentNote"
+              required
+              rows={2}
+              placeholder="一句话说清路径，事后好对照"
+              className="ac-field text-sm"
+            />
+          </label>
+          <label className="block space-y-1 text-xs text-ink-faint">
+            预估工时（小时，选填）
+            <input type="number" name="estimatedHours" min="0.5" step="0.5" className="ac-field text-sm" />
+          </label>
+        </ActionForm>
+      )}
+
+      {panel === "submit" && (
+        <ActionForm
+          action={submitTaskAction}
+          projectId={projectId}
+          taskId={task.id}
+          submitLabel="提交待验收"
+          onDone={() => setPanel(null)}
+          onCancel={() => setPanel(null)}
+        >
+          <label className="block space-y-1 text-xs text-ink-faint">
+            这次交付了什么？
+            <textarea
+              name="completionNote"
+              required
+              rows={2}
+              placeholder="验收人要凭这句话判断，请写清成果与去向"
+              className="ac-field text-sm"
+            />
+          </label>
+        </ActionForm>
+      )}
+
+      {panel === "review" && (
+        <ActionForm
+          action={reviewTaskAction}
+          projectId={projectId}
+          taskId={task.id}
+          submitLabel="提交验收结果"
+          onDone={() => setPanel(null)}
+          onCancel={() => setPanel(null)}
+        >
+          <label className="block space-y-1 text-xs text-ink-faint">
+            验收意见（退回时必填）
+            <textarea
+              name="note"
+              rows={2}
+              placeholder="退回请写明要改什么，否则成员只知道被否了"
+              className="ac-field text-sm"
+            />
+          </label>
+          <fieldset className="flex gap-3 text-xs text-ink-soft">
+            <label className="flex items-center gap-1">
+              <input type="radio" name="decision" value="accept" defaultChecked /> 通过
+            </label>
+            <label className="flex items-center gap-1">
+              <input type="radio" name="decision" value="reject" /> 退回修改
+            </label>
+          </fieldset>
+        </ActionForm>
+      )}
 
       {editing && (
         <EditModal
@@ -183,6 +330,58 @@ export function TaskCard({
         />
       )}
     </div>
+  );
+}
+
+// 承诺/提交/验收三个面板共用同一副骨架，只有字段与按钮文案不同。
+// 服务端 action 成功时返回 null，据此关闭面板——比让用户自己再点一次取消友好。
+function ActionForm({
+  action,
+  projectId,
+  taskId,
+  submitLabel,
+  onDone,
+  onCancel,
+  children,
+}: {
+  action: (prev: FormState, formData: FormData) => Promise<FormState>;
+  projectId: string;
+  taskId: string;
+  submitLabel: string;
+  onDone: () => void;
+  onCancel: () => void;
+  children: React.ReactNode;
+}) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
+    const res = await action(prev, fd);
+    if (!res) onDone();
+    return res;
+  }, null);
+
+  return (
+    <form action={formAction} className="mt-2 space-y-2 rounded-lg bg-sunken p-2.5">
+      <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="taskId" value={taskId} />
+      {children}
+      {state && "error" in state && (
+        <p aria-live="polite" className="text-xs text-high">
+          {state.error}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <button disabled={pending} className="ac-btn px-2.5 py-1 text-xs">
+          {pending ? "提交中…" : submitLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={pending}
+          className="text-xs text-ink-faint hover:text-primary"
+        >
+          取消
+        </button>
+      </div>
+    </form>
   );
 }
 

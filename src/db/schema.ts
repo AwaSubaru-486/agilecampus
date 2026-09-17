@@ -8,6 +8,7 @@ import {
   primaryKey,
   date,
   doublePrecision,
+  integer,
   index,
   jsonb,
   type AnyPgColumn,
@@ -123,6 +124,24 @@ export const tasks = pgTable(
     status: taskStatusEnum("status").notNull().default(DEFAULT_STATUS),
     priority: taskPriorityEnum("priority").notNull().default("medium"),
     sortOrder: doublePrecision("sort_order").notNull().default(0),
+
+    // --- 任务承诺：认领时由负责人填写，作为「他答应做什么」的基准 ---
+    // commitmentNote 是「我打算怎么做」的一句话计划，不是任务说明：
+    // description 由派活的人写，commitmentNote 由接活的人写，二者常不同。
+    commitmentNote: text("commitment_note"),
+    committedAt: timestamp("committed_at"),
+    estimatedHours: doublePrecision("estimated_hours"),
+
+    // --- 提交与验收 ---
+    submittedAt: timestamp("submitted_at"),
+    reviewedAt: timestamp("reviewed_at"),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewNote: text("review_note"),
+    // 被退回次数。贡献记录里「返工成本」一维的唯一来源，也是验收质量的逆向代理指标。
+    rejectCount: integer("reject_count").notNull().default(0),
+
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

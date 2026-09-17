@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import type { DbTx } from "@/db";
 import {
@@ -14,7 +14,12 @@ import {
 import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership } from "./team";
 import { getProjectForUser } from "./project";
-import { notifyTaskAssigned, notifyTaskCompleted } from "./notify";
+import {
+  notifyTaskAssigned,
+  notifyTaskCompleted,
+  notifyTaskReviewed,
+  notifyTaskSubmitted,
+} from "./notify";
 import { DEFAULT_STATUS, assertTransition, isCompleted } from "./task-status";
 import { describe, recordEvent } from "./activity";
 import type { ActivityType } from "@/db/schema";
@@ -318,6 +323,17 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,
       completionNote: tasks.completionNote,
+      // 承诺与验收诸字段：界面要靠它们决定「该显示哪个按钮」
+      // （我是不是负责人？我是不是创建者？这活是不是待我验收？）
+      createdById: tasks.createdById,
+      commitmentNote: tasks.commitmentNote,
+      committedAt: tasks.committedAt,
+      estimatedHours: tasks.estimatedHours,
+      submittedAt: tasks.submittedAt,
+      reviewedAt: tasks.reviewedAt,
+      reviewedById: tasks.reviewedById,
+      reviewNote: tasks.reviewNote,
+      rejectCount: tasks.rejectCount,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
@@ -402,6 +418,15 @@ export async function getTaskDetail(actorId: string, taskId: string) {
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,
       createdAt: tasks.createdAt,
+      createdById: tasks.createdById,
+      commitmentNote: tasks.commitmentNote,
+      committedAt: tasks.committedAt,
+      estimatedHours: tasks.estimatedHours,
+      submittedAt: tasks.submittedAt,
+      reviewedAt: tasks.reviewedAt,
+      reviewedById: tasks.reviewedById,
+      reviewNote: tasks.reviewNote,
+      rejectCount: tasks.rejectCount,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
@@ -410,6 +435,153 @@ export async function getTaskDetail(actorId: string, taskId: string) {
   await requireProjectAccess(actorId, row.projectId);
   const byTask = await labelsByTask([row.id]);
   return { ...row, labels: byTask.get(row.id) ?? [] };
+}
+
+// ============ 任务承诺与验收 ============
+//
+// 三段式：认领（承诺）→ 提交（交活）→ 验收（判）。三者是三条独立写路径，
+// 不走 updateTask：那条路的权限口径是「项目写权限」，而这三件事各有各的主体
+// （负责人本人 / 负责人本人 / 组长与教师），混在一起会让权限表越缠越乱。
+
+// 认领任务并立下承诺。
+//
+// 并发安全靠条件更新，不用「先查后写」——两人同抢一个未指派任务时，
+// 先查后写会双双通过检查。照 resource.ts 的 endResourceUsage 之形制：
+// WHERE 带前置条件，0 行即表示已被抢先。
+export async function claimTask(
+  actorId: string,
+  taskId: string,
+  input: { commitmentNote: string; estimatedHours?: number },
+) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+  await requireProjectAccess(actorId, task.projectId);
+  if (task.assigneeId && task.assigneeId !== actorId)
+    throw new AppError("该任务已有负责人，请先请对方移交");
+
+  const [claimed] = await db
+    .update(tasks)
+    .set({
+      assigneeId: actorId,
+      commitmentNote: input.commitmentNote,
+      estimatedHours: input.estimatedHours ?? null,
+      committedAt: sql`now()`,
+      // 未开始的活一经认领即进入进行中；已在进行中的不动档位
+      ...(task.status === "todo" && { status: "doing" as const }),
+      updatedAt: sql`now()`,
+    })
+    .where(
+      and(
+        eq(tasks.id, taskId),
+        // 空则可抢；已是自己的则可改承诺；他人持有一律 0 行
+        or(isNull(tasks.assigneeId), eq(tasks.assigneeId, actorId)),
+      ),
+    )
+    .returning();
+  // 0 行＝条件不成立，必是并发下被他人抢先
+  if (!claimed) throw new AppError("该任务刚被他人认领");
+
+  await recordEvent(db, {
+    projectId: task.projectId,
+    actorId,
+    type: "task_claimed",
+    taskId,
+    summary: describe.taskClaimed(claimed.title, input.commitmentNote),
+    payload: {
+      title: claimed.title,
+      commitmentNote: input.commitmentNote,
+      estimatedHours: input.estimatedHours ?? null,
+    },
+  });
+  if (task.assigneeId !== actorId) void notifyTaskAssigned(claimed);
+  return claimed;
+}
+
+// 提交成果，落入待验收。
+// 只有负责人本人（或 admin 代操作）可提交——这是「谁干的活谁交」。
+export async function submitTask(
+  actorId: string,
+  taskId: string,
+  input: { completionNote: string },
+) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+  await requireTaskExecution(actorId, task);
+  if (task.status === "review") throw new AppError("该任务已在待验收中");
+  if (task.status === "done") throw new AppError("该任务已通过验收，如需改动请先重开");
+  if (!input.completionNote.trim()) throw new AppError("请说明这次交付了什么");
+
+  const [updated] = await db
+    .update(tasks)
+    .set({
+      status: "review",
+      completionNote: input.completionNote,
+      submittedAt: sql`now()`,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(tasks.id, taskId))
+    .returning();
+  if (!updated) throw new AppError("任务不存在");
+
+  await recordEvent(db, {
+    projectId: task.projectId,
+    actorId,
+    type: "task_submitted",
+    taskId,
+    summary: describe.taskSubmitted(updated.title),
+    payload: { title: updated.title, completionNote: input.completionNote },
+  });
+  void notifyTaskSubmitted(updated);
+  return updated;
+}
+
+// 验收：通过则落 done，退回则回 doing 且计入一次返工。
+// 主体是组长或教师——这是全项目里教师第一次能写。
+export async function reviewTask(
+  actorId: string,
+  taskId: string,
+  input: { decision: "accept" | "reject"; note?: string },
+) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+  await requireTaskReview(actorId, task.projectId);
+  if (task.status !== "review") throw new AppError("该任务不在待验收状态");
+  // 不能验收自己交付的活。教师若恰好也是这份任务的负责人，就该由别人来判——
+  // 否则「验收」二字形同虚设，学生自证与教师自证并无分别。
+  if (task.assigneeId === actorId) throw new AppError("不能验收自己交付的任务");
+
+  const accepted = input.decision === "accept";
+  // 退回必填理由：没写理由的退回，成员只知道被否了，不知道改什么
+  if (!accepted && !input.note?.trim()) throw new AppError("退回时请写明需要改什么");
+
+  const [updated] = await db
+    .update(tasks)
+    .set({
+      status: accepted ? "done" : "doing",
+      reviewedAt: sql`now()`,
+      reviewedById: actorId,
+      reviewNote: input.note ?? null,
+      ...(accepted ? {} : { rejectCount: sql`${tasks.rejectCount} + 1` }),
+      updatedAt: sql`now()`,
+    })
+    .where(eq(tasks.id, taskId))
+    .returning();
+  if (!updated) throw new AppError("任务不存在");
+
+  await recordEvent(db, {
+    projectId: task.projectId,
+    actorId,
+    type: accepted ? "task_accepted" : "task_rejected",
+    taskId,
+    summary: accepted
+      ? describe.taskAccepted(updated.title)
+      : describe.taskRejected(updated.title, input.note ?? ""),
+    payload: { title: updated.title, note: input.note ?? null },
+  });
+  // 通过时才通知创建者「完成了」——退回走另一张卡片
+  if (accepted) void notifyTaskCompleted(updated, actorId);
+  void notifyTaskReviewed(updated, input.decision, input.note ?? null, actorId);
+  return updated;
 }
 
 // 设置 predecessor 的后置任务（先删旧再插新）。简单关联：仅防直接成环，不强制阻断执行。

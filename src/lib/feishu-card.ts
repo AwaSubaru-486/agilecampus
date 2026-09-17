@@ -21,6 +21,8 @@ function field(content: string, isShort = true) {
   return { is_short: isShort, text: { tag: "lark_md", content } };
 }
 
+// 只用跳转按钮（url），不做回调按钮：回调须配合飞书事件订阅端点，
+// 本项目不做（产品决策见实施方案）。
 function detailButton(projectId: string, taskId: string, label = "查看详情") {
   return {
     tag: "action",
@@ -56,6 +58,48 @@ export function buildCompletedCard(t: CardTask) {
         field(`**任务**\n${t.title}`, false),
         field(`**项目**\n${t.projectName}`),
         field(`**完成情况**\n${t.completionNote ?? "—"}`, false),
+      ] },
+      detailButton(t.projectId, t.id),
+    ],
+  };
+}
+
+// 待验收：发给组长与教师。紫色与看板上的「待验收」列同色，一眼认得出是同一件事。
+export function buildSubmittedCard(t: CardTask) {
+  return {
+    config: { wide_screen_mode: true },
+    header: { template: "purple", title: { tag: "plain_text", content: "📮 待你验收" } },
+    elements: [
+      { tag: "div", fields: [
+        field(`**任务**\n${t.title}`, false),
+        field(`**项目**\n${t.projectName}`),
+        field(`**提交人**\n${t.assigneeName ?? "—"}`),
+        field(`**交付说明**\n${t.completionNote ?? "—"}`, false),
+      ] },
+      { tag: "div", text: { tag: "lark_md", content: "通过则任务完成；若需修改，请写明要改什么再退回。" } },
+      detailButton(t.projectId, t.id, "去验收"),
+    ],
+  };
+}
+
+// 验收结果：发给提交人。通过为绿、退回为红——颜色即结论，不必读字。
+export function buildReviewedCard(
+  t: CardTask,
+  decision: "accept" | "reject",
+  note: string | null,
+) {
+  const accepted = decision === "accept";
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: accepted ? "green" : "red",
+      title: { tag: "plain_text", content: accepted ? "✅ 验收通过" : "↩️ 已退回修改" },
+    },
+    elements: [
+      { tag: "div", fields: [
+        field(`**任务**\n${t.title}`, false),
+        field(`**项目**\n${t.projectName}`),
+        ...(note ? [field(`**验收意见**\n${note}`, false)] : []),
       ] },
       detailButton(t.projectId, t.id),
     ],

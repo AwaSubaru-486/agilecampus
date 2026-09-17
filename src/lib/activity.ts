@@ -51,6 +51,12 @@ export const describe = {
     names.length > 0 ? `为「${title}」贴上标签：${names.join("、")}` : `清空了「${title}」的标签`,
   taskDependencyChanged: (title: string, count: number) =>
     count > 0 ? `为「${title}」设置了 ${count} 个后置任务` : `清空了「${title}」的后置任务`,
+  // 承诺与验收。承诺那句话进摘要：它是「答应做什么」的公开锚点，
+  // 事后对照兑现与否就看它；但完整承诺也留在任务卡上常驻展示。
+  taskClaimed: (title: string, commitment: string) => `认领「${title}」，承诺${commitment}`,
+  taskSubmitted: (title: string) => `提交了「${title}」待验收`,
+  taskAccepted: (title: string) => `验收通过「${title}」`,
+  taskRejected: (title: string, note: string) => `退回「${title}」：${note}`,
   milestoneCreated: (title: string) => `新建里程碑「${title}」`,
   projectCreated: (name: string) => `创建了项目「${name}」`,
   projectUpdated: (name: string) => `更新了项目「${name}」`,

@@ -30,6 +30,10 @@ export type BoardTask = {
   assigneeId: string | null;
   milestoneId: string | null;
   labels: { id: string; name: string; color: string }[];
+  // 承诺与验收：卡片要靠这几项决定显示哪枚按钮、以及把承诺与退回意见摆出来
+  commitmentNote: string | null;
+  estimatedHours: number | null;
+  reviewNote: string | null;
 };
 
 type ViewMode = "board" | "list";
@@ -40,6 +44,8 @@ function Column({
   tasks,
   projectId,
   canWrite,
+  canReview,
+  currentUserId,
   members,
   milestones,
   allTasks,
@@ -52,6 +58,8 @@ function Column({
   tasks: BoardTask[];
   projectId: string;
   canWrite: boolean;
+  canReview: boolean;
+  currentUserId: string;
   members: Option[];
   milestones: Option[];
   allTasks: { id: string; title: string }[];
@@ -85,6 +93,8 @@ function Column({
             task={t}
             projectId={projectId}
             canWrite={canWrite}
+            canReview={canReview}
+            currentUserId={currentUserId}
             members={members}
             milestones={milestones}
             allTasks={allTasks}
@@ -122,6 +132,8 @@ export function Board({
   tasks,
   groupBy,
   canWrite,
+  canReview,
+  currentUserId,
   members,
   milestones,
   allTasks,
@@ -132,6 +144,9 @@ export function Board({
   tasks: BoardTask[];
   groupBy: GroupBy;
   canWrite: boolean;
+  /** 组长或教师。与 canWrite 并列：教师能验收，但仍不能编辑与拖拽 */
+  canReview: boolean;
+  currentUserId: string;
   members: Option[];
   milestones: Option[];
   allTasks: { id: string; title: string }[];
@@ -222,6 +237,8 @@ export function Board({
             tasks={optimisticTasks.filter((t) => col.matches(t))}
             projectId={projectId}
             canWrite={canWrite}
+            canReview={canReview}
+            currentUserId={currentUserId}
             members={members}
             milestones={milestones}
             allTasks={allTasks}

@@ -1,12 +1,14 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks, users, projects } from "@/db/schema";
+import { tasks, teamMembers, users, projects } from "@/db/schema";
 import { sendCardMessage } from "./feishu";
 import { today } from "./today";
 import {
   buildAssignedCard,
   buildCompletedCard,
   buildDueReminderCard,
+  buildReviewedCard,
+  buildSubmittedCard,
   type CardTask,
   type ReminderItem,
 } from "./feishu-card";
@@ -73,6 +75,47 @@ export async function notifyTaskCompleted(task: TaskRow, actorId: string): Promi
   const openId = await openIdOf(creatorId);
   if (!openId) return;
   await safeSend(openId, buildCompletedCard(await enrich(task)));
+}
+
+// 项目的验收人：团队内的 admin 与 teacher。直接查库而不复用 listTeamMembers，
+// 为的是顺带滤掉未绑飞书者，省一次往返；提交人自己排除在外（不给自己发待验收）。
+async function reviewerOpenIds(projectId: string, excludeUserId: string | null): Promise<string[]> {
+  const conds = [
+    eq(projects.id, projectId),
+    inArray(teamMembers.role, ["admin", "teacher"] as const),
+    isNotNull(users.feishuOpenId),
+  ];
+  if (excludeUserId) conds.push(ne(teamMembers.userId, excludeUserId));
+
+  const rows = await db
+    .select({ openId: users.feishuOpenId })
+    .from(teamMembers)
+    .innerJoin(projects, eq(projects.teamId, teamMembers.teamId))
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(and(...conds));
+  return rows.map((r) => r.openId).filter((x): x is string => Boolean(x));
+}
+
+// 提交成果 → 通知全部验收人。这是「待验收」第一次有人知道，
+// 在此之前球停在中场，无人察觉。
+export async function notifyTaskSubmitted(task: TaskRow): Promise<void> {
+  const openIds = await reviewerOpenIds(task.projectId, task.assigneeId);
+  if (openIds.length === 0) return;
+  const card = buildSubmittedCard(await enrich(task));
+  for (const openId of openIds) await safeSend(openId, card);
+}
+
+// 验收结果 → 通知提交人。退回必带理由，故卡片上一定有话可看。
+export async function notifyTaskReviewed(
+  task: TaskRow,
+  decision: "accept" | "reject",
+  note: string | null,
+  actorId: string,
+): Promise<void> {
+  if (!task.assigneeId || task.assigneeId === actorId) return;
+  const openId = await openIdOf(task.assigneeId);
+  if (!openId) return;
+  await safeSend(openId, buildReviewedCard(await enrich(task), decision, note));
 }
 
 // 扫全库临期(明日到期)+逾期(已过期未 done)，按负责人聚合为一封卡片日报。返回发送人数与扫描任务数。

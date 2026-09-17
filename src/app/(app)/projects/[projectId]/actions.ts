@@ -3,7 +3,15 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { createTask, updateTask, deleteTask, setTaskSuccessors } from "@/lib/task";
+import {
+  claimTask,
+  createTask,
+  deleteTask,
+  reviewTask,
+  setTaskSuccessors,
+  submitTask,
+  updateTask,
+} from "@/lib/task";
 import { setTaskLabels } from "@/lib/label";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
@@ -209,6 +217,98 @@ export async function deleteTaskAction(
     await deleteTask(session.user.id, parsed.data.taskId);
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限删除任务" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+// ============ 承诺与验收 ============
+//
+// 三枚 action 同构于既有的五步：auth → 空串归一 → safeParse → try/catch → revalidatePath。
+// 错误一律回中文文案，由卡片就地展示而非弹全局提示。
+
+const claimTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  commitmentNote: z.string().trim().min(1, "请写一句你打算怎么做"),
+  estimatedHours: z.coerce.number().positive("预估工时须为正数").max(999).optional(),
+});
+
+export async function claimTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = claimTaskSchema.safeParse({
+    ...raw,
+    estimatedHours: raw.estimatedHours || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    await claimTask(session.user.id, parsed.data.taskId, {
+      commitmentNote: parsed.data.commitmentNote,
+      estimatedHours: parsed.data.estimatedHours,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限认领此任务" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const submitTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  completionNote: z.string().trim().min(1, "请说明这次交付了什么"),
+});
+
+export async function submitTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const parsed = submitTaskSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    await submitTask(session.user.id, parsed.data.taskId, {
+      completionNote: parsed.data.completionNote,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以提交" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const reviewTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  decision: z.enum(["accept", "reject"]),
+  note: z.string().trim().optional(),
+});
+
+export async function reviewTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = reviewTaskSchema.safeParse({ ...raw, note: raw.note || undefined });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    await reviewTask(session.user.id, parsed.data.taskId, {
+      decision: parsed.data.decision,
+      note: parsed.data.note,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "只有组长或教师可以验收" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

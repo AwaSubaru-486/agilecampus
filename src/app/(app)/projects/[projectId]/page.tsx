@@ -10,6 +10,7 @@ import {
   listProjectConversations,
 } from "@/lib/agent/conversation";
 import { parseFilters, applyFilters } from "@/lib/board-filters";
+import { today } from "@/lib/today";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
@@ -52,10 +53,13 @@ export default async function ProjectPage({
     ),
   );
   // 「今日」在服务端按本地时区取 YYYY-MM-DD，随后仅作字符串比较
-  const today = new Date().toLocaleDateString("sv-SE");
-  const visibleTasks = applyFilters(projectTasks, filters, today);
+  const day = today();
+  const visibleTasks = applyFilters(projectTasks, filters, day);
 
+  // 两个能力并列而非包含：教师能验收，却仍不能编辑/拖拽/建任务。
+  // 把 canReview 并进 canWrite 会一次性放开后者全部，那是另一回事。
   const canWrite = role === "admin" || role === "student";
+  const canReview = role === "admin" || role === "teacher";
   const isAdmin = role === "admin";
 
   const selectedConversation = projectConversations[0] ?? null;
@@ -136,8 +140,13 @@ export default async function ProjectPage({
             assigneeId: t.assigneeId,
             milestoneId: t.milestoneId,
             labels: t.labels,
+            commitmentNote: t.commitmentNote,
+            estimatedHours: t.estimatedHours,
+            reviewNote: t.reviewNote,
           }))}
           canWrite={canWrite}
+          canReview={canReview}
+          currentUserId={session.user.id}
           members={members}
           milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
           allTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
