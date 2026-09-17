@@ -12,7 +12,9 @@ import {
 import { parseFilters, applyFilters } from "@/lib/board-filters";
 import { today } from "@/lib/today";
 import { listProjectBlockers } from "@/lib/blocker";
+import { getProjectHealth } from "@/lib/health";
 import { BlockerStrip } from "./blocker-strip";
+import { HealthPanel } from "./health-panel";
 import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
@@ -54,6 +56,10 @@ export default async function ProjectPage({
     listProjectConversations(session.user.id, projectId),
     listProjectBlockers(session.user.id, projectId, { status: ["open"] }),
   ]);
+
+  // 健康度单独取：它内部还会为阻塞类风险问一次协作推荐，
+  // 塞进上面的 Promise.all 也只是并发，读起来反而更绕
+  const health = await getProjectHealth(session.user.id, projectId);
 
   const filters = parseFilters(
     new URLSearchParams(
@@ -104,6 +110,10 @@ export default async function ProjectPage({
           dueDate: task.dueDate,
         }))}
       />
+
+      {/* 健康度紧跟概览：它是「这个项目怎么了」的一句话回答，
+          也是开题报告里那个「把隐性问题变成可见对象」的正面落点 */}
+      <HealthPanel projectId={projectId} health={health} />
 
       {/* 求助条置于看板之上：有人卡住是当下最该被看见的事，
           沉到页面底部等于没提 */}

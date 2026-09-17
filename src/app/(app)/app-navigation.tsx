@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/projects", label: "项目空间", icon: "grid" },
+  { href: "/health", label: "风险瞭望", icon: "pulse" },
   { href: "/teams", label: "团队成员", icon: "people" },
   { href: "/settings/tokens", label: "连接与设置", icon: "bolt" },
 ] as const;
@@ -38,6 +39,14 @@ export function AppNavigation({ mobile = false }: { mobile?: boolean }) {
 function NavIcon({ name }: { name: (typeof ITEMS)[number]["icon"] }) {
   if (name === "grid") {
     return <span aria-hidden className="grid size-4 grid-cols-2 gap-[3px]">{[0, 1, 2, 3].map((n) => <i key={n} className="rounded-[2px] border border-current" />)}</span>;
+  }
+  if (name === "pulse") {
+    // 心电波形：与「风险感知」的语义对上，且与网格、人形图标区分得开
+    return (
+      <svg aria-hidden viewBox="0 0 20 20" className="size-4 fill-none stroke-current" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 10h3.2l1.6-5 2.6 10 2.2-7 1.5 2h5" />
+      </svg>
+    );
   }
   if (name === "people") {
     return (
