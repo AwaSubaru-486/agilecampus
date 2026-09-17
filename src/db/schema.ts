@@ -299,3 +299,70 @@ export const taskLabels = pgTable(
     index("task_labels_label_idx").on(t.labelId),
   ],
 );
+
+// 活动流事件类型。
+// 一次定义齐（含尚未来到的承诺/验收/阻塞各档）：Postgres 枚举加值是迁移风险点，
+// 与其每图 ALTER TYPE 一次，不如一次到位。当前已用的是前七种，其余随各图启用。
+export const activityTypeEnum = pgEnum("activity_type", [
+  // 任务基础变更（当前在用）
+  "task_created",
+  "task_updated",
+  "task_status_changed",
+  "task_assigned",
+  "task_deleted",
+  "task_labeled",
+  "task_dependency_changed",
+  // 项目与里程碑
+  "milestone_created",
+  "project_created",
+  "project_updated",
+  // 承诺与验收（启用待「任务承诺与验收」一图）
+  "task_claimed",
+  "task_committed",
+  "task_submitted",
+  "task_accepted",
+  "task_rejected",
+  "task_reopened",
+  // 阻塞与协作邀请（启用待「阻塞上报」一图）
+  "blocker_raised",
+  "blocker_invited",
+  "blocker_resolved",
+  "blocker_cancelled",
+]);
+export type ActivityType = (typeof activityTypeEnum.enumValues)[number];
+
+// 项目活动流：append-only，只插不改不删，是「谁在何时对什么做了什么」的唯一真相源。
+// 派生物（时间线 / 贡献记录 / 复盘材料）皆由它算出，故贡献记录无需任何人手工填写。
+//
+// 为何独立建表而不复用 messages：
+//   1. 过半写路径没有会话——拖拽改状态、编辑弹窗改负责人、CC 经 API 建任务、cron 提醒，
+//      而 messages.conversationId 非空，要记这些就得给每个项目造「系统会话」，现有代码无此概念
+//   2. 贡献聚合需可 groupBy 的类型列；messages 只有 role 与自由文本，从中解析语义是脆的
+//   3. 会话分叉会复制消息，事件若住在 messages 里，每 fork 一次贡献数字就翻一份
+//   4. 会话可删（cascade），而复盘材料必须比聊天记录活得久
+//   5. AI 会话有 private 档，私人会话的工具调用进入项目活动流即是隐私泄漏
+export const activityEvents = pgTable(
+  "activity_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    // set null 而非 cascade：任务被删，历史仍在——复盘恰要能看到「删过什么」
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    type: activityTypeEnum("type").notNull(),
+    // 冗余中文摘要，连同 payload 冻结当时的任务标题与人名。
+    // 两处理由：(a) 复盘要看「当时叫什么」，任务改名后 join 出的新名是年代错乱；
+    // (b) 时间线是最高频读面，冻结后整个渲染是单表查询，无需按 taskId 扇出 join。
+    summary: text("summary"),
+    payload: jsonb("payload"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("activity_project_time_idx").on(t.projectId, t.createdAt),
+    index("activity_task_idx").on(t.taskId, t.createdAt),
+    index("activity_actor_idx").on(t.actorId, t.createdAt),
+    index("activity_project_type_idx").on(t.projectId, t.type),
+  ],
+);

@@ -16,6 +16,8 @@ import { getTeamMembership } from "./team";
 import { getProjectForUser } from "./project";
 import { notifyTaskAssigned, notifyTaskCompleted } from "./notify";
 import { DEFAULT_STATUS } from "./task-status";
+import { describe, recordEvent } from "./activity";
+import type { ActivityType } from "@/db/schema";
 
 // 任务写操作角色：admin + student（teacher 只读，设计文档 §5）
 const TASK_WRITE_ROLES = ["admin", "student"];
@@ -31,6 +33,24 @@ export async function requireTaskWrite(actorId: string, projectId: string) {
   const access = await requireProjectAccess(actorId, projectId);
   if (!TASK_WRITE_ROLES.includes(access.role)) throw new ForbiddenError();
   return access;
+}
+
+// 除状态与指派外，其余可编辑字段。用于判断「是否只是改了点别的」
+const OTHER_EDIT_FIELDS = [
+  "title",
+  "description",
+  "dueDate",
+  "startDate",
+  "milestoneId",
+  "priority",
+  "completionNote",
+] as const;
+
+// 取姓名供事件摘要冻结。读 users 表，事务内读到的是已提交值——
+// 本函数只服务于「改派」这一条路径，彼时被指派人必已存在，无脏读之虞。
+async function userName(userId: string): Promise<string | null> {
+  const [u] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
+  return u?.name ?? null;
 }
 
 async function validateAssignee(teamId: string, assigneeId: string) {
@@ -95,6 +115,16 @@ export async function createTask(
     })
     .returning();
 
+  // 事件与任务同事务：传 exec 而非全局 db，回滚时事件一并回滚，不留「没发生过的动作」
+  await recordEvent(exec, {
+    projectId,
+    actorId,
+    type: "task_created",
+    taskId: task.id,
+    summary: describe.taskCreated(task.title),
+    payload: { title: task.title, status: task.status, assigneeId: task.assigneeId },
+  });
+
   // 非事务路径：即时通知（fire-and-forget，通知内部已吞异常）。事务路径由调用方提交后补发。
   if (!opts?.tx && task.assigneeId) void notifyTaskAssigned(task);
   return task;
@@ -144,6 +174,39 @@ export async function updateTask(
     .returning();
   if (!updated) throw new AppError("任务不存在");
 
+  // 事件与更新同事务。前像 task 已在上面取到，diff 零成本。
+  const events: { type: ActivityType; summary: string; payload: Record<string, unknown> }[] = [];
+
+  if (patch.status !== undefined && patch.status !== task.status) {
+    events.push({
+      type: "task_status_changed",
+      summary: describe.taskStatusChanged(updated.title, task.status, patch.status),
+      payload: { title: updated.title, from: task.status, to: patch.status },
+    });
+  }
+
+  if (patch.assigneeId !== undefined && patch.assigneeId !== task.assigneeId) {
+    const name = patch.assigneeId ? await userName(patch.assigneeId) : null;
+    events.push({
+      type: "task_assigned",
+      summary: describe.taskAssigned(updated.title, name),
+      payload: { title: updated.title, to: patch.assigneeId, toName: name },
+    });
+  }
+
+  // 状态与指派各有专事件，则不再叠一笔笼统的「修改了」
+  if (events.length === 0 && OTHER_EDIT_FIELDS.some((k) => patch[k] !== undefined)) {
+    events.push({
+      type: "task_updated",
+      summary: describe.taskUpdated(updated.title),
+      payload: { title: updated.title },
+    });
+  }
+
+  for (const e of events) {
+    await recordEvent(exec, { projectId: task.projectId, actorId, taskId: task.id, ...e });
+  }
+
   if (!opts?.tx) {
     // 改派：通知新负责人
     if (patch.assigneeId && patch.assigneeId !== task.assigneeId) void notifyTaskAssigned(updated);
@@ -157,7 +220,20 @@ export async function deleteTask(actorId: string, taskId: string) {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
   await requireTaskWrite(actorId, task.projectId);
-  await db.delete(tasks).where(eq(tasks.id, taskId));
+
+  await db.transaction(async (tx) => {
+    await tx.delete(tasks).where(eq(tasks.id, taskId));
+    // taskId 传 null：行已删，外键约束在，指过去必违约。
+    // 原 id 落进 payload —— 外键虽断，复盘仍要能指认删的是哪一个。
+    await recordEvent(tx, {
+      projectId: task.projectId,
+      actorId,
+      type: "task_deleted",
+      taskId: null,
+      summary: describe.taskDeleted(task.title),
+      payload: { taskId, title: task.title, status: task.status },
+    });
+  });
 }
 
 export type TaskLabel = { id: string; name: string; color: string };
@@ -337,6 +413,15 @@ export async function setTaskSuccessors(
         .insert(taskDependencies)
         .values(successorIds.map((sid) => ({ predecessorId, successorId: sid })));
     }
+    // 并入既有事务，与依赖表同生共死
+    await recordEvent(tx, {
+      projectId: pred.projectId,
+      actorId,
+      type: "task_dependency_changed",
+      taskId: predecessorId,
+      summary: describe.taskDependencyChanged(pred.title, successorIds.length),
+      payload: { title: pred.title, successorCount: successorIds.length, successorIds },
+    });
   });
 }
 
