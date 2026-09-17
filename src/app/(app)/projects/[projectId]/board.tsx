@@ -3,11 +3,13 @@
 import { useOptimistic, useState, useTransition } from "react";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { deriveColumns, type BoardColumn, type ColumnPatch } from "@/lib/board-columns";
 import type { GroupBy } from "@/lib/board-filters";
@@ -55,8 +57,10 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-40 w-72 shrink-0 space-y-2 rounded-xl border border-line p-3 transition-colors ${
-        isOver ? "bg-primary-soft" : "bg-sunken"
+      className={`min-h-40 w-72 shrink-0 space-y-2 rounded-xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+        isOver
+          ? "scale-[1.01] border-primary bg-primary-soft shadow-[0_0_0_3px_var(--color-primary-ring)]"
+          : "border-line bg-sunken"
       }`}
     >
       <h3 className={`flex items-center gap-2 text-sm font-semibold ${column.tone}`}>
@@ -109,18 +113,24 @@ export function Board({
 }) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [optimisticTasks, moveOptimistic] = useOptimistic(
     tasks,
     (current, move: { taskId: string; patch: ColumnPatch }) =>
       current.map((t) => (t.id === move.taskId ? { ...t, ...move.patch } : t)),
   );
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
   const columns = deriveColumns(groupBy, { members, milestones });
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     const taskId = String(event.active.id);
     const over = event.over?.id;
     if (!over) return;
@@ -137,8 +147,18 @@ export function Board({
     });
   }
 
+  const activeTask = activeId
+    ? optimisticTasks.find((task) => task.id === activeId) ?? null
+    : null;
+
   return (
-    <DndContext id={`board-${projectId}`} sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext
+      id={`board-${projectId}`}
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragCancel={() => setActiveId(null)}
+      onDragEnd={handleDragEnd}
+    >
       {error && <p className="text-sm text-high">{error}</p>}
       {/* 列数随分组维度而变，故横向滚动而非固定三栏 */}
       <div className="flex gap-4 overflow-x-auto pb-2">
@@ -157,6 +177,22 @@ export function Board({
           />
         ))}
       </div>
+      <DragOverlay
+        dropAnimation={{
+          duration: 220,
+          easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        }}
+      >
+        {activeTask && (
+          <div className="w-72 rotate-[1.2deg] scale-[1.02] rounded-xl border border-primary/30 bg-surface p-3 text-sm shadow-[0_18px_45px_-14px_rgba(28,22,12,0.38)]">
+            <p className="font-medium text-ink">{activeTask.title}</p>
+            <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-soft">
+              <span>{activeTask.assigneeName ?? "未分配"}</span>
+              <span className="rounded-full bg-primary-soft px-2 py-0.5 text-primary">移动中</span>
+            </div>
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   );
 }
