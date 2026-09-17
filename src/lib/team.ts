@@ -61,12 +61,24 @@ export async function requireTeamRole(
 }
 
 // 无权限前置：调用方须已校验访问权（如 getProjectForUser / requireTeamRole）后再调用
+// 带上 kind：调用方据此把人（human）与 agent 分开呈现——
+// 成员管理页只列人，派活的负责人下拉则两者都要。
+// 默认仍返回全部，免得改了签名就让既有调用点悄悄少了一批人。
 export async function listTeamMembers(teamId: string) {
+  return db
+    .select({ id: users.id, name: users.name, role: teamMembers.role, kind: users.kind })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(eq(teamMembers.teamId, teamId));
+}
+
+/** 只要人。成员管理、验收人通知等处用它，把 agent 排除在外。 */
+export async function listHumanMembers(teamId: string) {
   return db
     .select({ id: users.id, name: users.name, role: teamMembers.role })
     .from(teamMembers)
     .innerJoin(users, eq(teamMembers.userId, users.id))
-    .where(eq(teamMembers.teamId, teamId));
+    .where(and(eq(teamMembers.teamId, teamId), eq(users.kind, "human")));
 }
 
 export async function updateMemberRole(

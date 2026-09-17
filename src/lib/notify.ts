@@ -7,6 +7,7 @@ import {
   buildAssignedCard,
   buildBlockerCard,
   buildCompletedCard,
+  buildDeclinedCard,
   buildDueReminderCard,
   buildReviewedCard,
   buildSubmittedCard,
@@ -76,6 +77,23 @@ export async function notifyTaskCompleted(task: TaskRow, actorId: string): Promi
   const openId = await openIdOf(creatorId);
   if (!openId) return;
   await safeSend(openId, buildCompletedCard(await enrich(task)));
+}
+
+// 接不住 → 通知派活的人（任务创建者），让他改派或换做法。
+//
+// 与验收退回不同：退回是「做出来的不对」，接不住是「压根没做」。
+// 后者更需要立刻知道——球已经落在地上，而派活的人还以为在飞。
+export async function notifyTaskDeclined(
+  task: TaskRow,
+  actorId: string,
+  reason: string,
+): Promise<void> {
+  const creatorId = task.createdById ?? null;
+  // 自己派给自己又自己接不住，不必给自己发通知
+  if (!creatorId || creatorId === actorId) return;
+  const openId = await openIdOf(creatorId);
+  if (!openId) return;
+  await safeSend(openId, buildDeclinedCard(await enrich(task), reason));
 }
 
 // 项目的验收人：团队内的 admin 与 teacher。直接查库而不复用 listTeamMembers，

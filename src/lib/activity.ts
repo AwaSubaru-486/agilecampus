@@ -54,6 +54,9 @@ export const describe = {
   // 承诺与验收。承诺那句话进摘要：它是「答应做什么」的公开锚点，
   // 事后对照兑现与否就看它；但完整承诺也留在任务卡上常驻展示。
   taskClaimed: (title: string, commitment: string) => `认领「${title}」，承诺${commitment}`,
+  // 接不住。摘要里带上理由——派活的人需要据此改派或换做法，
+  // 只说「不接」等于把球原样扔回去。
+  taskDeclined: (title: string, reason: string) => `接不住「${title}」：${reason}`,
   taskSubmitted: (title: string) => `提交了「${title}」待验收`,
   taskAccepted: (title: string) => `验收通过「${title}」`,
   taskRejected: (title: string, note: string) => `退回「${title}」：${note}`,

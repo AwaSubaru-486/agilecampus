@@ -60,7 +60,7 @@ describe("findOrCreateByFeishu 混合建号", () => {
     expect(row.feishuOpenId).toBe("ou_new");
     expect(row.feishuName).toBe("新人");
     expect(row.name).toBe("新人");
-    expect(row.passwordHash.length).toBeGreaterThan(0); // 有不可用 hash
+    expect(row.passwordHash!.length).toBeGreaterThan(0); // 有不可用 hash
   });
 
   it("同一 openId 二次调用 → 复用首次所建账号", async () => {

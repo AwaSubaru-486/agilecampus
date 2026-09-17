@@ -73,6 +73,25 @@ export function emptyByStatus(): Record<TaskStatus, number> {
   return Object.fromEntries(TASK_STATUSES.map((s) => [s, 0])) as Record<TaskStatus, number>;
 }
 
+// 本产品要回答的第一个问题：**这份承诺被接住了没有**。
+//
+// 活被派下去那一刻还不算有人接——要等被派的人（或 agent）亲口写下
+// 「我打算怎么做」（committedAt 落库），这份承诺才算成立。
+// 在此之前它是悬着的：派活的人以为有人在动，接活的人还没答应，而 deadline 照常在走。
+//
+// 人机混合团队里这条边格外要紧：人接不住往往还会含糊应下，
+// agent 接不住则可能静默失败——那比人不吭声更难发现。
+//
+// 刻意不设「待回应」状态位：assigneeId 非空而 committedAt 为空即是。
+// 由既有字段推出，状态机不必多一档，看板也不必多一列。
+export function isAwaitingResponse(
+  status: string,
+  assigneeId: string | null,
+  committedAt: Date | null,
+): boolean {
+  return isInFlight(status) && assigneeId !== null && committedAt === null;
+}
+
 // 四个谓词各司其职，勿合并成一个 isClosed：
 // 「已完成」与「不可再逾期」在引入验收档后不再是同一件事。
 // 参数取 string 而非 TaskStatus——调用点多在 UI 投影（status: string）处，宽收窄用。

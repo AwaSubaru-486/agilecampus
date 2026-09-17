@@ -13,6 +13,7 @@ import {
   jsonb,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 // 状态值取自 lib/task-status.ts（零依赖叶子模块），使看板等客户端组件无需引 schema 即可复用。
 // 依赖方向：db/schema → lib/task-status。仍是单一真相源。
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
@@ -21,10 +22,24 @@ import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
 export type TeamRole = (typeof teamRoleEnum.enumValues)[number];
 
+// 团队成员的两类身份：人，与 AI agent。
+//
+// 让 agent 成为 users 的一行，是本项目一个刻意的取舍。
+// 参照 Multica（github.com/multica-ai/multica，其 issue 表用
+// assignee_type ∈ (member, agent) + 无外键的 assignee_id），
+// 我们不走多态，而是共用同一张表——好处是 tasks.assigneeId、
+// activity_events.actorId、blockers.raisedById 三处既有外键一字不改就能指向 agent，
+// 引用完整性也不必放弃；代价是 users 要容纳「不能登录的身份」（passwordHash 可空）。
+export const userKindEnum = pgEnum("user_kind", ["human", "agent"]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // agent 用合成的 agent-<uuid>@agents.local 占位，以满足唯一约束；
+  // 它没有密码，登不进来
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  // 可空：agent 无密码，也就无法登录。登录入口须显式拒绝 kind = 'agent'
+  passwordHash: text("password_hash"),
+  kind: userKindEnum("kind").notNull().default("human"),
   name: text("name").notNull(),
   // 飞书绑定（一对一，可空=未绑定）：open_id 为应用内用户唯一标识，发私信用之
   feishuOpenId: text("feishu_open_id").unique(),
@@ -142,6 +157,17 @@ export const tasks = pgTable(
     reviewNote: text("review_note"),
     // 被退回次数。贡献记录里「返工成本」一维的唯一来源，也是验收质量的逆向代理指标。
     rejectCount: integer("reject_count").notNull().default(0),
+
+    // --- 接住 / 接不住 ---
+    // 活被派下来，接不住的人（或 agent）当场说得出口，比拖到 deadline 才暴露便宜得多。
+    // 人机混合团队里这条边更关键：agent 接不住时会静默失败，那比人不吭声更难发现。
+    // 「待回应」不另设状态位——assigneeId 非空而 committedAt 为空即是，
+    // 由 isAwaitingResponse() 推出，状态机不必再多一档。
+    declineReason: text("decline_reason"),
+    declinedAt: timestamp("declined_at"),
+    declinedById: uuid("declined_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -408,6 +434,7 @@ export const activityTypeEnum = pgEnum("activity_type", [
   // 承诺与验收（启用待「任务承诺与验收」一图）
   "task_claimed",
   "task_committed",
+  "task_declined",
   "task_submitted",
   "task_accepted",
   "task_rejected",
@@ -453,5 +480,106 @@ export const activityEvents = pgTable(
     index("activity_task_idx").on(t.taskId, t.createdAt),
     index("activity_actor_idx").on(t.actorId, t.createdAt),
     index("activity_project_type_idx").on(t.projectId, t.type),
+  ],
+);
+
+// ============ AI agent 作为一等团队成员 ============
+
+// agent 的实时状态。blocked 是一等公民——
+// 「agent 卡住了会举手」正是本项目要解决的事，而举手走的是既有的求助机制。
+// offline 与 error 分开：前者是「没开着」，后者是「开着但出错了」，
+// 界面上该说的话完全不同。
+export const agentStatusEnum = pgEnum("agent_status", [
+  "idle",
+  "working",
+  "blocked",
+  "error",
+  "offline",
+]);
+export type AgentStatus = (typeof agentStatusEnum.enumValues)[number];
+
+export const agentRuntimeEnum = pgEnum("agent_runtime", ["local", "cloud"]);
+export type AgentRuntime = (typeof agentRuntimeEnum.enumValues)[number];
+
+// agent 的扩展资料。身份（姓名、头像、所属团队）在 users / team_members 里，
+// 此处只存「作为 agent 才需要」的那部分。
+export const agents = pgTable(
+  "agents",
+  {
+    // 与 users 一对一。agent 也是团队成员，故同样挂在 teamId 上，
+    // 权限校验与人的口径一致（requireTeamRole 不必为它开特例）。
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    // 跑在什么上：claude-code / codex / cursor / custom。
+    // 存字符串而非枚举：新的 agent CLI 层出不穷，加一档不该要一次迁移。
+    provider: text("provider").notNull(),
+    runtime: agentRuntimeEnum("runtime").notNull().default("local"),
+    // 会做什么。派活时据以推荐，也是它的「简历」。
+    // 用 text[] 而非 jsonb：要按能力筛人，数组能直接建 GIN 索引。
+    capabilities: text("capabilities")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    status: agentStatusEnum("status").notNull().default("offline"),
+    // 同时能跑几个任务。派活时与在办数比较，满了就不再往下压。
+    maxConcurrent: integer("max_concurrent").notNull().default(1),
+    // 谁养的它。学生自己注册的 agent 归他，出问题找得到人。
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    // 心跳。判在不在线看它，不额外存 boolean。
+    lastSeenAt: timestamp("last_seen_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("agents_team_idx").on(t.teamId),
+    index("agents_status_idx").on(t.teamId, t.status),
+  ],
+);
+
+// 一次派给 agent 的执行记录。
+//
+// 状态刻意与任务状态分开：任务是「这件事做完了没有」，
+// run 是「这一趟 agent 跑成没跑成」。同一件事可以跑好几趟
+// ——失败重试、换一个 agent 再试——而任务始终只有一个。
+export const agentRunStatusEnum = pgEnum("agent_run_status", [
+  "queued",
+  "dispatched",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+export type AgentRunStatus = (typeof agentRunStatusEnum.enumValues)[number];
+
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.userId, { onDelete: "cascade" }),
+    // 任务删了，跑过的事实可以留着（复盘要看「AI 在这上面试过几趟」），
+    // 但已无从指认，故 set null 而非 cascade
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    status: agentRunStatusEnum("status").notNull().default("queued"),
+    // 同时排队的多个任务，谁先跑
+    priority: integer("priority").notNull().default(0),
+    dispatchedAt: timestamp("dispatched_at"),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+    // agent 回报的产物：改了什么文件、产出什么、跑到哪一步
+    result: jsonb("result"),
+    error: text("error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // 排队取活走这条：同一 agent 下，按优先级降序、创建升序
+    index("agent_runs_queue_idx").on(t.agentId, t.priority, t.createdAt),
+    index("agent_runs_task_idx").on(t.taskId),
+    index("agent_runs_status_idx").on(t.status, t.createdAt),
   ],
 );

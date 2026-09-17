@@ -163,6 +163,32 @@ export function buildBlockerCard(b: BlockerCardInput) {
   };
 }
 
+// 接不住：发给派活的人（任务创建者）。
+// 红色与「验收退回」同色系——都是「这件事没能照原样往前走」，
+// 需要有人动一下。
+export function buildDeclinedCard(t: CardTask, reason: string) {
+  return {
+    config: { wide_screen_mode: true },
+    header: { template: "red", title: { tag: "plain_text", content: "🙅 有人接不住" } },
+    elements: [
+      { tag: "div", fields: [
+        field(`**任务**\n${t.title}`, false),
+        field(`**项目**\n${t.projectName}`),
+        field(`**原负责人**\n${t.assigneeName ?? "—"}`),
+        field(`**理由**\n${reason}`, false),
+      ] },
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: "任务已退回未指派。请改派他人、拆分这活，或与对方商定新的做法。",
+        },
+      },
+      detailButton(t.projectId, t.id, "去处理"),
+    ],
+  };
+}
+
 export type ReminderItem = { id: string; title: string; projectId: string };
 
 export function buildDueReminderCard(input: { overdue: ReminderItem[]; dueSoon: ReminderItem[] }) {

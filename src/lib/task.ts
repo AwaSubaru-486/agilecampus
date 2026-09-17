@@ -13,10 +13,12 @@ import {
 } from "@/db/schema";
 import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership } from "./team";
+import { isTeamAgent } from "./agent-member";
 import { getProjectForUser } from "./project";
 import {
   notifyTaskAssigned,
   notifyTaskCompleted,
+  notifyTaskDeclined,
   notifyTaskReviewed,
   notifyTaskSubmitted,
 } from "./notify";
@@ -88,9 +90,13 @@ async function userName(userId: string): Promise<string | null> {
   return u?.name ?? null;
 }
 
+// 负责人可以是人，也可以是 agent（agent 不占 team_members 的席位）。
+// 两者合起来才是完整的「这个负责人确实归本团队」。
 async function validateAssignee(teamId: string, assigneeId: string) {
   const membership = await getTeamMembership(assigneeId, teamId);
-  if (!membership) throw new AppError("负责人不是团队成员");
+  if (membership) return;
+  if (await isTeamAgent(assigneeId, teamId)) return;
+  throw new AppError("负责人不是团队成员");
 }
 
 async function validateMilestone(projectId: string, milestoneId: string) {
@@ -193,6 +199,11 @@ export async function updateTask(
   if (patch.milestoneId) await validateMilestone(task.projectId, patch.milestoneId);
   if (patch.status !== undefined) assertTransition(task.status, patch.status, access.role);
 
+  // 改派即重置承诺：新负责人没答应过任何事，旧的承诺不能跟着任务走。
+  // 少了这一步，改派后的任务会显示「已接住」，而接手的人根本还没开口——
+  // 那正是 isAwaitingResponse 想抓住的那种悬空状态，反倒被我们自己掩盖了。
+  const reassigned = patch.assigneeId !== undefined && patch.assigneeId !== task.assigneeId;
+
   // 显式白名单构造，勿用 ...patch 展开：运行时宽对象可夹带 projectId/sortOrder 等越权字段
   const [updated] = await exec
     .update(tasks)
@@ -201,6 +212,15 @@ export async function updateTask(
       ...(patch.title !== undefined && { title: patch.title }),
       ...(patch.description !== undefined && { description: patch.description }),
       ...(patch.assigneeId !== undefined && { assigneeId: patch.assigneeId }),
+      ...(reassigned && {
+        commitmentNote: null,
+        committedAt: null,
+        estimatedHours: null,
+        // 上一次「接不住」的理由也一并清掉：它说的是上一个人，对新负责人是误导
+        declineReason: null,
+        declinedAt: null,
+        declinedById: null,
+      }),
       ...(patch.startDate !== undefined && { startDate: patch.startDate }),
       ...(patch.dueDate !== undefined && { dueDate: patch.dueDate }),
       ...(patch.milestoneId !== undefined && { milestoneId: patch.milestoneId }),
@@ -495,6 +515,57 @@ export async function claimTask(
   });
   if (task.assigneeId !== actorId) void notifyTaskAssigned(claimed);
   return claimed;
+}
+
+// 接不住：把活退回去，并说清为什么。
+//
+// 这是「接住」的对称面，也是本项目区别于普通任务分派的那条边。
+// 没有它，「指派」就是单方面的：派的人以为有人在做，被派的人其实做不了，
+// 而这份误会要到 deadline 才会暴露——那时已经来不及了。
+//
+// 允许 agent 调用（agent 接不住时会静默失败，比人不吭声更难发现）。
+export async function declineTask(actorId: string, taskId: string, input: { reason: string }) {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
+  await requireProjectAccess(actorId, task.projectId);
+
+  // 「接不住」是第一人称的判断，别人替不了。
+  // 故此处的口子比 submitTask 更窄：admin 能代交成果，却不能代说接不住——
+  // 那等于替别人承认「我干不了」，语义上说不通。
+  if (task.assigneeId !== actorId) throw new ForbiddenError("只有任务负责人本人可以接不住");
+  if (!input.reason.trim()) throw new AppError("请说明为什么接不住——派活的人要据此改派");
+
+  const prevAssignee = task.assigneeId;
+  const [updated] = await db
+    .update(tasks)
+    .set({
+      // 退回未指派：留着 assigneeId 会让看板上看着像有人在管
+      assigneeId: null,
+      status: "todo",
+      // 承诺一并清空——没接住的活谈不上兑现
+      commitmentNote: null,
+      committedAt: null,
+      estimatedHours: null,
+      declineReason: input.reason,
+      declinedAt: sql`now()`,
+      declinedById: actorId,
+      updatedAt: sql`now()`,
+    })
+    .where(and(eq(tasks.id, taskId), eq(tasks.assigneeId, actorId)))
+    .returning();
+  // 0 行＝并发下已被改派，此时再退就是退别人的活
+  if (!updated) throw new AppError("该任务已被改派，无需再接不住");
+
+  await recordEvent(db, {
+    projectId: task.projectId,
+    actorId,
+    type: "task_declined",
+    taskId,
+    summary: describe.taskDeclined(updated.title, input.reason),
+    payload: { title: updated.title, reason: input.reason, prevAssignee },
+  });
+  void notifyTaskDeclined(updated, actorId, input.reason);
+  return updated;
 }
 
 // 提交成果，落入待验收。

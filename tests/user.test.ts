@@ -19,7 +19,8 @@ describe("createUser", () => {
     expect(user.email).toBe("zhou@example.com");
     const [row] = await db.select().from(users).where(eq(users.id, user.id));
     expect(row.passwordHash).not.toBe("password123");
-    expect(await verifyPassword("password123", row.passwordHash)).toBe(true);
+    // 明文口令经 bcrypt 存。passwordHash 只对 agent 为空，此处是真人
+    expect(await verifyPassword("password123", row.passwordHash!)).toBe(true);
   });
 
   it("重复邮箱抛出可展示错误", async () => {
