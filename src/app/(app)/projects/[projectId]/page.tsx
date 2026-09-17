@@ -15,9 +15,14 @@ import { listProjectBlockers } from "@/lib/blocker";
 import { getProjectHealth } from "@/lib/health";
 import { listProjectAgents } from "@/lib/agent-member";
 import { listBusyTaskIds } from "@/lib/agent-run";
+import { listMilestoneProgress, syncMilestoneAchievement } from "@/lib/milestone";
+import { buildRelayChains } from "@/lib/relay";
+import { buildLiveBoard } from "@/lib/workspace";
+import { listProjectActivity } from "@/lib/activity-feed";
+import { WorkspaceView } from "./workspace-view";
+import { MilestoneCreateForm } from "./milestone-section";
 import { BlockerStrip } from "./blocker-strip";
 import { HealthPanel } from "./health-panel";
-import { MilestoneSection } from "./milestone-section";
 import { NewTaskForm } from "./new-task-form";
 import { Board } from "./board";
 import { ChatPanel } from "./chat-panel";
@@ -71,6 +76,34 @@ export default async function ProjectPage({
   ]);
   const agentStatusById = Object.fromEntries(projectAgents.map((a) => [a.userId, a.status]));
 
+  // 工作现场：正在发生（谁在干什么）／接力（工作怎么流转）／里程碑（自动记录）
+  const [live, relayEvents, milestoneProgress] = await Promise.all([
+    buildLiveBoard(session.user.id, projectId),
+    listProjectActivity(session.user.id, projectId, { limit: 300 }),
+    listMilestoneProgress(session.user.id, projectId),
+  ]);
+  // 里程碑达成是自动判定的——读取时顺手同步一次，与 sweepOfflineAgents 同一路数
+  await syncMilestoneAchievement(session.user.id, projectId);
+
+  const relays = buildRelayChains(
+    relayEvents.map((e) => ({
+      taskId: e.taskId,
+      type: e.type,
+      actorId: e.actorId,
+      actorName: e.actorName,
+      actorKind: e.actorKind,
+      payload: e.payload,
+      createdAt: e.createdAt,
+    })),
+    projectTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      assigneeId: t.assigneeId,
+    })),
+    { limit: 6 },
+  );
+
   const filters = parseFilters(
     new URLSearchParams(
       Object.entries(sp).flatMap(([k, v]) =>
@@ -121,7 +154,18 @@ export default async function ProjectPage({
         }))}
       />
 
-      {/* 健康度紧跟概览：它是「这个项目怎么了」的一句话回答，
+      {/* 工作现场置于最前：打开项目先看见「现在谁在动」——
+          人和 AI 混在一起，这才是这个项目的样子。
+          看板退到下面，它回答的是另一个问题（每件事在哪个状态） */}
+      <WorkspaceView
+        projectId={projectId}
+        live={live}
+        relays={relays}
+        milestones={milestoneProgress}
+        milestoneForm={<MilestoneCreateForm projectId={projectId} isAdmin={isAdmin} />}
+      />
+
+      {/* 健康度：它是「这个项目怎么了」的一句话回答，
           也是开题报告里那个「把隐性问题变成可见对象」的正面落点 */}
       <HealthPanel projectId={projectId} health={health} />
 
@@ -139,12 +183,6 @@ export default async function ProjectPage({
           helpNeeded: b.helpNeeded,
           ageHours: b.ageHours,
         }))}
-      />
-
-      <MilestoneSection
-        projectId={projectId}
-        milestones={projectMilestones}
-        isAdmin={isAdmin}
       />
 
       <section id="board" className="scroll-mt-20 space-y-3">

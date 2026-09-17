@@ -39,6 +39,10 @@ const daysAgoStr = (d) => dayStr(now - d * DAY);
 // 固定 id：脚本可重复执行，且清库时有据可依
 const TEAM = "d0000000-0000-4000-8000-000000000001";
 const P = {
+  // 演示团队自己的组长。刻意不借用你的真号——
+  // 拿真号当演示团队的 admin，会把你的账号卷进一堆假数据里：
+  // 你会变成演示项目的创建者、几十条活动记录的当事人，且退不干净。
+  owner: "d0000000-0000-4000-8000-000000000101",
   zhou: "d0000000-0000-4000-8000-000000000102",
   lu: "d0000000-0000-4000-8000-000000000103",
   zhang: "d0000000-0000-4000-8000-000000000104",
@@ -82,12 +86,8 @@ const B = {
 };
 
 async function main() {
-  const owner = await sql`select id, name from users where email = '13950150783@163.com'`;
-  if (owner.length === 0) {
-    console.error("未找到账号 13950150783@163.com，请先在网页上注册后再跑本脚本。");
-    process.exit(1);
-  }
-  const ownerId = owner[0].id;
+  // 演示数据自成一个世界：自己的团队、自己的账号，与你既有的一切无关。
+  const ownerId = P.owner;
 
   // 先清掉上一轮的演示团队。只删自己建的这一个 id，不碰任何既有团队。
   await sql`delete from teams where id = ${TEAM}`;
@@ -97,8 +97,9 @@ async function main() {
   await sql`delete from team_members where team_id = ${TEAM}`;
 
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
-  // 四个演示成员用固定 id 新建；主公是你自己的账号，id 由上面查出，不动它。
+  // 演示成员全用固定 id 新建。你本人的账号不在此列，本脚本绝不碰它。
   const people = [
+    [P.owner, "sunquan@demo.local", "孙权"],
     [P.zhou, "zhouyu@demo.local", "周瑜"],
     [P.lu, "lusu@demo.local", "鲁肃"],
     [P.zhang, "zhangzhao@demo.local", "张昭"],
@@ -367,8 +368,9 @@ async function main() {
   console.log(`  团队：${DEMO_TEAM_NAME}`);
   console.log(`  项目：赤壁演习 · 智能问答系统`);
   console.log(`  ${counts[0].tasks} 个任务 / ${counts[0].events} 条过程记录 / ${counts[0].blockers} 条求助`);
-  console.log("\n  登录：用你自己的账号 13950150783@163.com（已是该团队管理员）");
-  console.log(`  也可用其他角色登录，密码统一是 ${DEMO_PASSWORD}：`);
+  console.log(`\n  登录：全部是演示账号，密码统一 ${DEMO_PASSWORD}`);
+  console.log("  （你自己的账号完全没被碰过，它不在这个团队里）");
+  console.log("    sunquan@demo.local    孙权    组长（该团队管理员）");
   console.log("    zhouyu@demo.local     周瑜    学生（手上最忙）");
   console.log("    lusu@demo.local       鲁肃    学生");
   console.log("    zhangzhao@demo.local  张昭    学生");

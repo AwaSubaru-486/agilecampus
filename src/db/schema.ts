@@ -106,9 +106,55 @@ export const milestones = pgTable(
     title: text("title").notNull(),
     targetDate: date("target_date"),
     status: milestoneStatusEnum("status").notNull().default("open"),
+    // 实际达成时刻。与 targetDate（计划）分开记：
+    // 计划哪天到、实际哪天到，两者之差本身就是复盘要看的东西。
+    achievedAt: timestamp("achieved_at"),
+    // 达成那一刻自动生成的实况摘要，冻结下来。
+    // 与活动流同样的理由：事后再去推算，任务早改了名、人早换了岗。
+    autoSummary: text("auto_summary"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("milestones_project_idx").on(t.projectId)],
+);
+
+// 里程碑上的高光时刻——这块「功勋墙」是自动长出来的，一格不用人填。
+//
+// 由来：里程碑原本是人工设的检查点，谁去填、什么时候填，全凭自觉。
+// 于是它要么空着，要么沦为事后补记。改成从既有数据自动提取：
+// 一件事做得艰难（返工过、超了预估、卡过）、或由 AI 交付，
+// 达成时就在里程碑上留一笔。人什么都不用做，痕迹自己在那儿。
+export const highlightKindEnum = pgEnum("highlight_kind", [
+  "delivered_by_agent", // 由 AI 交付
+  "reworked", // 经过返工
+  "over_estimate", // 实际耗时超出预估
+  "unblocked", // 卡过之后被解决
+  "late_done", // 逾期完成
+  "first_delivery", // 该项目的第一件交付
+]);
+export type HighlightKind = (typeof highlightKindEnum.enumValues)[number];
+
+export const milestoneHighlights = pgTable(
+  "milestone_highlights",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    milestoneId: uuid("milestone_id")
+      .notNull()
+      .references(() => milestones.id, { onDelete: "cascade" }),
+    // 任务删了，高光仍留着——复盘看的是「当时干成过什么」
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    kind: highlightKindEnum("kind").notNull(),
+    // 冻结的中文一句话，人直接读
+    note: text("note").notNull(),
+    // 谁做的（人还是 agent，看 users.kind）
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    payload: jsonb("payload"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("milestone_highlights_milestone_idx").on(t.milestoneId, t.createdAt),
+    // 同一任务同一类高光只记一次——反复达成/退回不该刷屏
+    uniqueIndex("milestone_highlights_unique").on(t.milestoneId, t.taskId, t.kind),
+  ],
 );
 
 export const tasks = pgTable(
