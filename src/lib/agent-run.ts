@@ -248,6 +248,22 @@ export async function enqueueRun(agentId: string, taskId: string, priority = 0) 
   return row;
 }
 
+// 项目里有 agent 正在办的任务。任务卡据以显示「AI 处理中」。
+// 一次查完整个项目，不在卡片里逐个查——那会变成 N+1。
+export async function listBusyTaskIds(projectId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ taskId: agentRuns.taskId })
+    .from(agentRuns)
+    .innerJoin(tasks, eq(agentRuns.taskId, tasks.id))
+    .where(
+      and(
+        eq(tasks.projectId, projectId),
+        inArray(agentRuns.status, ["dispatched", "running"]),
+      ),
+    );
+  return new Set(rows.map((r) => r.taskId).filter((x): x is string => Boolean(x)));
+}
+
 /** 某任务是否正有 agent 在办——卡片上显示「AI 处理中」的依据。 */
 export async function activeRunForTask(taskId: string) {
   const [row] = await db

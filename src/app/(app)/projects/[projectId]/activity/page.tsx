@@ -92,6 +92,11 @@ export default async function ActivityPage({
                   <p className="text-sm leading-6 text-ink">
                     {/* actor 被删后 actorId 置 null，事件仍须可读 */}
                     <span className="font-medium">{e.actorName ?? "已注销成员"}</span>
+                    {/* 人机混排的账本必须分得清谁做的——
+                        否则复盘时看不出这活是人干的还是 AI 干的 */}
+                    {e.actorKind === "agent" && (
+                      <span className="ac-badge ml-1 bg-primary-soft text-primary">AI</span>
+                    )}
                     <span className="text-ink-soft"> {e.summary ?? TYPE_LABEL[e.type] ?? e.type}</span>
                   </p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-faint">

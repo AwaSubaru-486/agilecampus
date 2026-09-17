@@ -61,15 +61,24 @@ const T = {
   meeting: "d0000000-0000-4000-8000-000000000409",
   compute: "d0000000-0000-4000-8000-000000000410",
   clean: "d0000000-0000-4000-8000-000000000411",
+  // 交给 AI 成员的两件活
+  api: "d0000000-0000-4000-8000-000000000412",
+  docs: "d0000000-0000-4000-8000-000000000413",
 };
 const L = {
   risk: "d0000000-0000-4000-8000-000000000501",
   hard: "d0000000-0000-4000-8000-000000000502",
 };
+// AI 成员。id 定义提到这里，是因为清理逻辑要用到它们
+const AG = {
+  codegen: "d0000000-0000-4000-8000-000000000701",
+  writer: "d0000000-0000-4000-8000-000000000702",
+};
 const B = {
   blocked: "d0000000-0000-4000-8000-000000000601",
   waiting: "d0000000-0000-4000-8000-000000000602",
   doneGpu: "d0000000-0000-4000-8000-000000000603",
+  agentBlocked: "d0000000-0000-4000-8000-000000000604",
 };
 
 async function main() {
@@ -82,8 +91,9 @@ async function main() {
 
   // 先清掉上一轮的演示团队。只删自己建的这一个 id，不碰任何既有团队。
   await sql`delete from teams where id = ${TEAM}`;
-  await sql`delete from users where id in ${sql(Object.values(P))}`;
-  // 清掉上一轮把主公挂进演示团队的痕迹（团队删了级联，此处仅防残留）
+  // 演示成员与 AI 成员的 users 行要显式删：users 不随团队级联，
+  // 留着会让下一次重跑撞主键。主公自己的账号不在其列。
+  await sql`delete from users where id in ${sql([...Object.values(P), ...Object.values(AG)])}`;
   await sql`delete from team_members where team_id = ${TEAM}`;
 
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -271,6 +281,82 @@ async function main() {
     `;
   }
 
+  // ---- AI 成员：人机混排的演示 ----
+  // agent 也是 users 的一行（kind='agent'、无密码、合成邮箱），
+  // 同时占一个 team_members 席位（角色 student），这样既有权限层原样适用。
+  for (const [id, name, provider, caps] of [
+    [AG.codegen, "小码", "claude-code", ["写接口", "写测试"]],
+    [AG.writer, "小文", "codex", ["整理文档", "写纪要"]],
+  ]) {
+    await sql`
+      insert into users (id, email, password_hash, kind, name)
+      values (${id}, ${`agent-${id}@agents.local`}, null, 'agent', ${name})
+    `;
+    await sql`insert into team_members (team_id, user_id, role) values (${TEAM}, ${id}, 'student')`;
+    await sql`
+      insert into agents (user_id, team_id, provider, runtime, capabilities, status,
+                          max_concurrent, owner_id, last_seen_at)
+      values (${id}, ${TEAM}, ${provider}, 'local', ${caps}, ${id === AG.codegen ? 'idle' : 'blocked'},
+              1, ${ownerId}, ${at(0, 0.2)})
+    `;
+  }
+
+  // 交给 agent 的两件活：一件它交了等人验收，一件它卡住了
+  await sql`
+    insert into tasks (id, project_id, milestone_id, title, description, status, priority,
+                       assignee_id, created_by_id, start_date, due_date, sort_order,
+                       commitment_note, committed_at, estimated_hours,
+                       completion_note, submitted_at, created_at, updated_at)
+    values
+      (${T.api}, ${PROJECT}, ${M.mid}, '实现问答接口', '按前端给的字段定义写三个端点',
+       'review', 'high', ${AG.codegen}, ${ownerId},
+       ${daysAgoStr(6)}, ${daysAgoStr(1)}, 30,
+       '先定 schema，再写三个端点，最后补测试', ${at(6)}, 6,
+       '三个端点都通了，含 12 个单测。接口字段可能还要按前端反馈微调',
+       ${at(1)}, ${at(6)}, ${at(1)}),
+      (${T.docs}, ${PROJECT}, ${null}, '整理中期材料', '把散在各处的材料汇总成一份',
+       'doing', 'medium', ${AG.writer}, ${ownerId},
+       ${daysAgoStr(5)}, ${null}, 31,
+       '按学院模板汇总，边写边补缺口', ${at(5)}, 4,
+       ${null}, ${null}, ${at(5)}, ${at(2)})
+  `;
+  await sql`
+    insert into agent_runs (agent_id, task_id, status, priority, dispatched_at, started_at,
+                            finished_at, result, created_at)
+    values
+      (${AG.codegen}, ${T.api}, 'completed', 10, ${at(6)}, ${at(6)}, ${at(1)},
+       ${sql.json({ files: ["src/api/qa.ts", "tests/qa.test.ts"], tests: "12 passed" })}, ${at(6)}),
+      (${AG.writer}, ${T.docs}, 'running', 5, ${at(5)}, ${at(5)}, ${null},
+       ${sql.json({ progress: "已汇总 6 份材料，缺实验数据一节" })}, ${at(5)})
+  `;
+  // 小文卡住了——agent 的阻塞走同一套求助机制，于是它自动进协作推荐与健康度
+  await sql`
+    insert into blockers (id, project_id, task_id, raised_by_id, reason, detail, help_needed,
+                          status, resolved_by_id, resolution_note, resolved_at, created_at)
+    values (${B.agentBlocked}, ${PROJECT}, ${T.docs}, ${AG.writer}, 'unclear',
+            '实验数据那一节该写什么，翻遍材料也没有',
+            '希望有人告诉我中期要交哪些实验数据',
+            'open', null, null, null, ${at(2, 3)})
+  `;
+
+  // 人机混排的账本：agent 的动作与人并列，靠 actor 是 agent 区分
+  const agentEvents = [
+    ev("task_created", ownerId, T.api, "创建了任务「实现问答接口」", { title: "实现问答接口" }, at(6, 2)),
+    ev("task_assigned", ownerId, T.api, "将「实现问答接口」指派给 小码", { title: "实现问答接口", toName: "小码" }, at(6, 1)),
+    ev("task_claimed", AG.codegen, T.api, "认领「实现问答接口」，承诺先定 schema，再写三个端点，最后补测试", { title: "实现问答接口", commitmentNote: "先定 schema，再写三个端点，最后补测试", estimatedHours: 6 }, at(6)),
+    ev("task_submitted", AG.codegen, T.api, "提交了「实现问答接口」待验收", { title: "实现问答接口", assigneeId: AG.codegen }, at(1)),
+    ev("task_created", ownerId, T.docs, "创建了任务「整理中期材料」", { title: "整理中期材料" }, at(5, 2)),
+    ev("task_assigned", ownerId, T.docs, "将「整理中期材料」指派给 小文", { title: "整理中期材料", toName: "小文" }, at(5, 1)),
+    ev("task_claimed", AG.writer, T.docs, "认领「整理中期材料」，承诺按学院模板汇总，边写边补缺口", { title: "整理中期材料", commitmentNote: "按学院模板汇总，边写边补缺口", estimatedHours: 4 }, at(5)),
+    ev("blocker_raised", AG.writer, T.docs, "求助：需求不清楚，需要希望有人告诉我中期要交哪些实验数据", { reason: "unclear", helpNeeded: "希望有人告诉我中期要交哪些实验数据", detail: "实验数据那一节该写什么，翻遍材料也没有", inviteeIds: [] }, at(2, 3)),
+  ];
+  for (const e of agentEvents) {
+    await sql`
+      insert into activity_events (project_id, task_id, actor_id, type, summary, payload, created_at)
+      values (${e[0]}, ${e[1]}, ${e[2]}, ${e[3]}, ${e[4]}, ${e[5]}, ${e[6]})
+    `;
+  }
+
   const counts = await sql`
     select (select count(*) from tasks where project_id = ${PROJECT}) as tasks,
            (select count(*) from activity_events where project_id = ${PROJECT}) as events,
@@ -287,6 +373,8 @@ async function main() {
   console.log("    lusu@demo.local       鲁肃    学生");
   console.log("    zhangzhao@demo.local  张昭    学生");
   console.log("    zhugejin@demo.local   诸葛瑾  教师（可验收，不能编辑）");
+  console.log("  另有 2 个 AI 成员：小码（已交活待验收）、小文（卡住了，发了求助）");
+  console.log("  看 AI 成员：团队 → 成员 → 管理 AI 成员");
   console.log("\n  删除：psql -U agilecampus -d agilecampus -c \"delete from teams where id = 'd0000000-0000-4000-8000-000000000001'\"\n");
 }
 

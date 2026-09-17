@@ -77,6 +77,8 @@ export type ActivityRow = {
   taskId: string | null;
   actorId: string | null;
   actorName: string | null;
+  /** 这条是人做的还是 agent 做的。人机混排的账本必须分得清 */
+  actorKind: "human" | "agent" | null;
   payload: unknown;
   createdAt: Date;
 };

@@ -13,6 +13,8 @@ import { parseFilters, applyFilters } from "@/lib/board-filters";
 import { today } from "@/lib/today";
 import { listProjectBlockers } from "@/lib/blocker";
 import { getProjectHealth } from "@/lib/health";
+import { listProjectAgents } from "@/lib/agent-member";
+import { listBusyTaskIds } from "@/lib/agent-run";
 import { BlockerStrip } from "./blocker-strip";
 import { HealthPanel } from "./health-panel";
 import { MilestoneSection } from "./milestone-section";
@@ -60,6 +62,14 @@ export default async function ProjectPage({
   // 健康度单独取：它内部还会为阻塞类风险问一次协作推荐，
   // 塞进上面的 Promise.all 也只是并发，读起来反而更绕
   const health = await getProjectHealth(session.user.id, projectId);
+
+  // 人机混排要用的两样东西：每个 agent 此刻的状态，与哪些任务正有 agent 在办。
+  // 一并取回、一次传下去，免得卡片里逐个查。
+  const [projectAgents, busyTaskIds] = await Promise.all([
+    listProjectAgents(session.user.id, projectId),
+    listBusyTaskIds(projectId),
+  ]);
+  const agentStatusById = Object.fromEntries(projectAgents.map((a) => [a.userId, a.status]));
 
   const filters = parseFilters(
     new URLSearchParams(
@@ -154,7 +164,7 @@ export default async function ProjectPage({
           />
         )}
         <FilterBar
-          members={members.map((m) => ({ id: m.id, name: m.name }))}
+          members={members.map((m) => ({ id: m.id, name: m.kind === "agent" ? `${m.name}（AI）` : m.name }))}
           milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
           labels={teamLabels.map((l) => ({ id: l.id, name: l.name }))}
           visible={visibleTasks.length}
@@ -179,6 +189,12 @@ export default async function ProjectPage({
             commitmentNote: t.commitmentNote,
             estimatedHours: t.estimatedHours,
             reviewNote: t.reviewNote,
+            committedAt: t.committedAt,
+            declineReason: t.declineReason,
+            // 按任务预先算好，免得把整张状态表穿过三层组件；
+            // 一个任务至多一个负责人，故这里一个字段就够
+            agentStatus: t.assigneeId ? (agentStatusById[t.assigneeId] ?? null) : null,
+            hasActiveRun: busyTaskIds.has(t.id),
           }))}
           canWrite={canWrite}
           canReview={canReview}

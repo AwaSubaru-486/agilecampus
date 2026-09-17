@@ -39,6 +39,7 @@ export async function listProjectActivity(
       actorId: activityEvents.actorId,
       // leftJoin：actor 被删后 actorId 置 null，事件仍须可读可渲染
       actorName: users.name,
+      actorKind: users.kind,
       payload: activityEvents.payload,
       createdAt: activityEvents.createdAt,
     })

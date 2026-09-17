@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -26,17 +26,25 @@ export default async function MembersPage({
   const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
   if (!team) notFound();
 
+  // 只列人。agent 为复用权限层也占了一个 team_members 席位，但它不是人——
+  // 它有合成的 @agents.local 邮箱、没有密码，列在这里只会让人困惑。
+  // 它另有一页。
   const members = await db
     .select({ userId: users.id, name: users.name, email: users.email, role: teamMembers.role })
     .from(teamMembers)
     .innerJoin(users, eq(teamMembers.userId, users.id))
-    .where(eq(teamMembers.teamId, teamId));
+    .where(and(eq(teamMembers.teamId, teamId), eq(users.kind, "human")));
 
   const isAdmin = me.role === "admin";
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 py-8">
-      <h1 className="font-display text-2xl font-semibold text-ink">{team.name} · 成员</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-2xl font-semibold text-ink">{team.name} · 成员</h1>
+        <a href={`/teams/${teamId}/agents`} className="ac-btn-ghost">
+          管理 AI 成员
+        </a>
+      </div>
       <ul className="space-y-2">
         {members.map((m) => (
           <li key={m.userId} className="ac-card flex items-center justify-between p-4">

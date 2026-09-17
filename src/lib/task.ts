@@ -354,6 +354,10 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       reviewedById: tasks.reviewedById,
       reviewNote: tasks.reviewNote,
       rejectCount: tasks.rejectCount,
+      // 接住与否、以及上一次接不住的理由——卡片要靠它判断显示哪枚按钮
+      declineReason: tasks.declineReason,
+      declinedAt: tasks.declinedAt,
+      declinedById: tasks.declinedById,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
@@ -447,6 +451,9 @@ export async function getTaskDetail(actorId: string, taskId: string) {
       reviewedById: tasks.reviewedById,
       reviewNote: tasks.reviewNote,
       rejectCount: tasks.rejectCount,
+      declineReason: tasks.declineReason,
+      declinedAt: tasks.declinedAt,
+      declinedById: tasks.declinedById,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))

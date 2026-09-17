@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import {
   claimTaskAction,
+  declineTaskAction,
   deleteTaskAction,
   reviewTaskAction,
   submitTaskAction,
@@ -13,11 +14,13 @@ import {
   type UpdateTaskState,
 } from "./actions";
 import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
-import { isCompleted, isInFlight, isInReview } from "@/lib/task-status";
+import { isAwaitingResponse, isCompleted, isInFlight, isInReview } from "@/lib/task-status";
 import type { BoardTask } from "./board";
 import type { CardDensity } from "./board";
 
-export type Option = { id: string; name: string };
+// 负责人下拉的每一项。kind 决定卡面上是否给它挂「AI」标识——
+// 人机混排的界面里，一眼分得清谁是谁是基本要求。
+export type Option = { id: string; name: string; kind?: "human" | "agent" };
 type TaskOption = { id: string; title: string };
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -66,7 +69,7 @@ export function TaskCard({
 }) {
   const [editing, setEditing] = useState(false);
   // 动作面板：同一时刻只开一个。null 表示无
-  const [panel, setPanel] = useState<null | "claim" | "submit" | "review">(null);
+  const [panel, setPanel] = useState<null | "claim" | "submit" | "review" | "decline">(null);
 
   // 三枚动作各按「我能不能做这件事」判定。做不了的不显示，
   // 比显示了再报错友好——尤其对初次使用的人。
@@ -75,6 +78,28 @@ export function TaskCard({
   const canSubmit = isMine && isInFlight(task.status);
   // 不能验收自己的活：既不能自证，也不能自判
   const canReviewThis = canReview && isInReview(task.status) && !isMine;
+
+  // 「还没接住」——派下去但本人没回话。看板上要看得见，
+  // 否则它会伪装成「有人在做了」，一路蒙到 deadline
+  const awaitingResponse = isAwaitingResponse(task.status, task.assigneeId, task.committedAt);
+  const canDecline = isMine && awaitingResponse;
+
+  // 负责人是不是 agent：查名录里的 kind，卡片不做额外请求
+  const assigneeIsAgent = members.some((m) => m.id === task.assigneeId && m.kind === "agent");
+
+  // agent 此刻的状态译成一句人话。只在负责人是 agent 时显示，
+  // 免得给人也挂一个「离线」——人不会被判离线。
+  const agentBadge = !assigneeIsAgent
+    ? null
+    : task.hasActiveRun
+      ? { label: "AI 处理中", cls: "bg-primary-soft text-primary" }
+      : task.agentStatus === "blocked"
+        ? { label: "AI 卡住了", cls: "bg-high-soft text-high" }
+        : task.agentStatus === "error"
+          ? { label: "AI 出错了", cls: "bg-high-soft text-high" }
+          : task.agentStatus === "offline"
+            ? { label: "AI 离线", cls: "bg-sunken text-ink-soft" }
+            : null;
   const searchParams = useSearchParams();
   // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）。
   // 于渲染期调整而非 useEffect：避免多渲染一轮，且用户手动关闭后不会被 effect 重开。
@@ -128,6 +153,12 @@ export function TaskCard({
         </div>
         <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
           <span>{task.assigneeName ?? "待认领"}</span>
+          {assigneeIsAgent && <span className="ac-badge bg-primary-soft text-primary">AI</span>}
+          {/* agent 此刻在干什么。这一格是人机混排界面的关键——
+              人说得出自己卡住了，agent 不会，只能靠这一格替他开口 */}
+          {agentBadge && (
+            <span className={`ac-badge ${agentBadge.cls}`}>{agentBadge.label}</span>
+          )}
           {(task.startDate || task.dueDate) && (
             <span>· {task.dueDate ?? task.startDate}</span>
           )}
@@ -135,6 +166,12 @@ export function TaskCard({
             {PRIORITY_LABEL[task.priority] ?? task.priority}
           </span>
         </p>
+        {/* 还没接住：派了不等于有人接。一句话点破这层误会 */}
+        {awaitingResponse && (
+          <p className="mt-1.5 rounded bg-medium-soft/60 px-2 py-1 text-xs text-medium">
+            {assigneeIsAgent ? "派给 AI 了，但它还没回话" : "已指派，等本人回复接不接"}
+          </p>
+        )}
         {density === "comfortable" && task.labels.length > 0 && (
           <p className="mt-1 flex flex-wrap items-center gap-1">
             {task.labels.slice(0, 3).map((l) => (
@@ -217,6 +254,17 @@ export function TaskCard({
                 验收
               </button>
             )}
+            {/* 「接不住」与「我接手」并列同高：它是正当选项，不是失败按钮。
+                做小做灰，人就又不敢点了——那正是这个功能要治的病 */}
+            {canDecline && (
+              <button
+                type="button"
+                onClick={() => setPanel(panel === "decline" ? null : "decline")}
+                className="ac-btn-ghost px-2.5 py-1 text-xs"
+              >
+                接不住
+              </button>
+            )}
           </div>
         )}
 
@@ -262,6 +310,32 @@ export function TaskCard({
           <label className="block space-y-1 text-xs text-ink-faint">
             预估工时（小时，选填）
             <input type="number" name="estimatedHours" min="0.5" step="0.5" className="ac-field text-sm" />
+          </label>
+        </ActionForm>
+      )}
+
+      {panel === "decline" && (
+        <ActionForm
+          action={declineTaskAction}
+          projectId={projectId}
+          taskId={task.id}
+          submitLabel="说明原因并退回"
+          onDone={() => setPanel(null)}
+          onCancel={() => setPanel(null)}
+        >
+          <p className="text-xs leading-5 text-ink-soft">
+            接不住不是失败，是让派活的人早点知道。退回后任务回到「待办」，
+            派活的人会收到通知，可以改派、拆小或换个做法。
+          </p>
+          <label className="block space-y-1 text-xs text-ink-faint">
+            为什么接不住
+            <textarea
+              name="reason"
+              required
+              rows={2}
+              placeholder="比如：这周有三门考试；缺必要的账密；不清楚要做到什么程度"
+              className="ac-field text-sm"
+            />
           </label>
         </ActionForm>
       )}

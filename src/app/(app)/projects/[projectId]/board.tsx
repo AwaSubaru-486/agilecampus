@@ -14,6 +14,7 @@ import {
 import { deriveColumns, type BoardColumn, type ColumnPatch } from "@/lib/board-columns";
 import type { GroupBy } from "@/lib/board-filters";
 import type { TaskStatus } from "@/lib/task-status";
+import type { AgentStatus } from "@/db/schema";
 import { moveTaskAction } from "./actions";
 import { TaskCard, type Option } from "./task-card";
 
@@ -34,6 +35,14 @@ export type BoardTask = {
   commitmentNote: string | null;
   estimatedHours: number | null;
   reviewNote: string | null;
+  /** 承诺时刻。非空＝本人已接住；空而有人负责＝还在等他回话 */
+  committedAt: Date | null;
+  /** 上一次「接不住」的理由，退回后挂在任务上供派活的人参考 */
+  declineReason: string | null;
+  // 人机混排：负责人若是 agent，卡片要显示它此刻在干什么
+  agentStatus: AgentStatus | null;
+  /** 这个任务上正有 agent 在跑 */
+  hasActiveRun: boolean;
 };
 
 type ViewMode = "board" | "list";

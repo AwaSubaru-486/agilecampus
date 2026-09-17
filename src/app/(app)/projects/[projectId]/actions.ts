@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import {
   claimTask,
   createTask,
+  declineTask,
   deleteTask,
   reviewTask,
   setTaskSuccessors,
@@ -254,6 +255,32 @@ export async function claimTaskAction(_prev: FormState, formData: FormData): Pro
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限认领此任务" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const declineTaskSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  reason: z.string().trim().min(1, "请说明为什么接不住"),
+});
+
+// 「接不住」——本产品区别于普通任务分派的那条边。
+// 只有被派的人本人能说（admin 也代不了，那是第一人称的判断）。
+export async function declineTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const parsed = declineTaskSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    await declineTask(session.user.id, parsed.data.taskId, { reason: parsed.data.reason });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以接不住" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
