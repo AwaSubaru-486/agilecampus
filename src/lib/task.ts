@@ -15,6 +15,7 @@ import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership } from "./team";
 import { getProjectForUser } from "./project";
 import { notifyTaskAssigned, notifyTaskCompleted } from "./notify";
+import { DEFAULT_STATUS } from "./task-status";
 
 // 任务写操作角色：admin + student（teacher 只读，设计文档 §5）
 const TASK_WRITE_ROLES = ["admin", "student"];
@@ -89,7 +90,7 @@ export async function createTask(
       milestoneId: input.milestoneId,
       parentTaskId: input.parentTaskId,
       priority: input.priority ?? "medium",
-      status: input.status ?? "todo",
+      status: input.status ?? DEFAULT_STATUS,
       sortOrder: Date.now(),
     })
     .returning();

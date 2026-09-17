@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { listMyProjects, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
+import { TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
 import type { TaskStatus } from "@/db/schema";
 
 // 读工具纯函数：权限经底层 lib（listProjectMilestones/listProjectTasks 内部各调 getProjectForUser）
@@ -10,7 +11,8 @@ export async function queryProgress(actorId: string, projectId: string) {
     listProjectMilestones(actorId, projectId),
     listProjectTasks(actorId, projectId),
   ]);
-  const byStatus: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+  // 显式标注 Record<TaskStatus, number> 与 emptyByStatus 并用：前者保编译期穷尽检查，后者保键随枚举走
+  const byStatus: Record<TaskStatus, number> = emptyByStatus();
   for (const t of ts) byStatus[t.status]++;
   return {
     taskTotal: ts.length,
@@ -80,7 +82,7 @@ export function buildTools(actorId: string, projectId: string) {
       description:
         "按状态、负责人、截止日筛选该项目任务，返回含 taskId。改任务前必先用它取回 id。",
       inputSchema: z.object({
-        status: z.enum(["todo", "doing", "done"]).optional(),
+        status: z.enum(TASK_STATUSES).optional(),
         assigneeId: z.string().optional().describe("负责人用户 id"),
         dueBefore: z.string().optional().describe("截止日不晚于此日期（YYYY-MM-DD）"),
       }),
@@ -131,7 +133,7 @@ export function buildTools(actorId: string, projectId: string) {
             taskId: z.string(),
             patch: z.object({
               title: z.string().optional(),
-              status: z.enum(["todo", "doing", "done"]).optional(),
+              status: z.enum(TASK_STATUSES).optional(),
               assigneeId: z.string().optional(),
               dueDate: z.string().optional(),
               milestoneId: z.string().optional(),

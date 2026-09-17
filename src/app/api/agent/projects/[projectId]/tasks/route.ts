@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
 import { createTask, listProjectTasks } from "@/lib/task";
+import { TASK_STATUSES } from "@/lib/task-status";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -11,7 +12,7 @@ function parseProjectId(raw: string) {
 }
 
 const filterSchema = z.object({
-  status: z.enum(["todo", "doing", "done"]).optional(),
+  status: z.enum(TASK_STATUSES).optional(),
   assigneeId: z.uuid().optional(),
   dueBefore: z.string().optional(),
 });

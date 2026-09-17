@@ -2,6 +2,8 @@ import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
 import { listTeamMembers } from "@/lib/team";
 import { ForbiddenError } from "@/lib/errors";
+import { STATUS_LABEL, TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
+import { today } from "@/lib/today";
 import type { TaskStatus } from "@/db/schema";
 
 // 上限放宽至 4000：快照须随行携带 uuid（成员/里程碑/任务各 36 字符）供写工具填参，
@@ -21,19 +23,21 @@ export async function buildProjectSnapshot(actorId: string, projectId: string): 
     listTeamMembers(project.teamId),
   ]);
 
-  const byStatus: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+  const byStatus: Record<TaskStatus, number> = emptyByStatus();
   for (const t of tasks) byStatus[t.status]++;
 
   // 当日日期：模型不知今夕何夕，缺此则「下周五截止」一类相对日期必错。
-  // 取法同 notify.ts:103（toISOString 前十位），全军一律。
-  const today = new Date().toISOString().slice(0, 10);
+  // 取法走 lib/today.ts，全军一律。
+  // 局部变量名避开 day 之外的 today——勿遮蔽同名函数。
+  const day = today();
 
   const head = [
-    `今天是 ${today}（相对日期以此为准推算）`,
+    `今天是 ${day}（相对日期以此为准推算）`,
     `# 当前项目：${project.name}（projectId=${project.id}）`,
     project.description ? `描述：${project.description}` : null,
     `状态：${project.status}；起止：${project.startDate ?? "?"} ~ ${project.endDate ?? "?"}`,
-    `任务统计：共 ${tasks.length} 个（待办 ${byStatus.todo} / 进行中 ${byStatus.doing} / 已完成 ${byStatus.done}）`,
+    // 统计串随枚举走：加档后自动多出一项，无需回来补文案
+    `任务统计：共 ${tasks.length} 个（${TASK_STATUSES.map((s) => `${STATUS_LABEL[s]} ${byStatus[s]}`).join(" / ")}）`,
     `共 ${milestones.length} 个里程碑`,
   ]
     .filter(Boolean)

@@ -7,6 +7,7 @@ import { createTask, updateTask, deleteTask, setTaskSuccessors } from "@/lib/tas
 import { setTaskLabels } from "@/lib/label";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { TASK_STATUSES } from "@/lib/task-status";
 
 export type FormState = { error: string } | null;
 export type CreateTaskState = { error: string } | { ok: true; revision: string } | null;
@@ -22,7 +23,7 @@ const createTaskSchema = z.object({
   dueDate: z.iso.date("日期格式不正确").optional(),
   milestoneId: z.uuid().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
-  status: z.enum(["todo", "doing", "done"]).optional(),
+  status: z.enum(TASK_STATUSES).optional(),
 });
 
 export async function createTaskAction(
@@ -93,7 +94,7 @@ export async function createMilestoneAction(
 // 拖拽可改的字段白名单。校验与授权仍全数落在 updateTask
 //（指派人须属团队、里程碑须属项目），故此处只做形状校验。
 const movePatchSchema = z.object({
-  status: z.enum(["todo", "doing", "done"]).optional(),
+  status: z.enum(TASK_STATUSES).optional(),
   assigneeId: z.uuid().nullable().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
   milestoneId: z.uuid().nullable().optional(),

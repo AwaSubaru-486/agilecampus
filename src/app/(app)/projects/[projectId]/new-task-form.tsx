@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createTaskAction, type CreateTaskState } from "./actions";
+import { DEFAULT_STATUS, statusLabel, type TaskStatus } from "@/lib/task-status";
 
 export function NewTaskForm({
   projectId,
@@ -17,7 +18,7 @@ export function NewTaskForm({
     null,
   );
   const [open, setOpen] = useState(false);
-  const [targetStatus, setTargetStatus] = useState<"todo" | "doing" | "done">("todo");
+  const [targetStatus, setTargetStatus] = useState<TaskStatus>(DEFAULT_STATUS);
   const titleRef = useRef<HTMLInputElement>(null);
   const created = Boolean(state && "ok" in state);
 
@@ -42,8 +43,8 @@ export function NewTaskForm({
 
   useEffect(() => {
     function openForColumn(event: Event) {
-      const status = (event as CustomEvent<{ status?: "todo" | "doing" | "done" }>).detail?.status;
-      setTargetStatus(status ?? "todo");
+      const status = (event as CustomEvent<{ status?: TaskStatus }>).detail?.status;
+      setTargetStatus(status ?? DEFAULT_STATUS);
       setOpen(true);
       requestAnimationFrame(() => titleRef.current?.focus());
     }
@@ -52,7 +53,7 @@ export function NewTaskForm({
   }, []);
 
   function begin() {
-    setTargetStatus("todo");
+    setTargetStatus(DEFAULT_STATUS);
     setOpen(true);
     requestAnimationFrame(() => titleRef.current?.focus());
   }
@@ -81,7 +82,7 @@ export function NewTaskForm({
           <input type="hidden" name="status" value={targetStatus} />
           {targetStatus !== "todo" && (
             <p className="text-xs font-medium text-primary">
-              将添加到“{targetStatus === "doing" ? "进行中" : "已完成"}”
+              将添加到“{statusLabel(targetStatus)}”
             </p>
           )}
           <div className="flex items-center gap-2">

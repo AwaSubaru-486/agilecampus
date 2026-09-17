@@ -12,6 +12,9 @@ import {
   jsonb,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+// 状态值取自 lib/task-status.ts（零依赖叶子模块），使看板等客户端组件无需引 schema 即可复用。
+// 依赖方向：db/schema → lib/task-status。仍是单一真相源。
+import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
 export type TeamRole = (typeof teamRoleEnum.enumValues)[number];
@@ -53,7 +56,7 @@ export const teamMembers = pgTable(
 
 export const projectStatusEnum = pgEnum("project_status", ["active", "archived"]);
 export const milestoneStatusEnum = pgEnum("milestone_status", ["open", "done"]);
-export const taskStatusEnum = pgEnum("task_status", ["todo", "doing", "done"]);
+export const taskStatusEnum = pgEnum("task_status", TASK_STATUSES);
 export const taskPriorityEnum = pgEnum("task_priority", ["low", "medium", "high"]);
 export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
 export type TaskStatus = (typeof taskStatusEnum.enumValues)[number];
@@ -117,7 +120,7 @@ export const tasks = pgTable(
     }),
     startDate: date("start_date"),
     dueDate: date("due_date"),
-    status: taskStatusEnum("status").notNull().default("todo"),
+    status: taskStatusEnum("status").notNull().default(DEFAULT_STATUS),
     priority: taskPriorityEnum("priority").notNull().default("medium"),
     sortOrder: doublePrecision("sort_order").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { createMilestone, createProject, getProjectForUser } from "@/lib/project";
 import { createTask, listProjectTasks, updateTask } from "@/lib/task";
 import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
+import { TASK_STATUSES } from "@/lib/task-status";
 import { ForbiddenError } from "@/lib/errors";
 import type { WriteToolName } from "./tools";
 
@@ -26,7 +27,7 @@ const decomposeSchema = z.object({ tasks: z.array(taskDraftSchema).min(1) });
 
 const patchSchema = z.object({
   title: z.string().optional(),
-  status: z.enum(["todo", "doing", "done"]).optional(),
+  status: z.enum(TASK_STATUSES).optional(),
   assigneeId: z.string().optional(),
   dueDate: z.string().optional(),
   milestoneId: z.string().optional(),

@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { deriveColumns, type BoardColumn, type ColumnPatch } from "@/lib/board-columns";
 import type { GroupBy } from "@/lib/board-filters";
+import type { TaskStatus } from "@/lib/task-status";
 import { moveTaskAction } from "./actions";
 import { TaskCard, type Option } from "./task-card";
 
@@ -21,7 +22,7 @@ export type BoardTask = {
   title: string;
   description: string | null;
   completionNote: string | null;
-  status: "todo" | "doing" | "done";
+  status: TaskStatus;
   priority: string;
   startDate: string | null;
   dueDate: string | null;

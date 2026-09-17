@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { AppError, ForbiddenError } from "./errors";
 import { getTeamMembership, requireTeamRole } from "./team";
+import { TASK_STATUSES, emptyByStatus } from "./task-status";
 
 export async function createProject(
   actorId: string,
@@ -90,14 +91,15 @@ export async function getProjectDetail(actorId: string, projectId: string) {
       .groupBy(tasks.status),
   ]);
 
-  const byStatus = { todo: 0, doing: 0, done: 0 };
+  const byStatus = emptyByStatus();
   for (const c of counts) byStatus[c.status] = c.count;
 
   return {
     project: access.project,
     role: access.role,
     milestones: projectMilestones,
-    taskTotal: byStatus.todo + byStatus.doing + byStatus.done,
+    // 求和而非手写三项相加：加了状态档后，漏加一项就是总数凭空少算，且编译器不吭声
+    taskTotal: TASK_STATUSES.reduce((n, s) => n + byStatus[s], 0),
     byStatus,
   };
 }

@@ -2,6 +2,7 @@ import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks, users, projects } from "@/db/schema";
 import { sendCardMessage } from "./feishu";
+import { today } from "./today";
 import {
   buildAssignedCard,
   buildCompletedCard,
@@ -100,7 +101,7 @@ export async function scanAndNotifyDue(): Promise<{ notified: number; tasksScann
 
   // 按负责人聚合
   const byUser = new Map<string, { openId: string; overdue: ReminderItem[]; dueSoon: ReminderItem[] }>();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = today();
   for (const r of rows) {
     if (!r.assigneeId || !r.openId) continue;
     const bucket = byUser.get(r.assigneeId) ?? { openId: r.openId, overdue: [], dueSoon: [] };
