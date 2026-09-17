@@ -2,8 +2,9 @@ import { generateText, stepCountIs, type LanguageModel } from "ai";
 import { buildTools, type DraftEnvelope } from "./tools";
 import { buildProjectSnapshot } from "./snapshot";
 import {
-  getOrCreateConversation,
+  listConversationMessages,
   persistTurn,
+  resolveConversation,
   type ToolTraceEntry,
 } from "./conversation";
 import { getModel } from "./model";
@@ -45,14 +46,27 @@ export async function runAgentTurn(params: {
   actorId: string;
   projectId: string;
   userText: string;
+  conversationId?: string;
   model?: LanguageModel;
 }) {
-  const { actorId, projectId, userText, model } = params;
+  const { actorId, projectId, userText, conversationId, model } = params;
 
-  // 权限收敛：会话创建内部经 getProjectForUser 校验，非成员/不存在一律 ForbiddenError
-  const conversation = await getOrCreateConversation(actorId, projectId);
+  // 权限收敛：显式会话必须属于当前项目且对调用者可见；未指定时兼容旧入口。
+  const conversation = await resolveConversation(actorId, projectId, conversationId);
+  const storedHistory = await listConversationMessages(actorId, conversation.id);
   const snapshot = await buildProjectSnapshot(actorId, projectId);
   const tools = buildTools(actorId, projectId);
+
+  // 继承最近 40 条人机消息。工具轨迹仍保存在消息记录中供人审计，避免把内部
+  // JSON 原样回灌给模型造成噪声。分支会话在创建时已复制边界前的历史，因此
+  // 同一条逻辑同时覆盖普通续聊和从指定回复继续。
+  const inheritedMessages = storedHistory
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .slice(-40)
+    .map((message) => ({
+      role: message.role as "user" | "assistant",
+      content: message.content,
+    }));
 
   const result = await generateText({
     model: model ?? getModel(),
@@ -61,7 +75,7 @@ export async function runAgentTurn(params: {
     stopWhen: stepCountIs(5),
     // 设计 §6.4：不自动重试——覆盖 AI SDK 默认 maxRetries=2，失败即如实呈报
     maxRetries: 0,
-    messages: [{ role: "user", content: userText }],
+    messages: [...inheritedMessages, { role: "user", content: userText }],
   });
 
   // 工具轨迹：逐步展开 toolCalls 与对应 toolResults
@@ -83,7 +97,14 @@ export async function runAgentTurn(params: {
       ),
   );
 
-  await persistTurn(conversation.id, userText, result.text, toolTrace);
+  const persisted = await persistTurn(conversation.id, userText, result.text, toolTrace, actorId);
 
-  return { conversationId: conversation.id, text: result.text, toolTrace, drafts };
+  return {
+    conversationId: conversation.id,
+    userMessageId: persisted.userMessage?.id,
+    assistantMessageId: persisted.assistantMessage?.id,
+    text: result.text,
+    toolTrace,
+    drafts,
+  };
 }

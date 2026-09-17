@@ -6,6 +6,7 @@ import { AppError, ForbiddenError } from "@/lib/errors";
 
 const schema = z.object({
   projectId: z.uuid(),
+  conversationId: z.uuid().optional(),
   userText: z.string().trim().min(1, "请输入内容"),
 });
 
@@ -22,9 +23,17 @@ export async function POST(req: Request) {
     const result = await runAgentTurn({
       actorId: session.user.id,
       projectId: parsed.data.projectId,
+      conversationId: parsed.data.conversationId,
       userText: parsed.data.userText,
     });
-    return NextResponse.json({ text: result.text, toolTrace: result.toolTrace, drafts: result.drafts });
+    return NextResponse.json({
+      conversationId: result.conversationId,
+      userMessageId: result.userMessageId,
+      assistantMessageId: result.assistantMessageId,
+      text: result.text,
+      toolTrace: result.toolTrace,
+      drafts: result.drafts,
+    });
   } catch (e) {
     if (e instanceof ForbiddenError) return NextResponse.json({ error: "没有权限" }, { status: 403 });
     if (e instanceof AppError) return NextResponse.json({ error: e.message }, { status: 400 });

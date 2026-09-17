@@ -133,6 +133,12 @@ export const tasks = pgTable(
 export const messageRoleEnum = pgEnum("message_role", ["user", "assistant", "tool"]);
 export type MessageRole = (typeof messageRoleEnum.enumValues)[number];
 
+export const conversationVisibilityEnum = pgEnum("conversation_visibility", [
+  "private",
+  "project",
+]);
+export type ConversationVisibility = (typeof conversationVisibilityEnum.enumValues)[number];
+
 export const conversations = pgTable(
   "conversations",
   {
@@ -143,10 +149,25 @@ export const conversations = pgTable(
     createdById: uuid("created_by_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    parentConversationId: uuid("parent_conversation_id").references(
+      (): AnyPgColumn => conversations.id,
+      { onDelete: "set null" },
+    ),
+    // 指向源会话中作为分叉边界的消息。消息表定义在后，外键关系由业务层校验，
+    // 避免 schema 初始化时形成 conversations <-> messages 的循环定义。
+    forkedFromMessageId: uuid("forked_from_message_id"),
+    visibility: conversationVisibilityEnum("visibility").notNull().default("project"),
     title: text("title"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("conversations_project_idx").on(t.projectId)],
+  (t) => [
+    index("conversations_project_idx").on(t.projectId),
+    index("conversations_creator_idx").on(t.createdById),
+    index("conversations_task_idx").on(t.taskId),
+    index("conversations_parent_idx").on(t.parentConversationId),
+  ],
 );
 
 export const messages = pgTable(
@@ -159,9 +180,15 @@ export const messages = pgTable(
     role: messageRoleEnum("role").notNull(),
     content: text("content").notNull(),
     toolCalls: jsonb("tool_calls"),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    // 分支会话复制消息时保留来源，便于展示和审计上下文继承范围。
+    sourceMessageId: uuid("source_message_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("messages_conversation_idx").on(t.conversationId)],
+  (t) => [
+    index("messages_conversation_idx").on(t.conversationId),
+    index("messages_source_idx").on(t.sourceMessageId),
+  ],
 );
 
 export const taskDependencies = pgTable(

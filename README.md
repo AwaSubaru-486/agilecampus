@@ -7,6 +7,8 @@
 - **团队与角色**：创建/加入团队，admin / teacher / student 三级权限
 - **项目看板**：里程碑 + 拖拽看板 + 任务增强（描述/完成情况/起止日/后置任务）+ 标签筛选与四维度分组（状态/指派人/优先级/里程碑，各分组下拖拽皆生效）
 - **跨项目总览**：`/projects` 聚合我所在全部团队的项目与任务进度
+- **AI 协作空间**：项目成员共享 AI 会话，可创建私人草稿、关联任务，并从任意已完成回复创建上下文分支
+- **可追溯上下文继承**：分支只继承选定回复及此前历史，记录源会话、分支消息和继承消息，后续 AI 会真正读取历史
 - **AI 项目助手**：对话式拆解任务，两段式确认后落库（读工具 + 四写兵器草案）
 - **资源占用登记**：团队共享资源（服务器/算力等）的占用登记与时长汇总，纯登记无审批
 - **Personal API Token**：生成/撤销令牌，供外部程序以本人身份写入
@@ -74,7 +76,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `/teams/[teamId]/resources` | 资源占用登记 + 时长统计 |
 | `/teams/[teamId]/labels` | 团队标签管理（admin 增删改，成员只读） |
 | `/projects` | 所有项目总览（跨团队聚合 + 任务统计） |
-| `/projects/[projectId]` | 项目详情：里程碑 + 看板 + 任务 + AI 助手 |
+| `/projects/[projectId]` | 项目详情：里程碑 + 看板 + 任务 + AI 协作空间 |
 | `/projects/[projectId]/timeline` | 项目时间线甘特 |
 | `/settings/tokens` | 个人访问令牌（生成/撤销） |
 
@@ -178,4 +180,5 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/resource-usage" \
 
 - 设计与作战图：`docs/superpowers/`
 - Agent 写入 API：`docs/agent-api.md`
+- AI 协作空间设计与开源参考：`docs/ai-collaboration.md`
 - 技术债备案：`docs/BACKLOG.md`

@@ -3,7 +3,10 @@ import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
 import {
+  createConversation,
+  forkConversation,
   getOrCreateConversation,
+  listProjectConversations,
   persistTurn,
   listConversationMessages,
 } from "@/lib/agent/conversation";
@@ -64,5 +67,50 @@ describe("persistTurn / listConversationMessages", () => {
     const { student, outsider, project } = await scene();
     const conv = await getOrCreateConversation(student.id, project.id);
     await expect(listConversationMessages(outsider.id, conv.id)).rejects.toThrow("没有权限");
+  });
+});
+
+describe("项目共享会话与上下文分支", () => {
+  beforeEach(resetDb);
+
+  it("项目共享会话对队友可见，私人会话仅创建者可见", async () => {
+    const { owner, student, project } = await scene();
+    await createConversation(student.id, project.id, {
+      title: "共享调研讨论",
+      visibility: "project",
+    });
+    await createConversation(student.id, project.id, {
+      title: "个人草稿",
+      visibility: "private",
+    });
+
+    const mine = await listProjectConversations(student.id, project.id);
+    const teammateView = await listProjectConversations(owner.id, project.id);
+    expect(mine.map((item) => item.title)).toEqual(
+      expect.arrayContaining(["共享调研讨论", "个人草稿"]),
+    );
+    expect(teammateView.map((item) => item.title)).toContain("共享调研讨论");
+    expect(teammateView.map((item) => item.title)).not.toContain("个人草稿");
+  });
+
+  it("从指定 AI 回复创建分支，只继承该回复及此前消息并保留来源", async () => {
+    const { student, project } = await scene();
+    const source = await createConversation(student.id, project.id, { title: "原方案" });
+    const first = await persistTurn(source.id, "先分析目标", "目标分析完成", [], student.id);
+    await persistTurn(source.id, "再给出计划", "计划生成完成", [], student.id);
+
+    const fork = await forkConversation(
+      student.id,
+      source.id,
+      first.assistantMessage!.id,
+      { title: "备选方案" },
+    );
+    const inherited = await listConversationMessages(student.id, fork.id);
+
+    expect(fork.parentConversationId).toBe(source.id);
+    expect(fork.forkedFromMessageId).toBe(first.assistantMessage!.id);
+    expect(inherited).toHaveLength(2);
+    expect(inherited.map((item) => item.content)).toEqual(["先分析目标", "目标分析完成"]);
+    expect(inherited.every((item) => item.sourceMessageId)).toBe(true);
   });
 });
