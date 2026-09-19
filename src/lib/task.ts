@@ -325,6 +325,22 @@ async function labelsByTask(taskIds: string[]): Promise<Map<string, TaskLabel[]>
   return map;
 }
 
+// 刻意窄的任务投影：只给接力链用的四个字段。
+// 「现场」模式渲染一张接力表，不该付任务明细（描述、承诺、验收、
+// 标签、子任务……）的代价。调用方须自行确认权限——
+// 本函数不做校验，故仅供已收口的内部路径使用。
+export async function listTaskRefs(projectId: string) {
+  return db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      status: tasks.status,
+      assigneeId: tasks.assigneeId,
+    })
+    .from(tasks)
+    .where(eq(tasks.projectId, projectId));
+}
+
 export async function listProjectTasks(actorId: string, projectId: string) {
   await requireProjectAccess(actorId, projectId);
   const rows = await db
