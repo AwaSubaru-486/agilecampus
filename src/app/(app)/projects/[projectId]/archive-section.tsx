@@ -228,7 +228,7 @@ function EntryItem({ entry, projectId }: { entry: EntryRow; projectId: string })
         <span className="font-medium text-ink-soft">{entry.authorName ?? "已注销"}</span>
         {fromTeacher && <span className="text-accent">老师</span>}
         {entry.authorKind === "agent" && (
-          <span className="text-[9px] font-semibold text-primary">AI</span>
+          <span className="text-[9px] font-semibold text-agent">协作</span>
         )}
         <span className="tabular-nums">
           {entry.createdAt.toLocaleDateString("sv-SE")}

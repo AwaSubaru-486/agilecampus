@@ -81,7 +81,7 @@ export async function RecordSpace({
           {activity.map((e) => (
             <li key={e.id} className="flex flex-wrap items-baseline gap-2 px-4 py-2.5 text-sm">
               <span className="font-medium text-ink">{e.actorName ?? "已注销成员"}</span>
-              {e.actorKind === "agent" && <span className="ac-agent-mark">AI</span>}
+              {e.actorKind === "agent" && <span className="ac-agent-mark">协作者</span>}
               <span className="text-ink-2">{e.summary ?? e.type}</span>
             </li>
           ))}

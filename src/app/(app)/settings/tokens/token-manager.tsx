@@ -115,7 +115,7 @@ function RevealBox({ token, name }: { token: string; name: string }) {
           {token}
         </code>
         <button onClick={copy} className="ac-btn whitespace-nowrap" type="button">
-          {copied ? "已复制 ✓" : "复制"}
+          {copied ? "已复制" : "复制"}
         </button>
       </div>
     </div>

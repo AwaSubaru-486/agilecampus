@@ -87,7 +87,7 @@ export function FilterBar({
               <option key={g} value={g}>按{GROUP_LABEL[g]}分组</option>
             ))}
           </select>
-          <span className="text-ink-faint transition-transform group-open:rotate-180">⌄</span>
+          <span aria-hidden className="ac-icon-chevron text-ink-faint transition-transform group-open:rotate-180" />
         </span>
       </summary>
 

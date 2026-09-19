@@ -69,7 +69,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
       >
         <span className="min-w-0 truncate">{current ? current.name : "选择项目"}</span>
         <span aria-hidden className="shrink-0 text-ink-3">
-          ⌄
+          <span aria-hidden className="ac-icon-chevron" />
         </span>
       </button>
 

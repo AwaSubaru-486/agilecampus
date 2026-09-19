@@ -122,7 +122,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-1.5 text-sm">
           <span className="font-medium text-ink">{member.name}</span>
-          {isAgent && <span className="ac-badge bg-primary-soft text-primary">AI</span>}
+          {isAgent && <span className="ac-agent-mark">协作者</span>}
           <span className={`text-xs ${status.cls}`}>{status.label}</span>
           {member.taskTitle ? (
             <>
@@ -174,7 +174,7 @@ function RelayRow({ chain }: { chain: RelayChain }) {
             <span className="inline-flex items-center gap-1 rounded bg-sunken px-1.5 py-0.5">
               <span className="text-ink">{s.actorName ?? "谁"}</span>
               {s.actorKind === "agent" && (
-                <span className="text-[9px] font-semibold text-primary">AI</span>
+                <span className="text-[9px] font-semibold text-agent">协作</span>
               )}
               <span className="text-ink-faint">{s.action}</span>
             </span>
@@ -199,7 +199,7 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
               achieved ? "bg-done text-white" : "border border-line-strong text-ink-faint"
             }`}
           >
-            {achieved ? "✓" : ""}
+            {achieved ? "已" : ""}
           </span>
           {m.title}
         </span>
@@ -242,7 +242,7 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
                 <span className="flex items-center gap-1">
                   <span>{r.assigneeName}</span>
                   {r.assigneeKind === "agent" && (
-                    <span className="text-[9px] font-semibold text-primary">AI</span>
+                    <span className="text-[9px] font-semibold text-agent">协作</span>
                   )}
                 </span>
               ) : (

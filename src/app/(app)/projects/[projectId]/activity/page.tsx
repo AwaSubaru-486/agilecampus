@@ -95,7 +95,7 @@ export default async function ActivityPage({
                     {/* 人机混排的账本必须分得清谁做的——
                         否则复盘时看不出这活是人干的还是 AI 干的 */}
                     {e.actorKind === "agent" && (
-                      <span className="ac-badge ml-1 bg-primary-soft text-primary">AI</span>
+                      <span className="ac-agent-mark ml-1">协作者</span>
                     )}
                     <span className="text-ink-soft"> {e.summary ?? TYPE_LABEL[e.type] ?? e.type}</span>
                   </p>

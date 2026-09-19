@@ -73,7 +73,7 @@ export function ProjectSummary({
           </nav>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl bg-ink p-5 text-white shadow-card">
+        <div className="relative overflow-hidden rounded-lg bg-ink p-5 text-white shadow-card">
           <div className="absolute -right-10 -top-10 size-32 rounded-full border-[24px] border-white/[0.04]" />
           <p className="text-[10px] font-semibold tracking-[0.14em] text-white/45">PROGRESS</p>
           <p className="mt-5 font-display text-5xl font-bold tracking-[-0.06em]">{progress}<span className="ml-1 text-xl text-white/45">%</span></p>

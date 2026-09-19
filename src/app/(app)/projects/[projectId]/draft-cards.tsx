@@ -35,7 +35,7 @@ function CardShell({
   if (state === "done")
     return (
       <div className="ac-card p-2 text-xs text-done">
-        {title}：已落库 ✓
+        {title}：已落库
       </div>
     );
 

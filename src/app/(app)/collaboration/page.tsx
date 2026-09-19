@@ -137,7 +137,7 @@ export default async function CollaborationPage() {
                   className="flex flex-wrap items-baseline gap-2 px-4 py-3 text-sm"
                 >
                   <span className="font-medium text-ink">{a.name}</span>
-                  <span className="ac-agent-mark">AI</span>
+                  <span className="ac-agent-mark">协作者</span>
                   <span className={`ac-badge ${tone.cls}`}>{tone.label}</span>
                   <span className="text-xs text-ink-3">{a.provider}</span>
                 </li>

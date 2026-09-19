@@ -64,7 +64,7 @@ export function NewTaskForm({
         <button
           type="button"
           onClick={begin}
-          className="flex w-full items-center justify-between rounded-xl border border-dashed border-line-strong bg-surface px-3 py-2.5 text-left text-sm text-ink-soft transition hover:border-primary hover:bg-primary-soft hover:text-primary"
+          className="flex w-full items-center justify-between rounded-lg border border-dashed border-line-strong bg-surface px-3 py-2.5 text-left text-sm text-ink-soft transition hover:border-primary hover:bg-primary-soft hover:text-primary"
         >
           <span><span className="mr-2 font-semibold">＋</span>快速添加任务</span>
           <span className="hidden text-xs text-ink-faint sm:inline">按 + 唤起</span>

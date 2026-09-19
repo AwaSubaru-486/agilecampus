@@ -37,7 +37,7 @@ export default async function HealthPage() {
       </header>
 
       {rows.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-line-strong bg-surface p-14 text-center">
+        <div className="rounded-lg border border-dashed border-line-strong bg-surface p-14 text-center">
           <p className="font-medium text-ink">你还没有加入任何项目</p>
           <p className="mt-1 text-sm text-ink-faint">先进入团队空间，创建或加入一个协作项目。</p>
           <Link href="/teams" className="ac-btn mt-5">前往团队</Link>
