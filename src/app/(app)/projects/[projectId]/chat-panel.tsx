@@ -231,7 +231,7 @@ export function ChatPanel({
   }
 
   return (
-    <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="ac-card scroll-mt-20 overflow-hidden">
+    <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="scroll-mt-20 overflow-hidden border-y border-line">
       <div className="border-b border-line px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -241,12 +241,12 @@ export function ChatPanel({
               每次讨论都关联项目与任务；从关键回复分叉，不覆盖原来的思路
             </p>
           </div>
-          <button type="button" onClick={() => setCreating((value) => !value)} className="ac-btn ac-pressable px-3 py-2 text-sm">
+          <button type="button" onClick={() => setCreating((value) => !value)} className="ac-btn-ink ac-pressable px-3 py-2 text-sm">
             {creating ? "取消" : "+ 新会话"}
           </button>
         </div>
         {creating && (
-          <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-panel)] bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
+          <div className="ac-panel-enter mt-3 grid gap-2 border-l-2 border-agent bg-agent-soft/35 p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
             <input
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value)}
@@ -272,8 +272,8 @@ export function ChatPanel({
         )}
       </div>
 
-      <div className="grid min-h-[30rem] md:grid-cols-[16rem_1fr]">
-        <aside className="border-b border-line bg-[#f3f5f9] p-2.5 md:border-b-0 md:border-r">
+      <div className="grid min-h-[26rem] md:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,1fr)_15rem]">
+        <aside className="border-b border-line bg-ground p-2.5 md:border-b-0 md:border-r">
           <p className="px-2 py-1.5 text-xs font-medium text-ink-3">会话</p>
           <div className="max-h-[28rem] space-y-1 overflow-y-auto">
             {conversations.map((conversation) => (
@@ -281,8 +281,8 @@ export function ChatPanel({
                 key={conversation.id}
                 type="button"
                 onClick={() => refreshConversation(conversation.id)}
-                className={`ac-pressable min-h-11 w-full rounded-lg px-2.5 py-2 text-left ${
-                  conversation.id === conversationId ? "bg-surface shadow-sm ring-1 ring-line" : "hover:bg-surface/70"
+                  className={`ac-pressable min-h-11 w-full border-l-2 px-2.5 py-2 text-left ${
+                  conversation.id === conversationId ? "border-ink bg-surface" : "border-transparent hover:border-stroke-strong hover:bg-surface/70"
                 }`}
               >
                 <span className="block truncate text-sm font-medium text-ink">
@@ -310,7 +310,7 @@ export function ChatPanel({
             {activeConversation ? (
               <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
                 <span className="font-medium text-ink">{activeConversation.title}</span>
-                <span className="rounded-full bg-sunken px-2 py-0.5">
+                <span className="border border-line bg-sunken px-1.5 py-0.5">
                   {activeConversation.visibility === "project" ? "项目成员可见" : "仅自己可见"}
                 </span>
                 {activeConversation.parentConversationId && (
@@ -328,7 +328,7 @@ export function ChatPanel({
             )}
           </div>
 
-          <div className="max-h-[26rem] flex-1 space-y-3 overflow-y-auto p-4">
+          <div className="max-h-[24rem] flex-1 space-y-3 overflow-y-auto p-4">
             {loadingConversation && <p role="status" className="text-center text-sm text-ink-faint">正在加载会话…</p>}
             {!loadingConversation && messages.map((message) => (
               <div key={message.id}>
@@ -355,9 +355,14 @@ export function ChatPanel({
               </div>
             ))}
             {!loadingConversation && messages.length === 0 && (
-              <div className="py-14 text-center">
-                <p className="text-sm text-ink-soft">向 AI 说明这个会话要解决的问题</p>
-                <p className="mt-1 text-xs text-ink-faint">例如：根据课程截止时间，帮我们拆解用户调研计划</p>
+              <div className="border-y border-line py-8">
+                <p className="text-sm font-medium text-ink">先定义这次协作要改变什么</p>
+                <p className="mt-2 max-w-md text-xs leading-5 text-ink-2">把问题、约束和期望的交付写清楚。AI 的回复会留在当前会话，之后可以分支比较或提交待确认动作。</p>
+                <div className="mt-5 grid gap-2 text-xs text-ink-3 sm:grid-cols-3">
+                  <span className="border-l-2 border-agent pl-2">说明现状</span>
+                  <span className="border-l-2 border-signal pl-2">提出方案</span>
+                  <span className="border-l-2 border-human pl-2">人工确认</span>
+                </div>
               </div>
             )}
           </div>
@@ -372,11 +377,37 @@ export function ChatPanel({
               className="ac-field flex-1 text-sm"
               disabled={pending}
             />
-            <button type="button" onClick={send} disabled={pending || !input.trim()} className="ac-btn ac-pressable px-4 py-2 text-sm">
+            <button type="button" onClick={send} disabled={pending || !input.trim()} className="ac-btn-ink ac-pressable px-4 py-2 text-sm">
               {pending ? "处理中…" : "发送"}
             </button>
           </div>
         </div>
+
+        <aside className="hidden border-l border-line bg-ground px-3 py-4 xl:block">
+          <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">本次协作</p>
+          {initialTask ? (
+            <div className="mt-4 space-y-3">
+              <div>
+                <p className="text-[11px] text-ink-faint">关联任务</p>
+                <p className="mt-1 text-sm font-medium leading-5 text-ink">{initialTask.name}</p>
+              </div>
+              <div className="border-t border-line pt-3">
+                <p className="text-[11px] text-ink-faint">首批上下文</p>
+                <ul className="mt-2 space-y-2 text-xs leading-5 text-ink-2">
+                  <li className="border-l-2 border-agent pl-2">任务目标与当前状态</li>
+                  <li className="border-l-2 border-agent pl-2">项目成员可见资料</li>
+                  <li className="border-l-2 border-agent pl-2">待确认的下一步</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs leading-5 text-ink-2">从任务进入协同室，会自动带上任务上下文；也可以先创建一个项目级会话。</p>
+          )}
+          <div className="mt-8 border-t border-line pt-3">
+            <p className="text-[11px] text-ink-faint">人工边界</p>
+            <p className="mt-1 text-xs leading-5 text-ink-2">AI 只提出建议。创建任务、修改字段和验收结果，都需要成员明确确认。</p>
+          </div>
+        </aside>
       </div>
     </section>
   );
