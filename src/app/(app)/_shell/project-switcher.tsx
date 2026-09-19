@@ -18,6 +18,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const boxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -31,7 +32,10 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -55,12 +59,13 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
   return (
     <div ref={boxRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label="切换项目"
-        className="flex max-w-[16rem] items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-sm text-ink-2 transition-colors hover:bg-sunken hover:text-ink"
+        className="ac-pressable flex min-h-10 max-w-[16rem] items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-sm text-ink-2 hover:bg-sunken hover:text-ink"
       >
         <span className="min-w-0 truncate">{current ? current.name : "选择项目"}</span>
         <span aria-hidden className="shrink-0 text-ink-3">
@@ -71,7 +76,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
       {open && (
         <div
           role="listbox"
-          className="ac-card ac-float absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden p-1"
+          className="ac-card ac-float ac-panel-enter absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden p-1"
         >
           {projects.length > 6 && (
             <div className="p-1">
@@ -101,7 +106,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
                       setQuery("");
                       router.push(hrefFor(p.id));
                     }}
-                    className={`flex w-full flex-col items-start gap-0.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm transition-colors ${
+                      className={`ac-pressable flex min-h-11 w-full flex-col items-start gap-0.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm ${
                       p.id === currentProjectId
                         ? "bg-signal-soft text-signal"
                         : "text-ink hover:bg-sunken"

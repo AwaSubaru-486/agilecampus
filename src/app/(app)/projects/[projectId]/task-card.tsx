@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import {
@@ -133,7 +134,7 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`ac-card group relative select-none overflow-hidden ${density === "compact" ? "p-2.5" : "p-3.5"} text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full transition-[box-shadow,transform,opacity,border-color] duration-150 will-change-transform hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-md ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
+      className={`ac-card group relative select-none overflow-hidden ${density === "compact" ? "p-2.5" : "p-3.5"} text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full transition-[background-color,border-color,opacity] duration-150 ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
         isDragging ? "scale-[0.98] opacity-20" : ""
       }`}
     >
@@ -268,12 +269,19 @@ export function TaskCard({
           </div>
         )}
 
-        <div className="flex items-center gap-3 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link
+            href={`/projects/${projectId}?space=work&task=${task.id}`}
+            onPointerDown={(event) => event.stopPropagation()}
+            className="ac-pressable inline-flex min-h-9 items-center text-xs font-medium text-signal hover:text-signal-hover"
+          >
+            查看任务
+          </Link>
           {canWrite && (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="text-xs text-ink-faint hover:text-primary hover:underline"
+              className="ac-pressable min-h-9 text-xs text-ink-faint hover:text-primary hover:underline"
             >
               编辑
             </button>
@@ -281,7 +289,7 @@ export function TaskCard({
           <button
             type="button"
             onClick={askAi}
-            className="text-xs text-ink-faint hover:text-primary hover:underline"
+            className="ac-pressable min-h-9 text-xs text-ink-faint hover:text-primary hover:underline"
           >
             带此任务问 AI
           </button>

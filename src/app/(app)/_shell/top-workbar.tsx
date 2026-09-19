@@ -65,7 +65,7 @@ export function TopWorkbar({
                 href={item.href}
                 title={item.hint}
                 aria-current={isActive ? "page" : undefined}
-                className={`relative rounded-[var(--radius-control)] px-2 py-1.5 text-sm transition-colors sm:px-2.5 ${
+                className={`ac-pressable relative min-h-9 rounded-[var(--radius-control)] px-2 py-1.5 text-sm sm:px-2.5 ${
                   isActive
                     ? "bg-signal-soft font-medium text-signal"
                     : "text-ink-2 hover:bg-sunken hover:text-ink"
@@ -109,7 +109,7 @@ export function ProjectBand({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="sticky top-[52px] z-30 border-b border-stroke bg-ground/95 backdrop-blur-sm sm:top-14">
+    <div className="sticky top-[52px] z-30 border-b border-stroke bg-ground/95 sm:top-14">
       <div className="mx-auto flex h-12 max-w-[120rem] items-center gap-3 px-3 sm:px-5">
         <div className="flex min-w-0 items-baseline gap-2">
           <span className="truncate text-sm font-semibold text-ink">{projectName}</span>

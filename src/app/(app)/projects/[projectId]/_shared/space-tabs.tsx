@@ -34,7 +34,7 @@ export function SpaceTabs({
             href={buildSpaceHref({ projectId, space: s, taskId })}
             aria-current={isActive ? "page" : undefined}
             title={SPACE_HINT[s]}
-            className={`rounded-[var(--radius-control)] px-2.5 py-1 text-sm transition-colors ${
+            className={`ac-pressable min-h-10 rounded-[var(--radius-control)] px-2.5 py-2 text-sm ${
               isActive
                 ? "bg-ink text-white"
                 : "text-ink-2 hover:bg-sunken hover:text-ink"

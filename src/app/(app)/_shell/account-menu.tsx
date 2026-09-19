@@ -9,6 +9,7 @@ import { signOutAction } from "./actions";
 export function AccountMenu({ name }: { name: string }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -16,7 +17,10 @@ export function AccountMenu({ name }: { name: string }) {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -29,12 +33,13 @@ export function AccountMenu({ name }: { name: string }) {
   return (
     <div ref={boxRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`账户菜单：${name}`}
-        className="grid size-8 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-2 transition-colors hover:bg-stroke"
+        className="ac-pressable grid size-10 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-2 hover:bg-stroke"
       >
         {(name || "?").slice(0, 1).toUpperCase()}
       </button>
@@ -42,7 +47,7 @@ export function AccountMenu({ name }: { name: string }) {
       {open && (
         <div
           role="menu"
-          className="ac-card ac-float absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden p-1"
+          className="ac-card ac-float ac-panel-enter absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden p-1"
         >
           <p className="truncate px-2.5 py-2 text-sm font-medium text-ink">{name}</p>
           <div className="border-t border-stroke pt-1">

@@ -82,9 +82,9 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`${viewMode === "list" ? "w-full" : "w-[19rem] shrink-0"} min-h-48 space-y-2.5 rounded-2xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+      className={`${viewMode === "list" ? "w-full" : "w-[19rem] shrink-0"} min-h-48 space-y-2.5 rounded-2xl border p-3 transition-[background-color,border-color,box-shadow] duration-200 ${
         isOver
-          ? "scale-[1.01] border-primary bg-primary-soft shadow-[0_0_0_3px_var(--color-primary-ring)]"
+          ? "border-primary bg-primary-soft shadow-[0_0_0_3px_var(--color-primary-ring)]"
           : "border-line bg-[#f1f3f7]"
       }`}
     >
@@ -265,7 +265,7 @@ export function Board({
         }}
       >
         {activeTask && (
-          <div className="w-[19rem] rotate-[1.2deg] scale-[1.02] rounded-2xl border border-primary/30 bg-surface p-4 text-sm shadow-[0_24px_55px_-18px_rgba(21,27,38,0.42)]">
+          <div className="w-[19rem] -translate-y-0.5 rounded-2xl border border-primary/30 bg-surface p-4 text-sm shadow-[0_18px_40px_-18px_rgba(21,27,38,0.32)]">
             <p className="font-medium text-ink">{activeTask.title}</p>
             <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-soft">
               <span>{activeTask.assigneeName ?? "未分配"}</span>
@@ -294,7 +294,7 @@ function ModeButton({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${active ? "bg-ink text-white" : "text-ink-soft hover:bg-sunken"}`}
+      className={`ac-pressable min-h-9 rounded-lg px-2.5 py-1.5 text-xs font-medium ${active ? "bg-ink text-white" : "text-ink-soft hover:bg-sunken"}`}
     >
       {children}<span className={`ml-1 text-[9px] ${active ? "text-white/45" : "text-ink-faint"}`}>{hint}</span>
     </button>
