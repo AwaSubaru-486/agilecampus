@@ -251,6 +251,27 @@ html {
     transform: scale(0.985);
   }
 
+  .ac-btn-ink {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-control);
+    background: var(--color-ink);
+    padding: 0.5rem 1rem;
+    color: var(--color-raised);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
+  }
+  .ac-btn-ink:hover:not(:disabled) {
+    background: var(--color-ink-2);
+  }
+  .ac-btn-ink:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+
   .ac-pressable {
     transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
   }

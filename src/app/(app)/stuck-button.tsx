@@ -16,7 +16,7 @@ type Helper = { userId: string; name: string; score: number; reasons: string[]; 
 
 const PROJECT_PATH = /^\/projects\/([0-9a-f-]{36})/i;
 
-// 全局悬浮「我卡住了」。
+// 全局求助入口。
 //
 // 之所以做成常驻悬浮而非任务卡上的按钮：人卡住时最不想做的事，
 // 就是先翻到那个任务、找到那张卡、再点一个小按钮。
@@ -141,23 +141,27 @@ export function StuckButton({ projects }: { projects: Project[] }) {
         type="button"
         onClick={toggleOpen}
         aria-expanded={open}
-        className="fixed bottom-4 right-4 z-30 flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-[0_18px_50px_-22px_rgba(21,27,38,0.6)] transition hover:-translate-y-0.5 hover:bg-ink/90"
+        aria-label={open ? "关闭求助" : "发起求助"}
+        className={`ac-pressable fixed bottom-4 right-4 z-30 flex items-center gap-2 border-b-2 border-ink bg-ground/95 px-2 py-2 text-sm font-medium text-ink backdrop-blur-sm ${open ? "border-warn" : ""}`}
       >
-        <span aria-hidden className="size-2 rounded-full bg-accent" />
-        我卡住了
+        <span aria-hidden className={`h-2 w-2 ${open ? "bg-warn" : "bg-ink"}`} />
+        {open ? "收起求助" : "需要搭手？"}
       </button>
 
       {open && (
-        <div className="fixed bottom-16 right-4 z-30 w-[22rem] max-w-[calc(100vw-2rem)]">
-          <form action={formAction} className="ac-card max-h-[70vh] space-y-3 overflow-y-auto p-4 shadow-pop">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">你卡在哪件事上？</h2>
+        <div className="fixed bottom-16 right-4 z-30 w-[24rem] max-w-[calc(100vw-2rem)]">
+          <form action={formAction} className="ac-panel-enter max-h-[70vh] space-y-4 overflow-y-auto border-l-2 border-ink bg-ground p-5 shadow-pop">
+            <div className="flex items-start justify-between gap-4 border-b border-stroke pb-3">
+              <div>
+                <p className="text-xs text-ink-3">先让别人知道你停在哪里</p>
+                <h2 className="mt-1 text-base font-semibold text-ink">需要搭手？</h2>
+              </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-xs text-ink-faint hover:text-primary"
+                className="ac-pressable min-h-9 px-1 text-xs text-ink-3 hover:text-ink"
               >
-                关闭
+                先不发
               </button>
             </div>
 
@@ -179,25 +183,29 @@ export function StuckButton({ projects }: { projects: Project[] }) {
             )}
             <input type="hidden" name="projectId" value={projectId} />
 
-            <label className="block space-y-1 text-xs text-ink-faint">
-              卡在什么环节
-              <select
-                name="reason"
-                required
-                className="ac-field text-sm"
-                value={reason}
-                onChange={(e) => pickReason(e.target.value as BlockerReason)}
-              >
-                <option value="">请选择</option>
+            <fieldset className="space-y-2">
+              <legend className="text-xs text-ink-3">你停在哪一环？</legend>
+              <input type="hidden" name="reason" value={reason} required />
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-y border-stroke py-2">
                 {BLOCKER_REASONS.map((r) => (
-                  <option key={r} value={r}>
+                  <button
+                    key={r}
+                    type="button"
+                    aria-pressed={reason === r}
+                    onClick={() => pickReason(r)}
+                    className={`ac-pressable min-h-10 border-b text-left text-sm ${
+                      reason === r
+                        ? "border-warn font-medium text-ink"
+                        : "border-transparent text-ink-2 hover:border-stroke-strong hover:text-ink"
+                    }`}
+                  >
                     {BLOCKER_REASON_LABEL[r]}
-                  </option>
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </fieldset>
             {reason && (
-              <p className="-mt-1 text-[11px] text-ink-faint">{BLOCKER_REASON_HINT[reason]}</p>
+              <p className="-mt-2 border-l-2 border-warn/60 pl-2 text-xs leading-5 text-ink-2">{BLOCKER_REASON_HINT[reason]}</p>
             )}
 
             {/* 任务选填：不强制先找到任务，正是这个入口存在的理由 */}
@@ -235,10 +243,8 @@ export function StuckButton({ projects }: { projects: Project[] }) {
             </label>
 
             {helpers.length > 0 && (
-              <fieldset className="space-y-2 rounded-lg bg-sunken p-2.5">
-                <legend className="px-1 text-xs font-medium text-ink-soft">
-                  可能帮得上你的人
-                </legend>
+              <fieldset className="space-y-2 border-t border-stroke pt-3">
+                <legend className="text-xs font-medium text-ink">可能帮得上你的人</legend>
                 {helpers.map((h) => (
                   <label key={h.userId} className="flex items-start gap-2 text-xs">
                     <input type="checkbox" name="inviteeIds" value={h.userId} className="mt-0.5" />
@@ -266,7 +272,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
               </p>
             )}
 
-            <button disabled={pending || !projectId} className="ac-btn w-full py-2 text-sm">
+            <button disabled={pending || !projectId || !reason} className="ac-btn-ink w-full">
               {pending ? "发送中…" : "发出求助"}
             </button>
           </form>
