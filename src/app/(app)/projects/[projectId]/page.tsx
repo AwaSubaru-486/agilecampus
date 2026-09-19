@@ -19,8 +19,10 @@ import { listMilestoneProgress, syncMilestoneAchievement } from "@/lib/milestone
 import { buildRelayChains } from "@/lib/relay";
 import { buildLiveBoard } from "@/lib/workspace";
 import { listProjectActivity } from "@/lib/activity-feed";
+import { listProjectEntries } from "@/lib/entry";
 import { WorkspaceView } from "./workspace-view";
 import { MilestoneCreateForm } from "./milestone-section";
+import { ArchiveSection } from "./archive-section";
 import { BlockerStrip } from "./blocker-strip";
 import { HealthPanel } from "./health-panel";
 import { NewTaskForm } from "./new-task-form";
@@ -77,10 +79,11 @@ export default async function ProjectPage({
   const agentStatusById = Object.fromEntries(projectAgents.map((a) => [a.userId, a.status]));
 
   // 工作现场：正在发生（谁在干什么）／接力（工作怎么流转）／里程碑（自动记录）
-  const [live, relayEvents, milestoneProgress] = await Promise.all([
+  const [live, relayEvents, milestoneProgress, archiveEntries] = await Promise.all([
     buildLiveBoard(session.user.id, projectId),
     listProjectActivity(session.user.id, projectId, { limit: 300 }),
     listMilestoneProgress(session.user.id, projectId),
+    listProjectEntries(session.user.id, projectId, { limit: 60 }),
   ]);
   // 里程碑达成是自动判定的——读取时顺手同步一次，与 sweepOfflineAgents 同一路数
   await syncMilestoneAchievement(session.user.id, projectId);
@@ -244,6 +247,17 @@ export default async function ProjectPage({
           dependencies={dependencies}
         />
       </section>
+
+      {/* 档案置于看板之后：它是参考材料，不是日常动线。
+          但它正是需求文档开篇那个痛点的正面回答——
+          「成果散落在不同工具中，难以形成完整的项目档案」 */}
+      <ArchiveSection
+        projectId={projectId}
+        entries={archiveEntries}
+        tasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
+        canWrite={canWrite}
+        canGiveFeedback={role === "teacher" || role === "admin"}
+      />
 
       <ChatPanel
         projectId={projectId}

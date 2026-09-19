@@ -78,6 +78,15 @@ const AG = {
   codegen: "d0000000-0000-4000-8000-000000000701",
   writer: "d0000000-0000-4000-8000-000000000702",
 };
+// 项目档案：老师反馈、文档、成果链接
+const E = {
+  feedback1: "d0000000-0000-4000-8000-000000000801",
+  feedback2: "d0000000-0000-4000-8000-000000000802",
+  doc1: "d0000000-0000-4000-8000-000000000803",
+  doc2: "d0000000-0000-4000-8000-000000000804",
+  deliv1: "d0000000-0000-4000-8000-000000000805",
+  deliv2: "d0000000-0000-4000-8000-000000000806",
+};
 const B = {
   blocked: "d0000000-0000-4000-8000-000000000601",
   waiting: "d0000000-0000-4000-8000-000000000602",
@@ -357,6 +366,31 @@ async function main() {
       values (${e[0]}, ${e[1]}, ${e[2]}, ${e[3]}, ${e[4]}, ${e[5]}, ${e[6]})
     `;
   }
+
+  // ---- 项目档案：老师反馈、文档、成果链接 ----
+  await sql`
+    insert into project_entries (id, project_id, task_id, type, title, content, url,
+                                 author_id, created_at, updated_at)
+    values
+      (${E.feedback1}, ${PROJECT}, ${T.report}, 'feedback', '中期报告的意见',
+       '实验部分太薄，只报了一个方案。补一组对照，说明为什么选现在这个。另外答辩时把「为什么不用现成模型」讲清楚。',
+       null, ${P.teacher}, ${at(7)}, ${at(7)}),
+      (${E.feedback2}, ${PROJECT}, ${T.api}, 'feedback', '接口这块可以了',
+       '字段定义清楚，测试也齐。前端对接时若能再给一份错误码说明会更好。',
+       null, ${P.teacher}, ${at(0, 8)}, ${at(0, 8)}),
+      (${E.doc1}, ${PROJECT}, null, 'doc', '环境搭建说明',
+       '装 Node 22，然后 npm i。数据库用本机的 Postgres，建库脚本在 scripts/init-db.sql。AI 成员要跑起来得先配 AGILECAMPUS_TOKEN。',
+       null, ${P.lu}, ${at(18)}, ${at(18)}),
+      (${E.doc2}, ${PROJECT}, null, 'doc', '中期答辩分工',
+       '周瑜讲技术方案，鲁肃演示，张昭讲进度与风险。每人控制在 3 分钟内。',
+       null, ${ownerId}, ${at(6)}, ${at(6)}),
+      (${E.deliv1}, ${PROJECT}, ${T.api}, 'deliverable', '问答接口代码',
+       '三个端点 + 12 个单测，已提交待验收。',
+       'https://github.com/example/redcliff-qa', ${AG.codegen}, ${at(1)}, ${at(1)}),
+      (${E.deliv2}, ${PROJECT}, ${T.crawler}, 'deliverable', '爬取的问答数据集',
+       '1.2 万条，已清洗，字段见 README。',
+       'https://example.com/dataset/redcliff-qa', ${P.lu}, ${at(11)}, ${at(11)})
+  `;
 
   const counts = await sql`
     select (select count(*) from tasks where project_id = ${PROJECT}) as tasks,

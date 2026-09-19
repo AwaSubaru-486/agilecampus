@@ -65,6 +65,9 @@ export const describe = {
   blockerRaised: (reasonLabel: string, helpNeeded: string | null) =>
     helpNeeded ? `求助：${reasonLabel}，需要${helpNeeded}` : `求助：${reasonLabel}`,
   blockerResolved: (reasonLabel: string) => `解决了一次求助（${reasonLabel}）`,
+  // 项目档案。老师留反馈是件该被看见的事，措辞上把「谁在指导」点出来
+  entryCreated: (typeLabel: string, title: string) => `留下${typeLabel}「${title}」`,
+  entryDeleted: (typeLabel: string, title: string) => `删除了${typeLabel}「${title}」`,
   milestoneCreated: (title: string) => `新建里程碑「${title}」`,
   projectCreated: (name: string) => `创建了项目「${name}」`,
   projectUpdated: (name: string) => `更新了项目「${name}」`,

@@ -18,6 +18,7 @@ import { sql } from "drizzle-orm";
 // 依赖方向：db/schema → lib/task-status。仍是单一真相源。
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
 import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
+import { ENTRY_TYPES } from "@/lib/entry-labels";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
 export type TeamRole = (typeof teamRoleEnum.enumValues)[number];
@@ -480,6 +481,9 @@ export const activityTypeEnum = pgEnum("activity_type", [
   "milestone_created",
   "project_created",
   "project_updated",
+  // 项目档案：老师反馈、文档、成果链接
+  "entry_created",
+  "entry_deleted",
   // 承诺与验收（启用待「任务承诺与验收」一图）
   "task_claimed",
   "task_committed",
@@ -529,6 +533,47 @@ export const activityEvents = pgTable(
     index("activity_task_idx").on(t.taskId, t.createdAt),
     index("activity_actor_idx").on(t.actorId, t.createdAt),
     index("activity_project_type_idx").on(t.projectId, t.type),
+  ],
+);
+
+// ============ 项目档案 ============
+//
+// 一张表承载老师反馈、文档、成果链接三种东西。
+//
+// 为什么合成一张表而不是各建各的：需求文档开篇的痛点原话是
+// 「成果散落在不同工具中，难以形成完整的项目档案和可复用的过程资产」。
+// 分三张表就是把同一句话在数据库里再演一遍。合起来之后，
+// 「这个项目的全部过程资产」是一次查询，档案导出也不必拼三路。
+//
+// 三者的差别只在 type 与少数字段（链接有 url，其余没有），
+// 不足以支撑三张表。日后加「周报」「会议纪要」也只是加一个枚举值。
+// 取值取自 lib/entry-labels.ts（零依赖叶子模块），
+// 使档案区等客户端组件无需引 schema 即可复用文案。
+export const entryTypeEnum = pgEnum("project_entry_type", ENTRY_TYPES);
+export type EntryType = (typeof entryTypeEnum.enumValues)[number];
+
+export const projectEntries = pgTable(
+  "project_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    // 可挂在具体任务上。反馈常针对某件事，文档与链接则未必
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    type: entryTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    content: text("content"),
+    // 只有 deliverable 用得上。不另建表——一个可空字段比一张一对一表便宜得多
+    url: text("url"),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("project_entries_project_idx").on(t.projectId, t.createdAt),
+    index("project_entries_task_idx").on(t.taskId),
+    index("project_entries_type_idx").on(t.projectId, t.type),
   ],
 );
 

@@ -17,6 +17,7 @@ import { setTaskLabels } from "@/lib/label";
 import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
+import { createEntry, deleteEntry } from "@/lib/entry";
 
 export type FormState = { error: string } | null;
 export type CreateTaskState = { error: string } | { ok: true; revision: string } | null;
@@ -255,6 +256,67 @@ export async function claimTaskAction(_prev: FormState, formData: FormData): Pro
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限认领此任务" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+// ============ 项目档案 ============
+
+const createEntrySchema = z.object({
+  projectId: z.uuid(),
+  taskId: z.string().optional(),
+  type: z.enum(["feedback", "doc", "deliverable"]),
+  title: z.string().trim().min(1, "请写个标题"),
+  content: z.string().trim().optional(),
+  url: z.string().trim().optional(),
+});
+
+export async function createEntryAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = createEntrySchema.safeParse({
+    ...raw,
+    taskId: raw.taskId || undefined,
+    content: raw.content || undefined,
+    url: raw.url || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    await createEntry(session.user.id, parsed.data.projectId, {
+      type: parsed.data.type,
+      title: parsed.data.title,
+      content: parsed.data.content,
+      url: parsed.data.url,
+      taskId: parsed.data.taskId ?? null,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "你没有权限在这里留这条" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const deleteEntrySchema = z.object({ entryId: z.uuid(), projectId: z.uuid() });
+
+export async function deleteEntryAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "参数无效" };
+
+  try {
+    await deleteEntry(session.user.id, parsed.data.entryId);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "只有作者本人或组长可以删除" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
