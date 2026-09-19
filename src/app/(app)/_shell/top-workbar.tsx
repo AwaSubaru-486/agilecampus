@@ -65,10 +65,10 @@ export function TopWorkbar({
                 href={item.href}
                 title={item.hint}
                 aria-current={isActive ? "page" : undefined}
-                className={`ac-pressable relative min-h-9 rounded-[var(--radius-control)] px-2 py-1.5 text-sm sm:px-2.5 ${
+                className={`ac-pressable relative min-h-9 border-b-2 px-2 py-1.5 text-sm sm:px-2.5 ${
                   isActive
-                    ? "bg-signal-soft font-medium text-signal"
-                    : "text-ink-2 hover:bg-sunken hover:text-ink"
+                    ? "border-ink font-medium text-ink"
+                    : "border-transparent text-ink-2 hover:border-stroke-strong hover:text-ink"
                 }`}
               >
                 {item.label}

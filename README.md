@@ -162,9 +162,9 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/tasks" \
 # → { "id": "...", "title": "撰写调研问卷", "status": "todo" }
 ```
 
-### `POST /api/agent/tasks/complete` — 填写完成情况
+### `POST /api/agent/tasks/complete` — 提交成果待验收
 
-将任务标记为 `done` 并附完成说明。
+将任务置为 `review`（待验收）并附完成说明。任务不会由执行者直接标记为完成；组长或教师通过 `POST /api/agent/tasks/review` 完成验收。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
@@ -176,7 +176,7 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/tasks/complete" \
   -H "Authorization: Bearer $AGILECAMPUS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"taskId":"<uuid>","completionNote":"已跑通全部演武"}'
-# → { "id": "...", "status": "done" }
+# → { "id": "...", "status": "review" }
 ```
 
 ### `POST /api/agent/resource-usage` — 登记资源占用
@@ -214,7 +214,7 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/resource-usage" \
 
 ### Claude Code 集成
 
-项目内置 `.claude/skills/agilecampus/` skill，封装上述端点调用——配置好 `AGILECAMPUS_TOKEN` 与 `AGILECAMPUS_URL` 后，即可在 Claude Code 里用自然语言「给项目 X 加任务 Y」「把任务 Z 标记完成」「登记我占用了 GPU-01」。完整契约另见 [`docs/agent-api.md`](docs/agent-api.md)。
+项目内置 `.claude/skills/agilecampus/` skill，封装上述端点调用——配置好 `AGILECAMPUS_TOKEN` 与 `AGILECAMPUS_URL` 后，即可在 Claude Code 里用自然语言「给项目 X 加任务 Y」「提交任务 Z 等待验收」「登记我占用了 GPU-01」。完整契约另见 [`docs/agent-api.md`](docs/agent-api.md)。
 
 ---
 

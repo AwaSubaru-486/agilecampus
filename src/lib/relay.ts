@@ -1,4 +1,5 @@
 import type { ActivityType } from "@/db/schema";
+import { BLOCKER_REASON_LABEL, type BlockerReason } from "./blocker-labels";
 
 // 接力链：一件工作怎么在人和 AI 之间流转。
 //
@@ -59,10 +60,18 @@ const RELAY_ACTIONS: Partial<Record<ActivityType, string>> = {
   blocker_resolved: "求助已解",
 };
 
+// 从 payload 里挑一句人话。
+//
+// ⚠️ 绝不取 `reason`——那是数据库枚举（tech / unclear / dependency），
+// 界面上会出现「卡住了：dependency」这种句子。
+// 求助的原因要经 blocker-labels 映射；此处若映射不了，就直接不取，
+// 让调用方回退到一句通用话。
+const NOTE_KEYS = ["note", "completionNote", "commitmentNote", "helpNeeded", "detail"] as const;
+
 function pickNote(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as Record<string, unknown>;
-  for (const k of ["note", "reason", "completionNote", "commitmentNote", "helpNeeded"]) {
+  for (const k of NOTE_KEYS) {
     const v = p[k];
     if (typeof v === "string" && v.trim()) return v.trim();
   }
@@ -137,7 +146,10 @@ export function buildRelayChains(
 
 // 一句话概括这条链现在到哪一步了。主视图上每条链只占一行摘要。
 export function relayHeadline(chain: RelayChain): string {
-  if (chain.stuck) return `卡住了：${chain.stuck}`;
+  if (chain.stuck) {
+    const reason = BLOCKER_REASON_LABEL[chain.stuck as BlockerReason] ?? chain.stuck;
+    return `卡住了：${reason}`;
+  }
   switch (chain.status) {
     case "review":
       return "等人验收";

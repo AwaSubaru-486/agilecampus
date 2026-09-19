@@ -4,6 +4,7 @@ import { activityEvents, agents, tasks, teamMembers, users, type AgentStatus } f
 import { ForbiddenError } from "./errors";
 import { getProjectForUser } from "./project";
 import { listProjectBlockers } from "./blocker";
+import { BLOCKER_REASON_LABEL, type BlockerReason } from "./blocker-labels";
 import { isInFlight } from "./task-status";
 
 /** 「正在发生」里的一个人（或一个 AI）。类型放这里，组件反向引用它。 */
@@ -112,7 +113,7 @@ export async function buildLiveBoard(
       taskTitle: focus?.title ?? null,
       taskStatus: focus?.status ?? null,
       lastAt: lastAtById.get(m.id) ?? null,
-      stuck: stuckTask ? (stuckByTask.get(stuckTask.id) ?? null) : null,
+      stuck: stuckTask ? humanBlockerText(stuckByTask.get(stuckTask.id) ?? null) : null,
       awaitingCount: awaiting.length,
     };
   });
@@ -129,4 +130,9 @@ export async function buildLiveBoard(
   );
 
   return live;
+}
+
+function humanBlockerText(value: string | null): string | null {
+  if (!value) return null;
+  return BLOCKER_REASON_LABEL[value as BlockerReason] ?? value;
 }

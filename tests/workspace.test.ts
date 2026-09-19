@@ -92,7 +92,7 @@ describe("工作现场取数", () => {
   });
 });
 
-describe("今日行动队列的取数", () => {
+describe("行动队列的取数", () => {
   beforeEach(resetDb);
 
   it("派给我、我还没回话的算行动；已接住的不算", async () => {
@@ -101,9 +101,10 @@ describe("今日行动队列的取数", () => {
     const b = await createTask(owner.id, project.id, { title: "已接住的", assigneeId: student.id });
     await claimTask(student.id, b.id, { commitmentNote: "我来" });
 
-    const { listMyActionItems } = await import("@/lib/shell");
-    const { awaiting } = await listMyActionItems(student.id);
-    expect(awaiting.map((x) => x.taskId)).toEqual([a.id]);
+    const { loadActionQueue } = await import("@/lib/shell");
+    const { items } = await loadActionQueue(student.id);
+    expect(items.map((x) => x.taskId)).toContain(a.id);
+    expect(items.map((x) => x.taskId)).not.toContain(b.id);
   });
 
   it("组长看得到待验收，学生看不到", async () => {
@@ -112,29 +113,81 @@ describe("今日行动队列的取数", () => {
     await claimTask(student.id, t.id, { commitmentNote: "我来" });
     await submitTask(student.id, t.id, { completionNote: "好了" });
 
-    const { listMyActionItems } = await import("@/lib/shell");
-    const asOwner = await listMyActionItems(owner.id);
-    const asStudent = await listMyActionItems(student.id);
-    expect(asOwner.toReview.map((x) => x.taskId)).toEqual([t.id]);
-    expect(asStudent.toReview).toEqual([]);
+    const { loadActionQueue } = await import("@/lib/shell");
+    const asOwner = await loadActionQueue(owner.id);
+    const asStudent = await loadActionQueue(student.id);
+    expect(asOwner.items.some((x) => x.kind === "review" && x.taskId === t.id)).toBe(true);
+    expect(asStudent.items.some((x) => x.kind === "review")).toBe(false);
   });
 
-  it("逾期标记按截止日算", async () => {
+  it("已接住且过期的，以「逾期」出现，并带上截止日", async () => {
     const { owner, student, project } = await scene();
-    await createTask(owner.id, project.id, {
+    const t = await createTask(owner.id, project.id, {
       title: "过期的",
       assigneeId: student.id,
       dueDate: "2020-01-01",
     });
+    // 必须先接住：否则它会以更急的「待回应」出现——
+    // 那是同一件事的另一种说法，去重时留最急的那条
+    await claimTask(student.id, t.id, { commitmentNote: "我来" });
 
-    const { listMyActionItems } = await import("@/lib/shell");
-    const { awaiting } = await listMyActionItems(student.id);
-    expect(awaiting[0].overdue).toBe(true);
+    const { loadActionQueue } = await import("@/lib/shell");
+    const { items } = await loadActionQueue(student.id);
+    const overdue = items.find((x) => x.kind === "overdue");
+    expect(overdue?.context).toContain("2020-01-01");
+  });
+
+  // 同一件事绝不在队列里出现两次——被退回的活往往同时也逾期
+  it("同时逾期又被退回的任务只出现一次", async () => {
+    const { owner, student, project } = await scene();
+    const t = await createTask(owner.id, project.id, {
+      title: "又逾期又被退回",
+      assigneeId: student.id,
+      dueDate: "2020-01-01",
+    });
+    await claimTask(student.id, t.id, { commitmentNote: "我来" });
+    await submitTask(student.id, t.id, { completionNote: "好了" });
+    const { reviewTask } = await import("@/lib/task");
+    await reviewTask(owner.id, t.id, { decision: "reject", note: "太粗" });
+
+    const { loadActionQueue } = await import("@/lib/shell");
+    const { items } = await loadActionQueue(student.id);
+    expect(items.filter((x) => x.taskId === t.id)).toHaveLength(1);
+    expect(items.find((x) => x.taskId === t.id)?.kind).toBe("rejected_work");
+  });
+
+  // 徽章与今日页必须同源——验收报告 P1-3 指出的正是这个：
+  // 徽章只数待回应，今日页却还列了待验收，同一屏两个数字互相打脸
+  it("徽章数字与队列总数一致", async () => {
+    const { owner, student, project } = await scene();
+    const t = await createTask(owner.id, project.id, { title: "甲", assigneeId: student.id });
+    await claimTask(student.id, t.id, { commitmentNote: "我来" });
+    await submitTask(student.id, t.id, { completionNote: "好了" });
+
+    const { loadActionQueue, countMyPendingActions } = await import("@/lib/shell");
+    const queue = await loadActionQueue(owner.id, { showAll: true });
+    expect(await countMyPendingActions(owner.id)).toBe(queue.total);
+  });
+
+  // 归档项目已经结束，不该再追着人跑——否则半年前的逾期会永久占着队列
+  it("归档项目不进队列", async () => {
+    const { owner, student, project } = await scene();
+    await createTask(owner.id, project.id, {
+      title: "归档项目里的逾期",
+      assigneeId: student.id,
+      dueDate: "2020-01-01",
+    });
+    const { updateProject } = await import("@/lib/project");
+    await updateProject(owner.id, project.id, { status: "archived" });
+
+    const { loadActionQueue } = await import("@/lib/shell");
+    const { items } = await loadActionQueue(student.id);
+    expect(items).toHaveLength(0);
   });
 
   it("不在任何团队时返回空，不报错", async () => {
     const lonely = await makeUser("lonely@example.com");
-    const { listMyActionItems } = await import("@/lib/shell");
-    expect(await listMyActionItems(lonely.id)).toEqual({ awaiting: [], toReview: [] });
+    const { loadActionQueue } = await import("@/lib/shell");
+    expect(await loadActionQueue(lonely.id)).toEqual({ items: [], omitted: 0, total: 0 });
   });
 });

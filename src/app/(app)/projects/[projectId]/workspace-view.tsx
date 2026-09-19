@@ -36,23 +36,23 @@ export function WorkspaceView({
   const stuckCount = live.filter((m) => m.stuck).length;
 
   return (
-    <div className="space-y-5">
-      {/* ---------- 正在发生 ---------- */}
-      <section id="workspace" className="ac-card scroll-mt-20 overflow-hidden">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
-          <h2 className="font-display text-lg font-bold text-ink">正在发生</h2>
+    <div className="space-y-8">
+      <section id="workspace" className="scroll-mt-20 border-y border-line">
+        <header className="flex flex-wrap items-end justify-between gap-3 py-4">
+          <div>
+            <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">现场 / 当前状态</p>
+            <h2 className="mt-1 font-display text-xl font-semibold text-ink">现在发生什么</h2>
+          </div>
           <p className="text-xs text-ink-faint">
-            {humans.length} 位成员 · {agents.length} 个 AI · {running} 件在做
+            {humans.length} 位成员 · {agents.length} 个协作者 · {running} 件在做
             {stuckCount > 0 && <span className="text-high"> · {stuckCount} 件卡住</span>}
           </p>
         </header>
 
         {live.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-ink-soft">
-            还没有人（或 AI）在动。建一件任务，或让 AI 成员接一件。
-          </p>
+          <p className="border-t border-line py-8 text-sm text-ink-soft">目前没有正在推进的任务。</p>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="border-t border-line">
             {live.map((m) => (
               <LiveRow key={m.id} member={m} projectId={projectId} />
             ))}
@@ -60,48 +60,46 @@ export function WorkspaceView({
         )}
       </section>
 
-      {/* ---------- 接力 ---------- */}
-      <section id="relay" className="ac-card scroll-mt-20 overflow-hidden">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
-          <h2 className="font-display text-lg font-bold text-ink">接力</h2>
-          <p className="text-xs text-ink-faint">
-            一件事怎么在人跟 AI 之间传下去——看板说它在哪个状态，这里说它停在谁手上
-          </p>
-        </header>
+      <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+        <section id="relay" className="scroll-mt-20 border-y border-line">
+          <header className="flex flex-wrap items-baseline justify-between gap-2 py-4">
+            <div>
+              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">工作流 / 交接</p>
+              <h2 className="mt-1 text-base font-semibold text-ink">接力链</h2>
+            </div>
+            <p className="text-xs text-ink-faint">任务在谁手上</p>
+          </header>
+          {relays.length === 0 ? (
+            <p className="border-t border-line py-8 text-sm text-ink-soft">还没有流转中的工作。</p>
+          ) : (
+            <ul className="border-t border-line">
+              {relays.map((c) => (
+                <RelayRow key={c.taskId} chain={c} />
+              ))}
+            </ul>
+          )}
+        </section>
 
-        {relays.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-ink-soft">还没有流转起来的工作。</p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {relays.map((c) => (
-              <RelayRow key={c.taskId} chain={c} />
-            ))}
-          </ul>
-        )}
-      </section>
+        <section id="milestones" className="scroll-mt-20 border-y border-line">
+          <header className="flex flex-wrap items-baseline justify-between gap-2 py-4">
+            <div>
+              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">交付 / 进度</p>
+              <h2 className="mt-1 text-base font-semibold text-ink">下一里程碑</h2>
+            </div>
+            {milestoneForm && <div>{milestoneForm}</div>}
+          </header>
 
-      {/* ---------- 里程碑 ---------- */}
-      <section id="milestones" className="ac-card scroll-mt-20 overflow-hidden">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
-          <h2 className="font-display text-lg font-bold text-ink">里程碑</h2>
-          <p className="text-xs text-ink-faint">
-            达成自己标记、亮点自己长出来——没有人需要回来补记
-          </p>
-        </header>
-        {milestoneForm && (
-          <div className="border-b border-line bg-sunken/40 px-4 py-2">{milestoneForm}</div>
-        )}
-
-        {milestones.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-ink-soft">还没有里程碑。</p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {milestones.map((m) => (
-              <MilestoneRow key={m.id} m={m} />
-            ))}
-          </ul>
-        )}
-      </section>
+          {milestones.length === 0 ? (
+            <p className="border-t border-line py-8 text-sm text-ink-soft">还没有里程碑。</p>
+          ) : (
+            <ul className="border-t border-line">
+              {milestones.map((m) => (
+                <MilestoneRow key={m.id} m={m} />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -117,7 +115,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
         : { label: "空闲", cls: "text-ink-faint", dot: "bg-line-strong" };
 
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
+    <li className="flex items-start gap-3 border-b border-line px-0 py-3 last:border-b-0">
       <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${status.dot}`} />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-1.5 text-sm">
@@ -141,7 +139,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
           ) : null}
         </p>
         {/* 卡住的 agent 不会自己喊——这一行是替它喊的 */}
-        {member.stuck && <p className="mt-0.5 text-xs text-high">卡在：{member.stuck}</p>}
+        {member.stuck && <p className="mt-0.5 text-xs text-high">阻塞：{member.stuck}</p>}
       </div>
       {member.lastAt && (
         <span className="shrink-0 text-[11px] tabular-nums text-ink-faint">
@@ -154,7 +152,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
 
 function RelayRow({ chain }: { chain: RelayChain }) {
   return (
-    <li className="px-4 py-3">
+    <li className="border-b border-line px-0 py-3 last:border-b-0">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-medium text-ink">{chain.taskTitle}</span>
         <span
@@ -170,8 +168,8 @@ function RelayRow({ chain }: { chain: RelayChain }) {
       <ol className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
         {chain.steps.slice(-6).map((s, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span aria-hidden className="text-line-strong">→</span>}
-            <span className="inline-flex items-center gap-1 rounded bg-sunken px-1.5 py-0.5">
+            {i > 0 && <span aria-hidden className="px-1 text-line-strong">→</span>}
+            <span className="inline-flex items-center gap-1 border border-line bg-sunken/40 px-1.5 py-0.5">
               <span className="text-ink">{s.actorName ?? "谁"}</span>
               {s.actorKind === "agent" && (
                 <span className="text-[9px] font-semibold text-agent">协作</span>
@@ -214,7 +212,7 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
 
       {/* 达成时自动冻结的实况——不是谁回来补写的 */}
       {m.autoSummary && (
-        <p className="mt-1.5 rounded border-l-2 border-done/40 bg-done/[0.04] px-2 py-1 text-xs leading-5 text-ink-soft">
+      <p className="mt-1.5 border-l-2 border-done/40 bg-done/[0.04] px-2 py-1 text-xs leading-5 text-ink-soft">
           {m.autoSummary}
         </p>
       )}

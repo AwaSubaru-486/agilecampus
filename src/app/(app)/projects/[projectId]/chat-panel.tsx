@@ -34,6 +34,7 @@ export function ChatPanel({
   members,
   milestones,
   tasks,
+  initialTaskId,
 }: {
   projectId: string;
   currentUserId: string;
@@ -43,17 +44,19 @@ export function ChatPanel({
   members: Option[];
   milestones: Option[];
   tasks: Option[];
+  initialTaskId?: string | null;
 }) {
+  const initialTask = initialTaskId ? tasks.find((item) => item.id === initialTaskId) ?? null : null;
   const [conversations, setConversations] = useState(initialConversations);
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(Boolean(initialTask));
+  const [newTitle, setNewTitle] = useState(initialTask ? `任务：${initialTask.name}` : "");
   const [newVisibility, setNewVisibility] = useState<"private" | "project">("project");
-  const [newTaskId, setNewTaskId] = useState("");
+  const [newTaskId, setNewTaskId] = useState(initialTask?.id ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const activeConversation = useMemo(
@@ -228,22 +231,22 @@ export function ChatPanel({
   }
 
   return (
-    <section id="ai-collaboration" className="ac-card scroll-mt-20 overflow-hidden rounded-3xl">
+    <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="ac-card scroll-mt-20 overflow-hidden">
       <div className="border-b border-line px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-primary">CONTEXT LAB</p>
-            <h2 className="mt-1 font-display text-xl font-bold text-ink">AI 上下文实验室</h2>
+            <p className="text-xs font-medium text-agent">协同室</p>
+            <h2 className="mt-1 font-display text-xl font-bold text-ink">把问题交给团队一起推进</h2>
             <p className="mt-1 text-xs text-ink-faint">
               每次讨论都关联项目与任务；从关键回复分叉，不覆盖原来的思路
             </p>
           </div>
-          <button type="button" onClick={() => setCreating((value) => !value)} className="ac-btn px-3 py-2 text-sm">
+          <button type="button" onClick={() => setCreating((value) => !value)} className="ac-btn ac-pressable px-3 py-2 text-sm">
             {creating ? "取消" : "+ 新会话"}
           </button>
         </div>
         {creating && (
-          <div className="mt-3 grid gap-2 rounded-lg bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
+          <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-panel)] bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
             <input
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value)}
@@ -271,14 +274,14 @@ export function ChatPanel({
 
       <div className="grid min-h-[30rem] md:grid-cols-[16rem_1fr]">
         <aside className="border-b border-line bg-[#f3f5f9] p-2.5 md:border-b-0 md:border-r">
-          <p className="px-2 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-faint">CONVERSATIONS</p>
+          <p className="px-2 py-1.5 text-xs font-medium text-ink-3">会话</p>
           <div className="max-h-[28rem] space-y-1 overflow-y-auto">
             {conversations.map((conversation) => (
               <button
                 key={conversation.id}
                 type="button"
                 onClick={() => refreshConversation(conversation.id)}
-                className={`w-full rounded-lg px-2.5 py-2 text-left transition ${
+                className={`ac-pressable min-h-11 w-full rounded-lg px-2.5 py-2 text-left ${
                   conversation.id === conversationId ? "bg-surface shadow-sm ring-1 ring-line" : "hover:bg-surface/70"
                 }`}
               >
@@ -326,10 +329,10 @@ export function ChatPanel({
           </div>
 
           <div className="max-h-[26rem] flex-1 space-y-3 overflow-y-auto p-4">
-            {loadingConversation && <p className="text-center text-sm text-ink-faint">正在加载会话…</p>}
+            {loadingConversation && <p role="status" className="text-center text-sm text-ink-faint">正在加载会话…</p>}
             {!loadingConversation && messages.map((message) => (
               <div key={message.id}>
-                <div className={`rounded-2xl p-3.5 text-sm ${message.role === "user" ? "ml-8 bg-sunken" : "mr-8 border border-primary/10 bg-[#f2f5ff]"}`}>
+                <div className={`border-l-2 px-3.5 py-2.5 text-sm ${message.role === "user" ? "ml-8 border-stroke bg-sunken/60" : "mr-8 border-agent/40 bg-agent-soft/40"}`}>
                   <div className="mb-1 flex items-center gap-2 text-xs text-ink-faint">
                     <span>{message.role === "user" ? message.authorName || "成员" : "AI 助手"}</span>
                     {message.sourceMessageId && <span className="rounded bg-canvas/70 px-1.5 py-0.5">继承内容</span>}
@@ -340,7 +343,7 @@ export function ChatPanel({
                       type="button"
                       onClick={() => forkFrom(message)}
                       disabled={pending}
-                      className="mt-2 text-xs text-primary hover:underline disabled:opacity-50"
+                      className="ac-pressable mt-2 min-h-9 text-xs text-primary hover:underline disabled:opacity-50"
                     >
                       从这里创建方案分支
                     </button>
@@ -359,7 +362,7 @@ export function ChatPanel({
             )}
           </div>
 
-          {error && <p className="px-4 pb-2 text-sm text-high">{error}</p>}
+          {error && <p role="alert" className="px-4 pb-2 text-sm text-high">{error}</p>}
           <div className="flex gap-2 border-t border-line p-3">
             <input
               value={input}
@@ -369,7 +372,7 @@ export function ChatPanel({
               className="ac-field flex-1 text-sm"
               disabled={pending}
             />
-            <button type="button" onClick={send} disabled={pending} className="ac-btn px-4 py-2 text-sm">
+            <button type="button" onClick={send} disabled={pending || !input.trim()} className="ac-btn ac-pressable px-4 py-2 text-sm">
               {pending ? "处理中…" : "发送"}
             </button>
           </div>

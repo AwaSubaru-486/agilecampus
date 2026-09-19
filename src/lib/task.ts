@@ -692,6 +692,37 @@ export async function reviewTask(
 }
 
 // 设置 predecessor 的后置任务（先删旧再插新）。简单关联：仅防直接成环，不强制阻断执行。
+// 任务抽屉要的那一份。比 getTaskDetail 多一样东西：负责人的 kind，
+// 界面据此决定给不给他挂「AI」标识。
+// 权限沿用项目成员口径（与 getTaskDetail 一致）。
+export async function getDrawerTask(actorId: string, taskId: string) {
+  const [row] = await db
+    .select({
+      id: tasks.id,
+      projectId: tasks.projectId,
+      title: tasks.title,
+      description: tasks.description,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueDate: tasks.dueDate,
+      assigneeId: tasks.assigneeId,
+      assigneeName: users.name,
+      assigneeKind: users.kind,
+      commitmentNote: tasks.commitmentNote,
+      committedAt: tasks.committedAt,
+      completionNote: tasks.completionNote,
+      reviewNote: tasks.reviewNote,
+      rejectCount: tasks.rejectCount,
+    })
+    .from(tasks)
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .where(eq(tasks.id, taskId));
+  if (!row) return null;
+  await requireProjectAccess(actorId, row.projectId);
+  const byTask = await labelsByTask([row.id]);
+  return { ...row, labels: byTask.get(row.id) ?? [] };
+}
+
 export async function setTaskSuccessors(
   actorId: string,
   predecessorId: string,

@@ -4,9 +4,10 @@ import { auth } from "@/lib/auth";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { parseFilters } from "@/lib/board-filters";
 import { parseProjectSpace, spaceForConversationParams } from "@/lib/project-space";
-import { listTaskRefs } from "@/lib/task";
+import { getDrawerTask, listTaskRefs } from "@/lib/task";
 import { ProjectBand } from "../../_shell/top-workbar";
 import { SpaceTabs } from "./_shared/space-tabs";
+import { TaskDrawer } from "./_shared/task-drawer";
 import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
@@ -49,6 +50,18 @@ export default async function ProjectPage({
   const requested = parseProjectSpace(sp.space);
   const conversationId = typeof sp.conversation === "string" ? sp.conversation : null;
   const space = spaceForConversationParams(requested, Boolean(conversationId));
+
+  // 地址栏要跟着走。只在服务端改渲染而不改 URL，会出现
+  // 「界面在协同室、地址写着现场」——复制出去就是错的，刷新还会跳回去
+  if (space !== requested) {
+    const qs = new URLSearchParams();
+    qs.set("space", space);
+    for (const [k, v] of Object.entries(sp)) {
+      if (typeof v === "string" && k !== "space") qs.set(k, v);
+    }
+    redirect(`/projects/${projectId}?${qs.toString()}`);
+  }
+
   const taskId = typeof sp.task === "string" ? sp.task : undefined;
 
   const canWrite = role === "admin" || role === "student";
@@ -61,6 +74,12 @@ export default async function ProjectPage({
   // 只在现场模式查接力链要的那四列。其余模式查了就是白费——
   // 按需加载的要点在这里，不在「少渲染几个组件」
   const relayTasks = space === "live" ? await listTaskRefs(projectId) : [];
+
+  // 任务抽屉由 URL 驱动（`?task=`）：今日页点一条行动，一次跳转就能完成它。
+  // 只认属于本项目的任务——别项目的 id 塞进 URL 不该把它的内容透出来。
+  const drawerTask =
+    taskId && z.uuid().safeParse(taskId).success ? await getDrawerTask(actorId, taskId) : null;
+  const drawer = drawerTask?.projectId === projectId ? drawerTask : null;
 
   const filters = parseFilters(
     new URLSearchParams(
@@ -109,13 +128,24 @@ export default async function ProjectPage({
           projectId={projectId}
           teamId={project.teamId}
           selectedConversationId={conversationId}
+          selectedTaskId={taskId ?? null}
         />
       )}
 
       {space === "record" && (
         <RecordSpace actorId={actorId} projectId={projectId} role={role} canWrite={canWrite} />
       )}
+
+      {/* 抽屉叠在任意模式之上——它是全局层，不占模式的画布 */}
+      {drawer && (
+        <TaskDrawer
+          task={drawer}
+          projectId={projectId}
+          currentUserId={actorId}
+          canWrite={canWrite}
+          canReview={role === "admin" || role === "teacher"}
+        />
+      )}
     </div>
   );
 }
-

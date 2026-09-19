@@ -17,12 +17,15 @@ export async function StudioSpace({
   projectId,
   teamId,
   selectedConversationId,
+  selectedTaskId,
 }: {
   actorId: string;
   projectId: string;
   teamId: string;
   /** `?conversation=` 指定打开哪一条 */
   selectedConversationId: string | null;
+  /** 从任务上下文进入协同室时，预选这条任务 */
+  selectedTaskId: string | null;
 }) {
   const [projectMilestones, projectTasks, members, projectConversations] = await Promise.all([
     listProjectMilestones(actorId, projectId),
@@ -62,6 +65,7 @@ export async function StudioSpace({
       members={members}
       milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
       tasks={projectTasks.map((t) => ({ id: t.id, name: t.title }))}
+      initialTaskId={selectedTaskId}
     />
   );
 }

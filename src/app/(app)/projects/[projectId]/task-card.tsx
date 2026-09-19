@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import {
   claimTaskAction,
@@ -93,15 +93,16 @@ export function TaskCard({
   const agentBadge = !assigneeIsAgent
     ? null
     : task.hasActiveRun
-      ? { label: "AI 处理中", cls: "bg-primary-soft text-primary" }
+      ? { label: "协作者处理中", cls: "bg-agent-soft text-agent" }
       : task.agentStatus === "blocked"
-        ? { label: "AI 卡住了", cls: "bg-high-soft text-high" }
+        ? { label: "协作者卡住了", cls: "bg-high-soft text-high" }
         : task.agentStatus === "error"
-          ? { label: "AI 出错了", cls: "bg-high-soft text-high" }
+        ? { label: "协作者出错了", cls: "bg-high-soft text-high" }
           : task.agentStatus === "offline"
-            ? { label: "AI 离线", cls: "bg-sunken text-ink-soft" }
+            ? { label: "协作者离线", cls: "bg-sunken text-ink-soft" }
             : null;
   const searchParams = useSearchParams();
+  const router = useRouter();
   // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）。
   // 于渲染期调整而非 useEffect：避免多渲染一轮，且用户手动关闭后不会被 effect 重开。
   const deepLinked = canWrite && searchParams.get("task") === task.id;
@@ -120,10 +121,7 @@ export function TaskCard({
     .filter(Boolean);
 
   function askAi() {
-    window.dispatchEvent(new CustomEvent("agilecampus:ask-ai", {
-      detail: { taskId: task.id, title: task.title },
-    }));
-    document.getElementById("ai-collaboration")?.scrollIntoView({ behavior: "smooth" });
+    router.push(`/projects/${projectId}?space=studio&task=${task.id}`);
   }
 
   return (
@@ -134,7 +132,7 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`ac-card group relative select-none overflow-hidden ${density === "compact" ? "p-2.5" : "p-3.5"} text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full transition-[background-color,border-color,opacity] duration-150 ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
+      className={`group relative select-none overflow-hidden border border-stroke bg-panel ${density === "compact" ? "p-2.5" : "p-3.5"} text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 transition-[background-color,border-color,opacity] duration-150 ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
         isDragging ? "scale-[0.98] opacity-20" : ""
       }`}
     >
@@ -154,7 +152,7 @@ export function TaskCard({
         </div>
         <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
           <span>{task.assigneeName ?? "待认领"}</span>
-          {assigneeIsAgent && <span className="ac-badge bg-primary-soft text-primary">AI</span>}
+          {assigneeIsAgent && <span className="ac-agent-mark">协作者</span>}
           {/* agent 此刻在干什么。这一格是人机混排界面的关键——
               人说得出自己卡住了，agent 不会，只能靠这一格替他开口 */}
           {agentBadge && (
@@ -169,7 +167,7 @@ export function TaskCard({
         </p>
         {/* 还没接住：派了不等于有人接。一句话点破这层误会 */}
         {awaitingResponse && (
-          <p className="mt-1.5 rounded bg-medium-soft/60 px-2 py-1 text-xs text-medium">
+          <p className="mt-1.5 border-l-2 border-medium bg-medium-soft/60 px-2 py-1 text-xs text-medium">
             {assigneeIsAgent ? "派给 AI 了，但它还没回话" : "已指派，等本人回复接不接"}
           </p>
         )}
@@ -195,7 +193,7 @@ export function TaskCard({
             不能等到 done——否则成员填了却看不见自己填了什么 */}
         {density === "comfortable" && !isInFlight(task.status) && task.completionNote && (
           <p
-            className={`mt-1 rounded px-2 py-1 text-xs ${
+            className={`mt-1 border-l-2 px-2 py-1 text-xs ${
               isCompleted(task.status) ? "bg-done/10 text-done" : "bg-review-soft text-review"
             }`}
           >
@@ -208,7 +206,7 @@ export function TaskCard({
         {/* 承诺常驻展示——这是「承诺」这个概念唯一能被看见的地方。
             紧凑态省掉，免得卡片过高 */}
         {density === "comfortable" && task.commitmentNote && (
-          <p className="mt-1.5 rounded border-l-2 border-primary/40 bg-primary-soft/50 px-2 py-1 text-xs text-ink-soft">
+          <p className="mt-1.5 border-l-2 border-primary/40 bg-primary-soft/50 px-2 py-1 text-xs text-ink-soft">
             <span className="text-ink-faint">承诺</span> {task.commitmentNote}
             {task.estimatedHours ? (
               <span className="ml-1 text-ink-faint">· 预估 {task.estimatedHours} 小时</span>
@@ -217,7 +215,7 @@ export function TaskCard({
         )}
         {/* 退回意见要显眼：成员最需要知道的就是「哪里不行」 */}
         {task.status === "doing" && task.reviewNote && (
-          <p className="mt-1.5 rounded bg-high-soft px-2 py-1 text-xs text-high">
+          <p className="mt-1.5 border-l-2 border-high bg-high-soft px-2 py-1 text-xs text-high">
             退回意见：{task.reviewNote}
           </p>
         )}
@@ -441,7 +439,7 @@ function ActionForm({
   }, null);
 
   return (
-    <form action={formAction} className="mt-2 space-y-2 rounded-lg bg-sunken p-2.5">
+    <form action={formAction} className="mt-2 space-y-2 border-t border-line bg-sunken/50 py-2.5">
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="taskId" value={taskId} />
       {children}
@@ -532,7 +530,7 @@ function EditModal({
             aria-label="关闭"
             className="grid h-7 w-7 place-items-center rounded-field text-ink-faint hover:bg-sunken hover:text-ink"
           >
-            ✕
+            <span aria-hidden className="ac-icon-close" />
           </button>
         </header>
 
