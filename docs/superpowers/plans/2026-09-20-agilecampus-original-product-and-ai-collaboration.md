@@ -22,6 +22,12 @@
 - 当前已有：任务承诺/拒绝/提交/验收、风险、求助、活动、复盘、人机成员、Agent run、共享会话、会话分支、项目档案。
 - 老师原版 `upstream/master` 只用于做差异审计，不用于抄布局或组件。
 
+截至 2026-09-20 的执行状态：
+
+- Commit 1～3 已完成，当前最低执行基线为 `55684b9`。
+- 下一步不得直接进入原 Commit 4；必须先完成第 7 节的 **M0 中期验收交互质感冲刺**。
+- M0 的目标不是增加页面数量，而是让现有顶部工作带、项目四模式和核心操作首先达到可展示、可点击、可解释的完成度。
+
 开始前执行：
 
 ```bash
@@ -208,10 +214,79 @@ git diff --stat upstream/master...HEAD
 
 ## 3.4 动效
 
-- hover/focus 120ms；抽屉 180ms；模式切换不做整页飞入。
-- 拖拽抬升最多 `translateY(-2px)`，不用弹簧、果冻或 3D 倾斜。
+- hover/focus 120ms；按压必须在 `pointerdown` 后 100ms 内产生反馈；模式切换不做整页飞入。
+- 动效优先使用可打断的 spring；CSS fallback 使用明确的 `linear()` spring 曲线，不给所有元素套同一个 `ease`。
+- 拖拽抬升最多 `translateY(-2px)`，可以使用低回弹 spring，但不用果冻、3D 倾斜或磁吸按钮。
+- 只动画 `transform` 与 `opacity`；不得通过动画 `width`、`height`、`top`、`left` 制造布局抖动。
 - 保存成功用局部状态确认，不全屏 toast 狂轰。
-- `prefers-reduced-motion` 时所有位移变为无动画显隐。
+- 动画必须可被用户操作打断，过渡期间不得锁住输入。
+- `prefers-reduced-motion` 时大幅位移改为淡入淡出或立即完成。
+
+## 3.5 中期验收交互基线（P0）
+
+本节优先级高于继续扩展业务功能。设计目标是“克制、即时、连续”，不是复制 Apple 外观，更不是给所有卡片增加玻璃和弹跳。
+
+设计与审计来源：
+
+- `~/.codex/skills/apple-design-interaction/SKILL.md`：导航模型、状态设计、感知性能、键盘和指针输入。
+- `~/.codex/skills/apple-design-motion/SKILL.md`：按压反馈、spring、可打断过渡、拖拽与 reduced motion。
+- `~/.codex/skills/ui-ux-pro-max/SKILL.md`：触控尺寸、响应式、无障碍、视觉一致性检查。
+- `~/.codex/skills/web-design-guidelines/SKILL.md`：实现完成后的逐文件 Web UI 审计。
+
+执行时只借鉴规则，不复制仓库的组件、示例页面、品牌资产或营销风格。所有落地代码必须以 AgileCampus 的信息架构和 token 为准。
+
+### 3.5.1 反馈时序
+
+| 场景 | 反馈要求 | 完成时限 |
+| --- | --- | --- |
+| 按钮/可点击行按下 | 亮度或背景变化，可选 `scale(.985)`；禁用态说明原因 | `<100ms` |
+| 普通切换 | 局部内容更新，保留滚动和筛选状态 | `120～180ms` |
+| 抽屉打开/关闭 | 桌面从来源侧进入，移动端 sheet；焦点同步移动 | `180～240ms` |
+| 拖拽开始 | 移动超过 6px 后才进入 drag，原位占位，目标列预高亮 | `<100ms` |
+| 乐观写操作 | 先显示本地结果；失败回滚并在操作附近解释 | 立即 |
+| 内容等待 | `<1s` 不闪 spinner；形状确定时用 skeleton；超过 1s 才显示持续状态 | 按阈值 |
+| 成功 | 控件自身变成“已保存/已确认”，随后安静恢复 | `1.2～2s` |
+
+### 3.5.2 核心控件状态契约
+
+所有交互控件至少实现：`rest / hover / focus-visible / pressed / disabled / pending / success / error`。不得只实现默认态和 hover。
+
+- **主要按钮**：最小可点击区域 44×44px；一屏最多一个高强调动作；pending 时宽度不得跳动。
+- **任务卡片**：hover 只调整边框/底色；点击打开任务抽屉；只有 drag handle 或明确拖拽区域启动拖拽。
+- **模式标签**：选中指示物在相邻标签间连续移动；URL、浏览器前进后退和刷新后状态一致。
+- **任务抽屉**：支持 Escape、焦点陷阱、关闭后焦点返回来源卡；移动端改为全屏 sheet。
+- **菜单/项目切换器**：点击外部和 Escape 关闭；重新打开时保留搜索输入只限当前会话。
+- **表单**：错误出现在字段附近；提交失败不清空输入；disabled 必须能让用户知道为何不可操作。
+- **AI 运行态**：只在当前任务/会话局部显示；用状态文本和轻微活动指示，不使用无限装饰动画。
+- **AI 待确认动作**：确认前展示 before/after；确认后操作区立即进入 pending，成功后锁定已执行状态，禁止 toast 作为唯一反馈。
+
+### 3.5.3 克制规则
+
+- 项目管理、看板、表单、资料列表保持原生快速滚动；禁止 scroll-jacking、页面级 snap 和随滚动飘移的工具栏。
+- 禁止给普通卡片做磁吸、鼠标追光、3D tilt、持续漂浮或逐卡 stagger 入场。
+- 阴影仅用于正在拖拽的对象、菜单、抽屉等真实浮层。
+- 玻璃材质只允许出现在确有覆盖关系的临时浮层，且 M0 默认不使用。
+- 图标使用同一套 SVG 语言；禁止 emoji 充当功能图标。
+- 颜色不是状态的唯一载体；风险、完成、Agent 等状态必须带文本或图标。
+
+### 3.5.4 M0 可复用实现边界
+
+优先建立少量底层原语，不引入大型 UI 框架：
+
+```text
+src/app/(app)/_ui/
+├── pressable.tsx
+├── async-action.tsx
+├── focus-sheet.tsx
+├── status-indicator.tsx
+└── motion.css
+```
+
+- `Pressable` 统一 pointer/keyboard pressed 状态，不能吞掉业务组件的原生语义。
+- `AsyncAction` 统一 idle/pending/success/error，不负责具体数据请求。
+- `FocusSheet` 统一抽屉焦点、Escape、焦点返回和 reduced-motion 行为。
+- `motion.css` 只保存语义 motion token 与 reduced-motion 覆盖，不存页面专用动画。
+- 若现有组件已满足职责，扩展现有实现，不为了目录整齐重复造组件。
 
 ---
 
@@ -741,6 +816,98 @@ export function buildSpaceHref(input: { projectId: string; space: ProjectSpace; 
 
 提交：`refactor: 将项目重组为现场工作协同记录四模式`
 
+## M0：中期验收交互质感冲刺（立即执行，阻塞 Commit 4）
+
+目标：用已有顶部工作带和项目四模式完成一条 3～5 分钟可稳定演示的交互路径，让评审先感受到“这是一套重新设计的协作产品”，同时不伪造尚未完成的 AI 后端能力。
+
+### M0.1 先审计，不盲目加动画
+
+文件：
+
+- 新建 `docs/design/midterm-interaction-audit.md`
+- 修改 `docs/design/product-language.md`
+- 检查 `src/app/(app)/_shell/*`、项目四模式壳、当前任务卡与对话入口
+
+步骤：
+
+- [ ] 完整阅读本计划 3.1～3.5 和四个已安装技能的 `SKILL.md`；按需读取其 references。
+- [ ] 用 `ui-ux-pro-max` 分别检索 `productivity collaboration dashboard`、`keyboard focus drawer`、`dragging movements`，并使用 `--stack nextjs` 查询实现约束；只记录与当前产品匹配的结果。
+- [ ] 盘点中期路径中每个可操作元素的 8 态：rest/hover/focus/pressed/disabled/pending/success/error。
+- [ ] 标记点击无反应、布局跳动、只能 hover 才发现、焦点丢失、反馈只靠 toast 的位置。
+- [ ] 给每项问题标 P0/P1/P2；M0 只修阻断演示或明显破坏质感的 P0。
+- [ ] 截取 1440×900、768×1024、390×844 三种基线截图，写入审计文档；不要把截图二进制直接塞入 git，按仓库既有截图策略存放。
+
+验收：审计覆盖顶部工作带、项目切换、四模式切换、任务卡、任务抽屉或其当前替代入口、AI 协同入口；每个 P0 都有文件和可复现动作。
+
+### M0.2 建立交互原语与 motion token
+
+文件：
+
+- 修改 `src/app/globals.css`
+- 按 3.5.4 新建或扩展 `_ui/*`
+- 新建相应组件测试；若项目已有同类测试目录则跟随现有结构
+
+步骤：
+
+- [ ] 定义 `--motion-instant`、`--motion-fast`、`--motion-panel` 和低回弹 spring curve；禁止组件自行发明 duration。
+- [ ] 实现 `Pressable`，保证 button/link 原生语义、Space/Enter、pointer cancel 和 focus-visible。
+- [ ] 实现 `AsyncAction` 状态机；pending 时禁止重复提交，失败可重试，文本宽度变化不造成明显 CLS。
+- [ ] 实现或加固 `FocusSheet`；支持 Escape、外部关闭策略、焦点陷阱、关闭后返回来源、移动端全屏。
+- [ ] 在 `prefers-reduced-motion: reduce` 下禁用缩放和大位移，只保留必要的 opacity/即时状态。
+- [ ] 不新增 Framer Motion/GSAP 等依赖；现阶段 CSS + React 状态足够。确有无法完成的手势需求时另开决策记录。
+
+验收：键盘、鼠标、触屏路径都可用；组件卸载后无遗留定时器；动画中途反向操作不会卡死；无新增 hydration warning。
+
+提交：`feat: 建立中期演示交互反馈原语`
+
+### M0.3 打磨五个中期可见触点
+
+按顺序执行，前一项未验收不得继续堆后续装饰：
+
+1. **顶部工作带与项目切换器**
+   - [ ] 点击、键盘、Escape、外部关闭和焦点返回完整。
+   - [ ] 项目切换不丢当前用户能理解的上下文；等待时保持旧内容，不整页白屏。
+2. **项目四模式切换**
+   - [ ] active indicator 连续移动；内容只做轻微淡入，不整页飞入。
+   - [ ] 快速连续点击可打断，不排队播放动画；URL 与选中态始终一致。
+3. **任务扫描与抽屉入口**
+   - [ ] hover、focus、pressed 清楚但克制；点击和拖拽意图不冲突。
+   - [ ] 抽屉从来源方向出现并保持背景语境；关闭后返回原任务。
+4. **看板拖拽**
+   - [ ] 6px 激活阈值、原位占位、拖拽抬升、目标列高亮、非法投放预提示。
+   - [ ] drop 先乐观显示，失败回滚；学生拖入 done 之前就看到不可操作原因。
+   - [ ] 提供键盘移动或等价菜单，不允许手势成为唯一入口。
+5. **AI 协同入口与待确认示意**
+   - [ ] 从任务进入 AI 时保留任务标题、目标和上下文来源可见性。
+   - [ ] 尚未实现的能力标注“原型/即将接入”，不得用假进度冒充真实运行。
+   - [ ] 至少做出 context preview → AI 局部运行态 → 建议 diff → 人工确认的前端演示闭环；数据可以使用明确标注的 demo fixture，但不得写进生产数据库。
+
+验收：五个触点在 60fps 目标下无明显卡顿；按钮按压即时；无悬浮乱跳；快速切换、取消拖拽和失败回滚都能恢复正确状态。
+
+提交：`feat: 打磨项目模式拖拽抽屉与 AI 确认体验`
+
+### M0.4 中期演示与质量闸门
+
+- [ ] 新建 `docs/demo/midterm-script.md`，严格控制在 3～5 分钟。
+- [ ] 演示顺序：项目切换 → 四模式定位 → 任务拖拽 → 抽屉查看上下文 → 发起 AI 协同 → 查看建议差异 → 人工确认。
+- [ ] 为每一步写“讲什么 / 点哪里 / 预期反馈 / 失败备用动作”，避免现场临时找功能。
+- [ ] 运行相关测试、`npm run lint`、`npm run build`。
+- [ ] 用 Chrome Performance 或等价工具检查一次抽屉和拖拽；不得出现持续 long task 或明显布局抖动。
+- [ ] 使用 `web-design-guidelines` 对本阶段改动的 UI 文件做最终审计；所有 P0/P1 问题修复或在审计文档说明理由。
+- [ ] 逐页检查 200% 缩放、390px 宽度、键盘路径与 reduced motion。
+- [ ] 保存中期验收最终截图，并与老师原版并排验证“不是换皮”。
+
+M0 完成定义：
+
+- [ ] 一条 3～5 分钟演示路径可以连续完成，不刷新、不进入死路。
+- [ ] 点击、切换、打开、拖动、确认五类动作均有即时且一致的局部反馈。
+- [ ] AI 演示清楚表现“读了什么、建议什么、由谁确认”，而非聊天框生成文字。
+- [ ] 页面没有滥用玻璃、弹跳、悬浮、磁吸或长动画。
+- [ ] 三种 viewport、键盘、reduced motion、lint、build 全部通过。
+- [ ] 中期截图与原版不构成换色即可互换的同构页面。
+
+M0 未通过时停止，不进入 Commit 4。中期验收通过后，原 Commit 4～13 顺序保持不变。
+
 ## Commit 4：今日行动与现场页
 
 文件按 4.1、4.2 新建；复用 `health.ts`、`blocker.ts`、`workspace.ts`。
@@ -996,6 +1163,16 @@ npm run build
 - 颜色不是唯一信号；
 - 200% 缩放与 reduced motion。
 
+交互质感回归：
+
+- 按钮和可点击行在 pointerdown 后立即反馈，键盘激活得到等价反馈；
+- 任务卡的点击、拖拽和卡片内操作互不误触；
+- 抽屉开合期间可以反向操作，关闭后焦点回到来源；
+- 快速切换项目模式时 URL、active indicator、内容三者最终一致；
+- pending 不重复提交，失败能回滚，成功反馈不只依赖 toast；
+- 动画不触发布局跳动，reduced motion 下没有大幅移动；
+- 触控目标至少 44×44px，390px 宽度无非预期横向滚动。
+
 原创性验收：
 
 - 将原版与 V2 的登录后首页、项目主页、任务操作、AI 协作、档案五组截图并排。
@@ -1020,6 +1197,8 @@ npm run build
 
 这段演示的创新结论：AI 不只是“帮你生成内容”，而是在一套可追溯的交接协议里成为团队成员。
 
+中期验收使用 M0.4 的 3～5 分钟精简脚本，只承诺已经实现或明确标成 demo fixture 的能力；完整九步故事留给终期验收。中期展示重点依次为：原创骨架、操作手感、任务上下文、AI 建议可见性、人工确认边界。
+
 ---
 
 ## 11. 下游 AI 启动提示词
@@ -1029,14 +1208,25 @@ npm run build
 docs/superpowers/plans/2026-09-20-agilecampus-original-product-and-ai-collaboration.md
 
 这是施工规格，不是建议列表。先完整阅读 AGENTS.md、本文件、现有
-2026-09-17 总计划、docs/ai-collaboration.md 和当前 schema。确认 HEAD 包含 5c9a3f9，
-确认工作区干净，再从 Commit 1 开始。
+2026-09-17 总计划、docs/ai-collaboration.md 和当前 schema。确认 HEAD 包含 55684b9，
+识别工作区已有修改并保留它们，然后从 M0 中期验收交互质感冲刺开始；Commit 1～3 已完成，
+不得重做或回退。
+
+M0 开始前还必须阅读：
+- ~/.codex/skills/apple-design-interaction/SKILL.md
+- ~/.codex/skills/apple-design-motion/SKILL.md
+- ~/.codex/skills/ui-ux-pro-max/SKILL.md
+- ~/.codex/skills/web-design-guidelines/SKILL.md
+
+这些技能是交互与审计依据，不是外部页面模板。只把适合生产力工具的即时反馈、状态完整性、
+空间连续性、键盘/触控、reduced motion 和审计规则落地；禁止复制品牌视觉，禁止把项目做成
+Apple 官网，禁止用玻璃、弹跳和滚动特效掩盖尚未完成的功能。
 
 目标是原创重构，不是换皮：取消旧左侧栏和长项目页，建立顶部工作带、今日行动、
 项目四模式、任务上下文抽屉和协同室。保留并复用已验证的领域逻辑，不重写权限、任务
 四态、求助、风险、活动、Agent run 和 project_entries。
 
-一次只执行一个 Commit。每个 Commit 必须：
+一次只执行一个 M0 子阶段或 Commit。每个阶段必须：
 1. 检查现有实现和调用者；
 2. 阅读相关 Next.js 16 本地文档；
 3. 先写或更新失败测试；
@@ -1065,5 +1255,7 @@ docs/superpowers/plans/2026-09-20-agilecampus-original-product-and-ai-collaborat
 - [ ] 每项验收可见完成条件和证据，不靠聊天截图。
 - [ ] 项目记录自动沉淀决策、证据、成果、里程碑和贡献事实。
 - [ ] 旧 UI 已删除或只有明确期限的兼容层。
+- [ ] M0 中期交互闸门通过：按压、模式切换、任务抽屉、拖拽、AI 确认均有一致反馈与异常恢复。
+- [ ] 生产力页面保持克制；无 scroll-jacking、无手势唯一入口、无以装饰动效替代状态说明。
 - [ ] 全量测试、lint、build 通过。
 - [ ] 三类人类角色与 Agent API 的演示剧本完整跑通。
