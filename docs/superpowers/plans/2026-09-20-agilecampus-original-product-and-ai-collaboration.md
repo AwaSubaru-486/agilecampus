@@ -232,6 +232,7 @@ git diff --stat upstream/master...HEAD
 - `~/.codex/skills/apple-design-motion/SKILL.md`：按压反馈、spring、可打断过渡、拖拽与 reduced motion。
 - `~/.codex/skills/ui-ux-pro-max/SKILL.md`：触控尺寸、响应式、无障碍、视觉一致性检查。
 - `~/.codex/skills/web-design-guidelines/SKILL.md`：实现完成后的逐文件 Web UI 审计。
+- `~/.codex/skills/anti-ai-slop-ui/SKILL.md`：产品专属视觉方向、反模板规则、AI Slop/Distinctiveness 评分与启发式扫描。
 
 执行时只借鉴规则，不复制仓库的组件、示例页面、品牌资产或营销风格。所有落地代码必须以 AgileCampus 的信息架构和 token 为准。
 
@@ -830,7 +831,9 @@ export function buildSpaceHref(input: { projectId: string; space: ProjectSpace; 
 
 步骤：
 
-- [ ] 完整阅读本计划 3.1～3.5 和四个已安装技能的 `SKILL.md`；按需读取其 references。
+- [ ] 完整阅读本计划 3.1～3.5 和五个已安装技能的 `SKILL.md`；按需读取其 references。
+- [ ] 按 `anti-ai-slop-ui` 先完成一次设计意图审查：产品类型写成“高校团队协作现场”，视觉方向选“Research Archive + workflow timeline”，不得使用“现代/简洁/高级”作为唯一设计结论。
+- [ ] 运行 `python ~/.codex/skills/anti-ai-slop-ui/scripts/ui_lint.py src`，把结果记录到 `docs/design/anti-ai-slop-review.md`；分数达到 5/10 及以上时，先修最高影响项再扩展新页面。
 - [ ] 用 `ui-ux-pro-max` 分别检索 `productivity collaboration dashboard`、`keyboard focus drawer`、`dragging movements`，并使用 `--stack nextjs` 查询实现约束；只记录与当前产品匹配的结果。
 - [ ] 盘点中期路径中每个可操作元素的 8 态：rest/hover/focus/pressed/disabled/pending/success/error。
 - [ ] 标记点击无反应、布局跳动、只能 hover 才发现、焦点丢失、反馈只靠 toast 的位置。
