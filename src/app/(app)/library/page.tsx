@@ -27,8 +27,8 @@ export default async function LibraryPage() {
   if (teamIds.length === 0) {
     return (
       <div className="mx-auto max-w-[70rem]">
-        <h1 className="font-display text-2xl font-bold text-ink">资料库</h1>
-        <p className="ac-card mt-4 p-8 text-center text-sm text-ink-2">
+        <LibraryHeader countText="还没有可查看的资料" />
+        <p className="mt-8 border-y border-stroke py-10 text-center text-sm text-ink-2">
           你还没有加入任何团队。
         </p>
       </div>
@@ -58,18 +58,17 @@ export default async function LibraryPage() {
   const docs = rows.filter((r) => r.type === "doc");
 
   return (
-    <div className="mx-auto max-w-[70rem] space-y-5">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-ink">资料库</h1>
-        <p className="mt-1 text-sm text-ink-2">
-          {rows.length === 0
-            ? "还没有可复用的产出。"
-            : `${deliverables.length} 项成果、${docs.length} 份文档，跨全部项目汇总。`}
-        </p>
-      </header>
+    <div className="mx-auto max-w-[70rem] space-y-10">
+      <LibraryHeader
+        countText={
+          rows.length === 0
+            ? "还没有可复用的产出"
+            : `${deliverables.length} 项成果 · ${docs.length} 份文档 · 跨全部项目`
+        }
+      />
 
       {rows.length === 0 ? (
-        <p className="ac-card p-8 text-center text-sm text-ink-2">
+        <p className="border-y border-stroke py-10 text-center text-sm text-ink-2">
           团队把代码仓库、数据集、答辩材料放进项目档案之后，会汇总到这里。
         </p>
       ) : (
@@ -79,6 +78,18 @@ export default async function LibraryPage() {
         </>
       )}
     </div>
+  );
+}
+
+function LibraryHeader({ countText }: { countText: string }) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-5">
+      <div>
+        <p className="mb-2 text-xs font-medium text-ink-3">团队留下的可复用事实</p>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">资料库</h1>
+      </div>
+      <p className="text-sm text-ink-2">{countText}</p>
+    </header>
   );
 }
 
@@ -97,40 +108,41 @@ type Row = {
 function EntryGroup({ title, hint, rows }: { title: string; hint: string; rows: Row[] }) {
   if (rows.length === 0) return null;
   return (
-    <section className="ac-card overflow-hidden">
-      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
-        <h2 className="text-sm font-semibold text-ink">{title}</h2>
-        <p className="text-xs text-ink-3">{hint}</p>
+    <section>
+      <header className="flex items-baseline justify-between gap-3 border-b border-stroke pb-2">
+        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        <p className="text-xs text-ink-3">{hint} · {rows.length}</p>
       </header>
-      <ul className="divide-y divide-stroke">
+      <ul>
         {rows.map((r) => (
-          <li key={r.id} className="px-4 py-3">
-            <p className="flex flex-wrap items-baseline gap-2">
-              <span className={`ac-badge ${r.type === "deliverable" ? "bg-signal-soft text-signal" : "bg-sunken text-ink-3"}`}>
-                {ENTRY_LABEL[r.type]}
-              </span>
+          <li key={r.id} className="group grid gap-3 border-b border-stroke py-5 sm:grid-cols-[6rem_1fr_auto] sm:items-start">
+            <div className="flex items-center gap-2 pt-1 text-xs text-ink-3">
+              <span className={`h-px w-5 ${r.type === "deliverable" ? "bg-human" : "bg-ink-3"}`} aria-hidden />
+              <span>{ENTRY_LABEL[r.type]}</span>
+            </div>
+            <div className="min-w-0">
               {r.url ? (
                 <a
                   href={r.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-medium text-ink hover:text-signal hover:underline"
+                  className="inline text-base font-medium text-ink underline decoration-stroke-strong underline-offset-4 transition-colors hover:text-human hover:decoration-human"
                 >
                   {r.title} ↗
                 </a>
               ) : (
-                <span className="text-sm font-medium text-ink">{r.title}</span>
+                <span className="text-base font-medium text-ink">{r.title}</span>
               )}
-              <Link
-                href={`/projects/${r.projectId}?space=record`}
-                className="text-xs text-ink-3 hover:text-signal"
-              >
-                {r.projectName}
-              </Link>
-            </p>
-            {r.content && (
-              <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-2">{r.content}</p>
-            )}
+              {r.content && (
+                <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-ink-2">{r.content}</p>
+              )}
+            </div>
+            <Link
+              href={`/projects/${r.projectId}?space=record`}
+              className="text-xs text-ink-3 underline decoration-transparent underline-offset-4 transition-colors hover:text-ink hover:decoration-ink-3 sm:pt-1"
+            >
+              {r.projectName}
+            </Link>
           </li>
         ))}
       </ul>
