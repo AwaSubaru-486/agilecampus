@@ -1,59 +1,119 @@
 @import "tailwindcss";
 
-/* AgileCampus UI · 由任务、协作与 AI 上下文组成的轻量团队工作台 */
+/* AgileCampus · 人与 AI 的协作现场
+ *
+ * 视觉基线（Commit 2/13）。与旧版的根本差别不在配色，在三条：
+ *   1. 暖灰底 + 纸感面，不是冷白 + 亮蓝
+ *   2. 阴影只用于浮层，普通面板靠边框与留白分层
+ *   3. 「人」与「AI」是两组并列的语义色，不是「正常 vs 警告」
+ *
+ * 旧 token 名在文件下半部保留为别名，让现有 36 个组件的文件一行不改
+ * 就先换上新皮；逐个迁移完成后于 Commit 13 删除别名。
+ */
 
 @theme {
-  --color-canvas: #f6f7f9;
-  --color-surface: #ffffff;
-  --color-sunken: #eef1f5;
-  --color-ink: #151b26;
-  --color-ink-soft: #536070;
-  --color-ink-faint: #8c97a6;
-  --color-line: #e5e9ef;
-  --color-line-strong: #d7dde6;
+  /* ---------- 底与面 ---------- */
+  --color-ground: #f3f1eb; /* 页面底：暖灰，接近草稿纸 */
+  --color-panel: #fbfaf7; /* 面板：纸白，不是纯白 */
+  --color-raised: #ffffff; /* 浮起层：仅用于浮层 */
+  --color-sunken: #eae7df; /* 凹陷：输入槽、次级底 */
 
-  --color-primary: #315cf5;
-  --color-primary-hover: #2448d8;
-  --color-primary-soft: #eaf0ff;
-  --color-primary-ring: #c9d6ff;
+  /* ---------- 字 ---------- */
+  --color-ink: #1d2421;
+  --color-ink-2: #4f5b56;
+  --color-ink-3: #7e8983;
 
-  --color-accent: #ff7657;
-  --color-accent-soft: #fff0eb;
+  /* ---------- 线 ---------- */
+  --color-stroke: #dcded8;
+  --color-stroke-strong: #c7cbc4;
 
-  /* 语义 · 看板列 */
-  --color-todo: #8692a3;
-  --color-doing: #315cf5;
-  /* 待验收取紫：琥珀已被 --color-medium 占作中优先级，同色则「待验收」与「中优先级」两义相混 */
-  --color-review: #7a5af8;
-  --color-review-soft: #f1edff;
-  --color-done: #168a63;
+  /* ---------- 人机语义色 ---------- */
+  /* 人与 AI 是并列的两类成员。绿色不代表好人，紫色不代表危险 */
+  --color-human: #13795b;
+  --color-human-soft: #e4f4ed;
+  --color-agent: #7557c9;
+  --color-agent-soft: #eee9fb;
 
-  /* 语义 · 优先级 */
-  --color-high: #d94a55;
-  --color-high-soft: #ffecef;
-  --color-medium: #b67817;
-  --color-medium-soft: #fff5dc;
-  --color-low: #697789;
-  --color-low-soft: #edf0f4;
+  /* ---------- 信号与状态 ---------- */
+  --color-signal: #3157d5;
+  --color-signal-hover: #2745b4;
+  --color-signal-soft: #e9edff;
+  --color-signal-ring: #c3cdf7;
 
-  /* 字体 */
+  --color-risk: #c4424f;
+  --color-risk-soft: #fbe8ea;
+  --color-warn: #a76513;
+  --color-warn-soft: #f7edd8;
+  --color-success: #25734f;
+  --color-success-soft: #e4f4ed;
+
+  /* ---------- 形状 ---------- */
+  /* 主面板 12px、抽屉 16px。不再所有元素都用 24px 大圆角 */
+  --radius-control: 0.5rem; /* 控件 8px */
+  --radius-panel: 0.75rem; /* 面板 12px */
+  --radius-sheet: 1rem; /* 抽屉 / 全屏层 16px */
+
+  /* ---------- 尺寸 ---------- */
+  --spacing-workbar: 3.5rem; /* 顶部工作带 56px */
+  --spacing-projectband: 3rem; /* 项目上下文带 48px */
+
+  /* ---------- 字体 ---------- */
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-display: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-
-  /* 形状 */
-  --radius-card: 1rem;
-  --radius-field: 0.625rem;
 }
 
+/* 阴影：只给浮层。普通面板一律不投影，靠边框与留白分层 */
 :root {
-  --shadow-card: 0 1px 2px rgba(21, 27, 38, 0.03), 0 10px 28px -18px rgba(21, 27, 38, 0.22);
-  --shadow-pop: 0 18px 50px -22px rgba(21, 27, 38, 0.32);
+  --shadow-float: 0 10px 30px -12px rgba(29, 36, 33, 0.18);
+  --shadow-pop: 0 18px 50px -22px rgba(29, 36, 33, 0.28);
+}
+
+/* ==========================================================================
+   旧 token 别名
+   Commit 2 一次性换底，但不逐文件重写——36 个组件引用的这些名字暂时
+   映射到新值，于是全站立刻换上暖灰纸感的皮。逐个迁移完成后于 Commit 13 删除。
+   ========================================================================== */
+@theme {
+  --color-canvas: var(--color-ground);
+  --color-surface: var(--color-panel);
+  --color-ink-soft: var(--color-ink-2);
+  --color-ink-faint: var(--color-ink-3);
+  --color-line: var(--color-stroke);
+  --color-line-strong: var(--color-stroke-strong);
+
+  --color-primary: var(--color-signal);
+  --color-primary-hover: var(--color-signal-hover);
+  --color-primary-soft: var(--color-signal-soft);
+  --color-primary-ring: var(--color-signal-ring);
+
+  /* 看板四档。既有的 todo/doing/review/done 分别映射到新语义 */
+  --color-todo: var(--color-ink-3);
+  --color-doing: var(--color-signal);
+  --color-review: var(--color-agent);
+  --color-review-soft: var(--color-agent-soft);
+  --color-done: var(--color-human);
+
+  /* 优先级 */
+  --color-high: var(--color-risk);
+  --color-high-soft: var(--color-risk-soft);
+  --color-medium: var(--color-warn);
+  --color-medium-soft: var(--color-warn-soft);
+  --color-low: var(--color-ink-3);
+  --color-low-soft: var(--color-sunken);
+
+  --color-accent: var(--color-warn);
+  --color-accent-soft: var(--color-warn-soft);
+
+  --radius-card: var(--radius-panel);
+  --radius-field: var(--radius-control);
 }
 
 body {
-  background-color: var(--color-canvas);
+  background-color: var(--color-ground);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -61,101 +121,132 @@ body {
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
+}
+
+/* 动效：位移一律克制。prefers-reduced-motion 时全部退化为显隐 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @layer components {
-  /* 卡片面 */
+  /* ---------- 面板 ----------
+   * 无静止阴影。旧版靠「圆角 + 投影 + 纯白」制造卡片感，
+   * 一屏堆七八张就成了卡片墙；改用边框与留白分层。 */
   .ac-card {
-    border-radius: var(--radius-card);
-    border: 1px solid var(--color-line);
-    background-color: var(--color-surface);
-    box-shadow: var(--shadow-card);
+    border-radius: var(--radius-panel);
+    border: 1px solid var(--color-stroke);
+    background-color: var(--color-panel);
   }
 
   .ac-toolbar {
-    border: 1px solid var(--color-line);
-    border-radius: 0.875rem;
-    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-    box-shadow: 0 1px 2px rgba(21, 27, 38, 0.03);
+    border: 1px solid var(--color-stroke);
+    border-radius: var(--radius-panel);
+    background: color-mix(in srgb, var(--color-panel) 90%, transparent);
   }
 
-  /* 表单控件统一 */
+  /* 需要浮起时显式声明——浮层才配得上阴影 */
+  .ac-float {
+    box-shadow: var(--shadow-float);
+  }
+
+  /* ---------- 表单控件 ---------- */
   .ac-field {
     width: 100%;
-    border-radius: var(--radius-field);
-    border: 1px solid var(--color-line-strong);
-    background-color: var(--color-surface);
-    padding: 0.5rem 0.7rem;
+    min-height: 2.25rem; /* 标准控件 36px */
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-stroke-strong);
+    background-color: var(--color-raised);
+    padding: 0.45rem 0.7rem;
     font-size: 0.875rem;
     color: var(--color-ink);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
   .ac-field::placeholder {
-    color: var(--color-ink-faint);
+    color: var(--color-ink-3);
   }
   .ac-field:focus {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary-ring);
+    border-color: var(--color-signal);
+    box-shadow: 0 0 0 3px var(--color-signal-ring);
   }
 
-  /* 主按钮 */
+  /* ---------- 主按钮 ----------
+   * 「一屏最多一个高强调主动作」——故主按钮不做大、不做亮，
+   * 只做「有实底」这一个区别。 */
   .ac-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
-    border-radius: var(--radius-field);
-    background-color: var(--color-primary);
-    padding: 0.5rem 1rem;
+    min-height: 2.25rem;
+    border-radius: var(--radius-control);
+    border: 1px solid transparent;
+    background-color: var(--color-signal);
+    padding: 0.45rem 0.95rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: #fff;
-    box-shadow: 0 1px 2px rgba(28, 22, 12, 0.14);
-    transition: background-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+    transition: background-color 0.12s ease;
   }
   .ac-btn:hover:not(:disabled) {
-    background-color: var(--color-primary-hover);
-    box-shadow: 0 2px 8px -1px rgba(56, 82, 127, 0.35);
-  }
-  .ac-btn:active:not(:disabled) {
-    transform: translateY(0.5px);
+    background-color: var(--color-signal-hover);
   }
   .ac-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
-  /* 次按钮 / 幽灵 */
+  /* ---------- 次按钮 ---------- */
   .ac-btn-ghost {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    border-radius: var(--radius-field);
-    border: 1px solid var(--color-line-strong);
-    background-color: var(--color-surface);
-    padding: 0.4rem 0.85rem;
+    min-height: 2.25rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-stroke-strong);
+    background-color: transparent;
+    padding: 0.4rem 0.8rem;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--color-ink-soft);
-    transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+    color: var(--color-ink-2);
+    transition: border-color 0.12s ease, color 0.12s ease, background-color 0.12s ease;
   }
   .ac-btn-ghost:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background-color: var(--color-primary-soft);
+    border-color: var(--color-signal);
+    color: var(--color-signal);
+    background-color: var(--color-signal-soft);
   }
 
-  /* 标签徽章 */
+  /* ---------- 徽章 ----------
+   * 状态不能只靠颜色——每个徽章旁边必须有短文本，这条靠使用方遵守 */
   .ac-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    border-radius: 999px;
-    padding: 0.1rem 0.55rem;
+    border-radius: 0.375rem; /* 方一点，不再全是胶囊 */
+    padding: 0.05rem 0.4rem;
     font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.01em;
+  }
+
+  /* ---------- 人机标识 ----------
+   * 全站统一：让人一眼分得清这条是人做的还是 AI 做的 */
+  .ac-agent-mark {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.25rem;
+    background-color: var(--color-agent-soft);
+    padding: 0 0.25rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: var(--color-agent);
   }
 }

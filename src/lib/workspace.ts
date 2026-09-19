@@ -61,7 +61,9 @@ export async function buildLiveBoard(
     db
       .select({
         actorId: activityEvents.actorId,
-        lastAt: sql<Date>`max(${activityEvents.createdAt})`,
+        // 标 string 而非 Date：max() 是聚合，postgres-js 不会替我们还原成 Date，
+        // 拿到的就是字符串。标成 Date 只是骗过编译器，运行时照样在 .getTime() 上炸。
+        lastAt: sql<string>`max(${activityEvents.createdAt})`,
       })
       .from(activityEvents)
       .where(eq(activityEvents.projectId, projectId))
@@ -73,7 +75,10 @@ export async function buildLiveBoard(
   ]);
 
   const agentStatusById = new Map(agentRows.map((a) => [a.userId, a.status]));
-  const lastAtById = new Map(lastEvents.filter((e) => e.actorId).map((e) => [e.actorId!, e.lastAt]));
+  // 聚合返回的是字符串，在这里显式转一次——转换只做一处，下游一律拿 Date
+  const lastAtById = new Map(
+    lastEvents.filter((e) => e.actorId).map((e) => [e.actorId!, new Date(e.lastAt)]),
+  );
 
   // 卡住的任务 → 原因。取所有人可见的那条求助。
   const stuckByTask = new Map<string, string>();

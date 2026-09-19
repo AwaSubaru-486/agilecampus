@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { signOutAction } from "./actions";
+
+// 账户菜单。旧版把姓名、头像、退出平铺在侧栏底部，占掉一批视觉重量；
+// 收进一个菜单后，工作带上只剩一个头像。
+export function AccountMenu({ name }: { name: string }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={boxRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`账户菜单：${name}`}
+        className="grid size-8 place-items-center rounded-full bg-sunken text-xs font-semibold text-ink-2 transition-colors hover:bg-stroke"
+      >
+        {(name || "?").slice(0, 1).toUpperCase()}
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="ac-card ac-float absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden p-1"
+        >
+          <p className="truncate px-2.5 py-2 text-sm font-medium text-ink">{name}</p>
+          <div className="border-t border-stroke pt-1">
+            <Link
+              href="/settings"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block rounded-[var(--radius-control)] px-2.5 py-1.5 text-sm text-ink-2 hover:bg-sunken"
+            >
+              设置
+            </Link>
+            <Link
+              href="/settings/tokens"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block rounded-[var(--radius-control)] px-2.5 py-1.5 text-sm text-ink-2 hover:bg-sunken"
+            >
+              个人访问令牌
+            </Link>
+          </div>
+          <form action={signOutAction} className="border-t border-stroke pt-1">
+            <button
+              role="menuitem"
+              className="w-full rounded-[var(--radius-control)] px-2.5 py-1.5 text-left text-sm text-ink-2 hover:bg-sunken"
+            >
+              退出登录
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
