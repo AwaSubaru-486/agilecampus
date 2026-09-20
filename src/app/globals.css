@@ -64,8 +64,10 @@
   --motion-spring: linear(0, 0.16 8%, 0.8 38%, 1.02 62%, 1 100%);
 
   /* ---------- 字体 ---------- */
-  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-display: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /* 明确采用本机字体：中文优先苹方/微软雅黑，英文回退系统 sans。
+   * 不依赖远程字体，离线构建和课堂演示都能保持同一套字形策略。 */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: var(--font-sans);
 }
 
 /* 阴影：只给浮层。普通面板一律不投影，靠边框与留白分层 */
