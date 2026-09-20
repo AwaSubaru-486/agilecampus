@@ -30,12 +30,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only z-[60] rounded-[var(--radius-control)] bg-ink px-3 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        跳到主要内容
+      </a>
       <TopWorkbar
         userName={session.user.name ?? ""}
         projects={switcherProjects}
         collaborationCount={pendingCount}
       />
-      <main className="mx-auto max-w-[120rem] px-3 py-4 sm:px-5 sm:py-6">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[120rem] px-3 py-4 sm:px-5 sm:py-6">
+        {children}
+      </main>
 
       <StuckButton projects={switcherProjects.map((p) => ({ id: p.id, name: p.name }))} />
     </div>

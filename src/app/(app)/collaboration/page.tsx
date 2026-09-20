@@ -93,8 +93,8 @@ export default async function CollaborationPage() {
                   <span className="font-medium text-ink">{b.raisedByName ?? "已注销成员"}</span>
                   <span className="text-ink-3">在</span>
                   <Link
-                    href={`/projects/${b.projectId}`}
-                    className="text-signal hover:underline"
+                    href={`/projects/${b.projectId}?space=live`}
+                    className="rounded-[var(--radius-control)] text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
                   >
                     {b.projectName}
                   </Link>

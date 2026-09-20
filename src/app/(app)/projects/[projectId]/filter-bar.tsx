@@ -74,10 +74,11 @@ export function FilterBar({
           筛选与视图
           {activeCount > 0 && <span className="ac-badge bg-primary text-white">{activeCount}</span>}
         </span>
-        <span className="flex items-center gap-2" onClick={(event) => event.preventDefault()}>
+        <span className="flex items-center gap-2">
           <span className="text-[11px] text-ink-faint">{visible} / {total} 项</span>
           <select
             value={filters.group}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
             onChange={(e) => push({ ...filters, group: e.target.value as GroupBy })}
             className="ac-field w-auto py-1 text-xs"

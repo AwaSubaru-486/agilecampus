@@ -127,6 +127,7 @@ export function TaskDrawer({
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* 遮罩。点击关闭是惯例，但 Escape 与关闭按钮才是键盘用户的出路 */}
       <button
+        type="button"
         aria-label="关闭任务详情"
         onClick={close}
         className="absolute inset-0 bg-ink/20 transition-opacity duration-200"

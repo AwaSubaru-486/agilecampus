@@ -78,7 +78,7 @@ export function ProjectSummary({
           <p className="text-[10px] font-semibold tracking-[0.14em] text-white/45">PROGRESS</p>
           <p className="mt-5 font-display text-5xl font-bold tracking-[-0.06em]">{progress}<span className="ml-1 text-xl text-white/45">%</span></p>
           <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10" aria-label={`项目完成度 ${progress}%`}>
-            <div className="h-full rounded-full bg-[#7CF2C3] transition-all" style={{ width: `${progress}%` }} />
+            <div className="h-full rounded-full bg-[#7CF2C3] transition-[width] duration-200 ease-out" style={{ width: `${progress}%` }} />
           </div>
           <div className="mt-4 flex items-end justify-between">
             <p className="text-xs text-white/55">{done}/{tasks.length} 项已完成</p>

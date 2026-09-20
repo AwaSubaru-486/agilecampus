@@ -135,6 +135,7 @@ export async function moveTaskAction(input: {
     }
     await updateTask(session.user.id, parsed.data.taskId, parsed.data.patch);
   } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限移动任务" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

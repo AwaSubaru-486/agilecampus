@@ -4,7 +4,9 @@ import { useEffect, useOptimistic, useState, useTransition } from "react";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
+  defaultKeyboardCoordinateGetter,
   useDroppable,
   useSensor,
   useSensors,
@@ -177,6 +179,7 @@ export function Board({
   );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: defaultKeyboardCoordinateGetter }),
   );
 
   const columns = deriveColumns(groupBy, { members, milestones });
@@ -228,7 +231,7 @@ export function Board({
       onDragCancel={() => setActiveId(null)}
       onDragEnd={handleDragEnd}
     >
-      {error && <p className="text-sm text-high">{error}</p>}
+      {error && <p role="status" aria-live="polite" className="text-sm text-high">{error}</p>}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-surface px-1.5 py-1">
         <div className="flex items-center gap-1" aria-label="任务视图">
           <ModeButton active={viewMode === "board"} onClick={() => setViewMode("board")} hint="1">看板</ModeButton>

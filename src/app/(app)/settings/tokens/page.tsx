@@ -26,7 +26,7 @@ export default async function TokensPage() {
     <main className="mx-auto max-w-2xl space-y-8 py-8">
       <header className="space-y-1">
         <h1 className="font-display text-2xl font-semibold text-ink">个人访问令牌</h1>
-        <p className="text-sm text-ink-soft">
+        <p className="text-sm text-ink-2">
           令牌让 Claude Code 等外部程序以你的身份写入——添加任务、填写完成情况、登记资源占用。
           权限等同于你本人，越权操作会被拒绝。泄露即撤销。
         </p>
@@ -36,7 +36,7 @@ export default async function TokensPage() {
 
       <section className="ac-card space-y-3 p-5">
         <h2 className="font-display text-base font-semibold text-ink">如何在 Claude Code 中使用</h2>
-        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-soft">
+        <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-2">
           <li>在上方生成令牌，复制明文（只显一次）。</li>
           <li>
             把令牌与本站地址配置给 Claude Code（作为 <code className="rounded bg-sunken px-1 py-0.5 font-mono text-xs">AGILECAMPUS_TOKEN</code> 与

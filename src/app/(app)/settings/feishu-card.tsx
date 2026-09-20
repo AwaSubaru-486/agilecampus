@@ -16,20 +16,20 @@ export function FeishuCard({ boundName, boundAtLabel, notice }: Props) {
   return (
     <section className="ac-card space-y-3 p-5">
       <h2 className="font-display text-base font-semibold text-ink">飞书通知</h2>
-      <p className="text-sm text-ink-soft">
+      <p className="text-sm text-ink-2">
         绑定飞书后，任务被指派、完成，以及临期/逾期时，你会收到飞书私信提醒。
       </p>
       {n && (
-        <p className={`text-sm ${n.ok ? "text-done" : "text-high"}`}>{n.text}</p>
+        <p className={`text-sm ${n.ok ? "text-success" : "text-risk"}`}>{n.text}</p>
       )}
       {boundName ? (
         <div className="flex items-center justify-between gap-4">
           <div className="text-sm text-ink">
             已绑定：<span className="font-medium">{boundName}</span>
-            {boundAtLabel && <span className="ml-2 text-ink-faint">（{boundAtLabel}）</span>}
+            {boundAtLabel && <span className="ml-2 text-ink-3">（{boundAtLabel}）</span>}
           </div>
           <form action={unbindFeishuAction}>
-            <button type="submit" className="ac-btn-ghost text-sm">解绑</button>
+            <button type="submit" className="ac-btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">解绑</button>
           </form>
         </div>
       ) : (
@@ -37,7 +37,7 @@ export function FeishuCard({ boundName, boundAtLabel, notice }: Props) {
           {/* /api/auth/feishu/login 是 Route Handler 而非页面（规则误判）；OAuth 起点须整页跳转，
               走 next/link 的客户端路由会拿不到服务端 302。 */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/api/auth/feishu/login" className="ac-btn inline-block text-sm">
+          <a href="/api/auth/feishu/login" className="ac-btn inline-block text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
             绑定飞书
           </a>
         </>
