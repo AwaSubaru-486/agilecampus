@@ -68,7 +68,9 @@ const decisionOptionSchema = z.object({
   description: z.string().optional(),
   benefits: z.array(z.string()).optional(),
   risks: z.array(z.string()).optional(),
-  evidenceRefs: z.array(z.string()).optional(),
+  evidenceRefs: z
+    .array(z.object({ type: z.enum(["message", "entry", "task", "context_item"]), id: z.uuid() }))
+    .optional(),
 });
 
 const createDecisionSchema = z.object({

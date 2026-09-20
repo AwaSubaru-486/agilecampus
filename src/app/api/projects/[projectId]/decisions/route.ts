@@ -9,7 +9,10 @@ const optionSchema = z.object({
   description: z.string().trim().max(2_000).optional(),
   benefits: z.array(z.string().trim().min(1).max(500)).max(12).optional(),
   risks: z.array(z.string().trim().min(1).max(500)).max(12).optional(),
-  evidenceRefs: z.array(z.string().trim().min(1).max(500)).max(12).optional(),
+  evidenceRefs: z
+    .array(z.object({ type: z.enum(["message", "entry", "task", "context_item"]), id: z.uuid() }))
+    .max(12)
+    .optional(),
 });
 
 const createSchema = z.object({

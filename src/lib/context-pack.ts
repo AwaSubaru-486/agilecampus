@@ -16,6 +16,7 @@ import {
   type ContextSourceType,
 } from "@/db/schema";
 import { getConversationForUser } from "@/lib/agent/conversation";
+import { sanitizeEvidenceRefsForViewer } from "@/lib/decision";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { getProjectForUser } from "@/lib/project";
 
@@ -230,7 +231,7 @@ async function resolveSource(
       .from(decisions)
       .where(and(eq(decisions.id, sourceId!), eq(decisions.projectId, projectId)));
     if (!row) throw new AppError("决策记录不属于当前项目");
-    const options = await db
+    const rawOptions = await db
       .select({
         label: decisionOptions.label,
         description: decisionOptions.description,
@@ -242,6 +243,15 @@ async function resolveSource(
       .from(decisionOptions)
       .where(eq(decisionOptions.decisionId, row.id))
       .orderBy(asc(decisionOptions.position));
+    // Context Pack 可能被整个项目共享；私人消息依据即使创建者本人可见，也不能随快照扩散。
+    const options = await Promise.all(
+      rawOptions.map(async (option) => ({
+        ...option,
+        evidenceRefs: await sanitizeEvidenceRefsForViewer(actorId, projectId, option.evidenceRefs, {
+          redactPrivateSources: true,
+        }),
+      })),
+    );
     return {
       sourceType: "decision",
       sourceId: row.id,
@@ -330,8 +340,8 @@ async function resolveSource(
     };
   }
 
-  // decision 在下一阶段接入；现在显式拒绝比静默读取任意表更安全。
-  throw new AppError("决策记录尚未接入上下文包");
+  // 所有非 manual 来源都必须在上面显式处理，避免静默读取任意表。
+  throw new AppError(`暂不支持的上下文来源：${descriptor.sourceType}`);
 }
 
 export async function buildContextPackPreview(

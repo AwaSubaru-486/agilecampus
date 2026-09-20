@@ -59,6 +59,12 @@ describe("Decision Ledger", () => {
       selectedOptionId: decision.options[1].id,
       rationale: "先控制实现复杂度",
     });
+    await expect(
+      resolveDecision(reviewer.id, decision.id, {
+        status: "rejected",
+        rationale: "不应覆盖已确认的审计记录",
+      }),
+    ).rejects.toThrow("只有待确认的决策");
     expect((await listProjectDecisions(owner.id, project.id))[0].status).toBe("accepted");
   });
 
@@ -76,7 +82,12 @@ describe("Decision Ledger", () => {
     const oldDecision = await createDecision(owner.id, project.id, {
       title: "旧方案",
       question: "是否采用方案 A？",
-      options: [{ label: "方案 A" }],
+      options: [
+        {
+          label: "方案 A",
+          evidenceRefs: [{ type: "message", id: turn.assistantMessage!.id }],
+        },
+      ],
       sourceConversationId: conversation.id,
       sourceMessageId: turn.assistantMessage?.id,
     });
@@ -90,8 +101,12 @@ describe("Decision Ledger", () => {
     const ownerView = await listProjectDecisions(owner.id, project.id);
     expect(ownerView.find((item) => item.id === oldDecision.id)?.status).toBe("superseded");
     expect(ownerView.find((item) => item.id === oldDecision.id)?.sourceConversationId).toBe(conversation.id);
+    expect(ownerView.find((item) => item.id === oldDecision.id)?.options[0].evidenceRefs).toEqual([
+      { type: "message", id: turn.assistantMessage!.id },
+    ]);
 
     const teammateView = await listProjectDecisions(teammate.id, project.id);
     expect(teammateView.find((item) => item.id === oldDecision.id)?.sourceConversationId).toBeNull();
+    expect(teammateView.find((item) => item.id === oldDecision.id)?.options[0].evidenceRefs).toEqual([]);
   });
 });
