@@ -376,6 +376,43 @@ export const contextPackItems = pgTable(
   ],
 );
 
+// 交付证据。完成说明只是叙述，证据包才是验收可以核对的对象。
+// value 先存 URL 或短文本；entry/message/run 用 sourceId 指向来源，
+// 不把大文件塞进业务库，也不在这里复制来源内容。
+export const evidenceTypeEnum = pgEnum("evidence_type", [
+  "link",
+  "file",
+  "text",
+  "test",
+  "demo",
+  "entry",
+  "message",
+  "run",
+]);
+export type EvidenceType = (typeof evidenceTypeEnum.enumValues)[number];
+
+export const evidenceItems = pgTable(
+  "evidence_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    submittedById: uuid("submitted_by_id").references(() => users.id, { onDelete: "set null" }),
+    type: evidenceTypeEnum("type").notNull(),
+    label: text("label").notNull(),
+    value: text("value").notNull(),
+    sourceId: uuid("source_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("evidence_items_project_idx").on(t.projectId, t.createdAt),
+    index("evidence_items_task_idx").on(t.taskId, t.createdAt),
+    index("evidence_items_source_idx").on(t.type, t.sourceId),
+  ],
+);
+
 export const taskDependencies = pgTable(
   "task_dependencies",
   {
@@ -570,6 +607,7 @@ export const activityTypeEnum = pgEnum("activity_type", [
   // 项目档案：老师反馈、文档、成果链接
   "entry_created",
   "entry_deleted",
+  "evidence_added",
   // 承诺与验收（启用待「任务承诺与验收」一图）
   "task_claimed",
   "task_committed",

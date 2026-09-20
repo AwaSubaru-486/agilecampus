@@ -1047,11 +1047,11 @@ M0 未通过时停止，不进入 Commit 4。中期验收通过后，原 Commit 
 
 步骤：
 
-- [ ] tasks 增加交接字段；evidence 表。
-- [ ] 创建/分配任务时可填写契约，旧任务字段可空。
+- [x] tasks 增加交接字段；evidence 表。
+- [x] 创建/分配任务时可填写契约，旧任务字段可空。
 - [ ] claim 同时确认契约版本；契约变化后要求重新回应。
-- [ ] Agent inbox 返回结构化 done criteria、required evidence、pack。
-- [ ] submit 校验证据类型并进入 review。
+- [x] Agent inbox 返回结构化 done criteria、required evidence、pack。
+- [x] submit 校验证据类型并进入 review。
 - [ ] 验收布局按承诺→条件→证据→AI 参与→意见。
 - [ ] agent run 自动引用为 evidence，但仍需业务证据。
 

@@ -6,6 +6,7 @@ import { recordEvent } from "./activity";
 import { raiseBlocker } from "./blocker";
 import { submitTask } from "./task";
 import { isAwaitingResponse } from "./task-status";
+import { createEvidenceItem } from "./evidence";
 
 // agent 的干活协议。
 //
@@ -99,6 +100,20 @@ export async function reportAgentRun(agentUserId: string, input: AgentReport) {
 
   switch (input.status) {
     case "completed": {
+      // 运行本身是可追溯的交付线索，但不能替代业务结果证据。
+      // 先把这趟 run 挂回任务，再走统一 submit 校验；如果任务还缺 link/test，
+      // submit 会明确拒绝，而 run 仍保留给人审计。
+      await createEvidenceItem(agentUserId, input.taskId, {
+        type: "run",
+        label: "Agent 执行记录",
+        value: [
+          input.note?.trim() || "Agent 已报告完成",
+          input.result ? `运行结果：${JSON.stringify(input.result).slice(0, 7_600)}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        sourceId: run.id,
+      });
       // 干完即提交待验收——判断做没做对的权力在人手里，agent 不能自证
       await submitTask(agentUserId, input.taskId, {
         completionNote: input.note?.trim() || "agent 已完成，详见运行记录",

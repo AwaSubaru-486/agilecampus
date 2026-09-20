@@ -8,6 +8,7 @@ import { createProject } from "@/lib/project";
 import { claimTask, createTask, listProjectTasks, submitTask } from "@/lib/task";
 import { createAgent } from "@/lib/agent-member";
 import { listAgentInbox, listTaskRuns, reportAgentRun } from "@/lib/agent-run";
+import { listTaskEvidence } from "@/lib/evidence";
 import { listProjectBlockers } from "@/lib/blocker";
 import { resetDb } from "./helpers";
 
@@ -109,6 +110,11 @@ describe("上报执行状态", () => {
     const [task] = await listProjectTasks(owner.id, project.id);
     expect(task.status).toBe("review"); // 待验收，不是 done
     expect(task.completionNote).toContain("三个端点都写好了");
+    const evidence = await listTaskEvidence(owner.id, t.id);
+    expect(evidence).toHaveLength(1);
+    expect(evidence[0].sourceId).toBe(run.id);
+    expect(evidence[0].type).toBe("run");
+    expect(evidence[0].label).toBe("Agent 执行记录");
   });
 
   it("failed → agent 转 error，任务仍挂在它名下等人定夺", async () => {

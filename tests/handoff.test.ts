@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createUser } from "@/lib/user";
 import { createTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
-import { createTask, getTaskDetail, updateTask } from "@/lib/task";
+import { createTask, getTaskDetail, submitTask, updateTask } from "@/lib/task";
 import { createContextPack } from "@/lib/context-pack";
+import { createEvidenceItem, listTaskEvidence } from "@/lib/evidence";
 import { resetDb } from "./helpers";
 
 async function scene() {
@@ -73,5 +74,46 @@ describe("交接契约", () => {
     const detail = await getTaskDetail(owner.id, task.id);
     expect(detail.handoffBrief).toBe("改成可交接");
     expect(detail.requiredEvidence).toEqual(["demo"]);
+  });
+
+  it("提交前检查必需证据，证据补齐后才进入待验收", async () => {
+    const { owner, project } = await scene();
+    const task = await createTask(owner.id, project.id, {
+      title: "补齐验收材料",
+      requiredEvidence: ["link", "test"],
+    });
+    await expect(submitTask(owner.id, task.id, { completionNote: "已完成" })).rejects.toThrow(
+      "还缺少必需证据",
+    );
+
+    await createEvidenceItem(owner.id, task.id, {
+      type: "link",
+      label: "演示地址",
+      value: "https://example.com/demo",
+    });
+    await expect(submitTask(owner.id, task.id, { completionNote: "已完成" })).rejects.toThrow(
+      "还缺少必需证据：test",
+    );
+
+    await createEvidenceItem(owner.id, task.id, {
+      type: "test",
+      label: "测试结果",
+      value: "vitest 通过",
+    });
+    const submitted = await submitTask(owner.id, task.id, { completionNote: "已完成" });
+    expect(submitted.status).toBe("review");
+    expect(await listTaskEvidence(owner.id, task.id)).toHaveLength(2);
+  });
+
+  it("链接证据必须是真实 URL", async () => {
+    const { owner, project } = await scene();
+    const task = await createTask(owner.id, project.id, { title: "链接校验" });
+    await expect(
+      createEvidenceItem(owner.id, task.id, {
+        type: "link",
+        label: "错误链接",
+        value: "不是链接",
+      }),
+    ).rejects.toThrow("必须以 http:// 或 https:// 开头");
   });
 });

@@ -25,6 +25,7 @@ import {
 } from "./notify";
 import { DEFAULT_STATUS, assertTransition, isCompleted } from "./task-status";
 import { normalizeHandoffFields, type HandoffFields } from "./handoff";
+import { missingRequiredEvidence } from "./evidence";
 import { describe, recordEvent } from "./activity";
 import type { ActivityType } from "@/db/schema";
 
@@ -681,6 +682,10 @@ export async function submitTask(
   if (task.status === "review") throw new AppError("该任务已在待验收中");
   if (task.status === "done") throw new AppError("该任务已通过验收，如需改动请先重开");
   if (!input.completionNote.trim()) throw new AppError("请说明这次交付了什么");
+  const missingEvidence = await missingRequiredEvidence(actorId, taskId);
+  if (missingEvidence.length > 0) {
+    throw new AppError(`还缺少必需证据：${missingEvidence.join("、")}`);
+  }
 
   const [updated] = await db
     .update(tasks)
