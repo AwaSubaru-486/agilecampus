@@ -139,7 +139,7 @@ export function TaskDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={`任务详情：${task.title}`}
-        className="ac-card ac-float ac-panel-enter relative m-0 h-full w-full max-w-[32rem] overflow-y-auto rounded-none border-y-0 border-r-0 outline-none sm:m-2 sm:h-[calc(100%-1rem)] sm:rounded-[var(--radius-sheet)] sm:border"
+        className="ac-card ac-float ac-panel-enter relative m-0 h-full w-full max-w-[32rem] overflow-y-auto rounded-none border-y-0 border-r-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal sm:m-2 sm:h-[calc(100%-1rem)] sm:rounded-[var(--radius-sheet)] sm:border"
       >
         <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-stroke bg-panel px-4 py-3">
           <div className="min-w-0">

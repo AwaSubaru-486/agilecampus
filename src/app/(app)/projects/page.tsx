@@ -62,7 +62,7 @@ export default async function AllProjectsPage() {
                   </div>
                   <div className="h-1 overflow-hidden rounded-full bg-sunken">
                     <div
-                      className="h-full rounded-full bg-signal transition-all"
+                      className="h-full rounded-full bg-signal transition-[width] duration-200 ease-out"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
