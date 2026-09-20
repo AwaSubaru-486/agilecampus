@@ -54,6 +54,7 @@ export function TaskCard({
   allLabels,
   dependencies,
   density = "comfortable",
+  dragEnabled = true,
 }: {
   task: BoardTask;
   projectId: string;
@@ -67,6 +68,8 @@ export function TaskCard({
   allLabels: Option[];
   dependencies: { predecessorId: string; successorId: string }[];
   density?: CardDensity;
+  /** 状态分组时关闭拖拽；状态推进必须走认领/提交/验收动作。 */
+  dragEnabled?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   // 动作面板：同一时刻只开一个。null 表示无
@@ -113,7 +116,7 @@ export function TaskCard({
   }
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
-    disabled: !canWrite || editing,
+    disabled: !dragEnabled || !canWrite || editing,
   });
   const successorTitles = dependencies
     .filter((d) => d.predecessorId === task.id)
@@ -139,7 +142,7 @@ export function TaskCard({
       <div
         {...listeners}
         {...attributes}
-        className={canWrite && !editing ? "cursor-grab touch-none active:cursor-grabbing" : ""}
+        className={dragEnabled && canWrite && !editing ? "cursor-grab touch-none active:cursor-grabbing" : ""}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

@@ -83,6 +83,12 @@ export async function WorkSpace({
         total={projectTasks.length}
       />
 
+      {filters.group === "status" && (
+        <p className="border-l-2 border-warn bg-warn-soft/40 px-3 py-2 text-xs leading-5 text-ink-2">
+          状态列不接受拖拽。请用任务卡上的“我接手 / 提交成果 / 验收”推进，已完成必须经过人工验收。
+        </p>
+      )}
+
       <Board
         projectId={projectId}
         groupBy={filters.group}

@@ -62,6 +62,7 @@ function Column({
   dependencies,
   viewMode,
   density,
+  dragEnabled,
 }: {
   column: BoardColumn;
   tasks: BoardTask[];
@@ -76,8 +77,9 @@ function Column({
   dependencies: { predecessorId: string; successorId: string }[];
   viewMode: ViewMode;
   density: CardDensity;
+  dragEnabled: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.key });
+  const { setNodeRef, isOver } = useDroppable({ id: column.key, disabled: !dragEnabled });
 
   return (
     <div
@@ -110,6 +112,7 @@ function Column({
             allLabels={allLabels}
             dependencies={dependencies}
             density={density}
+            dragEnabled={dragEnabled}
           />
         ))}
         {tasks.length === 0 && (
@@ -255,6 +258,7 @@ export function Board({
             dependencies={dependencies}
             viewMode={viewMode}
             density={density}
+            dragEnabled={groupBy !== "status"}
           />
         ))}
       </div>

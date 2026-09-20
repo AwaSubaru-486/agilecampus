@@ -101,8 +101,8 @@ export async function createMilestoneAction(
   return null;
 }
 
-// 拖拽可改的字段白名单。校验与授权仍全数落在 updateTask
-//（指派人须属团队、里程碑须属项目），故此处只做形状校验。
+// 拖拽可改的字段白名单。状态不在拖拽路径里：状态推进必须经过任务动作，
+// 否则「拖到已完成」会绕开提交与人工验收。校验与授权仍全数落在 updateTask。
 const movePatchSchema = z.object({
   status: z.enum(TASK_STATUSES).optional(),
   assigneeId: z.uuid().nullable().optional(),
@@ -130,6 +130,9 @@ export async function moveTaskAction(input: {
   if (Object.keys(parsed.data.patch).length === 0) return { error: "参数无效" };
 
   try {
+    if (parsed.data.patch.status !== undefined) {
+      return { error: "状态不能通过拖拽改变，请使用任务动作推进" };
+    }
     await updateTask(session.user.id, parsed.data.taskId, parsed.data.patch);
   } catch (e) {
     if (e instanceof AppError) return { error: e.message };
