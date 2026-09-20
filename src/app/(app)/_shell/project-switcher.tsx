@@ -65,7 +65,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label="切换项目"
-        className="ac-pressable flex min-h-10 max-w-[16rem] items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1"
+        className="ac-pressable flex min-h-10 max-w-[6.5rem] items-center gap-1 rounded-[var(--radius-control)] px-1.5 py-1 text-xs text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:max-w-[16rem] sm:gap-1.5 sm:px-2 sm:py-1.5 sm:text-sm"
       >
         <span className="min-w-0 truncate">{current ? current.name : "选择项目"}</span>
         <span aria-hidden className="shrink-0 text-ink-3">

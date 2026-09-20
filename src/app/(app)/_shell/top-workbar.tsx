@@ -55,7 +55,7 @@ export function TopWorkbar({
         </div>
 
         {/* 一级导航 */}
-        <nav aria-label="主导航" className="ml-auto flex items-center gap-0.5 sm:gap-1">
+        <nav aria-label="主导航" className="ml-auto flex items-center gap-0.5 overflow-x-auto no-scrollbar sm:gap-1">
           {NAV_ITEMS.map((item) => {
             const isActive = active === item.href;
             const showDot = item.href === "/collaboration" && collaborationCount > 0;
@@ -65,7 +65,7 @@ export function TopWorkbar({
                 href={item.href}
                 title={item.hint}
                 aria-current={isActive ? "page" : undefined}
-                className={`ac-pressable relative min-h-9 border-b-2 px-2 py-1.5 text-sm transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:px-2.5 ${
+                className={`ac-pressable relative flex min-h-9 shrink-0 items-center whitespace-nowrap border-b-2 px-1.5 py-1.5 text-xs transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:px-2.5 sm:text-sm ${
                   isActive
                     ? "border-ink font-medium text-ink"
                     : "border-transparent text-ink-2 hover:border-stroke-strong hover:text-ink"
