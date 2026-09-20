@@ -14,6 +14,7 @@ import { listMyProjects } from "@/lib/project";
 
 const TONE: Record<ActionKind, string> = {
   assignment_response: "bg-warn-soft text-warn",
+  decision_review: "bg-signal-soft text-signal",
   review: "bg-agent-soft text-agent",
   blocker_invite: "bg-risk-soft text-risk",
   rejected_work: "bg-risk-soft text-risk",
@@ -78,7 +79,7 @@ export default async function TodayPage({
             >
               ✓
             </div>
-            <p className="font-display text-base font-semibold text-ink">没有待回应、也没有待验收的活</p>
+            <p className="font-display text-base font-semibold text-ink">没有待回应、待验收或待确认的动作</p>
             <p className="mt-1 text-xs text-ink-3">你的待办队列很清爽，各项进度都在正常流转。</p>
             <Link
               href="/projects"
@@ -94,7 +95,9 @@ export default async function TodayPage({
                 <li key={`${a.kind}-${a.taskId ?? a.blockerId ?? a.title}`}>
                   <Link
                     href={
-                      a.taskId
+                      a.decisionId
+                        ? `/projects/${a.projectId}?space=record#decisions`
+                        : a.taskId
                         ? `/projects/${a.projectId}?space=live&task=${a.taskId}`
                         : `/projects/${a.projectId}?space=live`
                     }

@@ -93,6 +93,17 @@ describe("行动队列 —— 去重", () => {
     expect(buildActionQueue(raw).items).toHaveLength(1);
   });
 
+  it("待确认决策按 decisionId 去重，并保留决策行动", () => {
+    const raw = [
+      action({ kind: "decision_review", taskId: null, blockerId: null, decisionId: "d1", title: "选模型" }),
+      action({ kind: "decision_review", taskId: null, blockerId: null, decisionId: "d1", title: "选模型" }),
+      action({ kind: "decision_review", taskId: null, blockerId: null, decisionId: "d2", title: "选部署方式" }),
+    ];
+    const { items } = buildActionQueue(raw);
+    expect(items.map((item) => item.decisionId)).toEqual(["d2", "d1"]);
+    expect(items.every((item) => item.kind === "decision_review")).toBe(true);
+  });
+
   it("不同任务各留一条", () => {
     const raw = [action({ taskId: "t1" }), action({ taskId: "t2" }), action({ taskId: "t3" })];
     expect(buildActionQueue(raw).items).toHaveLength(3);

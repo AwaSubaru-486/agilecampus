@@ -16,20 +16,24 @@ export const ACTION_KINDS = [
   "overdue", // 我负责的、已过期
   "due_soon", // 我负责的、三天内到期
 ] as const;
-export type ActionKind = (typeof ACTION_KINDS)[number];
+// 决策确认是独立于任务流的行动。它不放进旧的六类通配列表，避免
+// 破坏按角色筛选任务行动的旧契约；今日页仍会把它作为一等行动展示。
+export type ActionKind = (typeof ACTION_KINDS)[number] | "decision_review";
 
 /** 越靠前越急。同一件事命中多条原因时，取最靠前的那条。 */
 export const KIND_PRIORITY: Record<ActionKind, number> = {
   assignment_response: 0,
-  review: 1,
-  blocker_invite: 2,
-  rejected_work: 3,
-  overdue: 4,
-  due_soon: 5,
+  decision_review: 1,
+  review: 2,
+  blocker_invite: 3,
+  rejected_work: 4,
+  overdue: 5,
+  due_soon: 6,
 };
 
 export const KIND_LABEL: Record<ActionKind, string> = {
   assignment_response: "待回应",
+  decision_review: "待确认方案",
   review: "待验收",
   blocker_invite: "请你搭手",
   rejected_work: "被退回",
@@ -40,6 +44,7 @@ export const KIND_LABEL: Record<ActionKind, string> = {
 /** 每种行动的主动作。一屏最多一个高强调动作，故一行只给一个。 */
 export const KIND_ACTION: Record<ActionKind, string> = {
   assignment_response: "接住 / 接不住",
+  decision_review: "选方案 / 写理由",
   review: "通过 / 退回",
   blocker_invite: "去看看",
   rejected_work: "改完重交",
@@ -49,9 +54,11 @@ export const KIND_ACTION: Record<ActionKind, string> = {
 
 export type RawAction = {
   kind: ActionKind;
-  /** 任务类行动指向任务；求助类指向 blocker。两者可空但不同时为空 */
+  /** 任务、求助、决策三类行动各自指向一个目标；三者可空但不同时为空 */
   taskId: string | null;
   blockerId: string | null;
+  /** 决策类行动指向决策；与任务、求助一样只会命中一个目标 */
+  decisionId?: string | null;
   title: string;
   projectId: string;
   projectName: string;
@@ -78,7 +85,13 @@ export function buildActionQueue(
   // 同一件事取最急的那条原因
   const byThing = new Map<string, RawAction>();
   for (const a of raw) {
-    const key = a.taskId ? `t:${a.taskId}` : a.blockerId ? `b:${a.blockerId}` : `x:${a.title}`;
+    const key = a.taskId
+      ? `t:${a.taskId}`
+      : a.blockerId
+        ? `b:${a.blockerId}`
+        : a.decisionId
+          ? `d:${a.decisionId}`
+          : `x:${a.title}`;
     const existing = byThing.get(key);
     if (!existing || KIND_PRIORITY[a.kind] < KIND_PRIORITY[existing.kind]) {
       byThing.set(key, a);

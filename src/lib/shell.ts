@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { blockerInvites, blockers, projects, tasks, teamMembers, users } from "@/db/schema";
+import { blockerInvites, blockers, decisions, projects, tasks, teamMembers, users } from "@/db/schema";
 import { buildActionQueue, type RawAction } from "./action-queue";
 import { today } from "./today";
 
@@ -29,10 +29,13 @@ export async function loadActionQueue(
   userId: string,
   opts?: { showAll?: boolean },
 ): Promise<ActionQueue> {
-  const memberships = await db
-    .select({ teamId: teamMembers.teamId, role: teamMembers.role })
-    .from(teamMembers)
-    .where(eq(teamMembers.userId, userId));
+  const [memberships, actorRows] = await Promise.all([
+    db
+      .select({ teamId: teamMembers.teamId, role: teamMembers.role })
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, userId)),
+    db.select({ kind: users.kind }).from(users).where(eq(users.id, userId)),
+  ]);
   if (memberships.length === 0) return { items: [], omitted: 0, total: 0 };
 
   const teamIds = memberships.map((m) => m.teamId);
@@ -54,7 +57,7 @@ export async function loadActionQueue(
     updatedAt: tasks.updatedAt,
     creatorName: users.name,
   };
-  const [awaiting, toReview, rejected, overdue, dueSoon, invited] = await Promise.all([
+  const [awaiting, toReview, rejected, overdue, dueSoon, invited, pendingDecisions] = await Promise.all([
     // 派给我、我还没回话
     db
       .select(taskBase)
@@ -154,6 +157,21 @@ export async function loadActionQueue(
           eq(blockers.status, "open"),
         ),
       ),
+
+    // AI 只能提出方案，待确认决策由人处理；AI 成员不应收到这类行动。
+    actorRows[0]?.kind === "human"
+      ? db
+          .select({
+            decisionId: decisions.id,
+            title: decisions.title,
+            projectId: projects.id,
+            projectName: projects.name,
+            createdAt: decisions.createdAt,
+          })
+          .from(decisions)
+          .innerJoin(projects, eq(decisions.projectId, projects.id))
+          .where(and(liveProjects, eq(decisions.status, "proposed")))
+      : Promise.resolve([]),
   ]);
 
   const raw: RawAction[] = [
@@ -222,6 +240,18 @@ export async function loadActionQueue(
       context: null,
       dueDate: null,
       at: r.at,
+    })),
+    ...pendingDecisions.map((r) => ({
+      kind: "decision_review" as const,
+      taskId: null,
+      blockerId: null,
+      decisionId: r.decisionId,
+      title: r.title,
+      projectId: r.projectId,
+      projectName: r.projectName,
+      context: "AI 方案待确认",
+      dueDate: null,
+      at: r.createdAt,
     })),
   ];
 

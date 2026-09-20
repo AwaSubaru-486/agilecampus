@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { agents, blockers, projects, teamMembers, users } from "@/db/schema";
+import { agents, blockers, decisions, projects, teamMembers, users } from "@/db/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 // 协作：求助邀请与 AI 成员状态。
@@ -33,7 +33,7 @@ export default async function CollaborationPage() {
     );
   }
 
-  const [openBlockerRows, agentRows] = await Promise.all([
+  const [openBlockerRows, agentRows, pendingDecisionRows] = await Promise.all([
     db
       .select({
         id: blockers.id,
@@ -62,6 +62,19 @@ export default async function CollaborationPage() {
       .innerJoin(users, eq(agents.userId, users.id))
       .where(inArray(agents.teamId, teamIds))
       .orderBy(users.name),
+    db
+      .select({
+        id: decisions.id,
+        title: decisions.title,
+        question: decisions.question,
+        projectId: projects.id,
+        projectName: projects.name,
+        createdAt: decisions.createdAt,
+      })
+      .from(decisions)
+      .innerJoin(projects, eq(decisions.projectId, projects.id))
+      .where(and(eq(decisions.status, "proposed"), inArray(projects.teamId, teamIds)))
+      .orderBy(desc(decisions.createdAt)),
   ]);
 
   // 自己发的不算「待我帮忙」
@@ -103,6 +116,41 @@ export default async function CollaborationPage() {
                 {b.helpNeeded && (
                   <p className="mt-1 text-xs leading-5 text-ink-2">需要：{b.helpNeeded}</p>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="ac-card overflow-hidden">
+        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-ink">AI 待确认</h2>
+            {pendingDecisionRows.length > 0 && (
+              <span className="rounded-full bg-signal-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-signal">
+                {pendingDecisionRows.length}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-ink-3">AI 提方案，人做选择</p>
+        </header>
+        {pendingDecisionRows.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-ink-2">当前没有等待确认的 AI 方案。</p>
+        ) : (
+          <ul className="divide-y divide-stroke">
+            {pendingDecisionRows.map((decision) => (
+              <li key={decision.id}>
+                <Link
+                  href={`/projects/${decision.projectId}?space=record#decisions`}
+                  className="block px-4 py-3 transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal"
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="text-sm font-medium text-ink">{decision.title}</span>
+                    <span className="text-xs text-ink-3">{decision.projectName}</span>
+                    <span className="ml-auto text-xs font-medium text-signal">去确认 →</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-ink-2">{decision.question}</p>
+                </Link>
               </li>
             ))}
           </ul>

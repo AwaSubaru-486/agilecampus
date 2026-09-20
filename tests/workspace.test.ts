@@ -5,6 +5,7 @@ import { createProject } from "@/lib/project";
 import { claimTask, createTask, submitTask } from "@/lib/task";
 import { createAgent } from "@/lib/agent-member";
 import { raiseBlocker } from "@/lib/blocker";
+import { createDecision } from "@/lib/decision";
 import { buildLiveBoard } from "@/lib/workspace";
 import { resetDb } from "./helpers";
 
@@ -105,6 +106,24 @@ describe("行动队列的取数", () => {
     const { items } = await loadActionQueue(student.id);
     expect(items.map((x) => x.taskId)).toContain(a.id);
     expect(items.map((x) => x.taskId)).not.toContain(b.id);
+  });
+
+  it("待确认决策进入人的行动队列，但不派给 AI 成员", async () => {
+    const { owner, team, student, project } = await scene();
+    const agent = await createAgent(owner.id, team.id, { name: "决策助手", provider: "test" });
+    const decision = await createDecision(agent.userId, project.id, {
+      title: "缓存方案",
+      question: "首版是否引入缓存？",
+      options: [{ label: "引入" }, { label: "暂不引入" }],
+    });
+
+    const { loadActionQueue } = await import("@/lib/shell");
+    const ownerQueue = await loadActionQueue(owner.id);
+    const studentQueue = await loadActionQueue(student.id);
+    const agentQueue = await loadActionQueue(agent.userId);
+    expect(ownerQueue.items.some((item) => item.kind === "decision_review" && item.decisionId === decision.id)).toBe(true);
+    expect(studentQueue.items.some((item) => item.kind === "decision_review" && item.decisionId === decision.id)).toBe(true);
+    expect(agentQueue.items.some((item) => item.kind === "decision_review")).toBe(false);
   });
 
   it("组长看得到待验收，学生看不到", async () => {
