@@ -1065,12 +1065,12 @@ M0 未通过时停止，不进入 Commit 4。中期验收通过后，原 Commit 
 
 步骤：
 
-- [ ] 复用 project_entries，不建重复成果表。
-- [ ] 聚合 evidence、decision、milestone highlights、activity、contribution。
-- [ ] 导出 Markdown/JSON。
-- [ ] 共享会话只导出索引与已固定决策，不默认导出完整聊天。
-- [ ] 私人会话永不导出。
-- [ ] 明确 AI 参与范围，不把 AI 输出写成学生本人原创证据。
+- [x] 复用 project_entries，不建重复成果表。
+- [x] 聚合 evidence、milestone highlights、activity、contribution；decision records 待独立建模。
+- [x] 导出 Markdown/JSON。
+- [x] 不读取会话消息；共享会话不会把完整聊天带入档案。
+- [x] 私人会话永不导出。
+- [x] 明确 AI 参与范围，不把 AI 输出写成学生本人原创证据。
 
 验收：导出不含 token/私聊/隐藏 prompt；数据稳定可比较。
 
