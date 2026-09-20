@@ -31,6 +31,7 @@ const SYSTEM_PREAMBLE = `你是 AgileCampus（敏捷校园）的项目管理助�
 - 改任务的状态/负责人/截止日/优先级 → 先 list_tasks 取 id 与现状，再 update_tasks
 - 把若干任务归入某里程碑并统一截止日 → plan_sprint
 - 新建项目 → create_project；新建里程碑（阶段节点）→ create_milestone
+- 比较多个实现方案、需要成员作选择 → create_decision（只提出待确认方案，不替人确认）
 
 ## 军规
 1. **一切 id 只能取自快照或工具返回**，禁止臆造，禁止拿人名或标题当 id。取不到就先调读工具。
@@ -120,12 +121,28 @@ export async function runAgentTurn(params: {
     contextPackId,
   );
 
+  // 决策草案必须能回到提出它的会话。模型不需要猜 UUID：编排层在
+  // 生成草案后补上当前会话与 assistant 消息，既保留人工确认边界，也让
+  // 记录页可以展示来源并在导出时留下可追溯链路。
+  const draftsWithProvenance = drafts.map((draft) => {
+    if (draft.tool !== "create_decision" || !draft.draft || typeof draft.draft !== "object") return draft;
+    const decisionDraft = draft.draft as Record<string, unknown>;
+    return {
+      ...draft,
+      draft: {
+        ...decisionDraft,
+        sourceConversationId: decisionDraft.sourceConversationId ?? conversation.id,
+        sourceMessageId: decisionDraft.sourceMessageId ?? persisted.assistantMessage?.id ?? null,
+      },
+    };
+  });
+
   return {
     conversationId: conversation.id,
     userMessageId: persisted.userMessage?.id,
     assistantMessageId: persisted.assistantMessage?.id,
     text: result.text,
     toolTrace,
-    drafts,
+    drafts: draftsWithProvenance,
   };
 }

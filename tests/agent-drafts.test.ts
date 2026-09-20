@@ -49,6 +49,36 @@ function replayDecompose() {
   return new MockLanguageModelV2({ doGenerate: async () => script[cursor++] });
 }
 
+function replayDecision() {
+  const script = [
+    {
+      finishReason: "tool-calls" as const,
+      usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "c1",
+          toolName: "create_decision",
+          input: JSON.stringify({
+            title: "缓存方案",
+            question: "首版是否引入缓存？",
+            options: [{ label: "引入" }, { label: "暂不引入" }],
+          }),
+        },
+      ],
+      warnings: [],
+    },
+    {
+      finishReason: "stop" as const,
+      usage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 },
+      content: [{ type: "text" as const, text: "已拟好方案比较，请确认草案。" }],
+      warnings: [],
+    },
+  ];
+  let cursor = 0;
+  return new MockLanguageModelV2({ doGenerate: async () => script[cursor++] });
+}
+
 describe("runAgentTurn 提取 drafts", () => {
   beforeEach(resetDb);
 
@@ -67,5 +97,22 @@ describe("runAgentTurn 提取 drafts", () => {
 
     const rows = await db.select().from(tasks).where(eq(tasks.projectId, project.id));
     expect(rows).toHaveLength(0);
+  });
+
+  it("决策草案自动继承当前会话与 assistant 消息来源", async () => {
+    const { student, project } = await scene();
+    const result = await runAgentTurn({
+      actorId: student.id,
+      projectId: project.id,
+      userText: "比较一下是否引入缓存",
+      model: replayDecision(),
+    });
+
+    expect(result.drafts).toHaveLength(1);
+    expect(result.drafts[0].tool).toBe("create_decision");
+    expect(result.drafts[0].draft).toMatchObject({
+      sourceConversationId: result.conversationId,
+      sourceMessageId: expect.any(String),
+    });
   });
 });
