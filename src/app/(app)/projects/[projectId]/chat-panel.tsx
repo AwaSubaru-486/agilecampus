@@ -24,6 +24,13 @@ type Msg = {
   sourceMessageId?: string | null;
   drafts?: Draft[];
 };
+type ContextPack = {
+  id: string;
+  title: string;
+  status: "draft" | "frozen" | "superseded";
+  summary: string | null;
+  frozenAt: string | null;
+};
 
 export function ChatPanel({
   projectId,
@@ -35,6 +42,7 @@ export function ChatPanel({
   milestones,
   tasks,
   initialTaskId,
+  initialContextPacks,
 }: {
   projectId: string;
   currentUserId: string;
@@ -45,6 +53,7 @@ export function ChatPanel({
   milestones: Option[];
   tasks: Option[];
   initialTaskId?: string | null;
+  initialContextPacks: ContextPack[];
 }) {
   const initialTask = initialTaskId ? tasks.find((item) => item.id === initialTaskId) ?? null : null;
   const [conversations, setConversations] = useState(initialConversations);
@@ -58,6 +67,9 @@ export function ChatPanel({
   const [newVisibility, setNewVisibility] = useState<"private" | "project">("project");
   const [newTaskId, setNewTaskId] = useState(initialTask?.id ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [contextPackId, setContextPackId] = useState<string | null>(
+    initialContextPacks.find((pack) => pack.status === "frozen")?.id ?? null,
+  );
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === conversationId) ?? null,
@@ -157,7 +169,12 @@ export function ChatPanel({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, conversationId: conversationId ?? undefined, userText: text }),
+        body: JSON.stringify({
+          projectId,
+          conversationId: conversationId ?? undefined,
+          contextPackId: contextPackId ?? undefined,
+          userText: text,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "对话失败");
@@ -392,12 +409,27 @@ export function ChatPanel({
                 <p className="mt-1 text-sm font-medium leading-5 text-ink">{initialTask.name}</p>
               </div>
               <div className="border-t border-line pt-3">
-                <p className="text-[11px] text-ink-faint">首批上下文</p>
-                <ul className="mt-2 space-y-2 text-xs leading-5 text-ink-2">
-                  <li className="border-l-2 border-agent pl-2">任务目标与当前状态</li>
-                  <li className="border-l-2 border-agent pl-2">项目成员可见资料</li>
-                  <li className="border-l-2 border-agent pl-2">待确认的下一步</li>
-                </ul>
+                <label className="text-[11px] text-ink-faint" htmlFor="context-pack">
+                  发送时使用的冻结上下文
+                </label>
+                <select
+                  id="context-pack"
+                  value={contextPackId ?? ""}
+                  onChange={(event) => setContextPackId(event.target.value || null)}
+                  className="ac-field mt-2 text-xs"
+                >
+                  <option value="">仅使用会话与项目快照</option>
+                  {initialContextPacks
+                    .filter((pack) => pack.status === "frozen")
+                    .map((pack) => (
+                      <option key={pack.id} value={pack.id}>{pack.title}</option>
+                    ))}
+                </select>
+                <p className="mt-2 text-[11px] leading-5 text-ink-2">
+                  {initialContextPacks.some((pack) => pack.status === "frozen")
+                    ? "模型只会读取冻结包里的明确来源；来源变化后会标记过期。"
+                    : "还没有冻结包。先用 API 预览并确认项目事实，再交给模型。"}
+                </p>
               </div>
             </div>
           ) : (

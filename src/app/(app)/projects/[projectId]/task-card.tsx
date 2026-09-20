@@ -146,7 +146,7 @@ export function TaskCard({
             <p className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-ink-faint">TASK {task.id.slice(0, 4).toUpperCase()}</p>
             <p className="font-medium leading-5 text-ink">{task.title}</p>
           </div>
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-sunken text-[10px] font-semibold text-ink-soft" title={task.assigneeName ?? "未分配"}>
+          <span className="grid size-7 shrink-0 place-items-center border border-line bg-sunken text-[10px] font-semibold text-ink-soft" title={task.assigneeName ?? "未分配"}>
             {(task.assigneeName ?? "?").slice(0, 1).toUpperCase()}
           </span>
         </div>
@@ -230,7 +230,7 @@ export function TaskCard({
               <button
                 type="button"
                 onClick={() => setPanel(panel === "claim" ? null : "claim")}
-                className="ac-btn px-2.5 py-1 text-xs"
+                className="ac-btn-ink px-2.5 py-1 text-xs"
               >
                 我接手
               </button>
@@ -239,7 +239,7 @@ export function TaskCard({
               <button
                 type="button"
                 onClick={() => setPanel(panel === "submit" ? null : "submit")}
-                className="ac-btn px-2.5 py-1 text-xs"
+                className="ac-btn-ink px-2.5 py-1 text-xs"
               >
                 提交成果
               </button>
@@ -248,7 +248,7 @@ export function TaskCard({
               <button
                 type="button"
                 onClick={() => setPanel(panel === "review" ? null : "review")}
-                className="ac-btn bg-review px-2.5 py-1 text-xs hover:bg-review/90"
+                className="ac-btn-ghost border-agent text-agent px-2.5 py-1 text-xs hover:bg-agent-soft"
               >
                 验收
               </button>

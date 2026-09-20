@@ -8,6 +8,8 @@ import {
   type ToolTraceEntry,
 } from "./conversation";
 import { getModel } from "./model";
+import { getContextPackForUser } from "@/lib/context-pack";
+import { AppError } from "@/lib/errors";
 
 const SYSTEM_PREAMBLE = `你是 AgileCampus（敏捷校园）的项目管理助手，服务高校科研与课程团队。
 你的职责限于项目管理：拆解目标、排期、指派、跟踪进度、答疑项目现状。你不代做研究、编码或写作等实际工作。
@@ -47,15 +49,27 @@ export async function runAgentTurn(params: {
   projectId: string;
   userText: string;
   conversationId?: string;
+  contextPackId?: string;
   model?: LanguageModel;
 }) {
-  const { actorId, projectId, userText, conversationId, model } = params;
+  const { actorId, projectId, userText, conversationId, contextPackId, model } = params;
 
   // 权限收敛：显式会话必须属于当前项目且对调用者可见；未指定时兼容旧入口。
   const conversation = await resolveConversation(actorId, projectId, conversationId);
   const storedHistory = await listConversationMessages(actorId, conversation.id);
   const snapshot = await buildProjectSnapshot(actorId, projectId);
   const tools = buildTools(actorId, projectId);
+  const contextPack = contextPackId ? await getContextPackForUser(actorId, contextPackId) : null;
+  if (contextPack && contextPack.pack.status !== "frozen") {
+    throw new AppError("只有冻结后的上下文包可以交给模型");
+  }
+  const frozenContext = contextPack
+    ? contextPack.items
+        .filter((item) => item.included)
+        .map((item) => `### ${item.label}\n${JSON.stringify(item.snapshot)}`)
+        .join("\n")
+    : "";
+  const contextPackTitle = contextPack?.pack.title ?? "";
 
   // 继承最近 40 条人机消息。工具轨迹仍保存在消息记录中供人审计，避免把内部
   // JSON 原样回灌给模型造成噪声。分支会话在创建时已复制边界前的历史，因此
@@ -70,7 +84,7 @@ export async function runAgentTurn(params: {
 
   const result = await generateText({
     model: model ?? getModel(),
-    system: `${SYSTEM_PREAMBLE}\n\n${snapshot}`,
+    system: `${SYSTEM_PREAMBLE}\n\n${snapshot}${frozenContext ? `\n\n## 本次冻结上下文包：${contextPackTitle}\n${frozenContext}` : ""}`,
     tools,
     stopWhen: stepCountIs(5),
     // 设计 §6.4：不自动重试——覆盖 AI SDK 默认 maxRetries=2，失败即如实呈报
@@ -97,7 +111,14 @@ export async function runAgentTurn(params: {
       ),
   );
 
-  const persisted = await persistTurn(conversation.id, userText, result.text, toolTrace, actorId);
+  const persisted = await persistTurn(
+    conversation.id,
+    userText,
+    result.text,
+    toolTrace,
+    actorId,
+    contextPackId,
+  );
 
   return {
     conversationId: conversation.id,

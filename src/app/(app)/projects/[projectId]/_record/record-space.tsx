@@ -38,7 +38,7 @@ export async function RecordSpace({
 
   return (
     <div className="space-y-5">
-      <section className="ac-card p-4">
+      <section className="border-y border-line bg-panel px-4 py-4">
         <h2 className="font-display text-xl font-bold text-ink">这个项目留下了什么</h2>
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-2">
           <span>
@@ -67,7 +67,7 @@ export async function RecordSpace({
         canGiveFeedback={role === "teacher" || role === "admin"}
       />
 
-      <section className="ac-card overflow-hidden">
+      <section className="overflow-hidden border-y border-line bg-panel">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">过程记录</h2>
           <Link

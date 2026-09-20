@@ -9,6 +9,7 @@ import {
   date,
   doublePrecision,
   integer,
+  boolean,
   index,
   jsonb,
   type AnyPgColumn,
@@ -280,13 +281,91 @@ export const messages = pgTable(
     content: text("content").notNull(),
     toolCalls: jsonb("tool_calls"),
     authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    // 记录这一轮模型实际读取的冻结上下文。因 contextPacks 在本文件后段声明，
+    // 这里先保留 uuid 字段，领域层负责校验归属与 frozen 状态。
+    contextPackId: uuid("context_pack_id"),
     // 分支会话复制消息时保留来源，便于展示和审计上下文继承范围。
     sourceMessageId: uuid("source_message_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     index("messages_conversation_idx").on(t.conversationId),
+    index("messages_context_pack_idx").on(t.contextPackId),
     index("messages_source_idx").on(t.sourceMessageId),
+  ],
+);
+
+// AI 协作上下文的可复现快照。它不是「把聊天再塞进 prompt」：
+// pack 明确列出模型能看到的项目事实，并在冻结后保持不可变。
+export const contextPackStatusEnum = pgEnum("context_pack_status", [
+  "draft",
+  "frozen",
+  "superseded",
+]);
+export type ContextPackStatus = (typeof contextPackStatusEnum.enumValues)[number];
+
+export const contextSourceTypeEnum = pgEnum("context_source_type", [
+  "project",
+  "milestone",
+  "task",
+  "blocker",
+  "entry",
+  "decision",
+  "conversation",
+  "message",
+  "activity_window",
+  "manual",
+]);
+export type ContextSourceType = (typeof contextSourceTypeEnum.enumValues)[number];
+
+export const contextPacks = pgTable(
+  "context_packs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    status: contextPackStatusEnum("status").notNull().default("draft"),
+    summary: text("summary"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    frozenAt: timestamp("frozen_at"),
+  },
+  (t) => [
+    index("context_packs_project_idx").on(t.projectId, t.createdAt),
+    index("context_packs_conversation_idx").on(t.conversationId),
+    index("context_packs_task_idx").on(t.taskId),
+    index("context_packs_creator_idx").on(t.createdById),
+  ],
+);
+
+export const contextPackItems = pgTable(
+  "context_pack_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    packId: uuid("pack_id")
+      .notNull()
+      .references(() => contextPacks.id, { onDelete: "cascade" }),
+    sourceType: contextSourceTypeEnum("source_type").notNull(),
+    sourceId: uuid("source_id"),
+    label: text("label").notNull(),
+    // 快照只保存经过领域层裁剪后的字段，不保存 token、密码或隐藏 prompt。
+    snapshot: jsonb("snapshot").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at"),
+    included: boolean("included").notNull().default(true),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("context_pack_items_pack_idx").on(t.packId, t.position),
+    index("context_pack_items_source_idx").on(t.sourceType, t.sourceId),
   ],
 );
 

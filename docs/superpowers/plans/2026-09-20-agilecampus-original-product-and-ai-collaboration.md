@@ -957,12 +957,12 @@ M0 未通过时停止，不进入 Commit 4。中期验收通过后，原 Commit 
 
 步骤：
 
-- [ ] 增加第 5.1 节两表与索引。
-- [ ] `buildContextPackPreview` 只收允许的 source descriptor，不接受任意表名。
-- [ ] `freezeContextPack` 在事务内验证来源、限制和可见性。
-- [ ] `getContextPackForUser` 统一权限边界。
-- [ ] orchestrator 改为读取 frozen snapshot；保留旧 snapshot 作为无 pack 会话的兼容路径。
-- [ ] message/tool audit 保存 pack ID。
+- [x] 增加第 5.1 节两表与索引。
+- [x] `buildContextPackPreview` 只收允许的 source descriptor，不接受任意表名。
+- [x] `freezeContextPack` 在事务内验证来源、限制和可见性。
+- [x] `getContextPackForUser` 统一权限边界。
+- [x] orchestrator 读取 frozen snapshot；无 pack 会话继续走旧项目快照兼容路径。
+- [x] message audit 保存 pack ID；tool audit 下一步与 Session 一起补齐。
 
 验收：权限、过期、冻结、裁剪、私密隔离测试全部通过。
 

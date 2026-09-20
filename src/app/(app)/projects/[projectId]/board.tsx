@@ -82,10 +82,10 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`${viewMode === "list" ? "w-full" : "w-[19rem] shrink-0"} min-h-48 space-y-2.5 rounded-lg border p-3 transition-[background-color,border-color,box-shadow] duration-200 ${
+      className={`${viewMode === "list" ? "w-full" : "w-[19rem] shrink-0"} min-h-48 space-y-2.5 border border-t-2 p-3 transition-[background-color,border-color] duration-200 ${
         isOver
-          ? "border-primary bg-primary-soft shadow-[0_0_0_3px_var(--color-primary-ring)]"
-          : "border-line bg-[#f1f3f7]"
+          ? "border-t-signal border-x-signal/40 border-b-signal/40 bg-signal-soft/35"
+          : "border-line bg-sunken/20"
       }`}
     >
       <div className="flex items-center justify-between px-1 pb-1">
@@ -93,7 +93,7 @@ function Column({
           <span className="size-1.5 rounded-full bg-current" />
           {column.label}
         </h3>
-        <span className="grid min-w-5 place-items-center rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink-soft shadow-sm">{tasks.length}</span>
+        <span className="min-w-5 border border-line bg-surface px-1.5 py-0.5 text-center text-[10px] font-semibold tabular-nums text-ink-soft">{tasks.length}</span>
       </div>
       <div className={viewMode === "list" ? "grid gap-2 md:grid-cols-2 xl:grid-cols-3" : "space-y-2.5"}>
         {tasks.map((t) => (
@@ -113,7 +113,7 @@ function Column({
           />
         ))}
         {tasks.length === 0 && (
-          <div className="rounded-xl border border-dashed border-line-strong bg-surface/40 px-3 py-8 text-center">
+          <div className="border border-dashed border-line-strong bg-surface/40 px-3 py-8 text-center">
             <p className="text-xs text-ink-faint">这里还没有任务</p>
           </div>
         )}
@@ -127,7 +127,7 @@ function Column({
             }));
             document.getElementById("quick-task")?.scrollIntoView({ behavior: "smooth", block: "center" });
           }}
-          className="w-full rounded-lg px-2 py-1.5 text-left text-xs text-ink-faint transition hover:bg-surface hover:text-primary"
+          className="w-full border-t border-line px-2 py-2 text-left text-xs text-ink-faint transition hover:bg-surface hover:text-primary"
         >
           ＋ 在“{column.label}”添加任务
         </button>
@@ -226,7 +226,7 @@ export function Board({
       onDragEnd={handleDragEnd}
     >
       {error && <p className="text-sm text-high">{error}</p>}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-1.5 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-surface px-1.5 py-1">
         <div className="flex items-center gap-1" aria-label="任务视图">
           <ModeButton active={viewMode === "board"} onClick={() => setViewMode("board")} hint="1">看板</ModeButton>
           <ModeButton active={viewMode === "list"} onClick={() => setViewMode("list")} hint="2">列表</ModeButton>
@@ -265,7 +265,7 @@ export function Board({
         }}
       >
         {activeTask && (
-          <div className="w-[19rem] -translate-y-0.5 rounded-lg border border-primary/30 bg-surface p-4 text-sm shadow-[0_18px_40px_-18px_rgba(21,27,38,0.32)]">
+          <div className="w-[19rem] -translate-y-0.5 border border-signal/40 bg-surface p-4 text-sm shadow-[0_18px_40px_-18px_rgba(21,27,38,0.32)]">
             <p className="font-medium text-ink">{activeTask.title}</p>
             <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-soft">
               <span>{activeTask.assigneeName ?? "未分配"}</span>
@@ -294,7 +294,7 @@ function ModeButton({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`ac-pressable min-h-9 rounded-lg px-2.5 py-1.5 text-xs font-medium ${active ? "bg-ink text-white" : "text-ink-soft hover:bg-sunken"}`}
+      className={`ac-pressable min-h-9 border-b-2 px-2.5 py-1.5 text-xs font-medium ${active ? "border-ink text-ink" : "border-transparent text-ink-soft hover:border-line-strong hover:bg-sunken"}`}
     >
       {children}<span className={`ml-1 text-[9px] ${active ? "text-white/45" : "text-ink-faint"}`}>{hint}</span>
     </button>

@@ -2,6 +2,7 @@ import { listConversationMessages, listProjectConversations } from "@/lib/agent/
 import { listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
 import { listTeamMembers } from "@/lib/team";
+import { listContextPacks } from "@/lib/context-pack";
 import { ChatPanel } from "../chat-panel";
 
 // 协同室：人与 AI 怎样探索、比较、确认。
@@ -27,11 +28,12 @@ export async function StudioSpace({
   /** 从任务上下文进入协同室时，预选这条任务 */
   selectedTaskId: string | null;
 }) {
-  const [projectMilestones, projectTasks, members, projectConversations] = await Promise.all([
+  const [projectMilestones, projectTasks, members, projectConversations, contextPacks] = await Promise.all([
     listProjectMilestones(actorId, projectId),
     listProjectTasks(actorId, projectId),
     listTeamMembers(teamId),
     listProjectConversations(actorId, projectId),
+    listContextPacks(actorId, projectId),
   ]);
 
   // 指定了会话就打开它，否则落到最近一条
@@ -66,6 +68,13 @@ export async function StudioSpace({
       milestones={projectMilestones.map((m) => ({ id: m.id, name: m.title }))}
       tasks={projectTasks.map((t) => ({ id: t.id, name: t.title }))}
       initialTaskId={selectedTaskId}
+      initialContextPacks={contextPacks.map((pack) => ({
+        id: pack.id,
+        title: pack.title,
+        status: pack.status,
+        summary: pack.summary,
+        frozenAt: pack.frozenAt?.toISOString() ?? null,
+      }))}
     />
   );
 }

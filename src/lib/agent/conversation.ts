@@ -165,6 +165,7 @@ export async function persistTurn(
   assistantText: string,
   toolTrace: ToolTraceEntry[],
   authorId?: string,
+  contextPackId?: string,
 ) {
   return db.transaction(async (tx) => {
     const [lastMessage] = await tx
@@ -186,6 +187,7 @@ export async function persistTurn(
           role: "user" as const,
           content: userText,
           authorId,
+          contextPackId,
           createdAt: userCreatedAt,
         },
         {
@@ -193,6 +195,7 @@ export async function persistTurn(
           role: "assistant" as const,
           content: assistantText,
           toolCalls: toolTrace.length > 0 ? toolTrace : null,
+          contextPackId,
           createdAt: assistantCreatedAt,
         },
       ])
@@ -216,6 +219,7 @@ export async function listConversationMessages(actorId: string, conversationId: 
       toolCalls: messages.toolCalls,
       authorId: messages.authorId,
       authorName: users.name,
+      contextPackId: messages.contextPackId,
       sourceMessageId: messages.sourceMessageId,
       createdAt: messages.createdAt,
     })
@@ -264,6 +268,7 @@ export async function forkConversation(
           content: message.content,
           toolCalls: message.toolCalls,
           authorId: message.authorId,
+          contextPackId: message.contextPackId,
           sourceMessageId: message.id,
           createdAt: message.createdAt,
         })),

@@ -41,7 +41,7 @@ export function ArchiveSection({
   };
 
   return (
-    <section id="archive" className="ac-card scroll-mt-20 overflow-hidden">
+    <section id="archive" className="scroll-mt-20 overflow-hidden border-y border-line bg-panel">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
         <div>
           <h2 className="font-display text-lg font-bold text-ink">项目档案</h2>
