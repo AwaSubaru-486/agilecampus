@@ -2,7 +2,7 @@
 
 更新时间：2026-09-20  
 当前分支：`feat/risk-aware-closure`  
-当前基线：`e913b48 fix: prevent status changes through board drag`
+当前基线：`0d877b6 docs: link agent ownership from README`
 
 ## 总负责人：Codex（当前任务）
 
@@ -51,7 +51,7 @@ tests/**
 
 ## 协作规则
 
-1. 先同步到 `e913b48`，再开始自己的部分。
+1. 先同步到 `0d877b6`，再开始自己的部分。
 2. 一次只改自己负责的文件；需要跨边界时先在任务说明里提出，不直接覆盖。
 3. 每个功能独立提交，提交信息写清 `feat(ui): ...` 或 `fix(ui): ...`。
 4. 禁止 `git reset --hard`、覆盖他人未提交改动、删除测试来“过验收”。

@@ -48,7 +48,7 @@ schema、API route、orchestrator、task-status、任务 action、拖拽状态�
 
 ## 共同规则
 
-1. 从基线 `cef1d42` 开始工作。
+1. 从最新基线 `0d877b6` 开始工作。
 2. 一次只改自己负责的文件；跨边界前先说明，不直接覆盖。
 3. 每项独立提交：`feat(ui): ...`、`fix(core): ...` 或 `docs: ...`。
 4. 禁止 `git reset --hard`、删除测试、覆盖未提交改动。
