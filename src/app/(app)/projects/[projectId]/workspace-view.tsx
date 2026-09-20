@@ -36,23 +36,23 @@ export function WorkspaceView({
   const stuckCount = live.filter((m) => m.stuck).length;
 
   return (
-    <div className="space-y-8">
-      <section id="workspace" className="scroll-mt-20 border-y border-line">
-        <header className="flex flex-wrap items-end justify-between gap-3 py-4">
+    <div className="space-y-6">
+      <section id="workspace" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
+        <header className="flex flex-wrap items-end justify-between gap-3 pb-4">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">现场 / 当前状态</p>
+            <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">现场 / 当前状态</p>
             <h2 className="mt-1 font-display text-xl font-semibold text-ink">现在发生什么</h2>
           </div>
-          <p className="text-xs text-ink-faint">
+          <p className="text-xs text-ink-3">
             {humans.length} 位成员 · {agents.length} 个协作者 · {running} 件在做
-            {stuckCount > 0 && <span className="text-high"> · {stuckCount} 件卡住</span>}
+            {stuckCount > 0 && <span className="font-semibold text-risk"> · {stuckCount} 件卡住</span>}
           </p>
         </header>
 
         {live.length === 0 ? (
-          <p className="border-t border-line py-8 text-sm text-ink-soft">目前没有正在推进的任务。</p>
+          <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">目前没有正在推进的任务。</p>
         ) : (
-          <ul className="border-t border-line">
+          <ul className="divide-y divide-stroke border-t border-stroke">
             {live.map((m) => (
               <LiveRow key={m.id} member={m} projectId={projectId} />
             ))}
@@ -60,19 +60,19 @@ export function WorkspaceView({
         )}
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <section id="relay" className="scroll-mt-20 border-y border-line">
-          <header className="flex flex-wrap items-baseline justify-between gap-2 py-4">
+      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <section id="relay" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
+          <header className="flex flex-wrap items-baseline justify-between gap-2 pb-4">
             <div>
-              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">工作流 / 交接</p>
+              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">工作流 / 交接</p>
               <h2 className="mt-1 text-base font-semibold text-ink">接力链</h2>
             </div>
-            <p className="text-xs text-ink-faint">任务在谁手上</p>
+            <p className="text-xs text-ink-3">任务流转走向</p>
           </header>
           {relays.length === 0 ? (
-            <p className="border-t border-line py-8 text-sm text-ink-soft">还没有流转中的工作。</p>
+            <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">还没有流转中的工作。</p>
           ) : (
-            <ul className="border-t border-line">
+            <ul className="divide-y divide-stroke border-t border-stroke">
               {relays.map((c) => (
                 <RelayRow key={c.taskId} chain={c} />
               ))}
@@ -80,19 +80,19 @@ export function WorkspaceView({
           )}
         </section>
 
-        <section id="milestones" className="scroll-mt-20 border-y border-line">
-          <header className="flex flex-wrap items-baseline justify-between gap-2 py-4">
+        <section id="milestones" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
+          <header className="flex flex-wrap items-baseline justify-between gap-2 pb-4">
             <div>
-              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-faint">交付 / 进度</p>
+              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">交付 / 进度</p>
               <h2 className="mt-1 text-base font-semibold text-ink">下一里程碑</h2>
             </div>
             {milestoneForm && <div>{milestoneForm}</div>}
           </header>
 
           {milestones.length === 0 ? (
-            <p className="border-t border-line py-8 text-sm text-ink-soft">还没有里程碑。</p>
+            <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">还没有里程碑。</p>
           ) : (
-            <ul className="border-t border-line">
+            <ul className="divide-y divide-stroke border-t border-stroke">
               {milestones.map((m) => (
                 <MilestoneRow key={m.id} m={m} />
               ))}
@@ -107,15 +107,15 @@ export function WorkspaceView({
 function LiveRow({ member, projectId }: { member: LiveMember; projectId: string }) {
   const isAgent = member.kind === "agent";
   const status = member.stuck
-    ? { label: "卡住", cls: "text-high", dot: "bg-high" }
+    ? { label: "卡住", cls: "text-risk", dot: "bg-risk" }
     : member.taskId
-      ? { label: "在做", cls: "text-primary", dot: "bg-primary" }
+      ? { label: "在做", cls: "text-signal", dot: "bg-signal" }
       : member.awaitingCount > 0
-        ? { label: "还没回话", cls: "text-medium", dot: "bg-medium" }
-        : { label: "空闲", cls: "text-ink-faint", dot: "bg-line-strong" };
+        ? { label: "还没回话", cls: "text-warn", dot: "bg-warn" }
+        : { label: "空闲", cls: "text-ink-3", dot: "bg-stroke-strong" };
 
   return (
-    <li className="flex items-start gap-3 border-b border-line px-0 py-3 last:border-b-0">
+    <li className="flex items-start gap-3 py-3">
       <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${status.dot}`} />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-1.5 text-sm">
@@ -124,25 +124,25 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
           <span className={`text-xs ${status.cls}`}>{status.label}</span>
           {member.taskTitle ? (
             <>
-              <span className="text-ink-faint">·</span>
+              <span className="text-ink-3">·</span>
               <Link
-                href={`/projects/${projectId}?task=${member.taskId}#board`}
-                className="min-w-0 truncate text-ink-soft hover:text-primary"
+                href={`/projects/${projectId}?task=${member.taskId}&space=live`}
+                className="min-w-0 truncate text-ink-2 hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal rounded-[var(--radius-control)]"
               >
                 {member.taskTitle}
               </Link>
             </>
           ) : member.awaitingCount > 0 ? (
-            <span className="text-xs text-ink-faint">
+            <span className="text-xs text-ink-3">
               · 有 {member.awaitingCount} 件派给他但还没回话
             </span>
           ) : null}
         </p>
         {/* 卡住的 agent 不会自己喊——这一行是替它喊的 */}
-        {member.stuck && <p className="mt-0.5 text-xs text-high">阻塞：{member.stuck}</p>}
+        {member.stuck && <p className="mt-0.5 text-xs text-risk">阻塞：{member.stuck}</p>}
       </div>
       {member.lastAt && (
-        <span className="shrink-0 text-[11px] tabular-nums text-ink-faint">
+        <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-3">
           {agoLabel(member.lastAt)}
         </span>
       )}
@@ -152,12 +152,12 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
 
 function RelayRow({ chain }: { chain: RelayChain }) {
   return (
-    <li className="border-b border-line px-0 py-3 last:border-b-0">
+    <li className="py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-sm font-medium text-ink">{chain.taskTitle}</span>
         <span
           className={`text-[11px] ${
-            chain.stuck ? "text-high" : chain.status === "review" ? "text-review" : "text-ink-faint"
+            chain.stuck ? "text-risk" : chain.status === "review" ? "text-agent" : "text-ink-3"
           }`}
         >
           {relayHeadline(chain)}
@@ -168,19 +168,19 @@ function RelayRow({ chain }: { chain: RelayChain }) {
       <ol className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
         {chain.steps.slice(-6).map((s, i) => (
           <li key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span aria-hidden className="px-1 text-line-strong">→</span>}
-            <span className="inline-flex items-center gap-1 border border-line bg-sunken/40 px-1.5 py-0.5">
+            {i > 0 && <span aria-hidden className="px-1 text-stroke-strong">→</span>}
+            <span className="inline-flex items-center gap-1 rounded-[var(--radius-control)] border border-stroke bg-sunken/40 px-1.5 py-0.5">
               <span className="text-ink">{s.actorName ?? "谁"}</span>
               {s.actorKind === "agent" && (
                 <span className="text-[9px] font-semibold text-agent">协作</span>
               )}
-              <span className="text-ink-faint">{s.action}</span>
+              <span className="text-ink-3">{s.action}</span>
             </span>
           </li>
         ))}
       </ol>
 
-      {chain.stuck && <p className="mt-1.5 text-xs text-high">卡在：{chain.stuck}</p>}
+      {chain.stuck && <p className="mt-1.5 text-xs text-risk">卡在：{chain.stuck}</p>}
     </li>
   );
 }
@@ -188,20 +188,20 @@ function RelayRow({ chain }: { chain: RelayChain }) {
 function MilestoneRow({ m }: { m: MilestoneProgress }) {
   const achieved = m.status === "done";
   return (
-    <li className="px-4 py-3">
+    <li className="py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="flex items-center gap-2 text-sm font-medium text-ink">
           <span
             aria-hidden
             className={`grid size-4 place-items-center rounded-full text-[10px] ${
-              achieved ? "bg-done text-white" : "border border-line-strong text-ink-faint"
+              achieved ? "bg-success text-white" : "border border-stroke-strong text-ink-3"
             }`}
           >
-            {achieved ? "已" : ""}
+            {achieved ? "✓" : ""}
           </span>
           {m.title}
         </span>
-        <span className="text-[11px] text-ink-faint">
+        <span className="font-mono text-[11px] text-ink-3">
           {achieved
             ? `${m.achievedAt ? agoLabel(m.achievedAt) : ""}达成`
             : m.total > 0
@@ -212,7 +212,7 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
 
       {/* 达成时自动冻结的实况——不是谁回来补写的 */}
       {m.autoSummary && (
-      <p className="mt-1.5 border-l-2 border-done/40 bg-done/[0.04] px-2 py-1 text-xs leading-5 text-ink-soft">
+        <p className="mt-1.5 border-l-2 border-success/40 bg-success-soft/30 px-2 py-1 text-xs leading-5 text-ink-2">
           {m.autoSummary}
         </p>
       )}
@@ -222,19 +222,19 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
         <ul className="mt-2 space-y-1">
           {m.highlights.slice(0, 4).map((h) => (
             <li key={h.id} className="flex flex-wrap items-baseline gap-1.5 text-xs">
-              <span className="ac-badge bg-medium-soft text-medium">{HIGHLIGHT_LABEL[h.kind]}</span>
-              <span className="text-ink-soft">{h.note}</span>
+              <span className="ac-badge bg-warn-soft text-warn">{HIGHLIGHT_LABEL[h.kind]}</span>
+              <span className="text-ink-2">{h.note}</span>
             </li>
           ))}
         </ul>
       )}
 
       {!achieved && m.remaining.length > 0 && (
-        <ul className="mt-2 space-y-1 text-xs text-ink-faint">
+        <ul className="mt-2 space-y-1 text-xs text-ink-3">
           {m.remaining.slice(0, 3).map((r) => (
             <li key={r.id} className="flex flex-wrap items-baseline gap-1.5">
-              <span aria-hidden className="text-line-strong">·</span>
-              <span className="text-ink-soft">{r.title}</span>
+              <span aria-hidden className="text-stroke-strong">·</span>
+              <span className="text-ink-2">{r.title}</span>
               <span>{statusLabel(r.status)}</span>
               {r.assigneeName ? (
                 <span className="flex items-center gap-1">
@@ -244,9 +244,9 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
                   )}
                 </span>
               ) : (
-                <span className="text-medium">没人接</span>
+                <span className="text-warn">没人接</span>
               )}
-              {r.overdue && <span className="text-high">已逾期</span>}
+              {r.overdue && <span className="font-semibold text-risk">已逾期</span>}
             </li>
           ))}
           {m.remaining.length > 3 && <li>还有 {m.remaining.length - 3} 项</li>}

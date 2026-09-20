@@ -13,9 +13,9 @@ import type { EntryRow } from "@/lib/entry";
 // 就是在界面里把那个毛病再演一遍。
 
 const TONE: Record<EntryType, string> = {
-  feedback: "bg-accent-soft text-accent",
-  doc: "bg-sunken text-ink-soft",
-  deliverable: "bg-primary-soft text-primary",
+  feedback: "bg-agent-soft text-agent",
+  doc: "bg-sunken text-ink-2",
+  deliverable: "bg-success-soft text-success",
 };
 
 export function ArchiveSection({
@@ -41,22 +41,22 @@ export function ArchiveSection({
   };
 
   return (
-    <section id="archive" className="scroll-mt-20 overflow-hidden border-y border-line bg-panel">
-      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
+    <section id="archive" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke bg-ground/50 px-4 py-3">
         <div>
           <h2 className="font-display text-lg font-bold text-ink">项目档案</h2>
-          <p className="mt-0.5 text-xs text-ink-faint">
+          <p className="mt-0.5 text-xs text-ink-3">
             老师的反馈、团队写的文档、交出来的成果——都落在这一处，
             项目结束时不必再从聊天记录里翻
           </p>
         </div>
-        <p className="text-xs text-ink-faint">
+        <p className="font-mono text-xs text-ink-3">
           反馈 {counts.feedback} · 文档 {counts.doc} · 成果 {counts.deliverable}
         </p>
       </header>
 
       {canWrite && (
-        <div className="flex flex-wrap gap-2 border-b border-line bg-sunken/40 px-4 py-2">
+        <div className="flex flex-wrap gap-2 border-b border-stroke bg-sunken/40 px-4 py-2">
           <AddButton type="doc" label="＋ 文档" current={adding} set={setAdding} />
           <AddButton type="deliverable" label="＋ 成果链接" current={adding} set={setAdding} />
           {canGiveFeedback && (
@@ -75,12 +75,12 @@ export function ArchiveSection({
       )}
 
       {entries.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-ink-soft">
+        <p className="px-4 py-8 text-center text-sm text-ink-2">
           档案还是空的。把代码仓库、答辩材料、老师的意见放进来，
           项目结束时就有一份完整的过程资产。
         </p>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-stroke">
           {entries.map((e) => (
             <EntryItem key={e.id} entry={e} projectId={projectId} />
           ))}
@@ -105,7 +105,9 @@ function AddButton({
     <button
       type="button"
       onClick={() => set(current === type ? null : type)}
-      className={current === type ? "ac-btn px-3 py-1.5 text-xs" : "ac-btn-ghost text-xs"}
+      className={`rounded-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal ${
+        current === type ? "ac-btn px-3 py-1.5 text-xs" : "ac-btn-ghost text-xs"
+      }`}
     >
       {label}
     </button>
@@ -133,7 +135,7 @@ function EntryForm({
   );
 
   return (
-    <form action={formAction} className="space-y-2 border-b border-line bg-sunken/60 px-4 py-3">
+    <form action={formAction} className="space-y-2.5 border-b border-stroke bg-sunken/60 px-4 py-3.5">
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="type" value={type} />
 
@@ -142,7 +144,7 @@ function EntryForm({
         required
         autoFocus
         placeholder={ENTRY_PLACEHOLDER[type].title}
-        className="ac-field text-sm"
+        className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
       />
 
       {type === "deliverable" && (
@@ -151,7 +153,7 @@ function EntryForm({
           required
           type="url"
           placeholder="https://github.com/… 或演示视频、数据集、答辩材料"
-          className="ac-field text-sm"
+          className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
         />
       )}
 
@@ -159,11 +161,11 @@ function EntryForm({
         name="content"
         rows={3}
         placeholder={ENTRY_PLACEHOLDER[type].content}
-        className="ac-field text-sm"
+        className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
       />
 
       {tasks.length > 0 && (
-        <select name="taskId" defaultValue="" className="ac-field text-sm">
+        <select name="taskId" defaultValue="" className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
           <option value="">不关联具体任务</option>
           {tasks.map((t) => (
             <option key={t.id} value={t.id}>
@@ -174,16 +176,21 @@ function EntryForm({
       )}
 
       {state && "error" in state && (
-        <p aria-live="polite" className="text-xs text-high">
+        <p aria-live="polite" className="text-xs font-medium text-risk">
           {state.error}
         </p>
       )}
 
-      <div className="flex items-center gap-2">
-        <button disabled={pending} className="ac-btn px-3 py-1.5 text-xs">
+      <div className="flex items-center gap-2 pt-1">
+        <button disabled={pending} className="ac-btn px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
           {pending ? "保存中…" : "存入档案"}
         </button>
-        <button type="button" onClick={onClose} disabled={pending} className="text-xs text-ink-faint hover:text-primary">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={pending}
+          className="rounded-[var(--radius-control)] px-2 py-1 text-xs text-ink-3 hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+        >
           取消
         </button>
       </div>
@@ -206,7 +213,12 @@ function EntryItem({ entry, projectId }: { entry: EntryRow; projectId: string })
         <span className={`ac-badge ${TONE[entry.type]}`}>{ENTRY_LABEL[entry.type]}</span>
         <span className="text-sm font-medium text-ink">
           {entry.url ? (
-            <a href={entry.url} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
+            <a
+              href={entry.url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-[var(--radius-control)] underline decoration-stroke-strong underline-offset-4 hover:text-signal hover:decoration-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            >
               {entry.title} ↗
             </a>
           ) : (
@@ -214,33 +226,36 @@ function EntryItem({ entry, projectId }: { entry: EntryRow; projectId: string })
           )}
         </span>
         {entry.taskTitle && (
-          <span className="text-xs text-ink-faint">关于「{entry.taskTitle}」</span>
+          <span className="text-xs text-ink-3">关于「{entry.taskTitle}」</span>
         )}
       </div>
 
       {entry.content && (
-        <p className="mt-1.5 border-l-2 border-line pl-3 text-sm leading-6 text-ink-soft">
+        <p className="mt-1.5 border-l-2 border-stroke pl-3 text-sm leading-6 text-ink-2">
           {entry.content}
         </p>
       )}
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-faint">
-        <span className="font-medium text-ink-soft">{entry.authorName ?? "已注销"}</span>
-        {fromTeacher && <span className="text-accent">老师</span>}
+      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-3">
+        <span className="font-medium text-ink-2">{entry.authorName ?? "已注销"}</span>
+        {fromTeacher && <span className="ac-badge bg-agent-soft text-agent font-semibold">导师</span>}
         {entry.authorKind === "agent" && (
           <span className="text-[9px] font-semibold text-agent">协作</span>
         )}
-        <span className="tabular-nums">
+        <span className="font-mono tabular-nums">
           {entry.createdAt.toLocaleDateString("sv-SE")}
         </span>
         <form action={formAction} className="ml-auto">
           <input type="hidden" name="entryId" value={entry.id} />
           <input type="hidden" name="projectId" value={projectId} />
-          <button disabled={pending} className="hover:text-high hover:underline">
+          <button
+            disabled={pending}
+            className="rounded-[var(--radius-control)] text-xs hover:text-risk hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+          >
             {pending ? "删除中…" : "删除"}
           </button>
         </form>
-        {state && "error" in state && <span className="text-high">{state.error}</span>}
+        {state && "error" in state && <span className="text-risk">{state.error}</span>}
       </div>
     </li>
   );

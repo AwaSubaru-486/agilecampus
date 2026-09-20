@@ -32,11 +32,11 @@ export function TopWorkbar({
         <Link
           href="/today"
           aria-label="AgileCampus 首页"
-          className="flex shrink-0 items-center gap-2"
+          className="flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1"
         >
           <span
             aria-hidden
-            className="grid size-7 place-items-center rounded-[var(--radius-control)] bg-ink text-[11px] font-bold text-white"
+            className="grid size-7 place-items-center rounded-[var(--radius-control)] bg-ink text-[11px] font-bold text-white shadow-xs"
           >
             AC
           </span>
@@ -65,7 +65,7 @@ export function TopWorkbar({
                 href={item.href}
                 title={item.hint}
                 aria-current={isActive ? "page" : undefined}
-                className={`ac-pressable relative min-h-9 border-b-2 px-2 py-1.5 text-sm sm:px-2.5 ${
+                className={`ac-pressable relative min-h-9 border-b-2 px-2 py-1.5 text-sm transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:px-2.5 ${
                   isActive
                     ? "border-ink font-medium text-ink"
                     : "border-transparent text-ink-2 hover:border-stroke-strong hover:text-ink"
@@ -110,7 +110,7 @@ export function ProjectBand({
 }) {
   return (
     <div className="sticky top-[52px] z-30 border-b border-stroke bg-ground/95 sm:top-14">
-      <div className="mx-auto flex h-12 max-w-[120rem] items-center gap-3 px-3 sm:px-5">
+      <div className="mx-auto flex h-12 max-w-[120rem] items-center justify-between gap-3 px-3 sm:px-5">
         <div className="flex min-w-0 items-baseline gap-2">
           <span className="truncate text-sm font-semibold text-ink">{projectName}</span>
           {latestMilestone && (
@@ -123,7 +123,7 @@ export function ProjectBand({
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
           {spaces}
           {actions}
         </div>

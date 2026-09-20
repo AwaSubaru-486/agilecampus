@@ -65,7 +65,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label="切换项目"
-        className="ac-pressable flex min-h-10 max-w-[16rem] items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-sm text-ink-2 hover:bg-sunken hover:text-ink"
+        className="ac-pressable flex min-h-10 max-w-[16rem] items-center gap-1.5 rounded-[var(--radius-control)] px-2 py-1.5 text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1"
       >
         <span className="min-w-0 truncate">{current ? current.name : "选择项目"}</span>
         <span aria-hidden className="shrink-0 text-ink-3">
@@ -76,7 +76,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
       {open && (
         <div
           role="listbox"
-          className="ac-card ac-float ac-panel-enter absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden p-1"
+          className="ac-card ac-float ac-panel-enter absolute left-0 top-full z-50 mt-1 w-72 overflow-hidden p-1 shadow-float"
         >
           {projects.length > 6 && (
             <div className="p-1">
@@ -86,7 +86,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="搜索项目"
                 aria-label="搜索项目"
-                className="ac-field text-sm"
+                className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
               />
             </div>
           )}
@@ -106,9 +106,9 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
                       setQuery("");
                       router.push(hrefFor(p.id));
                     }}
-                      className={`ac-pressable flex min-h-11 w-full flex-col items-start gap-0.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm ${
+                    className={`ac-pressable flex min-h-11 w-full flex-col items-start gap-0.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal ${
                       p.id === currentProjectId
-                        ? "bg-signal-soft text-signal"
+                        ? "bg-signal-soft font-medium text-signal"
                         : "text-ink hover:bg-sunken"
                     }`}
                   >
@@ -124,7 +124,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
             <Link
               href="/projects"
               onClick={() => setOpen(false)}
-              className="block rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs text-ink-2 hover:bg-sunken"
+              className="block rounded-[var(--radius-control)] px-2.5 py-1.5 text-xs text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             >
               全部项目 →
             </Link>
