@@ -179,6 +179,13 @@ export const tasks = pgTable(
     }),
     title: text("title").notNull(),
     description: text("description"),
+    // 交接契约：把「派活」从一句标题变成可执行、可验收的最小协议。
+    handoffBrief: text("handoff_brief"),
+    doneCriteria: jsonb("done_criteria"),
+    requiredEvidence: jsonb("required_evidence"),
+    responseDueAt: timestamp("response_due_at"),
+    // 受 context-pack 依赖声明顺序影响，归属与 frozen 状态由领域层校验。
+    contextPackId: uuid("context_pack_id"),
     completionNote: text("completion_note"),
     assigneeId: uuid("assignee_id").references(() => users.id, {
       onDelete: "set null",

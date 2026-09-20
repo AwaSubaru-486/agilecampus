@@ -6,6 +6,7 @@ import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
 import { TASK_STATUSES, canTransition, isCompleted } from "@/lib/task-status";
 import { ForbiddenError } from "@/lib/errors";
 import type { WriteToolName } from "./tools";
+import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
 
 const taskDraftSchema = z.object({
   title: z.string().min(1),
@@ -14,6 +15,11 @@ const taskDraftSchema = z.object({
   dueDate: z.string().optional(),
   milestoneId: z.string().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  handoffBrief: z.string().optional(),
+  doneCriteria: z.array(z.string()).max(MAX_DONE_CRITERIA).optional(),
+  requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+  responseDueAt: z.iso.datetime().optional(),
+  contextPackId: z.string().uuid().nullable().optional(),
 });
 
 const createProjectSchema = z.object({
@@ -32,6 +38,11 @@ const patchSchema = z.object({
   dueDate: z.string().optional(),
   milestoneId: z.string().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  handoffBrief: z.string().optional(),
+  doneCriteria: z.array(z.string()).max(MAX_DONE_CRITERIA).optional(),
+  requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+  responseDueAt: z.iso.datetime().optional(),
+  contextPackId: z.string().uuid().nullable().optional(),
 });
 
 const updateTasksSchema = z.object({
@@ -52,6 +63,13 @@ const createMilestoneSchema = z.object({
 });
 
 export type CommitResult = { committed: number; conflicts: string[] };
+
+function toHandoffDates<T extends { responseDueAt?: string }>(input: T) {
+  return {
+    ...input,
+    responseDueAt: input.responseDueAt ? new Date(input.responseDueAt) : undefined,
+  };
+}
 
 // 落库：绝不信 Agent 输出——入口重校访问权，每类先施 Zod，再走图二 lib（lib 内建权限/归属校验）
 export async function commitDraft(
@@ -74,7 +92,7 @@ export async function commitDraft(
       // 批量落库裹事务：中途任一项抛错则整批回滚，杜绝半落库后重试致重复
       const created = await db.transaction(async (tx) => {
         const out: Awaited<ReturnType<typeof createTask>>[] = [];
-        for (const t of d.tasks) out.push(await createTask(actorId, projectId, t, { tx }));
+        for (const t of d.tasks) out.push(await createTask(actorId, projectId, toHandoffDates(t), { tx }));
         return out;
       });
       // 事务提交后补发通知（tx 路径 createTask 不 fire，由此处统一发）
@@ -105,7 +123,7 @@ export async function commitDraft(
       });
       const updatedRows = await db.transaction(async (tx) => {
         const out: Awaited<ReturnType<typeof updateTask>>[] = [];
-        for (const u of toApply) out.push(await updateTask(actorId, u.taskId, u.patch, { tx }));
+        for (const u of toApply) out.push(await updateTask(actorId, u.taskId, toHandoffDates(u.patch), { tx }));
         return out;
       });
       // 事务提交后补发完成通知：状态由非 done 转 done 者，知会创建者

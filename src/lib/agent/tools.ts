@@ -4,6 +4,7 @@ import { listMyProjects, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
 import { TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
 import type { TaskStatus } from "@/db/schema";
+import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
 
 // 读工具纯函数：权限经底层 lib（listProjectMilestones/listProjectTasks 内部各调 getProjectForUser）
 export async function queryProgress(actorId: string, projectId: string) {
@@ -43,6 +44,11 @@ export async function listTasksFiltered(
     priority: t.priority,
     dueDate: t.dueDate,
     assigneeName: t.assigneeName,
+    handoffBrief: t.handoffBrief,
+    doneCriteria: t.doneCriteria,
+    requiredEvidence: t.requiredEvidence,
+    responseDueAt: t.responseDueAt,
+    contextPackId: t.contextPackId,
   }));
 }
 
@@ -120,13 +126,18 @@ export function buildTools(actorId: string, projectId: string) {
             dueDate: z.string().optional(),
             milestoneId: z.string().optional(),
             priority: z.enum(["low", "medium", "high"]).optional(),
+            handoffBrief: z.string().optional(),
+            doneCriteria: z.array(z.string()).max(MAX_DONE_CRITERIA).optional(),
+            requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+            responseDueAt: z.string().optional().describe("响应期限 ISO 时间"),
+            contextPackId: z.string().optional(),
           }),
         ),
       }),
       execute: async (input) => draftEnvelope("decompose_tasks", input),
     }),
     update_tasks: tool({
-      description: "拟批量任务变更草案（状态/负责人/截止日/里程碑/优先级/标题）。仅产草案，需人工确认。",
+      description: "拟批量任务变更草案（状态/负责人/截止日/里程碑/优先级/标题/交接契约）。仅产草案，需人工确认。",
       inputSchema: z.object({
         updates: z.array(
           z.object({
@@ -138,6 +149,11 @@ export function buildTools(actorId: string, projectId: string) {
               dueDate: z.string().optional(),
               milestoneId: z.string().optional(),
               priority: z.enum(["low", "medium", "high"]).optional(),
+              handoffBrief: z.string().optional(),
+              doneCriteria: z.array(z.string()).max(MAX_DONE_CRITERIA).optional(),
+              requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+              responseDueAt: z.string().optional().describe("响应期限 ISO 时间"),
+              contextPackId: z.string().optional(),
             }),
           }),
         ),

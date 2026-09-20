@@ -5,6 +5,7 @@ import { ForbiddenError } from "@/lib/errors";
 import { STATUS_LABEL, TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
 import { today } from "@/lib/today";
 import type { TaskStatus } from "@/db/schema";
+import { handoffToPrompt } from "@/lib/handoff";
 
 // 上限放宽至 4000：快照须随行携带 uuid（成员/里程碑/任务各 36 字符）供写工具填参，
 // 旧的 2000 字符下十余个任务即触发降级，模型只得反复调读工具，反更耗 token。
@@ -65,8 +66,10 @@ export async function buildProjectSnapshot(actorId: string, projectId: string): 
       ? "\n\n## 任务（taskId 取此处的 id）\n" +
         shownTasks
           .map(
-            (t) =>
-              `- [${t.status}] ${t.title}｜${t.assigneeName ?? "未指派"}｜${t.dueDate ?? "无截止"}｜id=${t.id}`,
+            (t) => {
+              const handoff = handoffToPrompt(t);
+              return `- [${t.status}] ${t.title}｜${t.assigneeName ?? "未指派"}｜${t.dueDate ?? "无截止"}${handoff ? `｜${handoff.replaceAll("\n", "；")}` : ""}｜id=${t.id}`;
+            },
           )
           .join("\n") +
         (tasks.length > shownTasks.length

@@ -4,6 +4,7 @@ import type { DbTx } from "@/db";
 import {
   labels,
   milestones,
+  contextPacks,
   taskDependencies,
   taskLabels,
   tasks,
@@ -23,6 +24,7 @@ import {
   notifyTaskSubmitted,
 } from "./notify";
 import { DEFAULT_STATUS, assertTransition, isCompleted } from "./task-status";
+import { normalizeHandoffFields, type HandoffFields } from "./handoff";
 import { describe, recordEvent } from "./activity";
 import type { ActivityType } from "@/db/schema";
 
@@ -129,6 +131,11 @@ export async function createTask(
     priority?: TaskPriority;
     status?: TaskStatus;
     parentTaskId?: string;
+    handoffBrief?: string;
+    doneCriteria?: string[];
+    requiredEvidence?: HandoffFields["requiredEvidence"];
+    responseDueAt?: Date;
+    contextPackId?: string | null;
   },
   opts?: { tx?: DbTx },
 ) {
@@ -137,6 +144,16 @@ export async function createTask(
   if (input.assigneeId) await validateAssignee(access.project.teamId, input.assigneeId);
   if (input.milestoneId) await validateMilestone(projectId, input.milestoneId);
   if (input.parentTaskId) await validateParentTask(projectId, input.parentTaskId);
+  const handoff = normalizeHandoffFields(input);
+  if (handoff.contextPackId) {
+    const [pack] = await exec
+      .select({ projectId: contextPacks.projectId, status: contextPacks.status })
+      .from(contextPacks)
+      .where(eq(contextPacks.id, handoff.contextPackId));
+    if (!pack || pack.projectId !== projectId || pack.status !== "frozen") {
+      throw new AppError("交接契约只能关联当前项目的冻结上下文包");
+    }
+  }
 
   const [task] = await exec
     .insert(tasks)
@@ -150,6 +167,11 @@ export async function createTask(
       dueDate: input.dueDate,
       milestoneId: input.milestoneId,
       parentTaskId: input.parentTaskId,
+      handoffBrief: handoff.handoffBrief,
+      doneCriteria: handoff.doneCriteria,
+      requiredEvidence: handoff.requiredEvidence,
+      responseDueAt: handoff.responseDueAt,
+      contextPackId: handoff.contextPackId,
       priority: input.priority ?? "medium",
       status: input.status ?? DEFAULT_STATUS,
       sortOrder: Date.now(),
@@ -184,6 +206,11 @@ export async function updateTask(
     status?: TaskStatus;
     priority?: TaskPriority;
     completionNote?: string | null;
+    handoffBrief?: string | null;
+    doneCriteria?: string[] | null;
+    requiredEvidence?: HandoffFields["requiredEvidence"];
+    responseDueAt?: Date | null;
+    contextPackId?: string | null;
   },
   opts?: { tx?: DbTx },
 ) {
@@ -198,6 +225,29 @@ export async function updateTask(
   if (patch.assigneeId) await validateAssignee(access.project.teamId, patch.assigneeId);
   if (patch.milestoneId) await validateMilestone(task.projectId, patch.milestoneId);
   if (patch.status !== undefined) assertTransition(task.status, patch.status, access.role);
+  const handoffPatch =
+    patch.handoffBrief !== undefined ||
+    patch.doneCriteria !== undefined ||
+    patch.requiredEvidence !== undefined ||
+    patch.responseDueAt !== undefined ||
+    patch.contextPackId !== undefined
+      ? normalizeHandoffFields({
+          handoffBrief: patch.handoffBrief ?? task.handoffBrief,
+          doneCriteria: (patch.doneCriteria ?? task.doneCriteria) as string[] | null,
+          requiredEvidence: (patch.requiredEvidence ?? task.requiredEvidence) as HandoffFields["requiredEvidence"],
+          responseDueAt: patch.responseDueAt ?? task.responseDueAt,
+          contextPackId: patch.contextPackId ?? task.contextPackId,
+        })
+      : null;
+  if (handoffPatch?.contextPackId) {
+    const [pack] = await exec
+      .select({ projectId: contextPacks.projectId, status: contextPacks.status })
+      .from(contextPacks)
+      .where(eq(contextPacks.id, handoffPatch.contextPackId));
+    if (!pack || pack.projectId !== task.projectId || pack.status !== "frozen") {
+      throw new AppError("交接契约只能关联当前项目的冻结上下文包");
+    }
+  }
 
   // 改派即重置承诺：新负责人没答应过任何事，旧的承诺不能跟着任务走。
   // 少了这一步，改派后的任务会显示「已接住」，而接手的人根本还没开口——
@@ -227,6 +277,13 @@ export async function updateTask(
       ...(patch.status !== undefined && { status: patch.status }),
       ...(patch.priority !== undefined && { priority: patch.priority }),
       ...(patch.completionNote !== undefined && { completionNote: patch.completionNote }),
+      ...(handoffPatch && {
+        handoffBrief: handoffPatch.handoffBrief,
+        doneCriteria: handoffPatch.doneCriteria,
+        requiredEvidence: handoffPatch.requiredEvidence,
+        responseDueAt: handoffPatch.responseDueAt,
+        contextPackId: handoffPatch.contextPackId,
+      }),
       updatedAt: sql`now()`,
     })
     .where(eq(tasks.id, taskId))
@@ -348,6 +405,11 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       id: tasks.id,
       title: tasks.title,
       description: tasks.description,
+      handoffBrief: tasks.handoffBrief,
+      doneCriteria: tasks.doneCriteria,
+      requiredEvidence: tasks.requiredEvidence,
+      responseDueAt: tasks.responseDueAt,
+      contextPackId: tasks.contextPackId,
       status: tasks.status,
       priority: tasks.priority,
       startDate: tasks.startDate,
@@ -398,6 +460,11 @@ export async function listSubtasks(actorId: string, parentTaskId: string) {
       id: tasks.id,
       title: tasks.title,
       description: tasks.description,
+      handoffBrief: tasks.handoffBrief,
+      doneCriteria: tasks.doneCriteria,
+      requiredEvidence: tasks.requiredEvidence,
+      responseDueAt: tasks.responseDueAt,
+      contextPackId: tasks.contextPackId,
       status: tasks.status,
       priority: tasks.priority,
       startDate: tasks.startDate,
@@ -428,6 +495,11 @@ export async function createSubtask(
     dueDate?: string;
     milestoneId?: string;
     priority?: TaskPriority;
+    handoffBrief?: string;
+    doneCriteria?: string[];
+    requiredEvidence?: HandoffFields["requiredEvidence"];
+    responseDueAt?: Date;
+    contextPackId?: string | null;
   },
 ) {
   const [parent] = await db
@@ -447,6 +519,11 @@ export async function getTaskDetail(actorId: string, taskId: string) {
       projectId: tasks.projectId,
       title: tasks.title,
       description: tasks.description,
+      handoffBrief: tasks.handoffBrief,
+      doneCriteria: tasks.doneCriteria,
+      requiredEvidence: tasks.requiredEvidence,
+      responseDueAt: tasks.responseDueAt,
+      contextPackId: tasks.contextPackId,
       completionNote: tasks.completionNote,
       status: tasks.status,
       priority: tasks.priority,
