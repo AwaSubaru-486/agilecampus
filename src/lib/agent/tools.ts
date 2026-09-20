@@ -189,6 +189,31 @@ export function buildTools(actorId: string, projectId: string) {
       }),
       execute: async (input) => draftEnvelope("create_milestone", input),
     }),
+    create_decision: tool({
+      description:
+        "把方案比较结果整理成待确认的决策草案。AI 只能提出 proposed，必须由人选择方案并填写理由后才能接受。",
+      inputSchema: z.object({
+        title: z.string().min(1),
+        question: z.string().min(1),
+        taskId: z.string().uuid().nullable().optional(),
+        milestoneId: z.string().uuid().nullable().optional(),
+        options: z
+          .array(
+            z.object({
+              label: z.string().min(1),
+              description: z.string().optional(),
+              benefits: z.array(z.string()).optional(),
+              risks: z.array(z.string()).optional(),
+              evidenceRefs: z.array(z.string()).optional(),
+            }),
+          )
+          .min(1)
+          .max(8),
+        sourceConversationId: z.string().uuid().nullable().optional(),
+        sourceMessageId: z.string().uuid().nullable().optional(),
+      }),
+      execute: async (input) => draftEnvelope("create_decision", input),
+    }),
   };
 }
 
@@ -198,6 +223,7 @@ export const WRITE_TOOL_NAMES = [
   "update_tasks",
   "plan_sprint",
   "create_milestone",
+  "create_decision",
 ] as const;
 
 export type WriteToolName = (typeof WRITE_TOOL_NAMES)[number];

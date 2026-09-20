@@ -5,6 +5,7 @@ import { buildContributionReport } from "@/lib/contribution";
 import { listMilestoneProgress } from "@/lib/milestone";
 import { getProjectForUser } from "@/lib/project";
 import { listProjectEntries, type EntryRow } from "@/lib/entry";
+import { listProjectDecisions } from "@/lib/decision";
 import { ForbiddenError } from "@/lib/errors";
 import { STATUS_LABEL, type TaskStatus } from "@/lib/task-status";
 
@@ -34,7 +35,9 @@ export type ProjectExport = {
     entryCount: number;
     activityCount: number;
     agentRunCount: number;
+    decisionCount: number;
   };
+  decisions: Awaited<ReturnType<typeof listProjectDecisions>>;
   tasks: Array<{
     id: string;
     title: string;
@@ -94,7 +97,7 @@ export async function buildProjectExport(actorId: string, projectId: string): Pr
   const access = await getProjectForUser(actorId, projectId);
   if (!access) throw new ForbiddenError();
 
-  const [taskRows, evidenceRows, entryRows, milestoneRows, activityRows, runRows, contributions] =
+  const [taskRows, evidenceRows, entryRows, milestoneRows, activityRows, runRows, decisionsRows, contributions] =
     await Promise.all([
       db
         .select({
@@ -169,6 +172,8 @@ export async function buildProjectExport(actorId: string, projectId: string): Pr
         .leftJoin(users, eq(agentRuns.agentId, users.id))
         .where(eq(tasks.projectId, projectId))
         .orderBy(asc(agentRuns.createdAt)),
+      // 导出时只保留公共会话的来源索引；私人会话连索引也不带出。
+      listProjectDecisions(actorId, projectId, { redactPrivateSources: true }),
       buildContributionReport(actorId, projectId),
     ]);
 
@@ -205,8 +210,10 @@ export async function buildProjectExport(actorId: string, projectId: string): Pr
       entryCount: entryRows.length,
       activityCount: activityRows.length,
       agentRunCount: runRows.length,
+      decisionCount: decisionsRows.length,
     },
     tasks: tasksForExport,
+    decisions: decisionsRows,
     entries: entryRows,
     milestones: milestoneRows,
     activity: activityRows,
@@ -238,6 +245,7 @@ export function renderProjectExportMarkdown(pack: ProjectExport) {
     `- 任务：${pack.summary.taskTotal} 项，已验收 ${pack.summary.doneCount} 项`,
     `- 证据：${pack.summary.evidenceCount} 条；档案：${pack.summary.entryCount} 条；活动：${pack.summary.activityCount} 条`,
     `- Agent 执行：${pack.summary.agentRunCount} 次（AI 参与记录，不等同于业务验收）`,
+    `- 决策记录：${pack.summary.decisionCount} 条`,
     pack.project.description ? `- 项目说明：${inline(pack.project.description)}` : "",
     "",
     "## 任务与证据",
@@ -263,6 +271,23 @@ export function renderProjectExportMarkdown(pack: ProjectExport) {
     }
     lines.push("");
   }
+
+  lines.push("## 决策记录", "");
+  for (const decision of pack.decisions) {
+    const selected = decision.options.find((option) => option.id === decision.selectedOptionId);
+    lines.push(
+      `### ${decision.title}`,
+      `- 状态：${decision.status} · 问题：${inline(decision.question)}`,
+      selected ? `- 选择：${selected.label}` : "- 选择：尚未确定",
+      decision.rationale ? `- 理由：${inline(decision.rationale)}` : "",
+      decision.sourceConversationId ? `- 来源会话：${decision.sourceConversationId}` : "",
+    );
+    for (const option of decision.options) {
+      lines.push(`- 方案：${option.label}${option.description ? `；${inline(option.description)}` : ""}`);
+    }
+    lines.push("");
+  }
+  if (pack.decisions.length === 0) lines.push("暂无决策记录。", "");
 
   lines.push("## 项目档案", "");
   for (const entry of pack.entries) {

@@ -1012,11 +1012,11 @@ M0 未通过时停止，不进入 Commit 4。中期验收通过后，原 Commit 
 
 步骤：
 
-- [ ] 新增 decision 两表。
+- [x] 新增 decision 两表。
 - [ ] 从消息固定候选决策时预填 source IDs。
-- [ ] AI 只能 proposed；server 端强制人确认。
-- [ ] accepted/rejected 写 activity。
-- [ ] supersede 保留旧链路。
+- [x] AI 只能 proposed；server 端强制人确认。
+- [x] accepted/rejected 写 activity。
+- [x] supersede 保留旧链路。
 - [ ] record 页与 task drawer 展示相关决策。
 
 验收：每个接受决策有操作者、时间、选择、理由和来源。
@@ -1066,7 +1066,7 @@ M0 未通过时停止，不进入 Commit 4。中期验收通过后，原 Commit 
 步骤：
 
 - [x] 复用 project_entries，不建重复成果表。
-- [x] 聚合 evidence、milestone highlights、activity、contribution；decision records 待独立建模。
+- [x] 聚合 evidence、decision、milestone highlights、activity、contribution。
 - [x] 导出 Markdown/JSON。
 - [x] 不读取会话消息；共享会话不会把完整聊天带入档案。
 - [x] 私人会话永不导出。

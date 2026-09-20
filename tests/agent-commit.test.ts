@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks, projects } from "@/db/schema";
+import { decisions, tasks, projects } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject, createMilestone } from "@/lib/project";
@@ -63,6 +63,23 @@ describe("commitDraft — create_project", () => {
     await expect(
       commitDraft(student.id, project.id, "create_project", { name: "私设" }),
     ).rejects.toThrow("没有权限");
+  });
+});
+
+describe("commitDraft — create_decision", () => {
+  beforeEach(resetDb);
+
+  it("AI 决策草案确认后只落 proposed，不会越过人工确认", async () => {
+    const { student, project } = await scene();
+    const r = await commitDraft(student.id, project.id, "create_decision", {
+      title: "接口协议",
+      question: "首版选哪种协议？",
+      options: [{ label: "REST" }, { label: "GraphQL" }],
+    });
+    expect(r.committed).toBe(1);
+    const rows = await db.select().from(decisions).where(eq(decisions.projectId, project.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("proposed");
   });
 });
 

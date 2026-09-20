@@ -5,6 +5,7 @@ import { createProject, getProjectForUser } from "@/lib/project";
 import { claimTask, createTask, reviewTask, submitTask } from "@/lib/task";
 import { createEvidenceItem } from "@/lib/evidence";
 import { createEntry } from "@/lib/entry";
+import { createDecision, resolveDecision } from "@/lib/decision";
 import { buildProjectExport, renderProjectExportMarkdown } from "@/lib/project-export";
 import { resetDb } from "./helpers";
 
@@ -19,6 +20,19 @@ describe("项目档案导出", () => {
     await updateMemberRole(owner.id, team.id, reviewer.id, "teacher");
     const project = await createProject(owner.id, team.id, { name: "导出验收" });
     expect((await getProjectForUser(reviewer.id, project.id))?.role).toBe("teacher");
+    const decision = await createDecision(owner.id, project.id, {
+      title: "接口协议选择",
+      question: "首版采用哪种协议？",
+      options: [
+        { label: "REST", benefits: ["上手快"], risks: ["约束较少"] },
+        { label: "GraphQL", benefits: ["查询灵活"], risks: ["学习成本高"] },
+      ],
+    });
+    await resolveDecision(reviewer.id, decision.id, {
+      status: "accepted",
+      selectedOptionId: decision.options[0].id,
+      rationale: "课程团队更容易上手",
+    });
     const task = await createTask(owner.id, project.id, {
       title: "交付导出接口",
       assigneeId: owner.id,
@@ -40,7 +54,7 @@ describe("项目档案导出", () => {
     });
 
     const pack = await buildProjectExport(owner.id, project.id);
-    expect(pack.summary).toMatchObject({ taskTotal: 1, doneCount: 1, evidenceCount: 1, entryCount: 1 });
+    expect(pack.summary).toMatchObject({ taskTotal: 1, doneCount: 1, evidenceCount: 1, entryCount: 1, decisionCount: 1 });
     expect(pack.tasks[0].evidence[0].label).toBe("测试结果");
     expect(pack.entries[0].title).toBe("接口文档");
     expect(pack.privacy.excluded).toEqual(["private_conversations", "tokens", "hidden_prompts"]);
@@ -49,6 +63,7 @@ describe("项目档案导出", () => {
     const markdown = renderProjectExportMarkdown(pack);
     expect(markdown).toContain("# 导出验收｜项目档案");
     expect(markdown).toContain("测试结果");
+    expect(markdown).toContain("接口协议选择");
     expect(markdown).toContain("私人会话、token、隐藏 prompt 永不导出");
   });
 });

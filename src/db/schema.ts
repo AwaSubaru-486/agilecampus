@@ -379,6 +379,66 @@ export const contextPackItems = pgTable(
   ],
 );
 
+// AI 探索最终必须落成一条人可审计的选择记录。
+// selectedOptionId / supersededById 刻意不设外键：两者分别指向后声明的 option
+// 和同表自引用，领域层负责校验，避免 schema 初始化环。
+export const decisionStatusEnum = pgEnum("decision_status", [
+  "proposed",
+  "accepted",
+  "rejected",
+  "superseded",
+]);
+export type DecisionStatus = (typeof decisionStatusEnum.enumValues)[number];
+
+export const decisions = pgTable(
+  "decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    milestoneId: uuid("milestone_id").references(() => milestones.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    question: text("question").notNull(),
+    status: decisionStatusEnum("status").notNull().default("proposed"),
+    selectedOptionId: uuid("selected_option_id"),
+    rationale: text("rationale"),
+    proposedById: uuid("proposed_by_id").references(() => users.id, { onDelete: "set null" }),
+    decidedById: uuid("decided_by_id").references(() => users.id, { onDelete: "set null" }),
+    sourceConversationId: uuid("source_conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    sourceMessageId: uuid("source_message_id"),
+    supersededById: uuid("superseded_by_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    decidedAt: timestamp("decided_at"),
+  },
+  (t) => [
+    index("decisions_project_idx").on(t.projectId, t.createdAt),
+    index("decisions_project_status_idx").on(t.projectId, t.status),
+    index("decisions_task_idx").on(t.taskId),
+    index("decisions_source_conversation_idx").on(t.sourceConversationId),
+  ],
+);
+
+export const decisionOptions = pgTable(
+  "decision_options",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    decisionId: uuid("decision_id")
+      .notNull()
+      .references(() => decisions.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    description: text("description"),
+    benefits: jsonb("benefits"),
+    risks: jsonb("risks"),
+    evidenceRefs: jsonb("evidence_refs"),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [index("decision_options_decision_idx").on(t.decisionId, t.position)],
+);
+
 // 交付证据。完成说明只是叙述，证据包才是验收可以核对的对象。
 // value 先存 URL 或短文本；entry/message/run 用 sourceId 指向来源，
 // 不把大文件塞进业务库，也不在这里复制来源内容。
@@ -611,6 +671,9 @@ export const activityTypeEnum = pgEnum("activity_type", [
   "entry_created",
   "entry_deleted",
   "evidence_added",
+  "decision_created",
+  "decision_status_changed",
+  "decision_superseded",
   // 承诺与验收（启用待「任务承诺与验收」一图）
   "task_claimed",
   "task_committed",

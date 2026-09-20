@@ -4,6 +4,7 @@ import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
 import { createTask, updateTask } from "@/lib/task";
 import { createConversation } from "@/lib/agent/conversation";
+import { createDecision } from "@/lib/decision";
 import {
   buildContextPackPreview,
   createContextPack,
@@ -72,6 +73,21 @@ describe("AI 上下文包", () => {
     expect(view.stale).toBe(true);
     expect(view.items[0].stale).toBe(true);
     expect((view.items[0].snapshot as { title: string }).title).toBe("定义实验");
+  });
+
+  it("决策记录可以作为可复现的上下文来源", async () => {
+    const { owner, project } = await scene();
+    const decision = await createDecision(owner.id, project.id, {
+      title: "接口方案",
+      question: "首版选哪种协议？",
+      options: [{ label: "REST" }, { label: "GraphQL" }],
+    });
+    const preview = await buildContextPackPreview(owner.id, project.id, [
+      { sourceType: "decision", sourceId: decision.id },
+    ]);
+    expect(preview.items[0].sourceType).toBe("decision");
+    expect((preview.items[0].snapshot as { title: string }).title).toBe("接口方案");
+    expect((preview.items[0].snapshot as { options: unknown[] }).options).toHaveLength(2);
   });
 
   it("草稿只能冻结一次，冻结包不能原地再冻结", async () => {

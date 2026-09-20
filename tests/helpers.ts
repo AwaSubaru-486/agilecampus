@@ -6,6 +6,8 @@ import { sql } from "drizzle-orm";
 export const TRUNCATED_TABLES = [
   "context_pack_items",
   "context_packs",
+  "decision_options",
+  "decisions",
   "evidence_items",
   "project_entries",
   "milestone_highlights",

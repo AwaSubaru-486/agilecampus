@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/db";
 import { createMilestone, createProject, getProjectForUser } from "@/lib/project";
+import { createDecision } from "@/lib/decision";
 import { createTask, listProjectTasks, updateTask } from "@/lib/task";
 import { notifyTaskAssigned, notifyTaskCompleted } from "@/lib/notify";
 import { TASK_STATUSES, canTransition, isCompleted } from "@/lib/task-status";
@@ -60,6 +61,24 @@ const planSprintSchema = z.object({
 const createMilestoneSchema = z.object({
   title: z.string().min(1),
   targetDate: z.string().optional(),
+});
+
+const decisionOptionSchema = z.object({
+  label: z.string().min(1),
+  description: z.string().optional(),
+  benefits: z.array(z.string()).optional(),
+  risks: z.array(z.string()).optional(),
+  evidenceRefs: z.array(z.string()).optional(),
+});
+
+const createDecisionSchema = z.object({
+  title: z.string().min(1),
+  question: z.string().min(1),
+  taskId: z.string().uuid().nullable().optional(),
+  milestoneId: z.string().uuid().nullable().optional(),
+  options: z.array(decisionOptionSchema).min(1).max(8),
+  sourceConversationId: z.string().uuid().nullable().optional(),
+  sourceMessageId: z.string().uuid().nullable().optional(),
 });
 
 export type CommitResult = { committed: number; conflicts: string[] };
@@ -145,6 +164,11 @@ export async function commitDraft(
       const d = createMilestoneSchema.parse(draft);
       // createMilestone 内部以 role === "admin" 收口，非管理员在此被拒
       await createMilestone(actorId, projectId, d);
+      return { committed: 1, conflicts: [] };
+    }
+    case "create_decision": {
+      const d = createDecisionSchema.parse(draft);
+      await createDecision(actorId, projectId, d);
       return { committed: 1, conflicts: [] };
     }
   }

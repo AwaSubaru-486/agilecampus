@@ -6,6 +6,8 @@ import {
   contextPackItems,
   contextPacks,
   conversations,
+  decisionOptions,
+  decisions,
   messages,
   milestones,
   projectEntries,
@@ -222,6 +224,41 @@ async function resolveSource(
     };
   }
 
+  if (descriptor.sourceType === "decision") {
+    const [row] = await db
+      .select()
+      .from(decisions)
+      .where(and(eq(decisions.id, sourceId!), eq(decisions.projectId, projectId)));
+    if (!row) throw new AppError("决策记录不属于当前项目");
+    const options = await db
+      .select({
+        label: decisionOptions.label,
+        description: decisionOptions.description,
+        benefits: decisionOptions.benefits,
+        risks: decisionOptions.risks,
+        evidenceRefs: decisionOptions.evidenceRefs,
+        position: decisionOptions.position,
+      })
+      .from(decisionOptions)
+      .where(eq(decisionOptions.decisionId, row.id))
+      .orderBy(asc(decisionOptions.position));
+    return {
+      sourceType: "decision",
+      sourceId: row.id,
+      label: descriptor.label?.trim() || `决策：${row.title}`,
+      snapshot: {
+        title: row.title,
+        question: row.question,
+        status: row.status,
+        selectedOptionId: row.selectedOptionId,
+        rationale: row.rationale,
+        options,
+      },
+      sourceUpdatedAt: row.decidedAt ?? row.createdAt,
+      included,
+    };
+  }
+
   if (descriptor.sourceType === "conversation") {
     const row = await getConversationForUser(actorId, sourceId!);
     if (row.projectId !== projectId) throw new ForbiddenError();
@@ -428,6 +465,13 @@ async function currentSourceUpdatedAt(actorId: string, item: typeof contextPackI
       .from(activityEvents)
       .where(eq(activityEvents.id, item.sourceId));
     return row?.createdAt ?? null;
+  }
+  if (item.sourceType === "decision") {
+    const [row] = await db
+      .select({ createdAt: decisions.createdAt, decidedAt: decisions.decidedAt })
+      .from(decisions)
+      .where(eq(decisions.id, item.sourceId));
+    return row ? row.decidedAt ?? row.createdAt : null;
   }
   if (item.sourceType === "project") {
     const [row] = await db
