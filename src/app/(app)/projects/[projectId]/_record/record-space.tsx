@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { listProjectActivity } from "@/lib/activity-feed";
 import { buildContributionReport } from "@/lib/contribution";
+import { listProjectDecisions } from "@/lib/decision";
 import { listProjectEntries } from "@/lib/entry";
 import { listProjectTasks } from "@/lib/task";
 import { ArchiveSection } from "../archive-section";
+import { DecisionLedger, type DecisionLedgerRow } from "./decision-ledger";
 
 // 记录：形成了什么成果与证据。
 //
@@ -25,11 +27,12 @@ export async function RecordSpace({
   role: "admin" | "teacher" | "student";
   canWrite: boolean;
 }) {
-  const [entries, projectTasks, contribution, activity] = await Promise.all([
+  const [entries, projectTasks, contribution, activity, decisions] = await Promise.all([
     listProjectEntries(actorId, projectId, { limit: 60 }),
     listProjectTasks(actorId, projectId),
     buildContributionReport(actorId, projectId),
     listProjectActivity(actorId, projectId, { limit: 5 }),
+    listProjectDecisions(actorId, projectId, { redactPrivateSources: true }),
   ]);
 
   const accepted = contribution.reviewStats.accepted;
@@ -58,6 +61,31 @@ export async function RecordSpace({
           上面的数字全部由系统在每次变更时自动登记，<span className="font-medium text-ink-2">没有任何一格需要成员手动填写</span>。
         </p>
       </section>
+
+      <DecisionLedger
+        projectId={projectId}
+        decisions={decisions.map(
+          (decision): DecisionLedgerRow => ({
+            id: decision.id,
+            title: decision.title,
+            question: decision.question,
+            status: decision.status,
+            selectedOptionId: decision.selectedOptionId,
+            rationale: decision.rationale,
+            sourceConversationId: decision.sourceConversationId,
+            options: decision.options.map((option) => ({
+              id: option.id,
+              label: option.label,
+              description: option.description,
+              benefits: option.benefits,
+              risks: option.risks,
+            })),
+            createdAt: decision.createdAt.toISOString(),
+            decidedAt: decision.decidedAt?.toISOString() ?? null,
+          }),
+        )}
+        canDecide={role === "admin" || role === "teacher" || role === "student"}
+      />
 
       <ArchiveSection
         projectId={projectId}
