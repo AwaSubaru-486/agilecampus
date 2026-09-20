@@ -62,6 +62,8 @@ export async function GET(req: Request, ctx: Ctx) {
         requiredEvidence: t.requiredEvidence,
         responseDueAt: t.responseDueAt,
         contextPackId: t.contextPackId,
+        handoffVersion: t.handoffVersion,
+        committedHandoffVersion: t.committedHandoffVersion,
         updatedAt: t.updatedAt,
       })),
     });

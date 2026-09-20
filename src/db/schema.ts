@@ -184,6 +184,9 @@ export const tasks = pgTable(
     doneCriteria: jsonb("done_criteria"),
     requiredEvidence: jsonb("required_evidence"),
     responseDueAt: timestamp("response_due_at"),
+    // 每次交接字段变化都会递增；承诺记录确认的是哪一版，避免按旧说明继续交付。
+    handoffVersion: integer("handoff_version").notNull().default(1),
+    committedHandoffVersion: integer("committed_handoff_version"),
     // 受 context-pack 依赖声明顺序影响，归属与 frozen 状态由领域层校验。
     contextPackId: uuid("context_pack_id"),
     completionNote: text("completion_note"),

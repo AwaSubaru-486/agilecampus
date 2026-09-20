@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createUser } from "@/lib/user";
 import { createTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
-import { createTask, getTaskDetail, submitTask, updateTask } from "@/lib/task";
+import { claimTask, createTask, getTaskDetail, submitTask, updateTask } from "@/lib/task";
 import { createContextPack } from "@/lib/context-pack";
 import { createEvidenceItem, listTaskEvidence } from "@/lib/evidence";
 import { resetDb } from "./helpers";
@@ -115,5 +115,28 @@ describe("交接契约", () => {
         value: "不是链接",
       }),
     ).rejects.toThrow("必须以 http:// 或 https:// 开头");
+  });
+
+  it("交接契约变化后，旧承诺必须重新确认", async () => {
+    const { owner, project } = await scene();
+    const task = await createTask(owner.id, project.id, {
+      title: "按契约交付",
+      assigneeId: owner.id,
+      handoffBrief: "完成首版接口",
+    });
+    await claimTask(owner.id, task.id, { commitmentNote: "先完成接口再补测试" });
+
+    const changed = await updateTask(owner.id, task.id, {
+      handoffBrief: "完成首版接口并补齐测试",
+    });
+    expect(changed.handoffVersion).toBe(2);
+    expect(changed.committedHandoffVersion).toBe(1);
+    await expect(submitTask(owner.id, task.id, { completionNote: "已完成" })).rejects.toThrow(
+      "交接契约已更新",
+    );
+
+    const recommitted = await claimTask(owner.id, task.id, { commitmentNote: "按新版契约补齐测试" });
+    expect(recommitted.committedHandoffVersion).toBe(2);
+    expect((await submitTask(owner.id, task.id, { completionNote: "已完成" })).status).toBe("review");
   });
 });

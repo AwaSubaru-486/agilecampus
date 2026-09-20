@@ -5,7 +5,7 @@ import { agents } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
-import { claimTask, createTask, listProjectTasks, submitTask } from "@/lib/task";
+import { claimTask, createTask, listProjectTasks, submitTask, updateTask } from "@/lib/task";
 import { createAgent } from "@/lib/agent-member";
 import { listAgentInbox, listTaskRuns, reportAgentRun } from "@/lib/agent-run";
 import { listTaskEvidence } from "@/lib/evidence";
@@ -52,6 +52,23 @@ describe("inbox —— agent 领取活", () => {
     await createTask(owner.id, project.id, { title: "别人的活", assigneeId: student.id });
     const inbox = await listAgentInbox(agent.userId);
     expect(inbox.awaiting).toHaveLength(0);
+  });
+
+  it("交接契约更新后，已认领任务重新进入待回应", async () => {
+    const { owner, project, agent } = await scene();
+    const task = await createTask(owner.id, project.id, {
+      title: "带版本的任务",
+      assigneeId: agent.userId,
+      handoffBrief: "完成接口",
+    });
+    await claimTask(agent.userId, task.id, { commitmentNote: "开始实现" });
+    await updateTask(owner.id, task.id, { handoffBrief: "完成接口并补测试" });
+
+    const inbox = await listAgentInbox(agent.userId);
+    expect(inbox.awaiting.map((t) => t.id)).toContain(task.id);
+    expect(inbox.mine.map((t) => t.id)).not.toContain(task.id);
+    expect(inbox.awaiting[0].committedHandoffVersion).toBe(1);
+    expect(inbox.awaiting[0].handoffVersion).toBe(2);
   });
 });
 

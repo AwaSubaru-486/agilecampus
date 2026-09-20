@@ -240,6 +240,16 @@ export async function updateTask(
           contextPackId: patch.contextPackId ?? task.contextPackId,
         })
       : null;
+  const sameHandoffValue = (a: unknown, b: unknown) =>
+    JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const handoffChanged = Boolean(
+    handoffPatch &&
+      (!sameHandoffValue(task.handoffBrief, handoffPatch.handoffBrief) ||
+        !sameHandoffValue(task.doneCriteria, handoffPatch.doneCriteria) ||
+        !sameHandoffValue(task.requiredEvidence, handoffPatch.requiredEvidence) ||
+        (task.responseDueAt?.getTime() ?? null) !== (handoffPatch.responseDueAt?.getTime() ?? null) ||
+        !sameHandoffValue(task.contextPackId, handoffPatch.contextPackId)),
+  );
   if (handoffPatch?.contextPackId) {
     const [pack] = await exec
       .select({ projectId: contextPacks.projectId, status: contextPacks.status })
@@ -266,6 +276,7 @@ export async function updateTask(
       ...(reassigned && {
         commitmentNote: null,
         committedAt: null,
+        committedHandoffVersion: null,
         estimatedHours: null,
         // 上一次「接不住」的理由也一并清掉：它说的是上一个人，对新负责人是误导
         declineReason: null,
@@ -285,6 +296,7 @@ export async function updateTask(
         responseDueAt: handoffPatch.responseDueAt,
         contextPackId: handoffPatch.contextPackId,
       }),
+      ...(handoffChanged && { handoffVersion: sql`${tasks.handoffVersion} + 1` }),
       updatedAt: sql`now()`,
     })
     .where(eq(tasks.id, taskId))
@@ -411,6 +423,8 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       requiredEvidence: tasks.requiredEvidence,
       responseDueAt: tasks.responseDueAt,
       contextPackId: tasks.contextPackId,
+      handoffVersion: tasks.handoffVersion,
+      committedHandoffVersion: tasks.committedHandoffVersion,
       status: tasks.status,
       priority: tasks.priority,
       startDate: tasks.startDate,
@@ -466,6 +480,8 @@ export async function listSubtasks(actorId: string, parentTaskId: string) {
       requiredEvidence: tasks.requiredEvidence,
       responseDueAt: tasks.responseDueAt,
       contextPackId: tasks.contextPackId,
+      handoffVersion: tasks.handoffVersion,
+      committedHandoffVersion: tasks.committedHandoffVersion,
       status: tasks.status,
       priority: tasks.priority,
       startDate: tasks.startDate,
@@ -525,6 +541,8 @@ export async function getTaskDetail(actorId: string, taskId: string) {
       requiredEvidence: tasks.requiredEvidence,
       responseDueAt: tasks.responseDueAt,
       contextPackId: tasks.contextPackId,
+      handoffVersion: tasks.handoffVersion,
+      committedHandoffVersion: tasks.committedHandoffVersion,
       completionNote: tasks.completionNote,
       status: tasks.status,
       priority: tasks.priority,
@@ -587,6 +605,7 @@ export async function claimTask(
       commitmentNote: input.commitmentNote,
       estimatedHours: input.estimatedHours ?? null,
       committedAt: sql`now()`,
+      committedHandoffVersion: task.handoffVersion,
       // 未开始的活一经认领即进入进行中；已在进行中的不动档位
       ...(task.status === "todo" && { status: "doing" as const }),
       updatedAt: sql`now()`,
@@ -682,6 +701,13 @@ export async function submitTask(
   if (task.status === "review") throw new AppError("该任务已在待验收中");
   if (task.status === "done") throw new AppError("该任务已通过验收，如需改动请先重开");
   if (!input.completionNote.trim()) throw new AppError("请说明这次交付了什么");
+  if (
+    task.committedAt &&
+    task.committedHandoffVersion !== null &&
+    task.committedHandoffVersion !== task.handoffVersion
+  ) {
+    throw new AppError("交接契约已更新，请重新确认你的承诺后再提交");
+  }
   const missingEvidence = await missingRequiredEvidence(actorId, taskId);
   if (missingEvidence.length > 0) {
     throw new AppError(`还缺少必需证据：${missingEvidence.join("、")}`);
@@ -790,6 +816,13 @@ export async function getDrawerTask(actorId: string, taskId: string) {
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
       assigneeKind: users.kind,
+      handoffBrief: tasks.handoffBrief,
+      doneCriteria: tasks.doneCriteria,
+      requiredEvidence: tasks.requiredEvidence,
+      responseDueAt: tasks.responseDueAt,
+      contextPackId: tasks.contextPackId,
+      handoffVersion: tasks.handoffVersion,
+      committedHandoffVersion: tasks.committedHandoffVersion,
       commitmentNote: tasks.commitmentNote,
       committedAt: tasks.committedAt,
       completionNote: tasks.completionNote,

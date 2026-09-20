@@ -32,8 +32,15 @@ export async function listAgentInbox(agentUserId: string) {
       status: tasks.status,
       priority: tasks.priority,
       dueDate: tasks.dueDate,
+      handoffBrief: tasks.handoffBrief,
+      doneCriteria: tasks.doneCriteria,
+      requiredEvidence: tasks.requiredEvidence,
+      responseDueAt: tasks.responseDueAt,
+      contextPackId: tasks.contextPackId,
       commitmentNote: tasks.commitmentNote,
       committedAt: tasks.committedAt,
+      handoffVersion: tasks.handoffVersion,
+      committedHandoffVersion: tasks.committedHandoffVersion,
       declineReason: tasks.declineReason,
       updatedAt: tasks.updatedAt,
     })
@@ -42,8 +49,25 @@ export async function listAgentInbox(agentUserId: string) {
     .orderBy(desc(tasks.priority), tasks.dueDate);
 
   // 分成两摞交给 agent：还没接住的、已经接住该干的
-  const awaiting = rows.filter((t) => isAwaitingResponse(t.status, agentUserId, t.committedAt));
-  const mine = rows.filter((t) => !isAwaitingResponse(t.status, agentUserId, t.committedAt));
+  const awaiting = rows.filter((t) =>
+    isAwaitingResponse(
+      t.status,
+      agentUserId,
+      t.committedAt,
+      t.committedHandoffVersion,
+      t.handoffVersion,
+    ),
+  );
+  const mine = rows.filter(
+    (t) =>
+      !isAwaitingResponse(
+        t.status,
+        agentUserId,
+        t.committedAt,
+        t.committedHandoffVersion,
+        t.handoffVersion,
+      ),
+  );
 
   // 正在进行中的 run，供 agent 重启后恢复现场
   const running = await db

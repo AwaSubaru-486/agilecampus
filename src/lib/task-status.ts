@@ -88,8 +88,15 @@ export function isAwaitingResponse(
   status: string,
   assigneeId: string | null,
   committedAt: Date | null,
+  committedHandoffVersion: number | null = null,
+  handoffVersion: number | null = null,
 ): boolean {
-  return isInFlight(status) && assigneeId !== null && committedAt === null;
+  const contractChanged =
+    committedAt !== null &&
+    committedHandoffVersion !== null &&
+    handoffVersion !== null &&
+    committedHandoffVersion !== handoffVersion;
+  return isInFlight(status) && assigneeId !== null && (committedAt === null || contractChanged);
 }
 
 // 四个谓词各司其职，勿合并成一个 isClosed：

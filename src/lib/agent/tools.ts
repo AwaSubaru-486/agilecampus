@@ -49,6 +49,8 @@ export async function listTasksFiltered(
     requiredEvidence: t.requiredEvidence,
     responseDueAt: t.responseDueAt,
     contextPackId: t.contextPackId,
+    handoffVersion: t.handoffVersion,
+    committedHandoffVersion: t.committedHandoffVersion,
   }));
 }
 

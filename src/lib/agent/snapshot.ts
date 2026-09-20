@@ -68,7 +68,13 @@ export async function buildProjectSnapshot(actorId: string, projectId: string): 
           .map(
             (t) => {
               const handoff = handoffToPrompt(t);
-              return `- [${t.status}] ${t.title}｜${t.assigneeName ?? "未指派"}｜${t.dueDate ?? "无截止"}${handoff ? `｜${handoff.replaceAll("\n", "；")}` : ""}｜id=${t.id}`;
+              const version = `契约v${t.handoffVersion}${
+                t.committedHandoffVersion !== null &&
+                t.committedHandoffVersion !== t.handoffVersion
+                  ? "（需重新确认）"
+                  : ""
+              }`;
+              return `- [${t.status}] ${t.title}｜${t.assigneeName ?? "未指派"}｜${t.dueDate ?? "无截止"}｜${version}${handoff ? `｜${handoff.replaceAll("\n", "；")}` : ""}｜id=${t.id}`;
             },
           )
           .join("\n") +
