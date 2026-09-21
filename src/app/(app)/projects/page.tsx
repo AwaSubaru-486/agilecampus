@@ -44,7 +44,7 @@ export default async function AllProjectsPage() {
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <Link
-                    href={`/projects/${p.id}`}
+                    href={`/projects/${p.id}?space=work`}
                     className="min-w-0 flex-1 font-display text-lg font-bold leading-snug text-ink group-hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal rounded-[var(--radius-control)]"
                   >
                     {p.name}

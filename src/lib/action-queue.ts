@@ -10,6 +10,7 @@ import type { TeamRole } from "@/db/schema";
 
 export const ACTION_KINDS = [
   "assignment_response", // 派给我、我还没回话
+  "approval_review", // AI 写操作待人确认
   "review", // 我交的或别人交的，等我验收
   "blocker_invite", // 有人点名请我搭手
   "rejected_work", // 我的交付被退回
@@ -23,16 +24,18 @@ export type ActionKind = (typeof ACTION_KINDS)[number] | "decision_review";
 /** 越靠前越急。同一件事命中多条原因时，取最靠前的那条。 */
 export const KIND_PRIORITY: Record<ActionKind, number> = {
   assignment_response: 0,
-  decision_review: 1,
-  review: 2,
-  blocker_invite: 3,
-  rejected_work: 4,
-  overdue: 5,
-  due_soon: 6,
+  approval_review: 1,
+  decision_review: 2,
+  review: 3,
+  blocker_invite: 4,
+  rejected_work: 5,
+  overdue: 6,
+  due_soon: 7,
 };
 
 export const KIND_LABEL: Record<ActionKind, string> = {
   assignment_response: "待回应",
+  approval_review: "AI 待确认",
   decision_review: "待确认方案",
   review: "待验收",
   blocker_invite: "请你搭手",
@@ -44,6 +47,7 @@ export const KIND_LABEL: Record<ActionKind, string> = {
 /** 每种行动的主动作。一屏最多一个高强调动作，故一行只给一个。 */
 export const KIND_ACTION: Record<ActionKind, string> = {
   assignment_response: "接住 / 接不住",
+  approval_review: "确认 / 驳回",
   decision_review: "选方案 / 写理由",
   review: "通过 / 退回",
   blocker_invite: "去看看",
@@ -59,6 +63,7 @@ export type RawAction = {
   blockerId: string | null;
   /** 决策类行动指向决策；与任务、求助一样只会命中一个目标 */
   decisionId?: string | null;
+  approvalId?: string | null;
   title: string;
   projectId: string;
   projectName: string;
@@ -91,6 +96,8 @@ export function buildActionQueue(
         ? `b:${a.blockerId}`
         : a.decisionId
           ? `d:${a.decisionId}`
+          : a.approvalId
+            ? `a:${a.approvalId}`
           : `x:${a.title}`;
     const existing = byThing.get(key);
     if (!existing || KIND_PRIORITY[a.kind] < KIND_PRIORITY[existing.kind]) {

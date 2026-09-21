@@ -126,7 +126,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
             <>
               <span className="text-ink-3">·</span>
               <Link
-                href={`/projects/${projectId}?task=${member.taskId}&space=live`}
+                href={`/projects/${projectId}?task=${member.taskId}&space=work`}
                 className="min-w-0 truncate text-ink-2 hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal rounded-[var(--radius-control)]"
               >
                 {member.taskTitle}

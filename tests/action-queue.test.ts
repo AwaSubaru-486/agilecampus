@@ -144,7 +144,7 @@ describe("每种行动都说得出人话", () => {
       expect(KIND_ACTION[k]).toBeTruthy();
       expect(typeof KIND_PRIORITY[k]).toBe("number");
     }
-    expect(ACTION_KINDS).toHaveLength(6);
+    expect(ACTION_KINDS).toHaveLength(7);
   });
 
   // 一屏最多一个高强调动作——一行只给一个主动作，故每类的动作词各不相同
@@ -160,9 +160,9 @@ describe("角色能收到哪些行动", () => {
     expect(kindsForRole("teacher")).toEqual(["review", "blocker_invite"]);
   });
 
-  it("学生与组长收全部六类", () => {
-    expect(kindsForRole("student")).toHaveLength(6);
-    expect(kindsForRole("admin")).toHaveLength(6);
+  it("学生与组长收全部七类", () => {
+    expect(kindsForRole("student")).toHaveLength(7);
+    expect(kindsForRole("admin")).toHaveLength(7);
   });
 
   it("老师收不到的类，优先级表里也都存在", () => {

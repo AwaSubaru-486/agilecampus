@@ -10,6 +10,7 @@ import {
 import { getModel } from "./model";
 import { getContextPackForUser } from "@/lib/context-pack";
 import { AppError } from "@/lib/errors";
+import { createApprovalRequests, type PersistedDraft } from "@/lib/approval";
 
 const SYSTEM_PREAMBLE = `你是 AgileCampus（敏捷校园）的项目管理助手，服务高校科研与课程团队。
 你的职责限于项目管理：拆解目标、排期、指派、跟踪进度、答疑项目现状。你不代做研究、编码或写作等实际工作。
@@ -137,12 +138,31 @@ export async function runAgentTurn(params: {
     };
   });
 
+  // 草案随 assistant message 一起登记为持久化审批请求。这样刷新、换设备或
+  // 另一个成员打开协作页时，仍然能从「协作 → AI 待确认」找回这次建议。
+  // 写入失败不吞掉：若只返回一张没有审批记录的卡片，人工边界会被悄悄削弱。
+  const persistedApprovals = await createApprovalRequests(
+    actorId,
+    projectId,
+    conversation.id,
+    persisted.assistantMessage?.id ?? "",
+    draftsWithProvenance,
+  );
+  const approvalByOrdinal = new Map(
+    persistedApprovals.map((approval) => [approval.ordinal, { id: approval.id, status: approval.status }]),
+  );
+  const draftsWithApprovals: PersistedDraft[] = draftsWithProvenance.map((draft, ordinal) => ({
+    ...draft,
+    approvalId: approvalByOrdinal.get(ordinal)?.id,
+    approvalStatus: approvalByOrdinal.get(ordinal)?.status,
+  }));
+
   return {
     conversationId: conversation.id,
     userMessageId: persisted.userMessage?.id,
     assistantMessageId: persisted.assistantMessage?.id,
     text: result.text,
     toolTrace,
-    drafts: draftsWithProvenance,
+    drafts: draftsWithApprovals,
   };
 }

@@ -78,6 +78,17 @@ describe("buildSpaceHref", () => {
     expect(href).toContain("conversation=c-1");
   });
 
+  it("只继承明确传入的模式状态，不把空值带进 URL", () => {
+    const href = buildSpaceHref({
+      projectId: PID,
+      space: "work",
+      taskId: "t-1",
+      extra: { group: "assignee", conversation: undefined },
+    });
+    expect(href).toContain("group=assignee");
+    expect(href).not.toContain("conversation=");
+  });
+
   it("拼出来的链接能被 parseProjectSpace 解回来（往返一致）", () => {
     for (const s of PROJECT_SPACES) {
       const href = buildSpaceHref({ projectId: PID, space: s });

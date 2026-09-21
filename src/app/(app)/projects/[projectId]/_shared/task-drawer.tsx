@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   claimTaskAction,
@@ -293,11 +292,11 @@ export function TaskDrawer({
 
           <div className="flex flex-wrap items-center gap-2 border-t border-stroke pt-3">
             <button type="button" onClick={askAi} className="ac-btn ac-pressable text-sm">
-              在协同室继续
+              在 Agent 中继续
             </button>
-            <Link href="#board" onClick={close} className="ac-btn-ghost ac-pressable text-sm">
-              回到项目
-            </Link>
+            <button type="button" onClick={close} className="ac-btn-ghost ac-pressable text-sm">
+              关闭详情
+            </button>
           </div>
         </div>
       </div>

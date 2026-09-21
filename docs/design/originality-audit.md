@@ -144,7 +144,7 @@
 |---|---|---|
 | 五个核心对象 | 本文件 §2 | 已冻结 |
 | 术语表（含「不要用」一列） | `product-language.md` §3 | 已冻结 |
-| 一级导航五项与路由 | `product-language.md` §4 | 已冻结 |
+| 一级导航三项与低频入口路由 | `product-language.md` §4 | 已冻结 |
 | 项目四模式的参数名与职责 | `product-language.md` §5 | 已冻结 |
 | 应用骨架与固定尺寸 | `product-language.md` §6 | 已冻结 |
 | 语言规则六条 | `product-language.md` §7 | 已冻结 |

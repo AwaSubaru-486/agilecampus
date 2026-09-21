@@ -49,6 +49,7 @@ export default async function ProjectPage({
   // 却停在现场」会变成一桩悬案（见 lib/project-space.ts）
   const requested = parseProjectSpace(sp.space);
   const conversationId = typeof sp.conversation === "string" ? sp.conversation : null;
+  const approvalId = typeof sp.approval === "string" ? sp.approval : null;
   const space = spaceForConversationParams(requested, Boolean(conversationId));
 
   // 地址栏要跟着走。只在服务端改渲染而不改 URL，会出现
@@ -100,7 +101,9 @@ export default async function ProjectPage({
               ? "里程碑已全部达成"
               : null
         }
-        spaces={<SpaceTabs projectId={projectId} current={space} taskId={taskId} />}
+        spaces={<SpaceTabs projectId={projectId} current={space} taskId={taskId} searchParams={sp} />}
+        backHref="/projects"
+        backLabel="所有项目"
       />
 
       {space === "live" && (
@@ -129,6 +132,7 @@ export default async function ProjectPage({
           teamId={project.teamId}
           selectedConversationId={conversationId}
           selectedTaskId={taskId ?? null}
+          selectedApprovalId={approvalId}
         />
       )}
 

@@ -15,7 +15,7 @@ import { ProjectSwitcher, type SwitcherProject } from "./project-switcher";
 export function TopWorkbar({
   userName,
   projects,
-  /** 待我处理的协作事项数。>0 时在「协作」上打一个点 */
+  /** 待我处理的协作事项数。>0 时在「协作中心」上打一个点 */
   collaborationCount = 0,
 }: {
   userName: string;
@@ -102,16 +102,29 @@ export function ProjectBand({
   latestMilestone,
   spaces,
   actions,
+  backHref = "/projects",
+  backLabel = "项目",
 }: {
   projectName: string;
   latestMilestone: string | null;
   spaces: React.ReactNode;
   actions?: React.ReactNode;
+  backHref?: string;
+  backLabel?: string;
 }) {
   return (
     <div className="sticky top-[52px] z-30 border-b border-stroke bg-ground/95 sm:top-14">
       <div className="mx-auto flex h-12 max-w-[120rem] items-center justify-between gap-3 px-3 sm:px-5">
         <div className="flex min-w-0 items-baseline gap-2">
+          <Link
+            href={backHref}
+            className="shrink-0 text-xs text-ink-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+          >
+            {backLabel}
+          </Link>
+          <span aria-hidden className="shrink-0 text-stroke-strong">
+            /
+          </span>
           <span className="truncate text-sm font-semibold text-ink">{projectName}</span>
           {latestMilestone && (
             <>

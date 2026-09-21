@@ -17,17 +17,17 @@ export type ProjectSpace = (typeof PROJECT_SPACES)[number];
 export const DEFAULT_SPACE: ProjectSpace = "live";
 
 export const SPACE_LABEL: Record<ProjectSpace, string> = {
-  live: "现场",
-  work: "工作",
-  studio: "协同室",
-  record: "记录",
+  live: "概览",
+  work: "任务",
+  studio: "Agent",
+  record: "成果",
 };
 
 export const SPACE_HINT: Record<ProjectSpace, string> = {
-  live: "谁在推进，哪里需要行动",
-  work: "任务如何拆分与流转",
-  studio: "人与 AI 怎样探索、比较、确认",
-  record: "形成了什么成果与证据",
+  live: "项目进展、风险与当前接力",
+  work: "任务如何拆分、交接与验收",
+  studio: "人和 Agent 一起推进任务",
+  record: "已交付成果、决策与证据",
 };
 
 function isProjectSpace(value: unknown): value is ProjectSpace {
@@ -59,11 +59,16 @@ export function buildSpaceHref(input: {
   space: ProjectSpace;
   taskId?: string;
   conversationId?: string;
+  /** 只放入当前模式允许继承的 URL 状态，避免切换模式时把旧页面带回去。 */
+  extra?: Record<string, string | undefined>;
 }): string {
   const qs = new URLSearchParams();
   qs.set("space", input.space);
   if (input.taskId) qs.set("task", input.taskId);
   if (input.conversationId) qs.set("conversation", input.conversationId);
+  for (const [key, value] of Object.entries(input.extra ?? {})) {
+    if (value && !qs.has(key)) qs.set(key, value);
+  }
   return `/projects/${input.projectId}?${qs.toString()}`;
 }
 

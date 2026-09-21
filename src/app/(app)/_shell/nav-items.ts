@@ -1,10 +1,11 @@
-// 一级导航。五项，桌面横向排在顶部工作带里。
+// 一级导航。三项，桌面横向排在顶部工作带里。
 //
 // 术语与顺序由 docs/design/product-language.md §4 冻结，改这里之前先改那份文档。
 //
 // 与旧版的差别不只是换了名字：旧版一级导航是「项目空间 / 风险瞭望 /
 // 团队成员 / 连接与设置」——以「系统有哪些东西」组织；
-// 这里是「今日 / 项目 / 协作 / 资料库 / 设置」——以「我每天要做什么」组织。
+// 这里只保留「今日 / 项目 / 协作中心」——以「我现在要做什么」组织。
+// 资料库和设置仍保留原路由，但降级到账户菜单，避免把低频配置混入主路径。
 
 export type NavItem = {
   href: string;
@@ -16,9 +17,7 @@ export type NavItem = {
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "今日", hint: "跨项目的行动队列" },
   { href: "/projects", label: "项目", hint: "项目脉搏与最近访问" },
-  { href: "/collaboration", label: "协作", hint: "求助邀请与 AI 待确认动作" },
-  { href: "/library", label: "资料库", hint: "跨项目的成果与文档" },
-  { href: "/settings", label: "设置", hint: "账户、连接、令牌与通知" },
+  { href: "/collaboration", label: "协作中心", hint: "求助、AI 确认与团队状态" },
 ] as const;
 
 /** 当前路径命中哪一项。用前缀匹配，使子路由也能点亮父项。 */

@@ -52,6 +52,14 @@ export function AccountMenu({ name }: { name: string }) {
           <p className="truncate px-2.5 py-2 text-sm font-medium text-ink">{name}</p>
           <div className="border-t border-stroke pt-1">
             <Link
+              href="/library"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block rounded-[var(--radius-control)] px-2.5 py-1.5 text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            >
+              资料库
+            </Link>
+            <Link
               href="/settings"
               role="menuitem"
               onClick={() => setOpen(false)}

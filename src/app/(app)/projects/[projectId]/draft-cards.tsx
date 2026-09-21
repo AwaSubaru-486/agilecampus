@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export type Draft = { tool: string; draft: unknown };
+export type Draft = { tool: string; draft: unknown; approvalId?: string; approvalStatus?: string };
 type Option = { id: string; name: string };
 type DecisionDraftOption = {
   label?: string;
@@ -23,16 +23,21 @@ type DecisionDraft = {
   sourceMessageId?: string | null;
 };
 
-async function commit(projectId: string, tool: string, draft: unknown): Promise<string | null> {
-  const res = await fetch("/api/chat/commit", {
+async function commit(projectId: string, tool: string, draft: unknown, approvalId?: string): Promise<string | null> {
+  const res = await fetch(approvalId ? `/api/approvals/${approvalId}/resolve` : "/api/chat/commit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ projectId, tool, draft }),
+    body: JSON.stringify(
+      approvalId
+        ? { decision: "approve", payload: draft }
+        : { projectId, tool, draft },
+    ),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return data.error ?? "落库失败";
-  if (Array.isArray(data.conflicts) && data.conflicts.length > 0)
-    return `有 ${data.conflicts.length} 项因他人改动未落库，请刷新后重试`;
+  const result = data.result ?? data;
+  if (Array.isArray(result.conflicts) && result.conflicts.length > 0)
+    return `有 ${result.conflicts.length} 项因他人改动未落库，请刷新后重试`;
   return null;
 }
 
@@ -97,7 +102,13 @@ export function DraftCards({
   return (
     <div className="mt-2 space-y-2">
       {drafts.map((d, i) => (
-        <DraftCard key={i} cardId={`${d.tool}-${i}`} projectId={projectId} draft={d} members={members} milestones={milestones} />
+        d.approvalStatus === "executed" ? (
+          <div key={i} className="ac-card p-2 text-xs text-done">{d.tool}：已落库</div>
+        ) : d.approvalStatus === "rejected" ? (
+          <div key={i} className="ac-card p-2 text-xs text-ink-3">{d.tool}：已驳回</div>
+        ) : (
+          <DraftCard key={i} cardId={`${d.tool}-${i}`} projectId={projectId} draft={d} members={members} milestones={milestones} />
+        )
       ))}
     </div>
   );
@@ -121,7 +132,7 @@ function DraftCard({
   if (draft.tool === "create_project") {
     const d = data as { name?: string; description?: string; startDate?: string; endDate?: string };
     return (
-      <CardShell title="创建项目" onConfirm={() => commit(projectId, "create_project", d)}>
+      <CardShell title="创建项目" onConfirm={() => commit(projectId, "create_project", d, draft.approvalId)}>
         <input
           value={d.name ?? ""}
           onChange={(e) => setData({ ...d, name: e.target.value })}
@@ -146,7 +157,7 @@ function DraftCard({
   if (draft.tool === "create_milestone") {
     const d = data as { title?: string; targetDate?: string };
     return (
-      <CardShell title="创建里程碑" onConfirm={() => commit(projectId, "create_milestone", d)}>
+      <CardShell title="创建里程碑" onConfirm={() => commit(projectId, "create_milestone", d, draft.approvalId)}>
         <input
           value={d.title ?? ""}
           onChange={(e) => setData({ ...d, title: e.target.value })}
@@ -170,7 +181,7 @@ function DraftCard({
     const setTask = (idx: number, patch: object) =>
       setData({ ...d, tasks: d.tasks.map((t, i) => (i === idx ? { ...t, ...patch } : t)) });
     return (
-      <CardShell title={`拆解任务（${d.tasks.length}）`} onConfirm={() => commit(projectId, "decompose_tasks", d)}>
+      <CardShell title={`拆解任务（${d.tasks.length}）`} onConfirm={() => commit(projectId, "decompose_tasks", d, draft.approvalId)}>
         {d.tasks.map((t, idx) => (
           <div key={idx} className="flex flex-wrap gap-1 border-b border-line pb-1">
             <input value={t.title} onChange={(e) => setTask(idx, { title: e.target.value })} className="ac-field flex-1 text-xs" />
@@ -200,7 +211,7 @@ function DraftCard({
   if (draft.tool === "update_tasks") {
     const d = data as { updates: { taskId: string; updatedAt: string; patch: Record<string, unknown> }[] };
     return (
-      <CardShell title={`批量变更（${d.updates.length}）`} onConfirm={() => commit(projectId, "update_tasks", d)}>
+      <CardShell title={`批量变更（${d.updates.length}）`} onConfirm={() => commit(projectId, "update_tasks", d, draft.approvalId)}>
         {d.updates.map((u, idx) => (
           <div key={idx} className="border-b border-line pb-1 text-xs">
             <span className="text-ink-soft">任务 {u.taskId.slice(0, 8)}…：</span>
@@ -214,7 +225,7 @@ function DraftCard({
   if (draft.tool === "plan_sprint") {
     const d = data as { milestoneId: string; taskIds: string[]; dueDate: string };
     return (
-      <CardShell title={`排期（${d.taskIds.length} 任务）`} onConfirm={() => commit(projectId, "plan_sprint", d)}>
+      <CardShell title={`排期（${d.taskIds.length} 任务）`} onConfirm={() => commit(projectId, "plan_sprint", d, draft.approvalId)}>
         <div className="flex flex-wrap items-center gap-1 text-xs">
           <select value={d.milestoneId} onChange={(e) => setData({ ...d, milestoneId: e.target.value })} className="ac-field w-auto text-xs">
             {milestones.map((m) => (
@@ -249,7 +260,7 @@ function DraftCard({
       if (!d.question?.trim()) return Promise.resolve("请补充要回答的问题");
       if (options.length === 0) return Promise.resolve("至少保留一个方案");
       if (options.some((option) => !option.label?.trim())) return Promise.resolve("每个方案都需要名称");
-      return commit(projectId, "create_decision", d);
+      return commit(projectId, "create_decision", d, draft.approvalId);
     };
 
     return (

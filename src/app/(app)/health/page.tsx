@@ -57,7 +57,7 @@ export default async function HealthPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
-                    href={`/projects/${r.projectId}`}
+                    href={`/projects/${r.projectId}?space=live`}
                     className="font-display text-lg font-bold text-ink hover:text-primary"
                   >
                     {r.projectName}
@@ -79,7 +79,7 @@ export default async function HealthPage() {
               )}
 
               <Link
-                href={`/projects/${r.projectId}#health`}
+                href={`/projects/${r.projectId}?space=live#health`}
                 className="mt-3 inline-block text-xs text-primary hover:underline"
               >
                 看这个项目的健康度 →

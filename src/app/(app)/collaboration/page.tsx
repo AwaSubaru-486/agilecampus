@@ -2,16 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { agents, blockers, decisions, projects, teamMembers, users } from "@/db/schema";
+import { agents, blockers, projects, teamMembers, users } from "@/db/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-// 协作：求助邀请与 AI 成员状态。
+// 协作中心：求助邀请与 AI 成员状态。
 //
 // 旧版没有这一页——求助散在各个项目里，AI 状态藏在项目页中部。
 // 这里把它们提到一级导航，因为「谁在等搭手」「AI 在干什么」
 // 是每天都要看一眼的事，不该埋进某个项目里找。
 //
-// Commit 2 先落求助与 AI 状态两块；Commit 10 会补上待确认的 AI 动作池。
+// 「今日」已经统一承接所有需要人处理的动作；这里专注回答「谁卡住了」
+// 和「AI 成员现在在干什么」，避免同一条审批在两个入口重复出现。
 export default async function CollaborationPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -25,7 +26,7 @@ export default async function CollaborationPage() {
   if (teamIds.length === 0) {
     return (
       <div className="mx-auto max-w-[80rem]">
-        <h1 className="font-display text-2xl font-bold text-ink">协作</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
         <p className="ac-card mt-4 p-8 text-center text-sm text-ink-2">
           你还没有加入任何团队。
         </p>
@@ -33,7 +34,7 @@ export default async function CollaborationPage() {
     );
   }
 
-  const [openBlockerRows, agentRows, pendingDecisionRows] = await Promise.all([
+  const [openBlockerRows, agentRows] = await Promise.all([
     db
       .select({
         id: blockers.id,
@@ -62,19 +63,6 @@ export default async function CollaborationPage() {
       .innerJoin(users, eq(agents.userId, users.id))
       .where(inArray(agents.teamId, teamIds))
       .orderBy(users.name),
-    db
-      .select({
-        id: decisions.id,
-        title: decisions.title,
-        question: decisions.question,
-        projectId: projects.id,
-        projectName: projects.name,
-        createdAt: decisions.createdAt,
-      })
-      .from(decisions)
-      .innerJoin(projects, eq(decisions.projectId, projects.id))
-      .where(and(eq(decisions.status, "proposed"), inArray(projects.teamId, teamIds)))
-      .orderBy(desc(decisions.createdAt)),
   ]);
 
   // 自己发的不算「待我帮忙」
@@ -83,12 +71,22 @@ export default async function CollaborationPage() {
   return (
     <div className="mx-auto max-w-[80rem] space-y-5">
       <header>
-        <h1 className="font-display text-2xl font-bold text-ink">协作</h1>
-        <p className="mt-1 text-sm text-ink-2">
-          {needingHelp.length === 0
-            ? "眼下没有人在等搭手。"
-            : `${needingHelp.length} 件事在等人搭手。`}
-        </p>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
+            <p className="mt-1 text-sm text-ink-2">
+              {needingHelp.length === 0
+                ? "眼下没有人在等搭手，AI 成员状态也在下面。"
+                : `${needingHelp.length} 件事在等人搭手；AI 成员状态也在下面。`}
+            </p>
+          </div>
+          <Link
+            href="/today"
+            className="text-xs font-medium text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+          >
+            去今日处理待确认 →
+          </Link>
+        </div>
       </header>
 
       <section className="ac-card overflow-hidden">
@@ -116,41 +114,6 @@ export default async function CollaborationPage() {
                 {b.helpNeeded && (
                   <p className="mt-1 text-xs leading-5 text-ink-2">需要：{b.helpNeeded}</p>
                 )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="ac-card overflow-hidden">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-ink">AI 待确认</h2>
-            {pendingDecisionRows.length > 0 && (
-              <span className="rounded-full bg-signal-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-signal">
-                {pendingDecisionRows.length}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-ink-3">AI 提方案，人做选择</p>
-        </header>
-        {pendingDecisionRows.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-ink-2">当前没有等待确认的 AI 方案。</p>
-        ) : (
-          <ul className="divide-y divide-stroke">
-            {pendingDecisionRows.map((decision) => (
-              <li key={decision.id}>
-                <Link
-                  href={`/projects/${decision.projectId}?space=record#decisions`}
-                  className="block px-4 py-3 transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal"
-                >
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="text-sm font-medium text-ink">{decision.title}</span>
-                    <span className="text-xs text-ink-3">{decision.projectName}</span>
-                    <span className="ml-auto text-xs font-medium text-signal">去确认 →</span>
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-ink-2">{decision.question}</p>
-                </Link>
               </li>
             ))}
           </ul>

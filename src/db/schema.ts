@@ -305,6 +305,67 @@ export const messages = pgTable(
   ],
 );
 
+// AI 写操作的持久化审批记录。
+//
+// 草案不能只存在 React state：刷新页面、换设备或成员接手后，
+// 「AI 建议了什么、谁确认的、最终写入了什么」都必须仍然可追溯。
+// 状态机借鉴 Vercel AI Chatbot 的 suggestion 持久化思路，并加入
+// Lody 式可追溯来源与幂等键；真正的业务写入仍统一走 commitDraft。
+export const approvalRequestStatusEnum = pgEnum("approval_request_status", [
+  "pending",
+  "executing",
+  "executed",
+  "rejected",
+  "failed",
+]);
+export type ApprovalRequestStatus = (typeof approvalRequestStatusEnum.enumValues)[number];
+
+export const approvalRequestToolEnum = pgEnum("approval_request_tool", [
+  "create_project",
+  "decompose_tasks",
+  "update_tasks",
+  "plan_sprint",
+  "create_milestone",
+  "create_decision",
+]);
+export type ApprovalRequestTool = (typeof approvalRequestToolEnum.enumValues)[number];
+
+export const approvalRequests = pgTable(
+  "approval_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    tool: approvalRequestToolEnum("tool").notNull(),
+    status: approvalRequestStatusEnum("status").notNull().default("pending"),
+    title: text("title").notNull(),
+    payload: jsonb("payload").notNull(),
+    result: jsonb("result"),
+    error: text("error"),
+    requestedById: uuid("requested_by_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedById: uuid("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
+    sourceConversationId: uuid("source_conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    // 不设 FK：消息会随会话分支复制，审批历史不能因源消息被清理而丢失。
+    sourceMessageId: uuid("source_message_id"),
+    resolutionNote: text("resolution_note"),
+    // 同一轮模型输出重试时，sourceMessageId + ordinal 仍只生成一条审批。
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    ordinal: integer("ordinal").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at"),
+    executedAt: timestamp("executed_at"),
+  },
+  (t) => [
+    index("approval_requests_project_status_idx").on(t.projectId, t.status, t.createdAt),
+    index("approval_requests_source_idx").on(t.sourceConversationId, t.sourceMessageId),
+    index("approval_requests_requester_idx").on(t.requestedById, t.createdAt),
+  ],
+);
+
 // AI 协作上下文的可复现快照。它不是「把聊天再塞进 prompt」：
 // pack 明确列出模型能看到的项目事实，并在冻结后保持不可变。
 export const contextPackStatusEnum = pgEnum("context_pack_status", [

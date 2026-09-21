@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { blockerInvites, blockers, decisions, projects, tasks, teamMembers, users } from "@/db/schema";
+import { approvalRequests, blockerInvites, blockers, decisions, projects, tasks, teamMembers, users } from "@/db/schema";
 import { buildActionQueue, type RawAction } from "./action-queue";
 import { today } from "./today";
 
@@ -57,7 +57,7 @@ export async function loadActionQueue(
     updatedAt: tasks.updatedAt,
     creatorName: users.name,
   };
-  const [awaiting, toReview, rejected, overdue, dueSoon, invited, pendingDecisions] = await Promise.all([
+  const [awaiting, toReview, rejected, overdue, dueSoon, invited, pendingDecisions, pendingApprovals] = await Promise.all([
     // 派给我、我还没回话
     db
       .select(taskBase)
@@ -172,6 +172,26 @@ export async function loadActionQueue(
           .innerJoin(projects, eq(decisions.projectId, projects.id))
           .where(and(liveProjects, eq(decisions.status, "proposed")))
       : Promise.resolve([]),
+    // AI 写操作与决策一样，先进入人的队列，不能在生成时直接写入业务表。
+    actorRows[0]?.kind === "human"
+      ? db
+          .select({
+            approvalId: approvalRequests.id,
+            title: approvalRequests.title,
+            projectId: projects.id,
+            projectName: projects.name,
+            status: approvalRequests.status,
+            createdAt: approvalRequests.createdAt,
+          })
+          .from(approvalRequests)
+          .innerJoin(projects, eq(approvalRequests.projectId, projects.id))
+          .where(
+            and(
+              liveProjects,
+              inArray(approvalRequests.status, ["pending", "failed"]),
+            ),
+          )
+      : Promise.resolve([]),
   ]);
 
   const raw: RawAction[] = [
@@ -250,6 +270,18 @@ export async function loadActionQueue(
       projectId: r.projectId,
       projectName: r.projectName,
       context: "AI 方案待确认",
+      dueDate: null,
+      at: r.createdAt,
+    })),
+    ...pendingApprovals.map((r) => ({
+      kind: "approval_review" as const,
+      taskId: null,
+      blockerId: null,
+      approvalId: r.approvalId,
+      title: r.title,
+      projectId: r.projectId,
+      projectName: r.projectName,
+      context: r.status === "failed" ? "上次执行失败，可重试" : "AI 写操作待确认",
       dueDate: null,
       at: r.createdAt,
     })),

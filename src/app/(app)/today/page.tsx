@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { loadActionQueue, listMyOpenTasks } from "@/lib/shell";
 import { KIND_ACTION, KIND_LABEL, type ActionKind } from "@/lib/action-queue";
 import { statusLabel } from "@/lib/task-status";
-import { listMyProjects } from "@/lib/project";
 
 // 今日：跨项目的行动队列。登录后的默认落点，取代旧版的团队卡片页。
 //
@@ -14,6 +13,7 @@ import { listMyProjects } from "@/lib/project";
 
 const TONE: Record<ActionKind, string> = {
   assignment_response: "bg-warn-soft text-warn",
+  approval_review: "bg-signal-soft text-signal",
   decision_review: "bg-signal-soft text-signal",
   review: "bg-agent-soft text-agent",
   blocker_invite: "bg-risk-soft text-risk",
@@ -33,10 +33,9 @@ export default async function TodayPage({
   const sp = await searchParams;
   const showAll = sp.all === "1";
 
-  const [queue, openTasks, projects] = await Promise.all([
+  const [queue, openTasks] = await Promise.all([
     loadActionQueue(session.user.id, { showAll }),
     listMyOpenTasks(session.user.id),
-    listMyProjects(session.user.id),
   ]);
 
   const name = session.user.name ?? "";
@@ -92,13 +91,15 @@ export default async function TodayPage({
           <>
             <ul className="divide-y divide-stroke">
               {queue.items.map((a) => (
-                <li key={`${a.kind}-${a.taskId ?? a.blockerId ?? a.title}`}>
+                <li key={`${a.kind}-${a.taskId ?? a.blockerId ?? a.decisionId ?? a.approvalId ?? a.title}`}>
                   <Link
                     href={
-                      a.decisionId
+                      a.approvalId
+                        ? `/projects/${a.projectId}?space=studio&approval=${a.approvalId}`
+                        : a.decisionId
                         ? `/projects/${a.projectId}?space=record#decisions`
                         : a.taskId
-                        ? `/projects/${a.projectId}?space=live&task=${a.taskId}`
+                        ? `/projects/${a.projectId}?space=work&task=${a.taskId}`
                         : `/projects/${a.projectId}?space=live`
                     }
                     aria-label={`${KIND_LABEL[a.kind]}：${a.title}，项目：${a.projectName}，操作：${KIND_ACTION[a.kind]}`}
@@ -141,7 +142,7 @@ export default async function TodayPage({
         )}
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="max-w-3xl">
         {/* 正在推进 */}
         <section className="overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
           <header className="flex items-center justify-between border-b border-stroke bg-ground/50 px-4 py-3">
@@ -163,7 +164,7 @@ export default async function TodayPage({
               {openTasks.slice(0, 6).map((t) => (
                 <li key={t.taskId}>
                   <Link
-                    href={`/projects/${t.projectId}?space=live&task=${t.taskId}`}
+                    href={`/projects/${t.projectId}?space=work&task=${t.taskId}`}
                     aria-label={`${t.title}，状态：${statusLabel(t.status)}，项目：${t.projectName}`}
                     className="flex flex-wrap items-baseline gap-2 px-4 py-2.5 transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal"
                   >
@@ -177,46 +178,6 @@ export default async function TodayPage({
           )}
         </section>
 
-        {/* 项目脉搏 */}
-        <section className="overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
-          <header className="flex items-center justify-between border-b border-stroke bg-ground/50 px-4 py-3">
-            <h2 className="text-sm font-semibold text-ink">项目脉搏</h2>
-            <span className="font-mono text-xs text-ink-3">{projects.length} 个项目</span>
-          </header>
-          {projects.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-ink-3">
-              还没有加入任何项目。
-            </div>
-          ) : (
-            <ul className="divide-y divide-stroke">
-              {projects.slice(0, 4).map((p) => (
-                <li key={p.id}>
-                  <Link
-                    href={`/projects/${p.id}?space=live`}
-                    aria-label={`${p.name}，团队：${p.teamName}，${p.taskTotal - p.doneCount} 项待推进`}
-                    className="flex flex-wrap items-baseline gap-2 px-4 py-2.5 transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal"
-                  >
-                    <span className="text-sm font-medium text-ink">{p.name}</span>
-                    <span className="text-xs text-ink-3">{p.teamName}</span>
-                    <span className="ml-auto text-xs tabular-nums text-ink-3">
-                      {p.taskTotal - p.doneCount} 项待推进
-                    </span>
-                  </Link>
-                </li>
-              ))}
-              {projects.length > 4 && (
-                <li className="bg-ground/30 px-4 py-2">
-                  <Link
-                    href="/projects"
-                    className="rounded-[var(--radius-control)] text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-                  >
-                    全部 {projects.length} 个项目 →
-                  </Link>
-                </li>
-              )}
-            </ul>
-          )}
-        </section>
       </div>
     </div>
   );
