@@ -256,12 +256,12 @@ export function ChatPanel({
   }
 
   return (
-    <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
-      <div className="border-b border-stroke bg-ground/50 px-5 py-4">
+    <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="ac-live-panel scroll-mt-20 overflow-hidden">
+      <div className="border-b border-stroke bg-ground/45 px-4 py-5 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-agent">Agent 协作</p>
-            <h2 className="mt-1 font-display text-xl font-bold text-ink">让人和 Agent 一起推进任务</h2>
+            <p className="ac-eyebrow text-agent">Agent 协作 / 工作现场</p>
+            <h2 className="mt-1.5 font-display text-[1.65rem] font-semibold tracking-[-0.03em] text-ink">让人和 Agent 一起推进任务</h2>
             <p className="mt-1 text-xs text-ink-3">
               任务、上下文、产物和人工确认都留在同一条推进记录里
             </p>
@@ -311,8 +311,8 @@ export function ChatPanel({
       </div>
 
       <div className="grid min-h-[26rem] md:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,1fr)_15rem]">
-        <aside className="border-b border-stroke bg-ground/50 p-2.5 md:border-b-0 md:border-r">
-          <p className="px-2 py-1.5 text-xs font-medium text-ink-3">会话列表</p>
+        <aside className="border-b border-stroke bg-ground/35 p-2.5 md:border-b-0 md:border-r">
+          <p className="ac-section-title px-2 py-1.5">会话列表</p>
           <ConversationTree
             conversations={conversations}
             selectedId={conversationId}
@@ -322,7 +322,7 @@ export function ChatPanel({
         </aside>
 
         <div className="flex min-w-0 flex-col">
-          <div className="border-b border-stroke bg-ground/20 px-4 py-2.5">
+          <div className="border-b border-stroke bg-panel px-4 py-2.5">
             {activeConversation ? (
               <div className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
                 <span className="font-semibold text-ink">{activeConversation.title}</span>

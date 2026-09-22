@@ -157,6 +157,31 @@ html {
 }
 
 @layer components {
+  /* 项目现场的签名结构：薄边界、强分区、少卡片。
+   * 用于把“实时协作”与普通资料面板区分开，避免整页变成同样的白卡片。 */
+  .ac-live-panel {
+    overflow: hidden;
+    border: 1px solid var(--color-stroke);
+    border-top: 3px solid var(--color-ink);
+    border-radius: var(--radius-panel);
+    background: var(--color-panel);
+  }
+
+  .ac-eyebrow {
+    color: var(--color-ink-3);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+  }
+
+  .ac-section-title {
+    color: var(--color-ink-3);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
   /* ---------- 面板 ----------
    * 无静止阴影。旧版靠「圆角 + 投影 + 纯白」制造卡片感，
    * 一屏堆七八张就成了卡片墙；改用边框与留白分层。 */

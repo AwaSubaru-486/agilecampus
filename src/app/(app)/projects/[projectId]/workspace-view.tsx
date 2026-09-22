@@ -34,30 +34,86 @@ export function WorkspaceView({
   const humans = live.filter((m) => m.kind === "human");
   const running = live.filter((m) => m.taskId && !m.stuck).length;
   const stuckCount = live.filter((m) => m.stuck).length;
+  const firstStuck = live.find((m) => m.stuck) ?? null;
+  const activePeople = live.filter((m) => m.taskId || m.awaitingCount > 0);
 
   return (
-    <div className="space-y-6">
-      <section id="workspace" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
-        <header className="flex flex-wrap items-end justify-between gap-3 pb-4">
+    <div className="space-y-5">
+      <section id="workspace" className="ac-live-panel scroll-mt-20 overflow-hidden">
+        <header className="flex flex-wrap items-start justify-between gap-5 border-b border-stroke px-4 py-5 sm:px-6">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">现场 / 当前状态</p>
-            <h2 className="mt-1 font-display text-xl font-semibold text-ink">现在发生什么</h2>
+            <p className="ac-eyebrow">现场 / 实时协作</p>
+            <h2 className="mt-1.5 font-display text-[1.65rem] font-semibold tracking-[-0.03em] text-ink">现在发生什么</h2>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-ink-2">
+              先看需要行动的事，再看已经交付的事。这里不展示静态资料，只展示团队此刻的工作状态。
+            </p>
           </div>
-          <p className="text-xs text-ink-3">
-            {humans.length} 位成员 · {agents.length} 个协作者 · {running} 件在做
-            {stuckCount > 0 && <span className="font-semibold text-risk"> · {stuckCount} 件卡住</span>}
-          </p>
+          <div className="grid grid-cols-3 divide-x divide-stroke border border-stroke bg-ground/70">
+            <Metric value={humans.length} label="成员" />
+            <Metric value={agents.length} label="AI 协作者" tone="agent" />
+            <Metric value={stuckCount} label="需搭手" tone={stuckCount > 0 ? "risk" : "quiet"} />
+          </div>
         </header>
 
-        {live.length === 0 ? (
-          <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">目前没有正在推进的任务。</p>
-        ) : (
-          <ul className="divide-y divide-stroke border-t border-stroke">
-            {live.map((m) => (
-              <LiveRow key={m.id} member={m} projectId={projectId} />
-            ))}
-          </ul>
-        )}
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+          <div className="min-w-0 px-4 py-4 sm:px-6 sm:py-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="ac-section-title">工作中的人</p>
+              <p className="text-xs text-ink-3">{running} 项推进中 · {activePeople.length} 项需要关注</p>
+            </div>
+            {live.length === 0 ? (
+              <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">目前没有正在推进的任务。</p>
+            ) : (
+              <ul className="divide-y divide-stroke border-y border-stroke">
+                {live.map((m) => (
+                  <LiveRow key={m.id} member={m} projectId={projectId} />
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <aside className="border-t border-stroke bg-ground/55 px-4 py-4 sm:px-6 sm:py-5 lg:border-l lg:border-t-0">
+            <p className="ac-section-title">下一步</p>
+            {firstStuck ? (
+              <div className="mt-3">
+                <div className="flex items-start gap-3">
+                  <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-risk" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">有人在等搭手</p>
+                    <p className="mt-1 text-sm leading-6 text-ink-2">
+                      {firstStuck.name} 卡在「{firstStuck.taskTitle}」：{firstStuck.stuck}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/projects/${projectId}?task=${firstStuck.taskId}&space=work`}
+                    className="ac-btn"
+                  >
+                    打开任务
+                  </Link>
+                  <Link
+                    href={`/projects/${projectId}?space=studio`}
+                    className="ac-btn-ghost"
+                  >
+                    查看 AI 工作现场
+                  </Link>
+                </div>
+                <p className="mt-3 border-l-2 border-agent/50 pl-3 text-xs leading-5 text-ink-3">
+                  接手后可以沿用原会话与上下文，不需要从头解释。
+                </p>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <p className="text-sm font-semibold text-ink">当前没有阻塞</p>
+                <p className="mt-1 text-sm leading-6 text-ink-2">团队正在按计划推进，可以去任务流查看下一项交付。</p>
+                <Link href={`/projects/${projectId}?space=work`} className="ac-btn-ghost mt-4">
+                  查看任务流
+                </Link>
+              </div>
+            )}
+          </aside>
+        </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -115,38 +171,52 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
         : { label: "空闲", cls: "text-ink-3", dot: "bg-stroke-strong" };
 
   return (
-    <li className="flex items-start gap-3 py-3">
+    <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 py-3.5">
       <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${status.dot}`} />
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-baseline gap-1.5 text-sm">
-          <span className="font-medium text-ink">{member.name}</span>
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+          <span className="font-semibold text-ink">{member.name}</span>
           {isAgent && <span className="ac-agent-mark">协作者</span>}
           <span className={`text-xs ${status.cls}`}>{status.label}</span>
-          {member.taskTitle ? (
-            <>
-              <span className="text-ink-3">·</span>
-              <Link
-                href={`/projects/${projectId}?task=${member.taskId}&space=work`}
-                className="min-w-0 truncate text-ink-2 hover:text-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal rounded-[var(--radius-control)]"
-              >
-                {member.taskTitle}
-              </Link>
-            </>
-          ) : member.awaitingCount > 0 ? (
-            <span className="text-xs text-ink-3">
-              · 有 {member.awaitingCount} 件派给他但还没回话
-            </span>
-          ) : null}
         </p>
-        {/* 卡住的 agent 不会自己喊——这一行是替它喊的 */}
-        {member.stuck && <p className="mt-0.5 text-xs text-risk">阻塞：{member.stuck}</p>}
+        {member.taskTitle ? (
+          <Link
+            href={`/projects/${projectId}?task=${member.taskId}&space=work`}
+            className="mt-1 block truncate text-sm text-ink-2 underline decoration-stroke-strong underline-offset-4 transition-colors hover:text-signal hover:decoration-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+          >
+            {member.taskTitle}
+          </Link>
+        ) : member.awaitingCount > 0 ? (
+          <p className="mt-1 text-xs text-ink-3">有 {member.awaitingCount} 件派下来的活还没有回应</p>
+        ) : null}
+        {member.stuck && <p className="mt-1 text-xs leading-5 text-risk">阻塞：{member.stuck}</p>}
       </div>
-      {member.lastAt && (
-        <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-3">
+      {member.lastAt ? (
+        <span className="shrink-0 pt-0.5 font-mono text-[11px] tabular-nums text-ink-3">
           {agoLabel(member.lastAt)}
         </span>
+      ) : (
+        <span className="shrink-0 pt-0.5 text-[11px] text-ink-3">—</span>
       )}
     </li>
+  );
+}
+
+function Metric({
+  value,
+  label,
+  tone = "quiet",
+}: {
+  value: number;
+  label: string;
+  tone?: "quiet" | "agent" | "risk";
+}) {
+  const valueClass = tone === "risk" ? "text-risk" : tone === "agent" ? "text-agent" : "text-ink";
+  return (
+    <div className="min-w-[4.4rem] px-3 py-2.5 text-center sm:min-w-[5.25rem] sm:px-4">
+      <p className={`font-display text-xl font-semibold tabular-nums ${valueClass}`}>{value}</p>
+      <p className="mt-0.5 text-[11px] text-ink-3">{label}</p>
+    </div>
   );
 }
 
