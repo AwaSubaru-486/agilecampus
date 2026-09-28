@@ -309,21 +309,28 @@ vscode-extension/
 
 ## 8. 阶段顺序和停止条件
 
+### 执行记录（2026-09-29）
+
+- S0 已完成：确认当前基线为 `af6686c`，Next.js 16.2.10、React 19.2.4、Tailwind 4；S1 不安装 TailGrids、Primer 或 Thinboard 运行时包，组件以本地 Tailwind 实现为主。
+- S1 第一切片已完成：建立 `src/components/ui/` 原语目录，落地 Button、Badge、Tabs、Drawer、Command、Table、Timeline、Toast、EmptyState、Skeleton，并将项目模式切换和任务抽屉接入 `TabsLink`、`TabsList`、`Badge`、`Button`。
+- 本切片验证：`npx tsc --noEmit`、`npm run lint`、`npm test`、`npm run build` 均通过。Lint 仅保留 `.codex-ppt-build` 下的 3 条既有未使用变量警告。
+- S1 未完成部分：项目壳、现场页、协同室迁移，以及 375 / 768 / 1024 / 1440 宽度截图审查，留给下一切片；在完成前不勾选 S1 总体验收。
+
 ### S0：基线与依赖审计
 
-- [ ] 记录当前 HEAD、工作区状态、Node/npm 版本和数据库状态；
-- [ ] 检查 TailGrids、Primer React、Thinboard、VS Code 参考仓库的许可证；
-- [ ] 决定哪些代码是复制、哪些只是参考；复制前记录提交号和文件映射；
-- [ ] 检查 `THIRD_PARTY_NOTICES.md` 是否需要新增条目；
-- [ ] 不在 S0 安装三套 UI 库。
+- [x] 记录当前 HEAD、工作区状态、Node/npm 版本和数据库状态；
+- [x] 检查 TailGrids、Primer React、Thinboard、VS Code 参考仓库的许可证；
+- [x] 决定哪些代码是复制、哪些只是参考；复制前记录提交号和文件映射；
+- [x] 检查 `THIRD_PARTY_NOTICES.md` 是否需要新增条目；
+- [x] 不在 S0 安装三套 UI 库。
 
 停止条件：许可证不清楚、依赖和 Tailwind 4 冲突、或者需要改业务 API 才能渲染基础组件时，先停在 S0 解决。
 
 ### S1：网页端 UI 原语
 
-- [ ] 建立 `src/components/ui`；
-- [ ] 只引入 Button、Badge、Tabs、Drawer、Command、Timeline、Toast、EmptyState、Skeleton；
-- [ ] 用现有 tokens 覆盖默认颜色、半径、阴影和焦点态；
+- [x] 建立 `src/components/ui`；
+- [x] 只引入 Button、Badge、Tabs、Drawer、Command、Table、Timeline、Toast、EmptyState、Skeleton；
+- [x] 用现有 tokens 覆盖默认颜色、半径、阴影和焦点态；
 - [ ] 迁移项目壳、现场页、任务抽屉和协同室；
 - [ ] 生成桌面和窄屏截图，检查主路径和错误态。
 

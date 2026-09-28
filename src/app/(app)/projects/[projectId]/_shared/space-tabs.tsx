@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   PROJECT_SPACES,
   SPACE_HINT,
@@ -6,6 +5,7 @@ import {
   buildSpaceHref,
   type ProjectSpace,
 } from "@/lib/project-space";
+import { TabsLink, TabsList } from "@/components/ui";
 
 const WORK_STATE_KEYS = ["assignee", "priority", "label", "milestone", "overdue", "group"] as const;
 
@@ -29,7 +29,7 @@ export function SpaceTabs({
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
   return (
-    <nav aria-label="项目模式" className="flex items-center gap-0.5">
+    <TabsList aria-label="项目模式" className="border-b-0">
       {PROJECT_SPACES.map((s) => {
         const isActive = s === current;
         const extra: Record<string, string | undefined> = {};
@@ -43,21 +43,16 @@ export function SpaceTabs({
           }
         }
         return (
-          <Link
+          <TabsLink
             key={s}
             href={buildSpaceHref({ projectId, space: s, taskId, extra })}
-            aria-current={isActive ? "page" : undefined}
             title={SPACE_HINT[s]}
-            className={`ac-pressable min-h-10 shrink-0 border-b-2 px-2.5 py-2 text-sm transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 ${
-              isActive
-                ? "border-ink font-semibold text-ink"
-                : "border-transparent text-ink-2 hover:border-stroke-strong hover:text-ink"
-            }`}
+            active={isActive}
           >
             {SPACE_LABEL[s]}
-          </Link>
+          </TabsLink>
         );
       })}
-    </nav>
+    </TabsList>
   );
 }

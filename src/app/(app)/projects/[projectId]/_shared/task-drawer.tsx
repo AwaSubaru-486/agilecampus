@@ -10,6 +10,7 @@ import {
   type FormState,
 } from "../actions";
 import { STATUS_LABEL, isAwaitingResponse, isCompleted, isInFlight, isInReview } from "@/lib/task-status";
+import { Badge, Button } from "@/components/ui";
 
 // 任务抽屉：卡片只用于扫描，完整动作在这里做。
 //
@@ -143,9 +144,9 @@ export function TaskDrawer({
         <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-stroke bg-panel px-4 py-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="ac-badge bg-sunken text-ink-2">{STATUS_LABEL[task.status as keyof typeof STATUS_LABEL] ?? task.status}</span>
+              <Badge>{STATUS_LABEL[task.status as keyof typeof STATUS_LABEL] ?? task.status}</Badge>
               {task.rejectCount > 0 && (
-                <span className="ac-badge bg-risk-soft text-risk">退回 {task.rejectCount} 次</span>
+                <Badge tone="risk">退回 {task.rejectCount} 次</Badge>
               )}
             </div>
             <h2 className="mt-1.5 font-display text-lg font-bold leading-snug text-ink">
@@ -291,12 +292,12 @@ export function TaskDrawer({
           )}
 
           <div className="flex flex-wrap items-center gap-2 border-t border-stroke pt-3">
-            <button type="button" onClick={askAi} className="ac-btn ac-pressable text-sm">
+            <Button type="button" onClick={askAi} size="sm">
               在 Agent 中继续
-            </button>
-            <button type="button" onClick={close} className="ac-btn-ghost ac-pressable text-sm">
+            </Button>
+            <Button type="button" onClick={close} variant="secondary" size="sm">
               关闭详情
-            </button>
+            </Button>
           </div>
         </div>
       </div>
