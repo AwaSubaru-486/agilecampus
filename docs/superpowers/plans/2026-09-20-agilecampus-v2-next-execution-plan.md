@@ -1,5 +1,7 @@
 # AgileCampus V2 下一阶段执行计划（仓库实况版）
 
+> **计划更新：** 网页端 UI 框架复用与 VS Code 双端开发已经拆成独立主计划 [`2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md`](./2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md)。涉及 UI 框架、网页端视觉迁移、GitHub 连接层和 VS Code 扩展的施工，以新计划为准；本文的业务、AI、审批、Context Pack 和任务验收部分继续有效。本文中“不得引入大型 UI 框架”的旧约束不再适用于新计划的网页端 S1，但仍保留“不整体替换业务页面和状态模型”的边界。
+
 > 这是一份交给下游 AI 直接施工的计划，不是产品畅想。它以当前仓库实际代码为准，明确哪些能力已经完成、哪些只缺界面、哪些需要新数据模型，以及每一步的文件边界、测试、验收和停止条件。
 
 ## 0. 执行摘要

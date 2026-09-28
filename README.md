@@ -54,6 +54,7 @@
 - 原创性审计（与原版的逐项差异）：[`docs/design/originality-audit.md`](docs/design/originality-audit.md)
 - 产品语言（术语、路由、骨架）：[`docs/design/product-language.md`](docs/design/product-language.md)
 - 施工计划：[`docs/superpowers/plans/`](docs/superpowers/plans/)
+- 当前网页端 UI 框架与 VS Code 双端计划：[`2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md`](docs/superpowers/plans/2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md)
 - 技术债备案：[`docs/BACKLOG.md`](docs/BACKLOG.md)
 
 ## 来源说明
