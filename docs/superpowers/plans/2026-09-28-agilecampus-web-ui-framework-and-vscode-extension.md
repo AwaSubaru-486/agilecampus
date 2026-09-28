@@ -315,6 +315,8 @@ vscode-extension/
 - S1 第一切片已完成：建立 `src/components/ui/` 原语目录，落地 Button、Badge、Tabs、Drawer、Command、Table、Timeline、Toast、EmptyState、Skeleton，并将项目模式切换、任务抽屉、Agent 协同室和现场高光接入 `TabsLink`、`TabsList`、`Badge`、`Button`。
 - 本切片验证：`npx tsc --noEmit`、`npm run lint`、`npm test`、`npm run build` 均通过。Lint 仅保留 `.codex-ppt-build` 下的 3 条既有未使用变量警告。
 - S1 未完成部分：项目壳、现场页、协同室迁移，以及 375 / 768 / 1024 / 1440 宽度截图审查，留给下一切片；在完成前不勾选 S1 总体验收。
+- S2 第一切片已完成：复用现有 `conversations.taskId`，从任务进入 Agent 时优先选择该任务的项目共享会话；阻塞现场的“查看 AI 工作现场”也保留任务深链，任务抽屉主动作统一为“继续 AI 工作”。本切片没有新增 `tasks.activeConversationId`，因为当前会话模型已经能满足单任务接力入口。
+- S2 未完成部分：需要补“卡住 → 改派 → 继续会话”的集成测试，以及人工确认权限测试；多会话选择策略仍按当前任务最新排序继续细化。
 
 ### S0：基线与依赖审计
 

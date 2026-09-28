@@ -94,7 +94,7 @@ export function WorkspaceView({
                     打开任务
                   </Link>
                   <Link
-                    href={`/projects/${projectId}?space=studio`}
+                    href={`/projects/${projectId}?space=studio&task=${firstStuck.taskId}`}
                     className="ac-btn-ghost"
                   >
                     查看 AI 工作现场

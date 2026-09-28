@@ -293,7 +293,7 @@ export function TaskDrawer({
 
           <div className="flex flex-wrap items-center gap-2 border-t border-stroke pt-3">
             <Button type="button" onClick={askAi} size="sm">
-              在 Agent 中继续
+              继续 AI 工作
             </Button>
             <Button type="button" onClick={close} variant="secondary" size="sm">
               关闭详情

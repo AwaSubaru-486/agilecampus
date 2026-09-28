@@ -53,10 +53,13 @@ export async function StudioSpace({
     ? approvalRows.find((approval) => approval.id === selectedApprovalId) ?? null
     : null;
 
-  // 指定了审批时优先打开它的来源会话；普通进入则打开 URL 指定或最近一条。
+  // 打开顺序是显式会话 → 审批来源 → 当前任务的共享会话 → 最近会话。
+  // 这样从任务抽屉点「继续 AI 工作」时，接手人会回到这项任务的工作现场，
+  // 不会误落到项目里另一条最近更新的会话。
   const selected =
     projectConversations.find((c) => c.id === selectedConversationId) ??
     projectConversations.find((c) => c.id === selectedApproval?.sourceConversationId) ??
+    projectConversations.find((c) => c.taskId === selectedTaskId && c.visibility === "project") ??
     projectConversations[0] ??
     null;
 
