@@ -312,7 +312,7 @@ vscode-extension/
 ### 执行记录（2026-09-29）
 
 - S0 已完成：确认当前基线为 `af6686c`，Next.js 16.2.10、React 19.2.4、Tailwind 4；S1 不安装 TailGrids、Primer 或 Thinboard 运行时包，组件以本地 Tailwind 实现为主。
-- S1 第一切片已完成：建立 `src/components/ui/` 原语目录，落地 Button、Badge、Tabs、Drawer、Command、Table、Timeline、Toast、EmptyState、Skeleton，并将项目模式切换和任务抽屉接入 `TabsLink`、`TabsList`、`Badge`、`Button`。
+- S1 第一切片已完成：建立 `src/components/ui/` 原语目录，落地 Button、Badge、Tabs、Drawer、Command、Table、Timeline、Toast、EmptyState、Skeleton，并将项目模式切换、任务抽屉、Agent 协同室和现场高光接入 `TabsLink`、`TabsList`、`Badge`、`Button`。
 - 本切片验证：`npx tsc --noEmit`、`npm run lint`、`npm test`、`npm run build` 均通过。Lint 仅保留 `.codex-ppt-build` 下的 3 条既有未使用变量警告。
 - S1 未完成部分：项目壳、现场页、协同室迁移，以及 375 / 768 / 1024 / 1440 宽度截图审查，留给下一切片；在完成前不勾选 S1 总体验收。
 

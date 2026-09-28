@@ -5,6 +5,7 @@ import type { RelayChain } from "@/lib/relay";
 import { relayHeadline } from "@/lib/relay";
 import { statusLabel } from "@/lib/task-status";
 import type { LiveMember } from "@/lib/workspace";
+import { Badge } from "@/components/ui";
 
 // 工作现场。
 //
@@ -292,7 +293,7 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
         <ul className="mt-2 space-y-1">
           {m.highlights.slice(0, 4).map((h) => (
             <li key={h.id} className="flex flex-wrap items-baseline gap-1.5 text-xs">
-              <span className="ac-badge bg-warn-soft text-warn">{HIGHLIGHT_LABEL[h.kind]}</span>
+              <Badge tone="warn">{HIGHLIGHT_LABEL[h.kind]}</Badge>
               <span className="text-ink-2">{h.note}</span>
             </li>
           ))}

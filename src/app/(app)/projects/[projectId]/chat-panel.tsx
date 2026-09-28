@@ -6,6 +6,7 @@ import { ConversationTree } from "./conversation-tree";
 import { ContextPackBuilder } from "./context-pack-builder";
 import { ApprovalDetail } from "./approval-detail";
 import type { ApprovalListItem } from "@/lib/approval";
+import { Button } from "@/components/ui";
 
 type Option = { id: string; name: string };
 type Conversation = {
@@ -266,13 +267,14 @@ export function ChatPanel({
               任务、上下文、产物和人工确认都留在同一条推进记录里
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => setCreating((value) => !value)}
-            className="ac-btn-ink ac-pressable rounded-[var(--radius-control)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            variant="ink"
+            size="sm"
           >
             {creating ? "取消" : "+ 新会话"}
-          </button>
+          </Button>
         </div>
         {creating && (
           <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border-l-2 border-agent bg-agent-soft/40 p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
@@ -298,14 +300,14 @@ export function ChatPanel({
               <option value="project">项目成员可见</option>
               <option value="private">仅自己可见</option>
             </select>
-            <button
+            <Button
               type="button"
               onClick={createSession}
               disabled={pending}
-              className="ac-btn rounded-[var(--radius-control)] px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+              size="sm"
             >
               创建
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -397,14 +399,14 @@ export function ChatPanel({
               className="ac-field flex-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
               disabled={pending}
             />
-            <button
+            <Button
               type="button"
               onClick={send}
               disabled={pending || !input.trim()}
-              className="ac-btn-ink ac-pressable rounded-[var(--radius-control)] px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+              variant="ink"
             >
               {pending ? "处理中…" : "发送"}
-            </button>
+            </Button>
           </div>
         </div>
 
