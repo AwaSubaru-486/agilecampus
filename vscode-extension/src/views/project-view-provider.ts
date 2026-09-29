@@ -56,8 +56,9 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
   private html(webview: vscode.Webview): string {
     const nonce = getNonce();
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "webview.js"));
+    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "webview.css"));
     const csp = `default-src 'none'; img-src ${webview.cspSource} https:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';`;
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta http-equiv="Content-Security-Policy" content="${csp}"><title>AgileCampus</title></head><body><div id="root"></div><script nonce="${nonce}">window.acquireVsCodeApi = acquireVsCodeApi;</script><script nonce="${nonce}" src="${scriptUri}"></script></body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta http-equiv="Content-Security-Policy" content="${csp}"><link rel="stylesheet" href="${styleUri}"><title>AgileCampus</title></head><body><div id="root"></div><script nonce="${nonce}">window.acquireVsCodeApi = acquireVsCodeApi;</script><script nonce="${nonce}" src="${scriptUri}"></script></body></html>`;
   }
 }
 
