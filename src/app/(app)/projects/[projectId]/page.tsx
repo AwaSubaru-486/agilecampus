@@ -6,7 +6,6 @@ import { parseFilters } from "@/lib/board-filters";
 import { parseProjectSpace, spaceForConversationParams } from "@/lib/project-space";
 import { getDrawerTask, listTaskRefs } from "@/lib/task";
 import { ProjectBand } from "../../_shell/top-workbar";
-import { SpaceTabs } from "./_shared/space-tabs";
 import { TaskDrawer } from "./_shared/task-drawer";
 import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
@@ -101,7 +100,6 @@ export default async function ProjectPage({
               ? "里程碑已全部达成"
               : null
         }
-        spaces={<SpaceTabs projectId={projectId} current={space} taskId={taskId} searchParams={sp} />}
         backHref="/projects"
         backLabel="所有项目"
       />

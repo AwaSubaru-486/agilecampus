@@ -112,6 +112,8 @@ export function TopWorkbar({
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
+          aria-expanded={!collapsed}
+          aria-controls="ac-primary-navigation"
           aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
           title={collapsed ? "展开侧栏" : "收起侧栏"}
           className="ac-sidebar-collapse size-8 place-items-center border border-stroke text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
@@ -262,14 +264,12 @@ function SecondaryLink({
 export function ProjectBand({
   projectName,
   latestMilestone,
-  spaces,
   actions,
   backHref = "/projects",
   backLabel = "项目",
 }: {
   projectName: string;
   latestMilestone: string | null;
-  spaces: React.ReactNode;
   actions?: React.ReactNode;
   backHref?: string;
   backLabel?: string;
@@ -298,10 +298,7 @@ export function ProjectBand({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
-          <div className="ac-project-band-spaces md:hidden">{spaces}</div>
-          {actions}
-        </div>
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto">{actions}</div>
       </div>
     </div>
   );
