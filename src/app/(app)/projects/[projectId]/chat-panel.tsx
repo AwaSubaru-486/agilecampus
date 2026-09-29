@@ -6,7 +6,7 @@ import { ConversationTree } from "./conversation-tree";
 import { ContextPackBuilder } from "./context-pack-builder";
 import { ApprovalDetail } from "./approval-detail";
 import type { ApprovalListItem } from "@/lib/approval";
-import { Button } from "@/components/ui";
+import { Badge, Button } from "@/components/ui";
 
 type Option = { id: string; name: string };
 type Conversation = {
@@ -258,14 +258,12 @@ export function ChatPanel({
 
   return (
     <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="ac-live-panel scroll-mt-20 overflow-hidden">
-      <div className="border-b border-stroke bg-ground/45 px-4 py-5 sm:px-6">
+      <div className="border-b border-stroke bg-ground/45 px-4 py-3.5 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="ac-eyebrow text-agent">Agent 协作 / 工作现场</p>
-            <h2 className="mt-1.5 font-display text-[1.65rem] font-semibold tracking-[-0.03em] text-ink">让人和 Agent 一起推进任务</h2>
-            <p className="mt-1 text-xs text-ink-3">
-              任务、上下文、产物和人工确认都留在同一条推进记录里
-            </p>
+            <p className="ac-eyebrow text-agent">Agent / 协同工作台</p>
+            <h2 className="mt-1 font-display text-lg font-semibold text-ink">Agent 协作</h2>
+            <p className="mt-0.5 text-xs text-ink-3">共享上下文，人工确认后写入项目</p>
           </div>
           <Button
             type="button"
@@ -357,7 +355,7 @@ export function ChatPanel({
                 <div className={`border-b border-stroke/80 px-1 pb-4 text-sm ${message.role === "user" ? "pt-2" : "pt-1"}`}>
                   <div className="mb-2 flex items-center gap-2 text-xs text-ink-3">
                     <span className="font-medium text-ink-2">{message.role === "user" ? message.authorName || "成员" : "AI 助手"}</span>
-                    {message.sourceMessageId && <span className="border-l border-stroke-strong pl-2 text-[10px]">来自分支来源</span>}
+                  {message.sourceMessageId && <Badge tone="neutral">分支来源</Badge>}
                   </div>
                   <p className="whitespace-pre-wrap leading-6 text-ink">{message.content}</p>
                   {message.role === "assistant" && !message.id.startsWith("pending-") && (
@@ -379,7 +377,7 @@ export function ChatPanel({
             {!loadingConversation && messages.length === 0 && (
               <div className="rounded-[var(--radius-control)] border border-stroke bg-sunken/30 p-6">
                 <p className="text-sm font-semibold text-ink">先定义这次协作要改变什么</p>
-                <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">把问题、约束和期望的交付写清楚。AI 的回复会留在当前会话，之后可以分支比较或提交待确认动作。</p>
+                <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">从目标、约束或当前阻塞开始。Agent 的建议会留在会话里，之后可以分支比较并提交确认。</p>
                 <div className="mt-4 grid gap-2 text-xs text-ink-3 sm:grid-cols-3">
                   <span className="rounded border border-stroke bg-panel px-2 py-1">说明现状</span>
                   <span className="rounded border border-stroke bg-panel px-2 py-1">提出方案</span>
@@ -435,7 +433,7 @@ export function ChatPanel({
           />
           <div className="mt-8 border-t border-stroke pt-3">
             <p className="text-[11px] font-medium text-ink-3">人工边界</p>
-            <p className="mt-1 text-xs leading-5 text-ink-2">AI 只提出建议。创建任务、修改字段和验收结果，都需要成员明确确认。</p>
+            <p className="mt-1 text-xs leading-5 text-ink-2">Agent 只给建议；写入、验收和状态变更由成员确认。</p>
           </div>
         </aside>
       </div>

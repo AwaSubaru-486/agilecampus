@@ -41,13 +41,11 @@ export function WorkspaceView({
   return (
     <div className="space-y-5">
       <section id="workspace" className="ac-live-panel scroll-mt-20 overflow-hidden">
-        <header className="flex flex-wrap items-start justify-between gap-5 border-b border-stroke px-4 py-5 sm:px-6">
+        <header className="flex flex-wrap items-start justify-between gap-5 border-b border-stroke px-4 py-3.5 sm:px-6">
           <div>
-            <p className="ac-eyebrow">现场 / 实时协作</p>
-            <h2 className="mt-1.5 font-display text-[1.65rem] font-semibold tracking-[-0.03em] text-ink">现在发生什么</h2>
-            <p className="mt-1 max-w-xl text-sm leading-6 text-ink-2">
-              先看需要行动的事，再看已经交付的事。这里不展示静态资料，只展示团队此刻的工作状态。
-            </p>
+            <p className="ac-eyebrow">现场 / 实时状态</p>
+            <h2 className="mt-1 font-display text-lg font-semibold text-ink">项目现场</h2>
+            <p className="mt-0.5 text-xs text-ink-3">人、Agent、阻塞和下一步</p>
           </div>
           <div className="grid grid-cols-3 divide-x divide-stroke border border-stroke bg-ground/70">
             <Metric value={humans.length} label="成员" />

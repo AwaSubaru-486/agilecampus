@@ -39,9 +39,6 @@ export function BlockerStrip({
           <h2 className="text-xs font-semibold text-ink">
             {blockers.length} 条求助进行中
           </h2>
-          <span className="text-[11px] text-ink-3">
-            ——卡住的活不会自己变好，有人搭手才动得了
-          </span>
         </div>
         <ul className="divide-y divide-stroke">
           {blockers.map((b) => (
