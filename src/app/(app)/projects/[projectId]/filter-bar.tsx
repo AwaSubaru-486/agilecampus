@@ -75,7 +75,7 @@ export function FilterBar({
           {activeCount > 0 && <span className="ac-badge bg-primary text-white">{activeCount}</span>}
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-[11px] text-ink-faint">{visible} / {total} 项</span>
+          <span className="text-[11px] text-ink-faint">显示 {visible} 项，共 {total} 项</span>
           <select
             value={filters.group}
             onPointerDown={(event) => event.stopPropagation()}

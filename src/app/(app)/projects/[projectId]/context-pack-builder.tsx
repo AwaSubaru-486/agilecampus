@@ -128,8 +128,8 @@ export function ContextPackBuilder({
   return (
     <div className="space-y-4" aria-busy={loading}>
       <div>
-        <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">上下文</p>
-        <p className="mt-1 text-xs leading-5 text-ink-2">先挑明 AI 可以读取的事实，再冻结成可追溯快照。</p>
+        <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">上下文包</p>
+        <p className="mt-1 text-xs leading-5 text-ink-2">选择 AI 可读取的项目资料。</p>
       </div>
 
       <div className="border-b border-stroke pb-3">

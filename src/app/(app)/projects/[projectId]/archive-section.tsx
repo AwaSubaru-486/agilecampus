@@ -45,14 +45,13 @@ export function ArchiveSection({
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke bg-ground/50 px-4 py-3">
         <div>
           <h2 className="font-display text-lg font-bold text-ink">项目档案</h2>
-          <p className="mt-0.5 text-xs text-ink-3">
-            老师的反馈、团队写的文档、交出来的成果——都落在这一处，
-            项目结束时不必再从聊天记录里翻
-          </p>
+          <p className="mt-0.5 text-xs text-ink-3">反馈、文档和成果。</p>
         </div>
-        <p className="font-mono text-xs text-ink-3">
-          反馈 {counts.feedback} · 文档 {counts.doc} · 成果 {counts.deliverable}
-        </p>
+        <dl className="grid grid-cols-3 gap-3 text-xs text-ink-3">
+          <div><dt>反馈</dt><dd className="font-mono text-ink">{counts.feedback}</dd></div>
+          <div><dt>文档</dt><dd className="font-mono text-ink">{counts.doc}</dd></div>
+          <div><dt>成果</dt><dd className="font-mono text-ink">{counts.deliverable}</dd></div>
+        </dl>
       </header>
 
       {canWrite && (
@@ -75,10 +74,7 @@ export function ArchiveSection({
       )}
 
       {entries.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-ink-2">
-          档案还是空的。把代码仓库、答辩材料、老师的意见放进来，
-          项目结束时就有一份完整的过程资产。
-        </p>
+        <p className="px-4 py-8 text-center text-sm text-ink-2">暂无项目档案。添加反馈、文档或成果。</p>
       ) : (
         <ul className="divide-y divide-stroke">
           {entries.map((e) => (

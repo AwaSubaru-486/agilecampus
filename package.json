@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:ui-copy": "node scripts/check-ui-copy.mjs",
     "db:push": "drizzle-kit push",
     "db:push:test": "dotenv -e .env.test -- drizzle-kit push",
     "test": "dotenv -e .env.test -- vitest run"

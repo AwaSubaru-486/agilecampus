@@ -41,7 +41,6 @@ export default async function RetrospectivePage({
             ← 返回工作台
           </Link>
           <span className="text-line-strong">/</span>
-          <span className="text-primary">RETROSPECTIVE</span>
         </div>
         <h1 className="mt-4 font-display text-3xl font-bold text-ink">项目复盘</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
@@ -199,10 +198,8 @@ export default async function RetrospectivePage({
               <span className="font-medium text-ink">本项目刻意不产出任何「贡献总分」</span>
               ——把量不到的东西折算进一个数字，只会让那个数字失真。
             </p>
-            <ul className="mt-3 space-y-1 text-xs leading-5 text-ink-soft">
-              {NOT_MEASURABLE.map((t) => (
-                <li key={t}>· {t}</li>
-              ))}
+            <ul className="mt-3 list-disc space-y-1 pl-4 text-xs leading-5 text-ink-soft">
+              {NOT_MEASURABLE.map((t) => <li key={t}>{t}</li>)}
             </ul>
             <p className="mt-3 text-[11px] leading-5 text-ink-faint">
               本页数据自动来自活动流与求助记录，无人工填写，亦不作为任何评价依据。

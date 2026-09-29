@@ -23,7 +23,7 @@ export function ResourceForm({ teamId }: { teamId: string }) {
       <input type="hidden" name="teamId" value={teamId} />
       <div className="flex items-center justify-between">
         <h2 className="font-display text-base font-semibold text-ink">登记资源占用</h2>
-        <span className="text-xs text-ink-faint">纯登记 · 无需审批</span>
+        <span className="text-xs text-ink-faint">登记资源，不需要审批</span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

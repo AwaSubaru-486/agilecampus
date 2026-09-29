@@ -74,7 +74,10 @@ export default async function CollaborationPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
-            <p className="mt-1 text-xs text-ink-3">{needingHelp.length} 项待协助 · {agentRows.length} 个 Agent</p>
+            <div className="mt-1 flex gap-4 text-xs text-ink-3">
+              <span>待协助 {needingHelp.length}</span>
+              <span>AI 成员 {agentRows.length}</span>
+            </div>
           </div>
           <Link
             href="/today"
@@ -87,7 +90,7 @@ export default async function CollaborationPage() {
 
       <section id="help" className="ac-card scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
-          <h2 className="text-sm font-semibold text-ink">等人搭手</h2>
+          <h2 className="text-sm font-semibold text-ink">需要协助</h2>
           <span className="text-xs tabular-nums text-ink-3">{needingHelp.length} 项</span>
         </header>
         {needingHelp.length === 0 ? (
@@ -123,7 +126,7 @@ export default async function CollaborationPage() {
         </header>
         {agentRows.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-ink-2">
-            还没有 AI 成员。到团队的「管理 AI 成员」注册一个。
+            暂无 AI 成员。到团队管理页注册。
           </p>
         ) : (
           <ul className="divide-y divide-stroke">
@@ -132,9 +135,9 @@ export default async function CollaborationPage() {
                 a.status === "idle"
                   ? { label: "空闲", cls: "bg-human-soft text-human" }
                   : a.status === "working"
-                    ? { label: "干活中", cls: "bg-signal-soft text-signal" }
+                    ? { label: "执行中", cls: "bg-signal-soft text-signal" }
                     : a.status === "blocked"
-                      ? { label: "卡住了", cls: "bg-risk-soft text-risk" }
+                      ? { label: "阻塞", cls: "bg-risk-soft text-risk" }
                       : a.status === "error"
                         ? { label: "出错", cls: "bg-risk-soft text-risk" }
                         : { label: "离线", cls: "bg-sunken text-ink-3" };
@@ -144,7 +147,7 @@ export default async function CollaborationPage() {
                   className="flex flex-wrap items-baseline gap-2 px-4 py-3 text-sm"
                 >
                   <span className="font-medium text-ink">{a.name}</span>
-                  <span className="ac-agent-mark">协作者</span>
+                  <span className="ac-agent-mark">AI</span>
                   <span className={`ac-badge ${tone.cls}`}>{tone.label}</span>
                   <span className="text-xs text-ink-3">{a.provider}</span>
                 </li>

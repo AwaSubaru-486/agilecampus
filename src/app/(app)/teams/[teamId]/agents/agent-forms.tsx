@@ -59,10 +59,9 @@ export function RegisterAgentForm({ teamId }: { teamId: string }) {
 
   return (
     <div className="ac-card p-5">
-      <h2 className="text-sm font-semibold text-ink">注册一个 AI 成员</h2>
+      <h2 className="text-sm font-semibold text-ink">注册 AI 成员</h2>
       <p className="mt-1 text-xs leading-5 text-ink-faint">
-        注册后它就能像人一样被指派任务：自己接活、汇报进展、卡住了会举手、
-        做完交给你们验收。它干活，但不参与验收——判断做没做对是人的事。
+        注册后可被指派任务、提交进度和阻塞原因。任务验收由项目成员完成。
       </p>
 
       <form key={success ? success.token : "new"} action={formAction} className="mt-4 space-y-3">

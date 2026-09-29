@@ -42,7 +42,7 @@ export async function RecordSpace({
   return (
     <div className="space-y-6">
       <section className="rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
-        <h2 className="font-display text-xl font-bold text-ink">这个项目留下了什么</h2>
+        <h2 className="font-display text-xl font-bold text-ink">项目成果与证据</h2>
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-2">
           <span>
             <span className="font-semibold tabular-nums text-ink">{accepted}</span> 项通过验收
@@ -58,7 +58,7 @@ export async function RecordSpace({
           </span>
         </div>
         <p className="mt-3 text-xs leading-5 text-ink-3">
-          上面的数字全部由系统在每次变更时自动登记，<span className="font-medium text-ink-2">没有任何一格需要成员手动填写</span>。
+          数据由任务验收、项目成果和活动记录自动生成。
         </p>
       </section>
 
@@ -109,12 +109,12 @@ export async function RecordSpace({
           {activity.map((e) => (
             <li key={e.id} className="flex flex-wrap items-baseline gap-2 px-4 py-2.5 text-sm">
               <span className="font-medium text-ink">{e.actorName ?? "已注销成员"}</span>
-              {e.actorKind === "agent" && <span className="ac-agent-mark">协作者</span>}
+              {e.actorKind === "agent" && <span className="ac-agent-mark">AI</span>}
               <span className="text-ink-2">{e.summary ?? e.type}</span>
             </li>
           ))}
           {activity.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-ink-2">还没有过程记录。</li>
+            <li className="px-4 py-6 text-center text-sm text-ink-2">暂无过程记录。</li>
           )}
         </ul>
         <div className="flex flex-wrap gap-3 border-t border-stroke bg-ground/30 px-4 py-2.5 text-xs">

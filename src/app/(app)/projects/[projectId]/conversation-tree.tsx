@@ -82,7 +82,7 @@ export function ConversationTree({
                 </span>
                 <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-ink-3">
                   <span>{conversation.createdById === currentUserId ? "我" : conversation.createdByName}</span>
-                  <span aria-hidden>·</span>
+                  <span className="sr-only">，</span>
                   <Badge tone={conversation.visibility === "project" ? "signal" : "neutral"}>
                     {conversation.visibility === "project" ? "共享" : "私人"}
                   </Badge>

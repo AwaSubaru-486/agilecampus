@@ -14,7 +14,7 @@ import { DeleteAgentButton, RegisterAgentForm, ReissueTokenButton } from "./agen
 const STATUS: Record<AgentStatus, { label: string; cls: string; hint: string }> = {
   idle: { label: "空闲", cls: "bg-done-soft text-done", hint: "在线，手上没活" },
   working: { label: "干活中", cls: "bg-primary-soft text-primary", hint: "正在处理任务" },
-  blocked: { label: "卡住了", cls: "bg-high-soft text-high", hint: "已发出求助，等人搭手" },
+  blocked: { label: "阻塞", cls: "bg-high-soft text-high", hint: "已提交阻塞原因" },
   error: { label: "出错", cls: "bg-high-soft text-high", hint: "上一次执行失败了" },
   offline: { label: "离线", cls: "bg-sunken text-ink-soft", hint: "没有心跳，可能没开着" },
 };
@@ -50,9 +50,8 @@ export default async function AgentsPage({ params }: { params: Promise<{ teamId:
     <main className="mx-auto max-w-3xl space-y-6 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-primary">AI TEAMMATES</p>
           <h1 className="mt-1 font-display text-2xl font-semibold text-ink">
-            {team.name} · AI 成员
+            AI 成员
           </h1>
         </div>
         <a href={`/teams/${teamId}/members`} className="ac-btn-ghost">
@@ -70,8 +69,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ teamId:
 
       {agents.length === 0 ? (
         <div className="ac-card p-8 text-center text-sm text-ink-soft">
-          还没有 AI 成员。注册之后，它就能像人一样被指派任务——
-          自己接活、汇报进展、卡住了会举手、做完交给你们验收。
+          暂无 AI 成员。注册后可被指派任务并提交执行状态；任务验收仍由项目成员完成。
         </div>
       ) : (
         <ul className="space-y-3">
@@ -105,9 +103,11 @@ function AgentCard({
             <span className={`ac-badge ${status.cls}`}>{status.label}</span>
             {full && <span className="ac-badge bg-medium-soft text-medium">已排满</span>}
           </div>
-          <p className="mt-1 text-xs text-ink-faint">
-            {agent.provider} · {status.hint} · {agoLabel(agent.lastSeenAt)}
-          </p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-faint">
+            <span>运行环境：{agent.provider}</span>
+            <span>状态说明：{status.hint}</span>
+            <span>最近心跳：{agoLabel(agent.lastSeenAt)}</span>
+          </div>
         </div>
         {isAdmin && (
           <div className="flex shrink-0 items-center gap-3">

@@ -32,7 +32,7 @@ export default async function AllProjectsPage() {
         </div>
       ) : (
         <ul className="divide-y divide-stroke border-y border-stroke">
-          {projects.map((p, index) => {
+          {projects.map((p) => {
             const pct = p.taskTotal > 0 ? Math.round((p.doneCount / p.taskTotal) * 100) : 0;
             return (
               <li key={p.id} className="group">
@@ -41,10 +41,12 @@ export default async function AllProjectsPage() {
                   className="grid gap-2 px-3 py-3.5 transition-colors hover:bg-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal sm:grid-cols-[minmax(0,1.5fr)_11rem_minmax(10rem,0.75fr)_4rem_auto] sm:items-center sm:gap-4"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="shrink-0 text-[10px] font-semibold tracking-[0.12em] text-ink-3">AC / {String(index + 1).padStart(2, "0")}</span>
                     <span className="min-w-0 truncate font-medium text-ink group-hover:text-signal">{p.name}</span>
                   </div>
-                  <p className="truncate text-xs text-ink-3">{p.teamName} · {p.status === "archived" ? "已归档" : "进行中"}</p>
+                  <div className="truncate text-xs text-ink-3">
+                    <p className="truncate">{p.teamName}</p>
+                    <p className="mt-0.5 text-[11px]">{p.status === "archived" ? "已归档" : "进行中"}</p>
+                  </div>
                   <div className="min-w-0">
                     <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-ink-3">
                       <span>{p.taskTotal - p.doneCount} 项待推进</span>

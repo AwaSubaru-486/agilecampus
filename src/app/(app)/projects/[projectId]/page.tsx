@@ -95,7 +95,7 @@ export default async function ProjectPage({
         projectName={project.name}
         latestMilestone={
           latestOpen
-            ? `${latestOpen.title}${latestOpen.targetDate ? ` · ${latestOpen.targetDate}` : ""}`
+            ? `${latestOpen.title}${latestOpen.targetDate ? `；截止：${latestOpen.targetDate}` : ""}`
             : milestones.length > 0
               ? "里程碑已全部达成"
               : null

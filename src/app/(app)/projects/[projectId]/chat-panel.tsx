@@ -261,8 +261,7 @@ export function ChatPanel({
       <div className="border-b border-stroke bg-ground/45 px-4 py-3.5 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="ac-eyebrow text-agent">Agent / 协同工作台</p>
-            <h2 className="mt-1 font-display text-lg font-semibold text-ink">Agent 协作</h2>
+            <h2 className="font-display text-lg font-semibold text-ink">AI 协作</h2>
             <p className="mt-0.5 text-xs text-ink-3">共享上下文，人工确认后写入项目</p>
           </div>
           <Button

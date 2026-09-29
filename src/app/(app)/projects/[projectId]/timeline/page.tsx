@@ -77,16 +77,16 @@ export default async function TimelinePage({
           ← 返回项目
         </Link>
         <h1 className="font-display text-2xl font-semibold text-ink">
-          {access.project.name} · 时间线
+          {access.project.name}：时间线
         </h1>
         <p className="text-sm text-ink-soft">
-          按里程碑分组，横条为任务的 [起始日→截止日]。逾期任务标红，竖线为今日。
+          按起始日和截止日显示任务，竖线表示今天。
         </p>
       </header>
 
       {scheduled.length === 0 ? (
         <div className="ac-card p-8 text-center text-sm text-ink-soft">
-          尚无已排期任务——给任务填上起始日或截止日，即可在此排成时间线。
+          暂无已排期任务。为任务填写起始日或截止日。
         </div>
       ) : (
         <Gantt scheduled={scheduled} milestones={milestones} todayMs={todayMs} />

@@ -176,7 +176,7 @@ export function TopWorkbar({
                   )}
 
                   {isActive && item.href === "/projects" && (
-                    <SecondaryGroup label={navigationProject ? `项目 · ${navigationProject.name}` : "项目"}>
+                    <SecondaryGroup label={navigationProject ? `项目：${navigationProject.name}` : "项目"}>
                       <SecondaryLink href="/projects" active={!projectId}>项目列表</SecondaryLink>
                       {navigationProject && PROJECT_SPACES.map((space) => (
                         <SecondaryLink

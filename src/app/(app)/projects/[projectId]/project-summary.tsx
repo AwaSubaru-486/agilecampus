@@ -58,8 +58,6 @@ export function ProjectSummary({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div className="ac-card p-5 sm:p-7">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-            <span className="text-primary">PROJECT WORKSPACE</span>
-            <span className="text-line-strong">/</span>
             <span className="text-ink-faint">{STATUS_LABEL[status] ?? status}</span>
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold text-ink sm:text-4xl">{name}</h1>
@@ -75,7 +73,7 @@ export function ProjectSummary({
 
         <div className="relative overflow-hidden rounded-lg bg-ink p-5 text-white shadow-card">
           <div className="absolute -right-10 -top-10 size-32 rounded-full border-[24px] border-white/[0.04]" />
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-white/45">PROGRESS</p>
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-white/45">完成度</p>
           <p className="mt-5 font-display text-5xl font-bold tracking-[-0.06em]">{progress}<span className="ml-1 text-xl text-white/45">%</span></p>
           <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10" aria-label={`项目完成度 ${progress}%`}>
             <div className="h-full rounded-full bg-[#7CF2C3] transition-[width] duration-200 ease-out" style={{ width: `${progress}%` }} />

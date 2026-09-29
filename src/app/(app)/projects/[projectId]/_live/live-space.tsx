@@ -66,8 +66,7 @@ export async function LiveSpace({
         milestoneForm={<MilestoneCreateForm projectId={projectId} isAdmin={isAdmin} />}
       />
 
-      {/* 求助条紧跟在「正在发生」之下：那里刚说完谁卡住了，
-          这里就该能就地搭手 */}
+      {/* 求助条紧跟在成员状态之后，直接提供处理入口。 */}
       <BlockerStrip
         projectId={projectId}
         blockers={openBlockers.map((b) => ({

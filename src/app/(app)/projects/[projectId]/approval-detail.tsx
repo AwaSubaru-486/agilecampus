@@ -122,14 +122,14 @@ export function ApprovalDetail({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-agent">AI action</span>
+            <span className="text-[10px] font-semibold text-agent">AI 操作</span>
             <h3 className="text-sm font-semibold text-ink">{approval.title}</h3>
             <span className={`border px-1.5 py-0.5 text-[11px] ${STATUS_TONE[approval.status]}`}>
               {STATUS_LABEL[approval.status]}
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-3">
-            {approval.requestedByName ?? "已注销成员"} 提出 · {formatDate(approval.createdAt)} · {approval.tool}
+            提出人：{approval.requestedByName ?? "已注销成员"}；时间：{formatDate(approval.createdAt)}；工具：{approval.tool}
           </p>
         </div>
         {approval.sourceConversationId && (
@@ -225,7 +225,7 @@ export function ApprovalDetail({
           <ul className="mt-1.5 space-y-1 font-mono text-[10px]">
             {preview.rows.map((row) => (
               <li key={`${row.taskId ?? "missing"}-${row.expectedUpdatedAt ?? "none"}`} className={row.stale ? "text-risk" : "text-ink-3"}>
-                {row.stale ? "冲突" : "一致"} · {row.title}
+                <span>{row.stale ? "冲突" : "一致"}</span><span className="ml-2">{row.title}</span>
               </li>
             ))}
           </ul>

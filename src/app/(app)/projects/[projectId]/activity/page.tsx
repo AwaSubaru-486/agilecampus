@@ -64,20 +64,17 @@ export default async function ActivityPage({
           <Link href={`/projects/${projectId}`} className="text-ink-faint hover:text-primary">
             ← 返回工作台
           </Link>
-          <span className="text-line-strong">/</span>
-          <span className="text-primary">ACTIVITY</span>
         </div>
         <h1 className="mt-4 font-display text-3xl font-bold text-ink">项目活动流</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
-          {access.project.name} 的全部过程记录，按时间倒序。这些条目由系统在每次变更时自动登记，
-          无需任何成员手动填写——项目结束后的贡献记录与复盘材料，也由此处算出。
+          {access.project.name} 的过程记录，按时间倒序显示。记录由任务、交接和项目资料的变更自动生成。
         </p>
         <p className="mt-3 text-xs text-ink-faint">共 {events.length} 条记录</p>
       </header>
 
       {events.length === 0 ? (
         <div className="ac-card p-8 text-center text-sm text-ink-soft">
-          这里还没有活动记录。团队成员建任务、改状态、贴标签之后，过程会自动汇总到这里。
+          暂无活动记录。任务、状态或项目资料发生变更后，记录会显示在这里。
         </div>
       ) : (
         <div className="ac-card overflow-hidden">
@@ -95,7 +92,7 @@ export default async function ActivityPage({
                     {/* 人机混排的账本必须分得清谁做的——
                         否则复盘时看不出这活是人干的还是 AI 干的 */}
                     {e.actorKind === "agent" && (
-                      <span className="ac-agent-mark ml-1">协作者</span>
+                      <span className="ac-agent-mark ml-1">AI</span>
                     )}
                     <span className="text-ink-soft"> {e.summary ?? TYPE_LABEL[e.type] ?? e.type}</span>
                   </p>

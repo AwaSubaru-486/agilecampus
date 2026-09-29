@@ -44,7 +44,7 @@ export function HealthPanel({
     <section id="health" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
       <div className="flex flex-wrap items-end justify-between gap-3 pb-4">
         <div>
-          <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">风险 / 需要处理</p>
+          <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">风险</p>
           <h2 className="mt-1 font-display text-xl font-semibold text-ink">
             项目风险
             <span className="ml-2 align-middle font-sans text-sm font-normal text-ink-2">
@@ -93,8 +93,8 @@ function IssueCard({ projectId, issue }: { projectId: string; issue: HealthIssue
 
       {/* 三问的后两问：该做什么、谁来做。两者都由代码渲染，AI 改不了 */}
       <div className="space-y-1 text-xs leading-5 text-ink-2">
-        <p><span className="text-ink-3">建议动作 · </span>{issue.action}</p>
-        <p><span className="text-ink-3">负责人 · </span>{issue.ownerName ?? "需人来定"}</p>
+        <p><span className="text-ink-3">建议动作：</span> {issue.action}</p>
+        <p><span className="text-ink-3">负责人：</span> {issue.ownerName ?? "需人来定"}</p>
       </div>
 
       <div className="space-y-1 text-[11px] leading-5 text-ink-3">

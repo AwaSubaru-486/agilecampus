@@ -95,8 +95,7 @@ function Column({
       }`}
     >
       <div className="flex items-center justify-between px-1 pb-1">
-        <h3 className={`flex items-center gap-2 text-xs font-semibold ${column.tone}`}>
-          <span className="size-1.5 rounded-full bg-current" />
+        <h3 className={`text-xs font-semibold ${column.tone}`}>
           {column.label}
         </h3>
         <span className="min-w-5 border border-line bg-surface px-1.5 py-0.5 text-center text-[10px] font-semibold tabular-nums text-ink-soft">{tasks.length}</span>
@@ -242,7 +241,7 @@ export function Board({
           <ModeButton active={viewMode === "board"} onClick={() => setViewMode("board")} hint="1">看板</ModeButton>
           <ModeButton active={viewMode === "list"} onClick={() => setViewMode("list")} hint="2">列表</ModeButton>
         </div>
-        <span className="text-[10px] text-ink-faint">列表优先 · 可按 1 / 2 切换</span>
+        <span className="text-[10px] text-ink-faint">快捷键：1 看板，2 列表</span>
       </div>
       {/* 列数随分组维度而变，故横向滚动而非固定三栏 */}
       <div className={`${viewMode === "list" ? "flex-col" : "overflow-x-auto"} flex gap-3 pb-3 [scrollbar-width:thin]`}>

@@ -38,21 +38,12 @@ export default async function TodayPage({
     listMyOpenTasks(session.user.id),
   ]);
 
-  const name = session.user.name ?? "";
-
   return (
     <div className="mx-auto max-w-[80rem] space-y-6">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke pb-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
-            {name ? `${name}，今天` : "今天"}
-          </h1>
-          <p className="mt-0.5 text-xs text-ink-3">
-            跨项目行动队列 · 按急迫度汇聚当下动作
-          </p>
-        </div>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">今日</h1>
         <p className="text-sm font-medium text-ink-2">
-          {queue.total === 0 ? "眼下没有需要你动手的事。" : `${queue.total} 件事等你动手`}
+          {queue.total === 0 ? "待处理 0" : `待处理 ${queue.total}`}
         </p>
       </header>
 
@@ -60,14 +51,14 @@ export default async function TodayPage({
       <section id="decisions" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke bg-ground/50 px-4 py-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-ink">需要你现在决定</h2>
+            <h2 className="text-sm font-semibold text-ink">待处理</h2>
             {queue.total > 0 && (
               <span className="rounded-full bg-signal-soft px-2 py-0.5 font-mono text-[11px] font-semibold text-signal">
                 {queue.total}
               </span>
             )}
           </div>
-          <p className="text-xs text-ink-3">按急迫程度排列，同一件事只出现一次</p>
+          <p className="text-xs text-ink-3">按优先级排序</p>
         </header>
 
         {queue.items.length === 0 ? (
@@ -78,13 +69,13 @@ export default async function TodayPage({
             >
               ✓
             </div>
-            <p className="font-display text-base font-semibold text-ink">没有待回应、待验收或待确认的动作</p>
-            <p className="mt-1 text-xs text-ink-3">你的待办队列很清爽，各项进度都在正常流转。</p>
+            <p className="font-display text-base font-semibold text-ink">暂无待处理动作</p>
+            <p className="mt-1 text-xs text-ink-3">待回应、待验收和待确认任务均为 0。</p>
             <Link
               href="/projects"
               className="mt-3 inline-flex items-center gap-1 rounded-[var(--radius-control)] px-2 py-1 text-xs font-medium text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1"
             >
-              看看各项目的现场 →
+              查看项目 →
             </Link>
           </div>
         ) : (
@@ -124,7 +115,7 @@ export default async function TodayPage({
                   href="/today?all=1"
                   className="rounded-[var(--radius-control)] text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
                 >
-                  另有 {queue.omitted} 件紧要度较低的待办 →
+                  显示其余 {queue.omitted} 项 →
                 </Link>
               </div>
             )}
@@ -134,7 +125,7 @@ export default async function TodayPage({
                   href="/today"
                   className="rounded-[var(--radius-control)] text-ink-3 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
                 >
-                  ← 收起只看最紧要待办
+                  ← 仅显示高优先级
                 </Link>
               </div>
             )}
@@ -151,12 +142,12 @@ export default async function TodayPage({
           </header>
           {openTasks.length === 0 ? (
             <div className="px-4 py-8 text-center text-xs text-ink-3">
-              手上没有在办的活。
+              暂无进行中任务。
               <Link
                 href="/projects"
                 className="ml-1 rounded-[var(--radius-control)] text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
               >
-                去项目认领任务 →
+                查看项目任务 →
               </Link>
             </div>
           ) : (

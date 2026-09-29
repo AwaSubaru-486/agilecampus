@@ -51,7 +51,7 @@ export function TokenManager({ tokens }: { tokens: TokenRow[] }) {
         </div>
         {tokens.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-ink-2">
-            尚无令牌——生成一个，即可让 Claude Code 替你添加任务、登记资源。
+            暂无令牌。生成后可让 Claude Code 添加任务和登记资源。
           </p>
         ) : (
           <ul className="divide-y divide-stroke">
@@ -67,8 +67,8 @@ export function TokenManager({ tokens }: { tokens: TokenRow[] }) {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-ink-3">
-                    创建于 {t.createdAtLabel}
-                    {t.lastUsedLabel ? ` · 最近使用 ${t.lastUsedLabel}` : " · 从未使用"}
+                    创建时间：{t.createdAtLabel}
+                    {t.lastUsedLabel ? `；最近使用：${t.lastUsedLabel}` : "；从未使用"}
                   </p>
                 </div>
                 {!t.revoked && (

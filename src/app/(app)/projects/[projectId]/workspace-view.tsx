@@ -43,22 +43,23 @@ export function WorkspaceView({
       <section id="workspace" className="ac-live-panel scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-start justify-between gap-5 border-b border-stroke px-4 py-3.5 sm:px-6">
           <div>
-            <p className="ac-eyebrow">现场 / 实时状态</p>
-            <h2 className="mt-1 font-display text-lg font-semibold text-ink">项目现场</h2>
-            <p className="mt-0.5 text-xs text-ink-3">人、Agent、阻塞和下一步</p>
+            <h2 className="font-display text-lg font-semibold text-ink">概览</h2>
           </div>
           <div className="grid grid-cols-3 divide-x divide-stroke border border-stroke bg-ground/70">
             <Metric value={humans.length} label="成员" />
-            <Metric value={agents.length} label="AI 协作者" tone="agent" />
-            <Metric value={stuckCount} label="需搭手" tone={stuckCount > 0 ? "risk" : "quiet"} />
+            <Metric value={agents.length} label="AI 成员" tone="agent" />
+            <Metric value={stuckCount} label="阻塞" tone={stuckCount > 0 ? "risk" : "quiet"} />
           </div>
         </header>
 
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
           <div className="min-w-0 px-4 py-4 sm:px-6 sm:py-5">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="ac-section-title">工作中的人</p>
-              <p className="text-xs text-ink-3">{running} 项推进中 · {activePeople.length} 项需要关注</p>
+              <p className="ac-section-title">成员状态</p>
+              <div className="grid grid-cols-2 gap-3 text-xs text-ink-3">
+                <span>{running} 项进行中</span>
+                <span>{activePeople.length} 项需处理</span>
+              </div>
             </div>
             {live.length === 0 ? (
               <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">目前没有正在推进的任务。</p>
@@ -78,7 +79,7 @@ export function WorkspaceView({
                 <div className="flex items-start gap-3">
                   <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-risk" />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink">有人在等搭手</p>
+                    <p className="text-sm font-semibold text-ink">需要协助</p>
                     <p className="mt-1 text-sm leading-6 text-ink-2">
                       {firstStuck.name} 卡在「{firstStuck.taskTitle}」：{firstStuck.stuck}
                     </p>
@@ -95,7 +96,7 @@ export function WorkspaceView({
                     href={`/projects/${projectId}?space=studio&task=${firstStuck.taskId}`}
                     className="ac-btn-ghost"
                   >
-                    查看 AI 工作现场
+                    打开 AI 协作
                   </Link>
                 </div>
                 <p className="mt-3 rounded border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3">
@@ -104,8 +105,8 @@ export function WorkspaceView({
               </div>
             ) : (
               <div className="mt-3">
-                <p className="text-sm font-semibold text-ink">当前没有阻塞</p>
-                <p className="mt-1 text-sm leading-6 text-ink-2">团队正在按计划推进，可以去任务流查看下一项交付。</p>
+                <p className="text-sm font-semibold text-ink">当前无阻塞</p>
+                <p className="mt-1 text-sm leading-6 text-ink-2">暂无需要处理的阻塞任务。</p>
                 <Link href={`/projects/${projectId}?space=work`} className="ac-btn-ghost mt-4">
                   查看任务流
                 </Link>
@@ -119,10 +120,10 @@ export function WorkspaceView({
         <section id="relay" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
           <header className="flex flex-wrap items-baseline justify-between gap-2 pb-4">
             <div>
-              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">工作流 / 交接</p>
+              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">交接</p>
               <h2 className="mt-1 text-base font-semibold text-ink">接力链</h2>
             </div>
-            <p className="text-xs text-ink-3">任务流转走向</p>
+            <p className="text-xs text-ink-3">任务流转</p>
           </header>
           {relays.length === 0 ? (
             <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">还没有流转中的工作。</p>
@@ -138,7 +139,7 @@ export function WorkspaceView({
         <section id="milestones" className="scroll-mt-20 rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
           <header className="flex flex-wrap items-baseline justify-between gap-2 pb-4">
             <div>
-              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">交付 / 进度</p>
+              <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">进度</p>
               <h2 className="mt-1 text-base font-semibold text-ink">下一里程碑</h2>
             </div>
             {milestoneForm && <div>{milestoneForm}</div>}
@@ -175,7 +176,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
       <div className="min-w-0">
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
           <span className="font-semibold text-ink">{member.name}</span>
-          {isAgent && <span className="ac-agent-mark">协作者</span>}
+          {isAgent && <span className="ac-agent-mark">AI</span>}
           <span className={`text-xs ${status.cls}`}>{status.label}</span>
         </p>
         {member.taskTitle ? (
@@ -186,7 +187,7 @@ function LiveRow({ member, projectId }: { member: LiveMember; projectId: string 
             {member.taskTitle}
           </Link>
         ) : member.awaitingCount > 0 ? (
-          <p className="mt-1 text-xs text-ink-3">有 {member.awaitingCount} 件派下来的活还没有回应</p>
+          <p className="mt-1 text-xs text-ink-3">{member.awaitingCount} 项任务待回应</p>
         ) : null}
         {member.stuck && <p className="mt-1 text-xs leading-5 text-risk">阻塞：{member.stuck}</p>}
       </div>
@@ -299,10 +300,9 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
       )}
 
       {!achieved && m.remaining.length > 0 && (
-        <ul className="mt-2 space-y-1 text-xs text-ink-3">
+        <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-ink-3">
           {m.remaining.slice(0, 3).map((r) => (
             <li key={r.id} className="flex flex-wrap items-baseline gap-1.5">
-              <span aria-hidden className="text-stroke-strong">·</span>
               <span className="text-ink-2">{r.title}</span>
               <span>{statusLabel(r.status)}</span>
               {r.assigneeName ? (

@@ -88,13 +88,13 @@ export function TaskCard({
   const agentBadge: { label: string; tone: "agent" | "risk" | "neutral" } | null = !assigneeIsAgent
     ? null
     : task.hasActiveRun
-      ? { label: "协作者处理中", tone: "agent" }
+      ? { label: "AI 执行中", tone: "agent" }
       : task.agentStatus === "blocked"
-        ? { label: "协作者卡住了", tone: "risk" }
+        ? { label: "AI 阻塞", tone: "risk" }
         : task.agentStatus === "error"
-        ? { label: "协作者出错了", tone: "risk" }
+        ? { label: "AI 执行失败", tone: "risk" }
           : task.agentStatus === "offline"
-            ? { label: "协作者离线", tone: "neutral" }
+            ? { label: "AI 离线", tone: "neutral" }
             : null;
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -142,7 +142,7 @@ export function TaskCard({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-ink-faint">TASK {task.id.slice(0, 4).toUpperCase()}</p>
+            <p className="mb-1 text-[10px] font-semibold tracking-[0.08em] text-ink-faint">任务 {task.id.slice(0, 4).toUpperCase()}</p>
             <p className="font-medium leading-5 text-ink">{task.title}</p>
           </div>
           <span className="grid size-7 shrink-0 place-items-center border border-line bg-sunken text-[10px] font-semibold text-ink-soft" title={task.assigneeName ?? "未分配"}>
@@ -151,14 +151,14 @@ export function TaskCard({
         </div>
         <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
           <span>{task.assigneeName ?? "待认领"}</span>
-          {assigneeIsAgent && <span className="ac-agent-mark">协作者</span>}
+          {assigneeIsAgent && <span className="ac-agent-mark">AI</span>}
           {/* agent 此刻在干什么。这一格是人机混排界面的关键——
               人说得出自己卡住了，agent 不会，只能靠这一格替他开口 */}
           {agentBadge && (
             <Badge tone={agentBadge.tone}>{agentBadge.label}</Badge>
           )}
           {(task.startDate || task.dueDate) && (
-            <span>· {task.dueDate ?? task.startDate}</span>
+            <span>截止：{task.dueDate ?? task.startDate}</span>
           )}
           <Badge tone={priorityTone(task.priority)}>
             {PRIORITY_LABEL[task.priority] ?? task.priority}
@@ -208,7 +208,7 @@ export function TaskCard({
           <p className="mt-1.5 rounded border border-stroke bg-sunken px-2 py-1 text-xs text-ink-soft">
             <span className="text-ink-faint">承诺</span> {task.commitmentNote}
             {task.estimatedHours ? (
-              <span className="ml-1 text-ink-faint">· 预估 {task.estimatedHours} 小时</span>
+              <span className="ml-3 text-ink-faint">预估：{task.estimatedHours} 小时</span>
             ) : null}
           </p>
         )}

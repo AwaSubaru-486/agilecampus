@@ -48,7 +48,7 @@ export default async function ResourcesPage({
         <Link href="/teams" className="text-xs text-ink-soft hover:text-primary">
           ← 我的团队
         </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">{team.name} · 资源占用</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">{team.name}：资源占用</h1>
         <p className="text-sm text-ink-soft">
           登记谁在何时占用了哪项共享资源。当前{" "}
           <span className="font-medium text-doing">{active.length}</span> 项占用中。
@@ -68,7 +68,7 @@ export default async function ResourcesPage({
         <h2 className="font-display text-lg font-semibold text-ink">占用记录</h2>
         {usages.length === 0 ? (
           <div className="ac-card p-8 text-center text-sm text-ink-soft">
-            暂无占用记录——用上方表单登记第一条。
+            暂无占用记录。使用上方表单登记资源。
           </div>
         ) : (
           <ul className="space-y-2">
@@ -87,10 +87,10 @@ export default async function ResourcesPage({
                     ) : (
                       <span className="ac-badge bg-low-soft text-low">{fmtDuration(u.durationMinutes!)}</span>
                     )}
-                    {u.purpose && <span className="text-xs text-ink-faint">· {u.purpose}</span>}
+                    {u.purpose && <span className="text-xs text-ink-faint">用途：{u.purpose}</span>}
                   </div>
                   <p className="mt-0.5 text-xs text-ink-soft">
-                    {u.userName} · {fmtTime(u.startTime)}
+                    {u.userName}，开始时间：{fmtTime(u.startTime)}
                     {u.endTime ? ` → ${fmtTime(u.endTime)}` : " 起"}
                   </p>
                 </div>

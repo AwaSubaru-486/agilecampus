@@ -112,7 +112,7 @@ export function NewTaskForm({
 
           <details className="group border-y border-line bg-sunken/50 px-3 py-2">
             <summary className="cursor-pointer list-none text-xs font-medium text-ink-soft">
-              更多设置 <span className="text-ink-faint group-open:hidden">· 负责人、日期、优先级</span>
+              更多设置 <span className="text-ink-faint group-open:hidden">（负责人、日期、优先级）</span>
             </summary>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <textarea

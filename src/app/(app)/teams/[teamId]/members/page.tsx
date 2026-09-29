@@ -40,7 +40,7 @@ export default async function MembersPage({
   return (
     <main className="mx-auto max-w-2xl space-y-6 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-semibold text-ink">{team.name} · 成员</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">{team.name}：成员</h1>
         <a href={`/teams/${teamId}/agents`} className="ac-btn-ghost">
           管理 AI 成员
         </a>

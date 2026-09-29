@@ -85,10 +85,8 @@ export default async function LibraryPage({
         <div className="grid border-b border-stroke py-16 lg:grid-cols-[12rem_minmax(0,1fr)]">
           <p className="text-sm text-ink-3">还没有归档</p>
           <div>
-            <p className="max-w-lg font-display text-xl font-semibold leading-8 text-ink">一份完整的项目，不该只剩聊天记录。</p>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">
-              把代码仓库、数据集、答辩材料或关键说明放进项目记录，它们会在这里留下可追溯的出处。
-            </p>
+            <p className="max-w-lg font-display text-xl font-semibold leading-8 text-ink">暂无项目资料</p>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">在项目的成果空间添加文档或成果文件后，它们会出现在这里。</p>
           </div>
         </div>
       ) : (
@@ -112,9 +110,8 @@ function LibraryHeader({
   return (
     <header className="grid border-b-2 border-ink lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="py-6 sm:py-9">
-        <p className="text-xs font-medium tracking-[0.08em] text-ink-3">项目索引</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">资料库</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-ink-2">团队成果与项目文档的统一索引，保留每条记录的出处。</p>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">项目资料</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-ink-2">按项目、类型和创建时间查看文档与成果。</p>
       </div>
       <dl className="grid grid-cols-3 border-t border-stroke text-left lg:border-l lg:border-t-0">
         <Link
@@ -190,10 +187,8 @@ function ArchiveLedger({
   return (
     <section className="grid lg:grid-cols-[12rem_minmax(0,1fr)]">
       <aside className="border-b border-stroke py-6 lg:border-b-0 lg:border-r lg:py-8 lg:pr-7">
-        <p className="text-xs font-medium tracking-[0.08em] text-ink-3">索引视图</p>
-        <p className="mt-2 max-w-[10rem] text-sm leading-6 text-ink-2">
-          按记录时间倒序排列，项目出处始终可回溯。
-        </p>
+        <p className="text-xs font-medium tracking-[0.08em] text-ink-3">筛选</p>
+        <p className="mt-2 max-w-[10rem] text-sm leading-6 text-ink-2">按创建时间倒序排列。</p>
         <div className="mt-6 hidden space-y-2 border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3 lg:block">
           <p className="flex items-center gap-2">
             <span className="inline-block h-0.5 w-4 bg-human" />
@@ -211,10 +206,10 @@ function ArchiveLedger({
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-ink">
               {activeType === "deliverable"
-                ? "成果归档"
+                ? "成果"
                 : activeType === "doc"
                   ? "过程文档"
-                  : "归档记录"}
+                  : "全部资料"}
             </h2>
             <span className="font-mono text-xs text-ink-3">({rows.length})</span>
           </div>
@@ -276,8 +271,8 @@ function ArchiveLedger({
                       <p className="mt-1.5 max-w-2xl text-sm leading-6 text-ink-2">{r.content}</p>
                     )}
                     <p className="mt-2.5 font-mono text-[11px] text-ink-3">
-                      ID {r.id.slice(0, 8).toUpperCase()}
-                      {r.authorName ? ` · 记录人 ${r.authorName}` : ""}
+                      <span>ID {r.id.slice(0, 8).toUpperCase()}</span>
+                      {r.authorName && <span className="ml-3">记录人：{r.authorName}</span>}
                     </p>
                   </div>
                   <div className="mt-2 sm:mt-0 sm:pt-1">

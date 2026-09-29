@@ -52,9 +52,9 @@ export async function WorkSpace({
         <div>
           <div className="flex items-baseline gap-2">
             <h2 className="font-display text-lg font-semibold text-ink">任务</h2>
-            <span className="text-xs tabular-nums text-ink-3">{visibleTasks.length} / {projectTasks.length}</span>
+            <span className="text-xs tabular-nums text-ink-3">显示 {visibleTasks.length} 项，共 {projectTasks.length} 项</span>
           </div>
-          <p className="mt-0.5 text-xs text-ink-3">按责任人和状态推进交付</p>
+          <p className="mt-0.5 text-xs text-ink-3">按状态和负责人查看任务</p>
         </div>
         <div className="flex items-center gap-2">
           {canWrite && (
@@ -84,7 +84,7 @@ export async function WorkSpace({
 
       {filters.group === "status" && (
         <p className="text-xs text-ink-3">
-          状态由“接手 / 提交 / 验收”推进；拖拽只用于重新分组。
+          任务状态按接手、提交、验收推进。拖拽只调整分组，不改变状态。
         </p>
       )}
 

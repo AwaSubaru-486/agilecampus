@@ -139,12 +139,11 @@ export function DecisionLedger({ projectId, decisions: initialDecisions, canDeci
     >
       <header className="flex flex-col gap-4 border-b border-stroke bg-ground/50 px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-agent">证据账本</p>
           <h2 id="decision-ledger-title" className="mt-1 font-display text-xl font-bold text-ink">
             决策记录
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-2">
-            AI 可以比较方案，但最终选择由项目成员确认，并保留可复盘的理由。
+            AI 输出方案草案；项目成员确认后写入决策记录。
           </p>
         </div>
         <dl className="grid grid-cols-3 divide-x divide-stroke border-y border-stroke sm:min-w-[18rem]">
@@ -165,13 +164,13 @@ export function DecisionLedger({ projectId, decisions: initialDecisions, canDeci
 
       {decisions.length === 0 ? (
         <div className="px-4 py-8 text-center sm:px-5">
-          <p className="text-sm font-medium text-ink">还没有 AI 提出的决策。</p>
-          <p className="mt-1 text-xs leading-5 text-ink-2">方案比较后，会在这里等待成员确认。</p>
+          <p className="text-sm font-medium text-ink">暂无待确认方案。</p>
+          <p className="mt-1 text-xs leading-5 text-ink-2">AI 生成方案后，会在这里等待成员确认。</p>
           <Link
             href={`/projects/${projectId}?space=studio#ai-collaboration`}
             className="mt-3 inline-flex rounded-[var(--radius-control)] text-xs font-medium text-signal underline decoration-signal/30 underline-offset-4 hover:decoration-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
           >
-            去协同室让 AI 比较方案 →
+            打开 AI 协作 →
           </Link>
         </div>
       ) : (
@@ -284,7 +283,7 @@ export function DecisionLedger({ projectId, decisions: initialDecisions, canDeci
                 {selectedOption && !isProposed && (
                   <p className="mt-3 border-t border-stroke pt-3 text-xs text-ink-2">
                     记录方案：<span className="font-medium text-ink">{selectedOption.label}</span>
-                    {decision.decidedAt && <span className="ml-2 text-ink-3">· {formatDate(decision.decidedAt)} 登记</span>}
+                    {decision.decidedAt && <span className="ml-2 text-ink-3">登记时间：{formatDate(decision.decidedAt)}</span>}
                   </p>
                 )}
               </li>

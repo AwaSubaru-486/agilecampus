@@ -178,7 +178,7 @@ export function TaskDrawer({
               <dt className="text-ink-3">负责人</dt>
               <dd className="flex items-center gap-1.5 text-ink">
                 {task.assigneeName ?? "没人接"}
-                {task.assigneeKind === "agent" && <span className="ac-agent-mark">协作者</span>}
+                {task.assigneeKind === "agent" && <span className="ac-agent-mark">AI</span>}
               </dd>
               <dt className="text-ink-3">截止</dt>
               <dd className="text-ink">{task.dueDate ?? "未设"}</dd>
