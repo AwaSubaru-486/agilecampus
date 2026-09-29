@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { NAV_ITEMS, activeNavHref } from "./nav-items";
 import { AccountMenu } from "./account-menu";
 import { ProjectSwitcher, type SwitcherProject } from "./project-switcher";
@@ -32,16 +34,21 @@ export function TopWorkbar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [collapsed, setCollapsed] = useState(false);
   const active = activeNavHref(pathname);
   const projectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
+  const navigationProject = projectId
+    ? projects.find((project) => project.id === projectId) ?? null
+    : projects[0] ?? null;
   const currentSpace = parseProjectSpace(searchParams.get("space"));
   const currentTaskId = searchParams.get("task") ?? undefined;
   const currentConversation = searchParams.get("conversation") ?? undefined;
   const currentApproval = searchParams.get("approval") ?? undefined;
 
   function spaceHref(space: (typeof PROJECT_SPACES)[number]) {
+    if (!navigationProject) return "/projects";
     return buildSpaceHref({
-      projectId: projectId as string,
+      projectId: navigationProject.id,
       space,
       taskId: currentTaskId,
       extra: space === "studio"
@@ -55,8 +62,11 @@ export function TopWorkbar({
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-stroke bg-panel md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-b-0 md:border-r">
-      <div className="mx-auto flex h-[52px] max-w-[120rem] items-center gap-2 px-3 sm:h-14 sm:gap-4 sm:px-5 md:h-full md:max-w-none md:flex-col md:items-stretch md:gap-0 md:px-4 md:py-4">
+    <header
+      data-collapsed={collapsed}
+      className="ac-shell-sidebar sticky top-0 z-40 border-b border-stroke bg-panel md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-b-0 md:border-r"
+    >
+      <div className="ac-shell-sidebar-inner mx-auto flex h-[52px] max-w-[120rem] items-center gap-2 px-3 sm:h-14 sm:gap-4 sm:px-5 md:h-full md:max-w-none md:flex-col md:items-stretch md:gap-0 md:px-4 md:py-4">
         {/* 品牌 */}
         <Link
           href="/today"
@@ -77,78 +87,130 @@ export function TopWorkbar({
         <span aria-hidden className="hidden text-stroke-strong lg:inline md:inline">
           /
         </span>
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
+          title={collapsed ? "展开侧栏" : "收起侧栏"}
+          className="ac-sidebar-collapse size-8 place-items-center border border-stroke text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+        >
+          {collapsed ? "→" : "←"}
+        </button>
 
         {/* 项目切换器。移动端收小，但保留——它是换项目的主入口 */}
-        <div className="min-w-0 shrink md:mt-8 md:w-full">
+        <div className="ac-shell-switcher min-w-0 shrink md:mt-8 md:w-full">
           <ProjectSwitcher projects={projects} />
         </div>
 
         {/* 一级导航 */}
-        <nav aria-label="主导航" className="ml-auto flex items-center gap-0.5 overflow-x-auto no-scrollbar sm:gap-1 md:ml-0 md:mt-6 md:flex-col md:items-stretch md:gap-1">
+        <nav aria-label="主导航" className="ac-shell-primary-nav ml-auto flex items-center gap-0.5 overflow-x-auto no-scrollbar sm:gap-1 md:ml-0 md:mt-6 md:flex-col md:items-stretch md:gap-1">
           {NAV_ITEMS.map((item) => {
             const isActive = active === item.href;
             const showDot = item.href === "/collaboration" && collaborationCount > 0;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.hint}
-                aria-current={isActive ? "page" : undefined}
-                className={`ac-pressable relative flex min-h-9 shrink-0 items-center whitespace-nowrap border-b-2 px-1.5 py-1.5 text-xs transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:px-2.5 sm:text-sm md:min-h-10 md:justify-start md:border-b-0 md:px-3 md:py-2 md:text-sm ${
-                  isActive
-                    ? "border-ink bg-sunken font-medium text-ink"
-                    : "border-transparent text-ink-2 hover:border-stroke-strong hover:bg-sunken hover:text-ink"
-                }`}
-              >
-                {item.label}
-                {showDot && (
-                  <Badge
-                    tone="risk"
-                    aria-label={`${collaborationCount} 项待处理`}
-                    className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white"
+                <Fragment key={item.href}>
+                  <Link
+                    href={item.href}
+                    title={item.hint}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`ac-pressable relative flex min-h-9 shrink-0 items-center whitespace-nowrap border-b-2 px-1.5 py-1.5 text-xs transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:px-2.5 sm:text-sm md:min-h-10 md:justify-start md:border-b-0 md:px-3 md:py-2 md:text-sm ${
+                      isActive
+                        ? "border-ink bg-sunken font-medium text-ink"
+                        : "border-transparent text-ink-2 hover:border-stroke-strong hover:bg-sunken hover:text-ink"
+                    }`}
                   >
-                    {collaborationCount > 9 ? "9+" : collaborationCount}
-                  </Badge>
-                )}
-              </Link>
-            );
+                    <span aria-hidden={collapsed}>{collapsed ? item.label.slice(0, 1) : item.label}</span>
+                    {collapsed && <span className="sr-only">{item.label}</span>}
+                    {showDot && (
+                      <Badge
+                        tone="risk"
+                        aria-label={`${collaborationCount} 项待处理`}
+                        className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold leading-4 text-white"
+                      >
+                        {collaborationCount > 9 ? "9+" : collaborationCount}
+                      </Badge>
+                    )}
+                  </Link>
+
+                  {isActive && item.href === "/today" && (
+                    <SecondaryGroup label="今日">
+                      <SecondaryLink href="/today#decisions">待处理</SecondaryLink>
+                      <SecondaryLink href="/today#in-progress">我正在推进</SecondaryLink>
+                    </SecondaryGroup>
+                  )}
+
+                  {isActive && item.href === "/projects" && (
+                    <SecondaryGroup label={navigationProject ? `项目 · ${navigationProject.name}` : "项目"}>
+                      <SecondaryLink href="/projects" active={!projectId}>项目列表</SecondaryLink>
+                      {navigationProject && PROJECT_SPACES.map((space) => (
+                        <SecondaryLink
+                          key={space}
+                          href={spaceHref(space)}
+                          active={Boolean(projectId) && currentSpace === space}
+                          suffix={space === "studio" ? "AI" : undefined}
+                          title={SPACE_HINT[space]}
+                        >
+                          {SPACE_LABEL[space]}
+                        </SecondaryLink>
+                      ))}
+                    </SecondaryGroup>
+                  )}
+
+                  {isActive && item.href === "/collaboration" && (
+                    <SecondaryGroup label="协作中心">
+                      <SecondaryLink href="/collaboration#help">待协助</SecondaryLink>
+                      <SecondaryLink href="/collaboration#agents">Agent 成员</SecondaryLink>
+                    </SecondaryGroup>
+                  )}
+                </Fragment>
+              );
           })}
         </nav>
 
-        {projectId && (
-          <div className="hidden border-t border-stroke pt-4 md:mt-4 md:block">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
-              当前项目
-            </p>
-            <nav aria-label="项目空间" className="space-y-0.5">
-              {PROJECT_SPACES.map((space) => {
-                const isActive = currentSpace === space;
-                return (
-                  <Link
-                    key={space}
-                    href={spaceHref(space)}
-                    title={SPACE_HINT[space]}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`ac-pressable flex min-h-9 items-center justify-between px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 ${
-                      isActive
-                        ? "bg-sunken font-medium text-ink"
-                        : "text-ink-2 hover:bg-sunken hover:text-ink"
-                    }`}
-                  >
-                    <span>{SPACE_LABEL[space]}</span>
-                    <span className="text-[10px] text-ink-faint">{space === "studio" ? "AI" : ""}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        )}
-
-        <div className="ml-1 shrink-0 sm:ml-2 md:mt-auto md:ml-0 md:w-full">
+        <div className="ac-shell-account ml-1 shrink-0 sm:ml-2 md:mt-auto md:ml-0 md:w-full">
           <AccountMenu name={userName} />
         </div>
       </div>
     </header>
+  );
+}
+
+function SecondaryGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="ac-secondary-nav hidden border-l border-stroke py-1 pl-2 md:block">
+      <p className="mb-1 px-3 text-[10px] uppercase tracking-[0.1em] text-ink-3">{label}</p>
+      <nav aria-label={`${label}二级导航`} className="space-y-0.5">
+        {children}
+      </nav>
+    </div>
+  );
+}
+
+function SecondaryLink({
+  href,
+  active = false,
+  suffix,
+  title,
+  children,
+}: {
+  href: string;
+  active?: boolean;
+  suffix?: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      title={title}
+      aria-current={active ? "page" : undefined}
+      className={`ac-pressable flex min-h-8 items-center justify-between px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 ${
+        active ? "bg-sunken font-medium text-ink" : "text-ink-2 hover:bg-sunken hover:text-ink"
+      }`}
+    >
+      <span>{children}</span>
+      {suffix && <span className="text-[10px] text-ink-faint">{suffix}</span>}
+    </Link>
   );
 }
 
@@ -172,7 +234,7 @@ export function ProjectBand({
   backLabel?: string;
 }) {
   return (
-    <div className="sticky top-[52px] z-30 border-b border-stroke bg-ground/95 sm:top-14 md:top-0">
+    <div className="ac-project-band sticky top-[52px] z-30 border-b border-stroke bg-ground/95 sm:top-14 md:top-0">
       <div className="mx-auto flex h-12 max-w-[120rem] items-center justify-between gap-3 px-3 sm:px-5 md:h-14 md:px-6">
         <div className="flex min-w-0 items-baseline gap-2">
           <Link
@@ -196,7 +258,7 @@ export function ProjectBand({
         </div>
 
         <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
-          <div className="md:hidden">{spaces}</div>
+          <div className="ac-project-band-spaces md:hidden">{spaces}</div>
           {actions}
         </div>
       </div>

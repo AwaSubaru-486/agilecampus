@@ -57,7 +57,7 @@ export default async function TodayPage({
       </header>
 
       {/* 需要你现在决定 */}
-      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
+      <section id="decisions" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke bg-ground/50 px-4 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-ink">需要你现在决定</h2>
@@ -144,7 +144,7 @@ export default async function TodayPage({
 
       <div className="max-w-3xl">
         {/* 正在推进 */}
-        <section className="overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
+        <section id="in-progress" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
           <header className="flex items-center justify-between border-b border-stroke bg-ground/50 px-4 py-3">
             <h2 className="text-sm font-semibold text-ink">我正在推进</h2>
             <span className="font-mono text-xs text-ink-3">{openTasks.length} 项在手</span>

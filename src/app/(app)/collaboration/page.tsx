@@ -74,11 +74,7 @@ export default async function CollaborationPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
-            <p className="mt-1 text-sm text-ink-2">
-              {needingHelp.length === 0
-                ? "眼下没有人在等搭手，AI 成员状态也在下面。"
-                : `${needingHelp.length} 件事在等人搭手；AI 成员状态也在下面。`}
-            </p>
+            <p className="mt-1 text-xs text-ink-3">{needingHelp.length} 项待协助 · {agentRows.length} 个 Agent</p>
           </div>
           <Link
             href="/today"
@@ -89,10 +85,10 @@ export default async function CollaborationPage() {
         </div>
       </header>
 
-      <section className="ac-card overflow-hidden">
+      <section id="help" className="ac-card scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">等人搭手</h2>
-          <p className="text-xs text-ink-3">卡住的活不会自己变好</p>
+          <span className="text-xs tabular-nums text-ink-3">{needingHelp.length} 项</span>
         </header>
         {needingHelp.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-ink-2">没有未解决的求助。</p>
@@ -120,10 +116,10 @@ export default async function CollaborationPage() {
         )}
       </section>
 
-      <section className="ac-card overflow-hidden">
+      <section id="agents" className="ac-card scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">AI 成员</h2>
-          <p className="text-xs text-ink-3">它们也是团队成员，只是干活的方式不同</p>
+          <span className="text-xs tabular-nums text-ink-3">{agentRows.length} 个</span>
         </header>
         {agentRows.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-ink-2">

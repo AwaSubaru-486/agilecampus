@@ -376,8 +376,8 @@ export function ChatPanel({
             ))}
             {!loadingConversation && messages.length === 0 && (
               <div className="rounded-[var(--radius-control)] border border-stroke bg-sunken/30 p-6">
-                <p className="text-sm font-semibold text-ink">先定义这次协作要改变什么</p>
-                <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">从目标、约束或当前阻塞开始。Agent 的建议会留在会话里，之后可以分支比较并提交确认。</p>
+                <p className="text-sm font-semibold text-ink">暂无会话消息</p>
+                <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">输入任务目标、约束或当前阻塞，开始与 Agent 协作。</p>
                 <div className="mt-4 grid gap-2 text-xs text-ink-3 sm:grid-cols-3">
                   <span className="rounded border border-stroke bg-panel px-2 py-1">说明现状</span>
                   <span className="rounded border border-stroke bg-panel px-2 py-1">提出方案</span>

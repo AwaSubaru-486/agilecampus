@@ -132,6 +132,110 @@ html {
   scroll-padding-top: calc(var(--spacing-workbar) + var(--spacing-projectband));
 }
 
+/* 演示窗口与窄桌面：560px 起就保持工作台侧栏，不把二级导航折回顶部。 */
+.ac-sidebar-collapse {
+  display: none;
+}
+
+@media (min-width: 560px) {
+  .ac-sidebar-collapse {
+    display: grid;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] {
+    width: 4.5rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-sidebar-inner {
+    padding-inline: 0.75rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-switcher,
+  .ac-shell-sidebar[data-collapsed="true"] .ac-secondary-nav {
+    display: none;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav {
+    margin-top: 2rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav > a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-account {
+    width: auto;
+    display: flex;
+    justify-content: center;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] ~ .ac-shell-main {
+    margin-left: 4.5rem;
+  }
+}
+
+@media (min-width: 560px) and (max-width: 767px) {
+  .ac-shell-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 16rem;
+    border-right: 1px solid var(--color-stroke);
+    border-bottom: 0;
+  }
+
+  .ac-shell-sidebar-inner {
+    height: 100%;
+    max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 1rem;
+  }
+
+  .ac-shell-switcher {
+    width: 100%;
+    margin-top: 2rem;
+  }
+
+  .ac-shell-primary-nav {
+    margin-left: 0;
+    margin-top: 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .ac-shell-primary-nav > a {
+    min-height: 2.5rem;
+    justify-content: flex-start;
+    border-bottom: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ac-shell-account {
+    width: 100%;
+    margin-top: auto;
+    margin-left: 0;
+  }
+
+  .ac-secondary-nav {
+    display: block;
+  }
+
+  .ac-shell-main {
+    margin-left: 16rem;
+  }
+
+  .ac-project-band {
+    top: 0;
+  }
+
+  .ac-project-band-spaces {
+    display: none;
+  }
+}
+
 .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
