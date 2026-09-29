@@ -318,6 +318,7 @@ vscode-extension/
 - S2 第一切片已完成：复用现有 `conversations.taskId`，从任务进入 Agent 时优先选择该任务的项目共享会话；阻塞现场的“查看 AI 工作现场”也保留任务深链，任务抽屉主动作统一为“继续 AI 工作”。本切片没有新增 `tasks.activeConversationId`，因为当前会话模型已经能满足单任务接力入口；选择策略抽成 `src/lib/agent/conversation-selection.ts`，并用 `tests/conversation-selection.test.ts` 覆盖显式会话、任务共享会话和回退场景。
 - S2 未完成部分：需要补“卡住 → 改派 → 继续会话”的集成测试，以及人工确认权限测试；多会话选择策略仍按当前任务最新排序继续细化。
 - S3 第一切片已完成：确认现有 `evidence_items` 已经具备任务归属、项目权限、证据类型和活动审计，先用它承载 GitHub Issue / PR / Actions / Commit 链接；新增 `github_links`、`github_sync_events` 表暂缓到需要 webhook 去重时。`src/lib/github/link.ts` 已加入白名单 URL 解析与规范化，`tests/github-link.test.ts` 覆盖支持路径、拒绝路径和标签生成。
+- S4 第一切片已完成：新增独立 `vscode-extension/` 包，包含 Sidebar Webview、严格 CSP、typed message、网页深链命令和 GitHub/AgileCampus host 层边界；扩展包 `npm install && npm run compile` 已通过。当前快照返回明确的“未关联项目”空态，Personal API Token、workspace remote 与项目映射留给下一切片。
 
 ### S0：基线与依赖审计
 

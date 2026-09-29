@@ -1,0 +1,67 @@
+{
+  "name": "agilecampus-vscode",
+  "displayName": "AgileCampus",
+  "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "agilecampus",
+  "license": "MIT",
+  "engines": {
+    "vscode": ">=1.95.0"
+  },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:agilecampus.projectView",
+    "onCommand:agilecampus.openProject",
+    "onCommand:agilecampus.refresh",
+    "onCommand:agilecampus.continueAiWork",
+    "onCommand:agilecampus.reportBlocker"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "AgileCampus",
+      "properties": {
+        "agileCampus.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "AgileCampus 网页端地址。"
+        }
+      }
+    },
+    "commands": [
+      { "command": "agilecampus.openProject", "title": "AgileCampus: 打开项目" },
+      { "command": "agilecampus.refresh", "title": "AgileCampus: 刷新" },
+      { "command": "agilecampus.continueAiWork", "title": "AgileCampus: 继续 AI 工作" },
+      { "command": "agilecampus.reportBlocker", "title": "AgileCampus: 报告卡住" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "agilecampus", "title": "AgileCampus", "icon": "resources/agilecampus.svg" }
+      ]
+    },
+    "views": {
+      "agilecampus": [
+        { "id": "agilecampus.projectView", "name": "项目现场" }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "npm run compile:extension && npm run compile:webview",
+    "compile:extension": "tsc -p ./tsconfig.json",
+    "compile:webview": "esbuild webview/src/App.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --jsx=automatic",
+    "check": "npm run compile"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/vscode": "^1.95.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  }
+}
