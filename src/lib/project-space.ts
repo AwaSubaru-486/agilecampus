@@ -19,7 +19,7 @@ export const DEFAULT_SPACE: ProjectSpace = "live";
 export const SPACE_LABEL: Record<ProjectSpace, string> = {
   live: "概览",
   work: "任务",
-  studio: "Agent",
+  studio: "AI 协作",
   record: "成果",
 };
 

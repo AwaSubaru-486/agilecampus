@@ -3,7 +3,7 @@
 /* AgileCampus · shadcn 风格的深色工程控制台
  *
  * 视觉方向参考 shadcn/ui dashboard：深色背景、细边框、紧凑间距、
- * 等宽数据字体和固定侧栏。业务语义色保留，但不再用暖灰纸感做品牌。
+ * 系统正文、等宽数据字体和固定侧栏。业务语义色保留，但不再用暖灰纸感做品牌。
  * 旧 token 名保留为别名，页面组件可以逐步迁移而不破坏功能。
  */
 
@@ -62,7 +62,8 @@
   /* ---------- 字体 ---------- */
   /* 明确采用本机字体：中文优先苹方/微软雅黑，英文回退系统 sans。
    * 不依赖远程字体，离线构建和课堂演示都能保持同一套字形策略。 */
-  --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "PingFang SC", "Microsoft YaHei", monospace;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --font-display: var(--font-sans);
 }
 
@@ -70,6 +71,7 @@
 :root {
   --shadow-float: 0 16px 40px -16px rgba(0, 0, 0, 0.8);
   --shadow-pop: 0 24px 60px -24px rgba(0, 0, 0, 0.9);
+  color-scheme: dark;
 }
 
 /* ==========================================================================
@@ -132,50 +134,20 @@ html {
   scroll-padding-top: calc(var(--spacing-workbar) + var(--spacing-projectband));
 }
 
-/* 演示窗口与窄桌面：560px 起就保持工作台侧栏，不把二级导航折回顶部。 */
+/* 桌面保留工作台侧栏；窄屏改为抽屉，正文不被侧栏挤窄。 */
 .ac-sidebar-collapse {
   display: none;
 }
 
-@media (min-width: 560px) {
-  .ac-sidebar-collapse {
-    display: grid;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] {
-    width: 4.5rem;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-sidebar-inner {
-    padding-inline: 0.75rem;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-switcher,
-  .ac-shell-sidebar[data-collapsed="true"] .ac-secondary-nav {
-    display: none;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav {
-    margin-top: 2rem;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav > a {
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-account {
-    width: auto;
-    display: flex;
-    justify-content: center;
-  }
-
-  .ac-shell-sidebar[data-collapsed="true"] ~ .ac-shell-main {
-    margin-left: 4.5rem;
-  }
+.ac-sidebar-menu {
+  display: grid;
 }
 
-@media (min-width: 560px) and (max-width: 767px) {
+.ac-sidebar-scrim {
+  display: none;
+}
+
+@media (min-width: 1024px) {
   .ac-shell-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
@@ -219,12 +191,127 @@ html {
     margin-left: 0;
   }
 
-  .ac-secondary-nav {
-    display: block;
+  .ac-sidebar-collapse {
+    display: grid;
+  }
+
+  .ac-sidebar-menu {
+    display: none;
   }
 
   .ac-shell-main {
     margin-left: 16rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] {
+    width: 4.5rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-sidebar-inner {
+    padding-inline: 0.75rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-switcher,
+  .ac-shell-sidebar[data-collapsed="true"] .ac-secondary-nav {
+    display: none;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav {
+    margin-top: 2rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav > a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-account {
+    width: auto;
+    display: flex;
+    justify-content: center;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] ~ .ac-shell-main {
+    margin-left: 4.5rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .ac-shell-sidebar-inner {
+    position: relative;
+    z-index: 2;
+  }
+
+  .ac-shell-sidebar:not([data-mobile-open="true"]) .ac-shell-primary-nav,
+  .ac-shell-sidebar:not([data-mobile-open="true"]) .ac-shell-account {
+    display: none;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(18rem, calc(100vw - 2rem));
+    border-right: 1px solid var(--color-stroke);
+    border-bottom: 0;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-sidebar-inner {
+    height: 100%;
+    max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 1rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-switcher {
+    width: 100%;
+    margin-top: 2rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-primary-nav {
+    display: flex;
+    margin-left: 0;
+    margin-top: 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-primary-nav > a {
+    min-height: 2.5rem;
+    justify-content: flex-start;
+    border-bottom: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-secondary-nav {
+    display: block;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-account {
+    display: block;
+    width: 100%;
+    margin-top: auto;
+    margin-left: 0;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-sidebar-collapse {
+    display: none;
+  }
+
+  .ac-sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    padding: 0;
+    cursor: default;
+    background: rgb(0 0 0 / 0.58);
   }
 
   .ac-project-band {
@@ -234,6 +321,35 @@ html {
   .ac-project-band-spaces {
     display: none;
   }
+}
+
+@media (max-width: 559px) {
+  .ac-project-band-spaces {
+    display: block;
+  }
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.ac-icon-menu {
+  position: relative;
+  display: inline-block;
+  width: 1rem;
+  height: 0.75rem;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+
+.ac-icon-menu::before {
+  position: absolute;
+  top: calc(50% - 0.5px);
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  content: "";
 }
 
 .font-display {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NAV_ITEMS, activeNavHref } from "./nav-items";
 import { AccountMenu } from "./account-menu";
 import { ProjectSwitcher, type SwitcherProject } from "./project-switcher";
@@ -16,12 +16,12 @@ import {
   parseProjectSpace,
 } from "@/lib/project-space";
 
-// shadcn dashboard 风格的工作台壳：桌面固定左侧，窄屏回退到顶部。
+// shadcn dashboard 风格的工作台壳：桌面固定左侧，窄屏使用抽屉。
 //
 // 桌面与移动用同一个组件响应式处理，而不是两份结构——两份会长歪，
 // 而且「移动端少显示一项」这类差异一旦分家就再也对不上。
 //
-// 桌面侧栏 248px，移动端保留 52px 顶栏，避免破坏现有深链和键盘导航。
+// 桌面侧栏 256px，窄屏保留 52px 顶栏，避免破坏现有深链和键盘导航。
 export function TopWorkbar({
   userName,
   projects,
@@ -35,6 +35,8 @@ export function TopWorkbar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarPreferenceReady, setSidebarPreferenceReady] = useState(false);
   const active = activeNavHref(pathname);
   const projectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
   const navigationProject = projectId
@@ -44,6 +46,25 @@ export function TopWorkbar({
   const currentTaskId = searchParams.get("task") ?? undefined;
   const currentConversation = searchParams.get("conversation") ?? undefined;
   const currentApproval = searchParams.get("approval") ?? undefined;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setCollapsed(window.localStorage.getItem("agilecampus.sidebar.collapsed") === "1");
+      setSidebarPreferenceReady(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarPreferenceReady) {
+      window.localStorage.setItem("agilecampus.sidebar.collapsed", collapsed ? "1" : "0");
+    }
+  }, [collapsed, sidebarPreferenceReady]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMobileOpen(false));
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
 
   function spaceHref(space: (typeof PROJECT_SPACES)[number]) {
     if (!navigationProject) return "/projects";
@@ -64,9 +85,10 @@ export function TopWorkbar({
   return (
     <header
       data-collapsed={collapsed}
-      className="ac-shell-sidebar sticky top-0 z-40 border-b border-stroke bg-panel md:fixed md:inset-y-0 md:left-0 md:w-64 md:border-b-0 md:border-r"
+      data-mobile-open={mobileOpen}
+      className="ac-shell-sidebar sticky top-0 z-40 border-b border-stroke bg-panel"
     >
-      <div className="ac-shell-sidebar-inner mx-auto flex h-[52px] max-w-[120rem] items-center gap-2 px-3 sm:h-14 sm:gap-4 sm:px-5 md:h-full md:max-w-none md:flex-col md:items-stretch md:gap-0 md:px-4 md:py-4">
+      <div className="ac-shell-sidebar-inner mx-auto flex h-[52px] max-w-[120rem] items-center gap-2 px-3 sm:h-14 sm:gap-4 sm:px-5">
         {/* 品牌 */}
         <Link
           href="/today"
@@ -97,13 +119,25 @@ export function TopWorkbar({
           {collapsed ? "→" : "←"}
         </button>
 
+        <button
+          type="button"
+          onClick={() => setMobileOpen((value) => !value)}
+          aria-expanded={mobileOpen}
+          aria-controls="ac-primary-navigation"
+          aria-label={mobileOpen ? "关闭导航" : "打开导航"}
+          title={mobileOpen ? "关闭导航" : "打开导航"}
+          className="ac-sidebar-menu size-8 place-items-center border border-stroke text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+        >
+          <span aria-hidden className={mobileOpen ? "ac-icon-close" : "ac-icon-menu"} />
+        </button>
+
         {/* 项目切换器。移动端收小，但保留——它是换项目的主入口 */}
-        <div className="ac-shell-switcher min-w-0 shrink md:mt-8 md:w-full">
+        <div className="ac-shell-switcher min-w-0 shrink">
           <ProjectSwitcher projects={projects} />
         </div>
 
         {/* 一级导航 */}
-        <nav aria-label="主导航" className="ac-shell-primary-nav ml-auto flex items-center gap-0.5 overflow-x-auto no-scrollbar sm:gap-1 md:ml-0 md:mt-6 md:flex-col md:items-stretch md:gap-1">
+        <nav id="ac-primary-navigation" aria-label="主导航" className="ac-shell-primary-nav ml-auto flex items-center gap-0.5 overflow-x-auto no-scrollbar sm:gap-1">
           {NAV_ITEMS.map((item) => {
             const isActive = active === item.href;
             const showDot = item.href === "/collaboration" && collaborationCount > 0;
@@ -147,7 +181,6 @@ export function TopWorkbar({
                           key={space}
                           href={spaceHref(space)}
                           active={Boolean(projectId) && currentSpace === space}
-                          suffix={space === "studio" ? "AI" : undefined}
                           title={SPACE_HINT[space]}
                         >
                           {SPACE_LABEL[space]}
@@ -167,10 +200,18 @@ export function TopWorkbar({
           })}
         </nav>
 
-        <div className="ac-shell-account ml-1 shrink-0 sm:ml-2 md:mt-auto md:ml-0 md:w-full">
+        <div className="ac-shell-account ml-1 shrink-0 sm:ml-2">
           <AccountMenu name={userName} />
         </div>
       </div>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="关闭导航"
+          onClick={() => setMobileOpen(false)}
+          className="ac-sidebar-scrim"
+        />
+      )}
     </header>
   );
 }
