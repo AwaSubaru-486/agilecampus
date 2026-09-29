@@ -163,7 +163,7 @@ export function ContextPackBuilder({
       <div className="border-t border-stroke pt-3">
         <p className="text-[11px] font-medium text-ink-3">已冻结</p>
         <div className="mt-2 space-y-1.5">
-          {packs.filter((pack) => pack.status === "frozen").map((pack) => <button key={pack.id} type="button" onClick={() => onSelectPack(pack.id)} className={`flex w-full items-start justify-between gap-2 border-l-2 px-2 py-1.5 text-left text-xs ${selectedPackId === pack.id ? "border-agent bg-agent-soft/50 text-ink" : "border-transparent text-ink-2 hover:border-stroke-strong hover:bg-panel"}`}><span className="min-w-0 truncate">{pack.title}</span><span className="shrink-0 text-[10px] text-ink-3">{pack.frozenAt ? new Date(pack.frozenAt).toLocaleDateString("zh-CN") : "已冻结"}</span></button>)}
+          {packs.filter((pack) => pack.status === "frozen").map((pack) => <button key={pack.id} type="button" onClick={() => onSelectPack(pack.id)} className={`flex w-full items-start justify-between gap-2 border px-2 py-1.5 text-left text-xs ${selectedPackId === pack.id ? "border-agent bg-agent-soft/50 text-ink" : "border-transparent text-ink-2 hover:border-stroke-strong hover:bg-panel"}`}><span className="min-w-0 truncate">{pack.title}</span><span className="shrink-0 text-[10px] text-ink-3">{pack.frozenAt ? new Date(pack.frozenAt).toLocaleDateString("zh-CN") : "已冻结"}</span></button>)}
           {packs.every((pack) => pack.status !== "frozen") && <p className="text-xs text-ink-3">还没有冻结包</p>}
         </div>
       </div>

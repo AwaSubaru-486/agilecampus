@@ -48,29 +48,28 @@ export async function WorkSpace({
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
         <div>
-          <h2 className="font-display text-xl font-bold text-ink">任务流</h2>
-          <p className="mt-1 text-xs text-ink-3">
-            {visibleTasks.length} / {projectTasks.length} 项 · 拖动卡片推进；
-            点卡片打开详情
-          </p>
+          <div className="flex items-baseline gap-2">
+            <h2 className="font-display text-lg font-semibold text-ink">任务</h2>
+            <span className="text-xs tabular-nums text-ink-3">{visibleTasks.length} / {projectTasks.length}</span>
+          </div>
+          <p className="mt-0.5 text-xs text-ink-3">按责任人和状态推进交付</p>
         </div>
-        <Link
-          href={`/projects/${projectId}/timeline`}
-          className="ac-btn-ghost"
-        >
-          时间线
-        </Link>
+        <div className="flex items-center gap-2">
+          {canWrite && (
+            <NewTaskForm
+              compact
+              projectId={projectId}
+              members={members}
+              milestones={projectMilestones.map((m) => ({ id: m.id, title: m.title }))}
+            />
+          )}
+          <Link href={`/projects/${projectId}/timeline`} className="ac-btn-ghost min-h-8 px-2.5 text-xs">
+            时间线
+          </Link>
+        </div>
       </div>
-
-      {canWrite && (
-        <NewTaskForm
-          projectId={projectId}
-          members={members}
-          milestones={projectMilestones.map((m) => ({ id: m.id, title: m.title }))}
-        />
-      )}
 
       <FilterBar
         members={members.map((m) => ({
@@ -84,8 +83,8 @@ export async function WorkSpace({
       />
 
       {filters.group === "status" && (
-        <p className="border-l-2 border-warn bg-warn-soft/40 px-3 py-2 text-xs leading-5 text-ink-2">
-          状态列不接受拖拽。请用任务卡上的“我接手 / 提交成果 / 验收”推进，已完成必须经过人工验收。
+        <p className="text-xs text-ink-3">
+          状态由“接手 / 提交 / 验收”推进；拖拽只用于重新分组。
         </p>
       )}
 

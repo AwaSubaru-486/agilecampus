@@ -1,51 +1,47 @@
 @import "tailwindcss";
 
-/* AgileCampus · 人与 AI 的协作现场
+/* AgileCampus · shadcn 风格的深色工程控制台
  *
- * 视觉基线（Commit 2/13）。与旧版的根本差别不在配色，在三条：
- *   1. 暖灰底 + 纸感面，不是冷白 + 亮蓝
- *   2. 阴影只用于浮层，普通面板靠边框与留白分层
- *   3. 「人」与「AI」是两组并列的语义色，不是「正常 vs 警告」
- *
- * 旧 token 名在文件下半部保留为别名，让现有 36 个组件的文件一行不改
- * 就先换上新皮；逐个迁移完成后于 Commit 13 删除别名。
+ * 视觉方向参考 shadcn/ui dashboard：深色背景、细边框、紧凑间距、
+ * 等宽数据字体和固定侧栏。业务语义色保留，但不再用暖灰纸感做品牌。
+ * 旧 token 名保留为别名，页面组件可以逐步迁移而不破坏功能。
  */
 
 @theme {
   /* ---------- 底与面 ---------- */
-  --color-ground: #f3f1eb; /* 页面底：暖灰，接近草稿纸 */
-  --color-panel: #fbfaf7; /* 面板：纸白，不是纯白 */
-  --color-raised: #ffffff; /* 浮起层：仅用于浮层 */
-  --color-sunken: #eae7df; /* 凹陷：输入槽、次级底 */
+  --color-ground: #0b0b0d;
+  --color-panel: #111113;
+  --color-raised: #19191c;
+  --color-sunken: #18181b;
 
   /* ---------- 字 ---------- */
-  --color-ink: #1d2421;
-  --color-ink-2: #4f5b56;
-  --color-ink-3: #7e8983;
+  --color-ink: #fafafa;
+  --color-ink-2: #b8b8c0;
+  --color-ink-3: #898991;
 
   /* ---------- 线 ---------- */
-  --color-stroke: #dcded8;
-  --color-stroke-strong: #c7cbc4;
+  --color-stroke: #303035;
+  --color-stroke-strong: #4a4a52;
 
   /* ---------- 人机语义色 ---------- */
   /* 人与 AI 是并列的两类成员。绿色不代表好人，紫色不代表危险 */
-  --color-human: #13795b;
-  --color-human-soft: #e4f4ed;
-  --color-agent: #456b63;
-  --color-agent-soft: #e6efec;
+  --color-human: #34d399;
+  --color-human-soft: #052e25;
+  --color-agent: #60a5fa;
+  --color-agent-soft: #172554;
 
   /* ---------- 信号与状态 ---------- */
-  --color-signal: #3157d5;
-  --color-signal-hover: #2745b4;
-  --color-signal-soft: #e9edff;
-  --color-signal-ring: #c3cdf7;
+  --color-signal: #f4f4f5;
+  --color-signal-hover: #ffffff;
+  --color-signal-soft: #27272a;
+  --color-signal-ring: #52525b;
 
-  --color-risk: #c4424f;
-  --color-risk-soft: #fbe8ea;
-  --color-warn: #a76513;
-  --color-warn-soft: #f7edd8;
-  --color-success: #25734f;
-  --color-success-soft: #e4f4ed;
+  --color-risk: #f87171;
+  --color-risk-soft: #450a0a;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #422006;
+  --color-success: #4ade80;
+  --color-success-soft: #052e16;
 
   /* ---------- 形状 ---------- */
   /* 主面板 12px、抽屉 16px。不再所有元素都用 24px 大圆角 */
@@ -66,14 +62,14 @@
   /* ---------- 字体 ---------- */
   /* 明确采用本机字体：中文优先苹方/微软雅黑，英文回退系统 sans。
    * 不依赖远程字体，离线构建和课堂演示都能保持同一套字形策略。 */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "PingFang SC", "Microsoft YaHei", monospace;
   --font-display: var(--font-sans);
 }
 
 /* 阴影：只给浮层。普通面板一律不投影，靠边框与留白分层 */
 :root {
-  --shadow-float: 0 10px 30px -12px rgba(29, 36, 33, 0.18);
-  --shadow-pop: 0 18px 50px -22px rgba(29, 36, 33, 0.28);
+  --shadow-float: 0 16px 40px -16px rgba(0, 0, 0, 0.8);
+  --shadow-pop: 0 24px 60px -24px rgba(0, 0, 0, 0.9);
 }
 
 /* ==========================================================================
@@ -162,7 +158,7 @@ html {
   .ac-live-panel {
     overflow: hidden;
     border: 1px solid var(--color-stroke);
-    border-top: 3px solid var(--color-ink);
+    border-top: 2px solid var(--color-ink);
     border-radius: var(--radius-panel);
     background: var(--color-panel);
   }
@@ -239,7 +235,7 @@ html {
     padding: 0.45rem 0.95rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #fff;
+    color: var(--color-ground);
     transition: background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
   }
   .ac-btn:hover:not(:disabled) {
@@ -287,7 +283,7 @@ html {
     border-radius: var(--radius-control);
     background: var(--color-ink);
     padding: 0.5rem 1rem;
-    color: var(--color-raised);
+    color: var(--color-ground);
     font-size: 0.875rem;
     font-weight: 600;
     transition: background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
@@ -333,7 +329,7 @@ html {
   .ac-agent-mark {
     display: inline-flex;
     align-items: center;
-    border-left: 2px solid var(--color-agent);
+    border: 1px solid color-mix(in srgb, var(--color-agent) 50%, var(--color-stroke));
     background-color: var(--color-agent-soft);
     padding: 0 0.3rem;
     font-size: 0.625rem;

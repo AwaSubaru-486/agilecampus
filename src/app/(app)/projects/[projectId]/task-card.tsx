@@ -18,28 +18,17 @@ import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
 import { isAwaitingResponse, isCompleted, isInFlight, isInReview } from "@/lib/task-status";
 import type { BoardTask } from "./board";
 import type { CardDensity } from "./board";
+import { Badge, Button } from "@/components/ui";
 
 // 负责人下拉的每一项。kind 决定卡面上是否给它挂「AI」标识——
 // 人机混排的界面里，一眼分得清谁是谁是基本要求。
 export type Option = { id: string; name: string; kind?: "human" | "agent" };
 type TaskOption = { id: string; title: string };
 
-const PRIORITY_BADGE: Record<string, string> = {
-  high: "bg-high-soft text-high",
-  medium: "bg-medium-soft text-medium",
-  low: "bg-low-soft text-low",
-};
-
 const PRIORITY_LABEL: Record<string, string> = {
   high: "高优先级",
   medium: "中优先级",
   low: "低优先级",
-};
-
-const PRIORITY_RAIL: Record<string, string> = {
-  high: "before:bg-high",
-  medium: "before:bg-medium",
-  low: "before:bg-low",
 };
 
 export function TaskCard({
@@ -55,6 +44,7 @@ export function TaskCard({
   dependencies,
   density = "comfortable",
   dragEnabled = true,
+  listMode = false,
 }: {
   task: BoardTask;
   projectId: string;
@@ -70,6 +60,8 @@ export function TaskCard({
   density?: CardDensity;
   /** 状态分组时关闭拖拽；状态推进必须走认领/提交/验收动作。 */
   dragEnabled?: boolean;
+  /** 列表视图使用平铺行，避免每一项变成独立的装饰卡片。 */
+  listMode?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   // 动作面板：同一时刻只开一个。null 表示无
@@ -93,16 +85,16 @@ export function TaskCard({
 
   // agent 此刻的状态译成一句人话。只在负责人是 agent 时显示，
   // 免得给人也挂一个「离线」——人不会被判离线。
-  const agentBadge = !assigneeIsAgent
+  const agentBadge: { label: string; tone: "agent" | "risk" | "neutral" } | null = !assigneeIsAgent
     ? null
     : task.hasActiveRun
-      ? { label: "协作者处理中", cls: "bg-agent-soft text-agent" }
+      ? { label: "协作者处理中", tone: "agent" }
       : task.agentStatus === "blocked"
-        ? { label: "协作者卡住了", cls: "bg-high-soft text-high" }
+        ? { label: "协作者卡住了", tone: "risk" }
         : task.agentStatus === "error"
-        ? { label: "协作者出错了", cls: "bg-high-soft text-high" }
+        ? { label: "协作者出错了", tone: "risk" }
           : task.agentStatus === "offline"
-            ? { label: "协作者离线", cls: "bg-sunken text-ink-soft" }
+            ? { label: "协作者离线", tone: "neutral" }
             : null;
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -135,7 +127,11 @@ export function TaskCard({
           ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
           : undefined
       }
-      className={`group relative select-none overflow-hidden border border-stroke bg-panel ${density === "compact" ? "p-2.5" : "p-3.5"} text-sm before:absolute before:inset-y-3 before:left-0 before:w-0.5 transition-[background-color,border-color,opacity] duration-150 ${PRIORITY_RAIL[task.priority] ?? PRIORITY_RAIL.low} ${
+      className={`group relative select-none overflow-hidden text-sm transition-[background-color,border-color,opacity] duration-150 ${
+        listMode
+          ? "border-0 border-b border-stroke bg-transparent px-3 py-3 hover:bg-sunken/60"
+          : `border border-stroke bg-panel ${density === "compact" ? "p-2.5" : "p-3.5"}`
+      } ${
         isDragging ? "scale-[0.98] opacity-20" : ""
       }`}
     >
@@ -159,30 +155,30 @@ export function TaskCard({
           {/* agent 此刻在干什么。这一格是人机混排界面的关键——
               人说得出自己卡住了，agent 不会，只能靠这一格替他开口 */}
           {agentBadge && (
-            <span className={`ac-badge ${agentBadge.cls}`}>{agentBadge.label}</span>
+            <Badge tone={agentBadge.tone}>{agentBadge.label}</Badge>
           )}
           {(task.startDate || task.dueDate) && (
             <span>· {task.dueDate ?? task.startDate}</span>
           )}
-          <span className={`ac-badge ${PRIORITY_BADGE[task.priority] ?? "bg-low-soft text-low"}`}>
+          <Badge tone={priorityTone(task.priority)}>
             {PRIORITY_LABEL[task.priority] ?? task.priority}
-          </span>
+          </Badge>
         </p>
         {/* 还没接住：派了不等于有人接。一句话点破这层误会 */}
         {awaitingResponse && (
-          <p className="mt-1.5 border-l-2 border-medium bg-medium-soft/60 px-2 py-1 text-xs text-medium">
+          <p className="mt-1.5 rounded border border-medium/30 bg-medium-soft/60 px-2 py-1 text-xs text-medium">
             {assigneeIsAgent ? "派给 AI 了，但它还没回话" : "已指派，等本人回复接不接"}
           </p>
         )}
         {density === "comfortable" && task.labels.length > 0 && (
           <p className="mt-1 flex flex-wrap items-center gap-1">
             {task.labels.slice(0, 3).map((l) => (
-              <span
+              <Badge
                 key={l.id}
-                className={`ac-badge ${LABEL_COLOR_CLASS[l.color] ?? LABEL_COLOR_CLASS.slate}`}
+                className={LABEL_COLOR_CLASS[l.color] ?? LABEL_COLOR_CLASS.slate}
               >
                 {l.name}
-              </span>
+              </Badge>
             ))}
             {task.labels.length > 3 && (
               <span className="text-xs text-ink-faint">+{task.labels.length - 3}</span>
@@ -196,7 +192,7 @@ export function TaskCard({
             不能等到 done——否则成员填了却看不见自己填了什么 */}
         {density === "comfortable" && !isInFlight(task.status) && task.completionNote && (
           <p
-            className={`mt-1 border-l-2 px-2 py-1 text-xs ${
+            className={`mt-1 rounded border border-stroke px-2 py-1 text-xs ${
               isCompleted(task.status) ? "bg-done/10 text-done" : "bg-review-soft text-review"
             }`}
           >
@@ -209,7 +205,7 @@ export function TaskCard({
         {/* 承诺常驻展示——这是「承诺」这个概念唯一能被看见的地方。
             紧凑态省掉，免得卡片过高 */}
         {density === "comfortable" && task.commitmentNote && (
-          <p className="mt-1.5 border-l-2 border-primary/40 bg-primary-soft/50 px-2 py-1 text-xs text-ink-soft">
+          <p className="mt-1.5 rounded border border-stroke bg-sunken px-2 py-1 text-xs text-ink-soft">
             <span className="text-ink-faint">承诺</span> {task.commitmentNote}
             {task.estimatedHours ? (
               <span className="ml-1 text-ink-faint">· 预估 {task.estimatedHours} 小时</span>
@@ -218,7 +214,7 @@ export function TaskCard({
         )}
         {/* 退回意见要显眼：成员最需要知道的就是「哪里不行」 */}
         {task.status === "doing" && task.reviewNote && (
-          <p className="mt-1.5 border-l-2 border-high bg-high-soft px-2 py-1 text-xs text-high">
+          <p className="mt-1.5 rounded border border-high/30 bg-high-soft px-2 py-1 text-xs text-high">
             退回意见：{task.reviewNote}
           </p>
         )}
@@ -230,42 +226,47 @@ export function TaskCard({
         {(canClaim || canSubmit || canReviewThis) && (
           <div className="flex flex-wrap gap-1.5">
             {canClaim && (
-              <button
+              <Button
                 type="button"
                 onClick={() => setPanel(panel === "claim" ? null : "claim")}
-                className="ac-btn-ink px-2.5 py-1 text-xs"
+                variant="ink"
+                size="sm"
               >
                 我接手
-              </button>
+              </Button>
             )}
             {canSubmit && (
-              <button
+              <Button
                 type="button"
                 onClick={() => setPanel(panel === "submit" ? null : "submit")}
-                className="ac-btn-ink px-2.5 py-1 text-xs"
+                variant="ink"
+                size="sm"
               >
                 提交成果
-              </button>
+              </Button>
             )}
             {canReviewThis && (
-              <button
+              <Button
                 type="button"
                 onClick={() => setPanel(panel === "review" ? null : "review")}
-                className="ac-btn-ghost border-agent text-agent px-2.5 py-1 text-xs hover:bg-agent-soft"
+                variant="secondary"
+                size="sm"
+                className="border-agent text-agent hover:bg-agent-soft"
               >
                 验收
-              </button>
+              </Button>
             )}
             {/* 「接不住」与「我接手」并列同高：它是正当选项，不是失败按钮。
                 做小做灰，人就又不敢点了——那正是这个功能要治的病 */}
             {canDecline && (
-              <button
+              <Button
                 type="button"
                 onClick={() => setPanel(panel === "decline" ? null : "decline")}
-                className="ac-btn-ghost px-2.5 py-1 text-xs"
+                variant="secondary"
+                size="sm"
               >
                 接不住
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -292,7 +293,7 @@ export function TaskCard({
             onClick={askAi}
             className="ac-pressable min-h-9 text-xs text-ink-faint hover:text-primary hover:underline"
           >
-            带此任务问 AI
+            继续协作
           </button>
         </div>
       </div>
@@ -452,17 +453,18 @@ function ActionForm({
         </p>
       )}
       <div className="flex items-center gap-2">
-        <button disabled={pending} className="ac-btn px-2.5 py-1 text-xs">
+        <Button disabled={pending} size="sm">
           {pending ? "提交中…" : submitLabel}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="text-xs text-ink-faint hover:text-primary"
+          variant="quiet"
+          size="sm"
         >
           取消
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -640,12 +642,12 @@ function EditModal({
           {updateError && <p className="text-sm text-high">{updateError}</p>}
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="ac-btn-ghost">
+            <Button type="button" onClick={onClose} variant="secondary">
               取消
-            </button>
-            <button disabled={updating} className="ac-btn">
+            </Button>
+            <Button disabled={updating}>
               {updating ? "保存中…" : "保存"}
-            </button>
+            </Button>
           </div>
         </form>
 
@@ -678,4 +680,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   );
+}
+
+function priorityTone(priority: string): "risk" | "warn" | "neutral" {
+  if (priority === "high") return "risk";
+  if (priority === "medium") return "warn";
+  return "neutral";
 }

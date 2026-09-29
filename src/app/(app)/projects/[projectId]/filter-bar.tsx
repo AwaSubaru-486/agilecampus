@@ -70,7 +70,7 @@ export function FilterBar({
     <details className="ac-toolbar group rounded-none text-sm">
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-3 py-2.5">
         <span className="flex items-center gap-2 text-xs font-medium text-ink-soft">
-          <span aria-hidden className="grid size-7 place-items-center border-l-2 border-signal bg-sunken text-signal">⌁</span>
+          <span className="font-mono text-ink-3">⌁</span>
           筛选与视图
           {activeCount > 0 && <span className="ac-badge bg-primary text-white">{activeCount}</span>}
         </span>

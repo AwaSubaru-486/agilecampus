@@ -208,7 +208,7 @@ export function DecisionLedger({ projectId, decisions: initialDecisions, canDeci
                       return (
                         <label
                           key={option.id}
-                          className={`block border-l-2 px-3 py-2.5 transition-colors ${
+                          className={`block border px-3 py-2.5 transition-colors ${
                             checked ? "border-signal bg-signal/5" : "border-stroke bg-sunken/30 hover:border-stroke-strong"
                           } ${isProposed && canDecide ? "cursor-pointer" : ""}`}
                         >
@@ -239,7 +239,7 @@ export function DecisionLedger({ projectId, decisions: initialDecisions, canDeci
                     })}
                   </fieldset>
 
-                  <div className="border-l border-stroke pl-3 lg:pl-4">
+                  <div className="border border-stroke bg-sunken/30 p-3 lg:p-4">
                     <label htmlFor={`decision-rationale-${decision.id}`} className="text-xs font-semibold text-ink-2">
                       {isProposed ? "确认理由" : "登记理由"}
                     </label>

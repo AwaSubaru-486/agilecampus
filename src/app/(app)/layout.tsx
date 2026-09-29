@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         projects={switcherProjects}
         collaborationCount={pendingCount}
       />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[120rem] px-3 py-4 sm:px-5 sm:py-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[120rem] px-3 py-4 sm:px-5 sm:py-6 md:ml-64">
         {children}
       </main>
 

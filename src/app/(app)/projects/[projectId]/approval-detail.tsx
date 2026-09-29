@@ -198,7 +198,7 @@ export function ApprovalDetail({
             </>
           )}
           {staleExecuting && (
-            <div className="space-y-2 border-l-2 border-risk/50 pl-2 text-xs text-risk">
+            <div className="space-y-2 border border-risk/50 bg-risk-soft/30 p-2 text-xs text-risk">
               <p>这条审批已超过 5 分钟没有心跳，业务写入状态可能未知。</p>
               <button
                 type="button"
@@ -211,12 +211,12 @@ export function ApprovalDetail({
             </div>
           )}
           {approval.resolutionNote && (
-            <p className="border-l-2 border-stroke-strong pl-2 text-ink-3">处理备注：{approval.resolutionNote}</p>
+            <p className="border border-stroke bg-sunken px-2 py-1 text-ink-3">处理备注：{approval.resolutionNote}</p>
           )}
         </div>
       </div>
       {preview && preview.rows.length > 0 && (
-        <div className={`mt-3 border-l-2 px-2.5 py-2 text-xs ${preview.staleCount > 0 ? "border-risk/60 bg-risk-soft/40 text-risk" : "border-done/50 bg-done-soft/30 text-ink-2"}`}>
+        <div className={`mt-3 border px-2.5 py-2 text-xs ${preview.staleCount > 0 ? "border-risk/60 bg-risk-soft/40 text-risk" : "border-done/50 bg-done-soft/30 text-ink-2"}`}>
           <p className="font-medium">
             {preview.staleCount > 0
               ? `${preview.staleCount} 项任务已发生变化，确认后会跳过这些冲突项`
@@ -232,7 +232,7 @@ export function ApprovalDetail({
         </div>
       )}
       {approval.canResolve === false && (
-        <p className="mt-3 border-l-2 border-warn/50 bg-warn-soft/40 px-2.5 py-2 text-xs text-warn">
+        <p className="mt-3 border border-warn/50 bg-warn-soft/40 px-2.5 py-2 text-xs text-warn">
           {approval.permissionReason ?? "当前角色不能确认这类 AI 写操作，请转交有权限的成员。"}
         </p>
       )}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildConversationTree } from "@/lib/conversation-tree";
+import { Badge } from "@/components/ui";
 
 type Conversation = {
   id: string;
@@ -70,20 +71,22 @@ export function ConversationTree({
               <button
                 type="button"
                 onClick={() => onSelect(conversation.id)}
-                className={`ac-pressable min-h-11 min-w-0 flex-1 border-l-2 px-2 py-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-signal ${
+                className={`ac-pressable min-h-11 min-w-0 flex-1 rounded-[var(--radius-control)] border px-2 py-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-signal ${
                   isSelected
-                    ? "border-ink bg-panel"
-                    : "border-transparent hover:border-stroke-strong hover:bg-panel/70"
+                    ? "border-stroke-strong bg-panel"
+                    : "border-transparent hover:border-stroke hover:bg-panel/70"
                 }`}
               >
                 <span className="block truncate text-sm font-medium text-ink">
                   {conversation.title || "未命名会话"}
                 </span>
-                <span className="mt-1 flex flex-wrap gap-1 text-[11px] text-ink-3">
+                <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-ink-3">
                   <span>{conversation.createdById === currentUserId ? "我" : conversation.createdByName}</span>
                   <span aria-hidden>·</span>
-                  <span>{conversation.visibility === "project" ? "共享" : "私人"}</span>
-                  {node.depth > 0 && <span>· 分支</span>}
+                  <Badge tone={conversation.visibility === "project" ? "signal" : "neutral"}>
+                    {conversation.visibility === "project" ? "共享" : "私人"}
+                  </Badge>
+                  {node.depth > 0 && <Badge tone="agent">分支</Badge>}
                 </span>
                 {conversation.taskTitle && (
                   <span className="mt-1 block truncate text-[11px] text-ink-2">任务：{conversation.taskTitle}</span>

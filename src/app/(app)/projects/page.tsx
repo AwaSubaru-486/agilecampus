@@ -27,7 +27,7 @@ export default async function AllProjectsPage() {
         </div>
       </header>
       {projects.length === 0 ? (
-        <div className="rounded-[var(--radius-panel)] border border-dashed border-stroke bg-panel p-14 text-center">
+        <div className="rounded-[var(--radius-panel)] border border-stroke bg-panel p-14 text-center">
           <p className="font-medium text-ink">这里还没有项目</p>
           <p className="mt-1 text-sm text-ink-3">先进入团队空间，创建第一个协作项目。</p>
           <Link href="/teams" className="ac-btn mt-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">前往团队</Link>

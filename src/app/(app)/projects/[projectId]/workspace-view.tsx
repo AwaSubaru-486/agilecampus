@@ -100,7 +100,7 @@ export function WorkspaceView({
                     查看 AI 工作现场
                   </Link>
                 </div>
-                <p className="mt-3 border-l-2 border-agent/50 pl-3 text-xs leading-5 text-ink-3">
+                <p className="mt-3 rounded border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3">
                   接手后可以沿用原会话与上下文，不需要从头解释。
                 </p>
               </div>
@@ -283,7 +283,7 @@ function MilestoneRow({ m }: { m: MilestoneProgress }) {
 
       {/* 达成时自动冻结的实况——不是谁回来补写的 */}
       {m.autoSummary && (
-        <p className="mt-1.5 border-l-2 border-success/40 bg-success-soft/30 px-2 py-1 text-xs leading-5 text-ink-2">
+        <p className="mt-1.5 border border-success/40 bg-success-soft/30 px-2 py-1 text-xs leading-5 text-ink-2">
           {m.autoSummary}
         </p>
       )}

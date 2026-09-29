@@ -5,10 +5,12 @@ import { createTaskAction, type CreateTaskState } from "./actions";
 import { DEFAULT_STATUS, statusLabel, type TaskStatus } from "@/lib/task-status";
 
 export function NewTaskForm({
+  compact = false,
   projectId,
   members,
   milestones,
 }: {
+  compact?: boolean;
   projectId: string;
   members: { id: string; name: string }[];
   milestones: { id: string; title: string }[];
@@ -64,10 +66,12 @@ export function NewTaskForm({
         <button
           type="button"
           onClick={begin}
-          className="flex w-full items-center justify-between border border-dashed border-line-strong bg-surface px-3 py-2.5 text-left text-sm text-ink-soft transition hover:border-signal hover:bg-signal-soft hover:text-signal"
+          className={compact
+            ? "ac-btn-ghost min-h-8 px-2.5 text-xs"
+            : "flex w-full items-center justify-between border border-line-strong bg-surface px-3 py-2.5 text-left text-sm text-ink-soft transition hover:border-stroke-strong hover:bg-sunken hover:text-ink"}
         >
-          <span><span className="mr-2 font-semibold">＋</span>快速添加任务</span>
-          <span className="hidden text-xs text-ink-faint sm:inline">按 + 唤起</span>
+          <span><span className="mr-1.5 font-semibold">＋</span>{compact ? "新任务" : "快速添加任务"}</span>
+          {!compact && <span className="hidden text-xs text-ink-faint sm:inline">按 + 唤起</span>}
         </button>
       ) : (
         <form

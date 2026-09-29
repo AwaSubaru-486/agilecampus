@@ -277,7 +277,7 @@ export function ChatPanel({
           </Button>
         </div>
         {creating && (
-          <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border-l-2 border-agent bg-agent-soft/40 p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
+          <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border border-stroke bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
             <input
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value)}
@@ -381,9 +381,9 @@ export function ChatPanel({
                 <p className="text-sm font-semibold text-ink">先定义这次协作要改变什么</p>
                 <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">把问题、约束和期望的交付写清楚。AI 的回复会留在当前会话，之后可以分支比较或提交待确认动作。</p>
                 <div className="mt-4 grid gap-2 text-xs text-ink-3 sm:grid-cols-3">
-                  <span className="rounded border-l-2 border-agent bg-panel px-2 py-1">说明现状</span>
-                  <span className="rounded border-l-2 border-signal bg-panel px-2 py-1">提出方案</span>
-                  <span className="rounded border-l-2 border-human bg-panel px-2 py-1">人工确认</span>
+                  <span className="rounded border border-stroke bg-panel px-2 py-1">说明现状</span>
+                  <span className="rounded border border-stroke bg-panel px-2 py-1">提出方案</span>
+                  <span className="rounded border border-stroke bg-panel px-2 py-1">人工确认</span>
                 </div>
               </div>
             )}

@@ -65,6 +65,7 @@ function Column({
   viewMode,
   density,
   dragEnabled,
+  listMode,
 }: {
   column: BoardColumn;
   tasks: BoardTask[];
@@ -80,15 +81,16 @@ function Column({
   viewMode: ViewMode;
   density: CardDensity;
   dragEnabled: boolean;
+  listMode: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key, disabled: !dragEnabled });
 
   return (
     <div
       ref={setNodeRef}
-      className={`${viewMode === "list" ? "w-full" : "w-[19rem] shrink-0"} min-h-48 space-y-2.5 border border-t-2 p-3 transition-[background-color,border-color] duration-200 ${
+      className={`${viewMode === "list" ? "w-full border-x-0 border-b-0 p-0" : "w-[19rem] shrink-0 min-h-48 space-y-2.5 border border-t-2 p-3"} transition-[background-color,border-color] duration-200 ${
         isOver
-          ? "border-t-signal border-x-signal/40 border-b-signal/40 bg-signal-soft/35"
+          ? "border-stroke-strong bg-sunken"
           : "border-line bg-sunken/20"
       }`}
     >
@@ -99,7 +101,7 @@ function Column({
         </h3>
         <span className="min-w-5 border border-line bg-surface px-1.5 py-0.5 text-center text-[10px] font-semibold tabular-nums text-ink-soft">{tasks.length}</span>
       </div>
-      <div className={viewMode === "list" ? "grid gap-2 md:grid-cols-2 xl:grid-cols-3" : "space-y-2.5"}>
+      <div className={viewMode === "list" ? "divide-y divide-line border-y border-line" : "space-y-2.5"}>
         {tasks.map((t) => (
           <TaskCard
             key={t.id}
@@ -115,10 +117,11 @@ function Column({
             dependencies={dependencies}
             density={density}
             dragEnabled={dragEnabled}
+            listMode={listMode}
           />
         ))}
         {tasks.length === 0 && (
-          <div className="border border-dashed border-line-strong bg-surface/40 px-3 py-8 text-center">
+          <div className="border-y border-line bg-surface/40 px-3 py-8 text-center">
             <p className="text-xs text-ink-faint">这里还没有任务</p>
           </div>
         )}
@@ -170,8 +173,10 @@ export function Board({
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("board");
-  const [density, setDensity] = useState<CardDensity>("comfortable");
+  // 列表是项目管理的默认工作面：先让人找到要做的事，再切换到看板做空间规划。
+  // 这也是 Linear、Plane 等成熟工具常见的入口顺序，移动端不会被横向看板截断。
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [density, setDensity] = useState<CardDensity>("compact");
   const [optimisticTasks, moveOptimistic] = useOptimistic(
     tasks,
     (current, move: { taskId: string; patch: ColumnPatch }) =>
@@ -232,16 +237,12 @@ export function Board({
       onDragEnd={handleDragEnd}
     >
       {error && <p role="status" aria-live="polite" className="text-sm text-high">{error}</p>}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-surface px-1.5 py-1">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-y border-line px-1.5 py-1">
         <div className="flex items-center gap-1" aria-label="任务视图">
           <ModeButton active={viewMode === "board"} onClick={() => setViewMode("board")} hint="1">看板</ModeButton>
           <ModeButton active={viewMode === "list"} onClick={() => setViewMode("list")} hint="2">列表</ModeButton>
         </div>
-        <div className="flex items-center gap-1" aria-label="卡片密度">
-          <span className="mr-1 text-[10px] font-medium text-ink-faint">卡片密度</span>
-          <ModeButton active={density === "comfortable"} onClick={() => setDensity("comfortable")} hint="F">完整</ModeButton>
-          <ModeButton active={density === "compact"} onClick={() => setDensity("compact")} hint="M">紧凑</ModeButton>
-        </div>
+        <span className="text-[10px] text-ink-faint">列表优先 · 可按 1 / 2 切换</span>
       </div>
       {/* 列数随分组维度而变，故横向滚动而非固定三栏 */}
       <div className={`${viewMode === "list" ? "flex-col" : "overflow-x-auto"} flex gap-3 pb-3 [scrollbar-width:thin]`}>
@@ -262,6 +263,7 @@ export function Board({
             viewMode={viewMode}
             density={density}
             dragEnabled={groupBy !== "status"}
+            listMode={viewMode === "list"}
           />
         ))}
       </div>
@@ -272,11 +274,11 @@ export function Board({
         }}
       >
         {activeTask && (
-          <div className="w-[19rem] -translate-y-0.5 border border-signal/40 bg-surface p-4 text-sm shadow-[0_18px_40px_-18px_rgba(21,27,38,0.32)]">
+          <div className="w-[19rem] -translate-y-0.5 border border-stroke-strong bg-surface p-4 text-sm shadow-[0_18px_40px_-18px_rgba(0,0,0,0.45)]">
             <p className="font-medium text-ink">{activeTask.title}</p>
             <div className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-soft">
               <span>{activeTask.assigneeName ?? "未分配"}</span>
-              <span className="ac-badge bg-primary-soft text-primary">移动中</span>
+              <span className="ac-badge bg-sunken text-ink-2">移动中</span>
             </div>
           </div>
         )}

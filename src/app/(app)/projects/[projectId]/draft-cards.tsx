@@ -292,7 +292,7 @@ function DraftCard({
         <fieldset className="space-y-2">
           <legend className="text-[11px] font-medium text-ink-soft">方案比较</legend>
           {options.map((option, idx) => (
-            <div key={idx} className="border-l-2 border-signal/50 bg-panel px-2.5 py-2">
+            <div key={idx} className="border border-stroke bg-panel px-2.5 py-2">
               <div className="flex items-start gap-2">
                 <span aria-hidden className="mt-2 shrink-0 font-mono text-[10px] text-ink-3">{String(idx + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1 space-y-1">

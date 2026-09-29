@@ -194,7 +194,7 @@ function ArchiveLedger({
         <p className="mt-2 max-w-[10rem] text-sm leading-6 text-ink-2">
           按记录时间倒序排列，项目出处始终可回溯。
         </p>
-        <div className="mt-6 hidden space-y-2 border-l-2 border-stroke-strong pl-3 text-xs leading-5 text-ink-3 lg:block">
+        <div className="mt-6 hidden space-y-2 border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3 lg:block">
           <p className="flex items-center gap-2">
             <span className="inline-block h-0.5 w-4 bg-human" />
             <span>可交付成果</span>

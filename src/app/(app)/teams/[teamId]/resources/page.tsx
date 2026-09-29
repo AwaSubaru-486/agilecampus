@@ -76,7 +76,7 @@ export default async function ResourcesPage({
               <li
                 key={u.id}
                 className={`ac-card flex items-center justify-between gap-4 p-4 ${
-                  u.active ? "border-l-4 border-l-doing" : ""
+                  u.active ? "border border-doing" : ""
                 }`}
               >
                 <div className="min-w-0">

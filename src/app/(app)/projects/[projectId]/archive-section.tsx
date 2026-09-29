@@ -231,7 +231,7 @@ function EntryItem({ entry, projectId }: { entry: EntryRow; projectId: string })
       </div>
 
       {entry.content && (
-        <p className="mt-1.5 border-l-2 border-stroke pl-3 text-sm leading-6 text-ink-2">
+        <p className="mt-1.5 border border-stroke bg-sunken px-3 py-2 text-sm leading-6 text-ink-2">
           {entry.content}
         </p>
       )}

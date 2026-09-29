@@ -150,7 +150,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
 
       {open && (
         <div className="fixed bottom-16 right-4 z-30 w-[24rem] max-w-[calc(100vw-2rem)]">
-          <form action={formAction} className="ac-panel-enter max-h-[70vh] space-y-4 overflow-y-auto border-l-2 border-ink bg-ground p-5 shadow-pop">
+          <form action={formAction} className="ac-panel-enter max-h-[70vh] space-y-4 overflow-y-auto border border-stroke-strong bg-ground p-5 shadow-pop">
             <div className="flex items-start justify-between gap-4 border-b border-stroke pb-3">
               <div>
                 <p className="text-xs text-ink-3">先让别人知道你停在哪里</p>
@@ -205,7 +205,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
               </div>
             </fieldset>
             {reason && (
-              <p className="-mt-2 border-l-2 border-warn/60 pl-2 text-xs leading-5 text-ink-2">{BLOCKER_REASON_HINT[reason]}</p>
+              <p className="-mt-2 border border-warn/60 bg-warn-soft/30 px-2 py-1 text-xs text-ink-2">{BLOCKER_REASON_HINT[reason]}</p>
             )}
 
             {/* 任务选填：不强制先找到任务，正是这个入口存在的理由 */}

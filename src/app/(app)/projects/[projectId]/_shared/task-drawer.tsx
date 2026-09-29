@@ -189,7 +189,7 @@ export function TaskDrawer({
               </p>
             )}
             {task.commitmentNote && (
-              <p className="mt-2 rounded border-l-2 border-signal/40 bg-signal-soft/50 px-2 py-1 text-xs text-ink-2">
+              <p className="mt-2 border border-signal/40 bg-signal-soft/50 px-2 py-1 text-xs text-ink-2">
                 <span className="text-ink-3">承诺</span> {task.commitmentNote}
               </p>
             )}
