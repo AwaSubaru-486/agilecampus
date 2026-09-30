@@ -1,5 +1,7 @@
 # AgileCampus 敏捷校园
 
+> **个人负责模块 / Luna 执行入口**：[VS Code 工作台、检查点与人–Agent 接续专项工单](docs/superpowers/plans/2026-09-30-vscode-checkpoint-handoff-luna-workorders.md)。首次只做 E00–E02，完成后停下来验收；不接管全站 UI 或共享后端。
+
 **面向高校团队的人机协作现场。** 不替学生做项目，而是让团队在人与 AI 之间交接工作时，不丢背景、不丢责任、不丢证据。
 
 > 当前可演示版本：**v0.2.0-demo**。本版本聚焦「任务交接 → Agent 协作 → 人工确认 → 成果沉淀」这条核心闭环。

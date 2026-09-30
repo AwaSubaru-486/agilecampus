@@ -1,5 +1,11 @@
 # AgileCampus VS Code 扩展
 
+## 当前施工入口
+
+执行 [VS Code 工作台、检查点与人–Agent 接续专项工单](../docs/superpowers/plans/2026-09-30-vscode-checkpoint-handoff-luna-workorders.md)。首次只做 E00–E02，验收真实登录、项目绑定、任务读取后停止；检查点和 Agent 接续属于后续工单，目前不能视为已经实现。
+
+下文描述现有骨架。F5 开发配置及测试脚本是否齐全，由 E00 实际核验并补齐，不凭文档认定已经可运行。
+
 这是双端计划的 S4 骨架：侧栏显示项目现场，使用 typed message 调用扩展 host 的命令，再跳回网页端完成复杂操作。
 
 ## 本地开发
