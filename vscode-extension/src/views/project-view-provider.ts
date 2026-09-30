@@ -86,15 +86,20 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
       { title: "选择本地工作区", placeHolder: "项目绑定保存到所选工作区" },
     ).then((item) => item?.folder);
     if (!folder) return;
+    const workspaceUri = folder.uri.toString();
+    const previousBinding = this.bindingStore.get(workspaceUri);
 
     try {
       const project = await client.getProject(selectedProject.project.id);
       if (project.id !== selectedProject.project.id) throw new Error("服务返回的项目与所选项目不一致");
-      await this.tokenStore.store(base.origin, token);
+      await this.tokenStore.store(base.origin, workspaceUri, token);
       const binding: WorkspaceBinding = {
-        serverOrigin: base.toString(), projectId: project.id, workspaceUri: folder.uri.toString(),
+        serverOrigin: base.toString(), projectId: project.id, workspaceUri,
       };
       await this.bindingStore.set(binding);
+      if (previousBinding && new URL(previousBinding.serverOrigin).origin !== base.origin) {
+        await this.tokenStore.delete(new URL(previousBinding.serverOrigin).origin, workspaceUri);
+      }
       this.activeWorkspaceUri = binding.workspaceUri;
       await this.context.globalState.update("agileCampus.activeWorkspaceUri", this.activeWorkspaceUri);
       await vscode.commands.executeCommand("setContext", "agileCampus.connected", true);
@@ -110,13 +115,12 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
     const binding = this.activeBinding();
     if (!binding) return;
     const choice = await vscode.window.showWarningMessage(
-      "断开后会清除此服务的令牌和当前工作区绑定；本地检查点（如有）不会删除。",
+      "断开后会清除此工作区的令牌和项目绑定；本地检查点（如有）不会删除。",
       { modal: true }, "断开",
     );
     if (choice !== "断开") return;
     await this.bindingStore.delete(binding.workspaceUri);
-    const serverOrigin = new URL(binding.serverOrigin).origin;
-    if (!(await this.bindingStore.hasServerOrigin(serverOrigin))) await this.tokenStore.delete(serverOrigin);
+    await this.tokenStore.delete(new URL(binding.serverOrigin).origin, binding.workspaceUri);
     this.requestGeneration += 1;
     if (this.activeWorkspaceUri === binding.workspaceUri) {
       this.activeWorkspaceUri = null;
@@ -168,29 +172,29 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
     const client = await this.clientFor(binding);
     if (!client) return;
     try {
-      const [project, tasks, git] = await Promise.all([
+      const [project, tasks, git, projects] = await Promise.all([
         client.getProject(binding.projectId), client.listTasks(binding.projectId),
-        getGitWorkspaceSnapshot(binding.workspaceUri),
+        getGitWorkspaceSnapshot(binding.workspaceUri), client.listProjects(),
       ]);
       if (generation !== this.requestGeneration) return;
       if (project.id !== binding.projectId) throw new Error("服务返回了其他项目的数据");
+      const projectSummary = projects.find((item) => item.id === project.id);
+      if (!projectSummary) throw new ApiError("当前账号无法访问所选项目", 403);
       this.detailCache.clear();
       this.snapshot = {
         state: "ready", error: null, updatedAt: new Date().toISOString(),
-        projectName: project.name, projectId: project.id, teamName: null,
+        projectName: project.name, projectId: project.id, teamName: projectSummary.teamName,
         workspaceName: folder?.name ?? "本地工作区", repository: git?.repository ?? null,
         currentBranch: git?.currentBranch ?? null, tasks,
       };
       this.loadedBindingKey = bindingKey;
-      const projectSummary = (await client.listProjects()).find((item) => item.id === project.id);
-      if (projectSummary) this.snapshot = { ...this.snapshot, teamName: projectSummary.teamName };
       this.send({ type: "snapshot", snapshot: this.snapshot });
     } catch (error) {
       if (generation !== this.requestGeneration) return;
       this.snapshot = { ...this.snapshot, state: "error", error: this.errorMessage(error) };
       this.send({ type: "snapshot", snapshot: this.snapshot });
       if (error instanceof ApiError && error.status === 401) {
-        await this.tokenStore.delete(new URL(binding.serverOrigin).origin);
+        await this.tokenStore.delete(new URL(binding.serverOrigin).origin, binding.workspaceUri);
         await vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
       }
     }
@@ -213,21 +217,24 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async openTaskDetail(taskId: string): Promise<void> {
+    const generation = this.requestGeneration;
     const binding = this.activeBinding();
     if (!binding || !this.snapshot.tasks.some((task) => task.id === taskId)) return;
     const requestedBinding = this.bindingIdentity(binding);
     const cached = this.detailCache.get(taskId);
     if (cached) { this.send({ type: "taskDetail", taskId, detail: cached }); return; }
     const client = await this.clientFor(binding);
-    if (!client) return;
+    if (!client || generation !== this.requestGeneration) return;
     try {
       const detail = await client.getTask(taskId);
       if (detail.id !== taskId || detail.projectId !== binding.projectId) throw new Error("任务不属于当前项目");
+      if (generation !== this.requestGeneration) return;
       if (this.bindingIdentity(this.activeBinding()) !== requestedBinding || !this.snapshot.tasks.some((task) => task.id === taskId)) return;
       this.detailCache.set(taskId, detail);
       this.send({ type: "taskDetail", taskId, detail });
     } catch (error) {
       if (this.bindingIdentity(this.activeBinding()) !== requestedBinding) return;
+      if (generation !== this.requestGeneration) return;
       this.send({ type: "taskDetailError", taskId, error: this.errorMessage(error) });
     }
   }
@@ -262,7 +269,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async clientFor(binding: WorkspaceBinding): Promise<AgileCampusApiClient | null> {
-    const token = await this.tokenStore.get(new URL(binding.serverOrigin).origin);
+    const token = await this.tokenStore.get(new URL(binding.serverOrigin).origin, binding.workspaceUri);
     if (!token) {
       await vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
       this.snapshot = emptySnapshot("disconnected", "请连接 AgileCampus Personal API Token");

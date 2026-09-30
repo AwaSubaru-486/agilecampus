@@ -21,6 +21,15 @@ function App() {
         setSnapshot(message.snapshot);
         setSelectedTaskId((current) => message.snapshot.tasks.some((task) => task.id === current) ? current : null);
         if (!message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) selectedTaskRef.current = null;
+        if (message.snapshot.state === "ready" && selectedTaskRef.current && message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) {
+          const taskId = selectedTaskRef.current;
+          setDetails((current) => {
+            const next = { ...current };
+            delete next[taskId];
+            return next;
+          });
+          api.postMessage({ type: "openTask", taskId });
+        }
       }
       if (message.type === "taskDetail" && selectedTaskRef.current === message.taskId) {
         setDetails((current) => ({ ...current, [message.taskId]: message.detail }));

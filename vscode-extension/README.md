@@ -1,12 +1,6 @@
 # AgileCampus VS Code 扩展
 
-## 当前施工入口
-
-执行 [VS Code 工作台、检查点与人–Agent 接续专项工单](../docs/superpowers/plans/2026-09-30-vscode-checkpoint-handoff-luna-workorders.md)。首次只做 E00–E02，验收真实登录、项目绑定、任务读取后停止；检查点和 Agent 接续属于后续工单，目前不能视为已经实现。
-
-下文描述现有骨架。F5 开发配置及测试脚本是否齐全，由 E00 实际核验并补齐，不凭文档认定已经可运行。
-
-这是双端计划的 S4 骨架：侧栏显示项目现场，使用 typed message 调用扩展 host 的命令，再跳回网页端完成复杂操作。
+扩展在 VS Code 侧栏显示所选 AgileCampus 项目的任务、负责人、状态、截止日期和交接要求。AgileCampus PAT 保存在 VS Code SecretStorage，并按服务地址与本地工作区分别隔离；请求由扩展 Host 发出，Webview 不接触令牌。
 
 ## 本地开发
 
@@ -16,6 +10,8 @@ npm run check
 npm test
 ```
 
-在 VS Code 中单独打开 `vscode-extension/`，运行和调试面板选择 `AgileCampus Extension Development Host`，按 `F5` 启动 Extension Development Host。登录通过 AgileCampus 设置页创建的 Personal API Token 完成；GitHub 登录只用于 GitHub 接口，不用于 AgileCampus 登录。
+在 VS Code 中打开 `vscode-extension/`，从“运行和调试”选择 `AgileCampus Extension Development Host`，按 `F5` 启动。首次连接时，从 AgileCampus 设置页创建 Personal API Token，在 VS Code 的密码输入框中填写，再选择项目和本地工作区。
 
-扩展 host 通过 VS Code SecretStorage 保存令牌并负责网络请求。Webview 只接收经过筛选的项目/任务数据，不接收 token。当前可读取真实项目任务；Agent 工作入口会打开网页端。session 记录、检查点和 Agent 原生接续仍未实现。
+项目视图可以刷新任务、查看任务交接目标/完成条件/证据要求，并跳转到网页端对应任务。Git 仓库和当前分支通过 VS Code 内置 Git 扩展读取。未登录、无权限和网络失败会分别显示错误状态。
+
+Agent 工作入口目前只打开网页端。session 采集、检查点保存、Agent 原生恢复和 worktree 分支探索尚未实现；这些能力按专项工单后续阶段验收。

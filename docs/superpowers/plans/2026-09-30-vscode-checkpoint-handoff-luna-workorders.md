@@ -221,14 +221,14 @@ launching → awaiting_confirmation（没有可靠执行回执）
 修改/新增：`src/auth/token-store.ts`、`src/agilecampus/api-client.ts`、`src/workspace/binding-store.ts`、`src/commands/connect.ts`、`src/extension.ts`、`package.json`、对应测试，均在扩展目录。
 
 1. 注册 `agilecampus.connect`、`agilecampus.disconnect`、`agilecampus.selectProject`。
-2. 通过 password input 输入已有 PAT，存 VS Code SecretStorage；按服务 origin 隔离。日志只记录状态码和端点路径，不能记录 Authorization/body。
+2. 通过 password input 输入已有 PAT，存 VS Code SecretStorage；按服务 origin 与 workspace URI 隔离，避免一个工作区断开影响另一个工作区。日志只记录状态码和端点路径，不能记录 Authorization/body。
 3. 校验 URL：只接受 http/https；拒绝 URL username/password、query、fragment。明文 HTTP 仅允许 loopback；其他地址要求 HTTPS。
 4. fetch 使用 timeout + AbortController、`redirect: "error"`；禁止把 token 随重定向发给另一域。403 不当空列表，401 清掉登录态但不删本地检查点。
 5. 调已有 GET projects 验证身份并让用户选项目。GitHub 登录在此阶段不调用。
 6. 多根 workspace 必须先选工作目录；绑定保存 workspaceState，不写进仓库 settings。没有 Git 允许看任务，禁用检查点/分支，不假装读到代码。
 7. 切换 origin、项目、workspace 时撤销旧请求；旧结果不得覆盖新项目。断开清凭据和 UI 内存，不删除用户历史文件。
 
-测试：401/403/500、超时、跨域 redirect、恶意 URL、两台服务令牌隔离、两个目录绑定隔离、切换请求竞态、Webview payload 中无令牌。
+测试：401/403/500、超时、跨域 redirect、恶意 URL、服务与 workspace 令牌隔离、两个目录绑定隔离、切换请求竞态、Webview payload 中无令牌。
 
 提交：`feat(vscode): connect authenticated project workspace`。
 

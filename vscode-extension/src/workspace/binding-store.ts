@@ -21,19 +21,6 @@ export class BindingStore {
     await this.state.update(this.key(workspaceUri), undefined);
   }
 
-  async hasServerOrigin(serverOrigin: string): Promise<boolean> {
-    for (const key of this.state.keys()) {
-      if (!key.startsWith("agileCampus.binding.")) continue;
-      const binding = this.state.get<WorkspaceBinding>(key);
-      try {
-        if (binding?.serverOrigin && new URL(binding.serverOrigin).origin === serverOrigin) return true;
-      } catch {
-        // Ignore stale or malformed workspace state; it cannot keep a token in use.
-      }
-    }
-    return false;
-  }
-
   private key(workspaceUri: string): string {
     return `agileCampus.binding.${encodeURIComponent(workspaceUri)}`;
   }

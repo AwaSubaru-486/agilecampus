@@ -3,9 +3,11 @@ import * as vscode from "vscode";
 
 type GitRepository = {
   rootUri: vscode.Uri;
-  state: { HEAD?: { name?: string } | undefined };
+  state: {
+    HEAD?: { name?: string } | undefined;
+    remotes: Array<{ name: string; fetchUrl?: string; pushUrl?: string }>;
+  };
   stateChange: vscode.Event<unknown>;
-  remotes: Array<{ name: string; fetchUrl?: string; pushUrl?: string }>;
 };
 
 type GitApi = { repositories: GitRepository[] };
@@ -37,7 +39,7 @@ export async function getGitWorkspaceSnapshot(workspaceUri: string): Promise<Git
       return rightRoot.length - leftRoot.length;
     })[0];
     if (!repository) return null;
-    const remote = repository.remotes.find((item) => item.name === "origin") ?? repository.remotes[0];
+    const remote = repository.state.remotes.find((item) => item.name === "origin") ?? repository.state.remotes[0];
     const repositoryName = remote?.fetchUrl ? safeRemoteName(remote.fetchUrl) : path.basename(repository.rootUri.fsPath);
     return { repository: repositoryName, currentBranch: repository.state.HEAD?.name ?? null };
   } catch {

@@ -5,8 +5,8 @@
 | 能力 | 状态 | 证据/限制 |
 | --- | --- | --- |
 | 扩展项目与任务读取 | implemented; live auth unverified | E00–E02；本机服务 API 目前返回 401，需用户 PAT 现场验收 |
-| Webview host 权限隔离 | implemented; activation verified | Extension Host 日志确认扩展激活；PAT 留在 SecretStorage；host 只向 Webview post task DTO；runtime message 白名单 |
-| VS Code workspace/Git branch 读取 | implemented; activation verified | 依赖内置 `vscode.git` API；无 Git 时仍可查看任务；需用户打开项目视图后确认显示 |
+| Webview host 权限隔离 | implemented; activation verified | Extension Host 日志确认扩展激活；PAT 留在 SecretStorage，按服务和工作区隔离；host 只向 Webview post task DTO；runtime message 白名单 |
+| VS Code workspace/Git branch 读取 | implemented; API shape regression tested | 使用内置 Git API 的 `RepositoryState.remotes`；无 Git 时仍可查看任务；需用户打开项目视图后确认显示 |
 | Entire CLI 可用版本和安装 | unverified | E03 尚未执行；禁止对真实仓库 enable |
 | Session capture/read/native resume/cross-device resume | unverified | 没有接入任何 session adapter |
 | 本地检查点、人工导入导出 | unimplemented | 后续 E04–E06 |

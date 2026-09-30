@@ -93,7 +93,7 @@ describe("AgileCampus API client", () => {
 });
 
 describe("binding and token storage boundaries", () => {
-  it("uses distinct opaque secret keys per service origin", async () => {
+  it("isolates secrets by service and workspace", async () => {
     const values = new Map<string, string>();
     const secrets = {
       get: async (key: string) => values.get(key),
@@ -102,18 +102,22 @@ describe("binding and token storage boundaries", () => {
     };
     const { TokenStore } = await import("../src/auth/token-store");
     const store = new TokenStore(secrets as never);
-    await store.store("https://one.example", "ac_one");
-    await store.store("https://two.example", "ac_two");
-    expect(await store.get("https://one.example")).toBe("ac_one");
-    expect(await store.get("https://two.example")).toBe("ac_two");
+    await store.store("https://one.example", "file:///work/a", "ac_one_a");
+    await store.store("https://one.example", "file:///work/b", "ac_one_b");
+    await store.store("https://two.example", "file:///work/a", "ac_two_a");
+    expect(await store.get("https://one.example", "file:///work/a")).toBe("ac_one_a");
+    expect(await store.get("https://one.example", "file:///work/b")).toBe("ac_one_b");
+    expect(await store.get("https://two.example", "file:///work/a")).toBe("ac_two_a");
     expect([...values.keys()].some((key) => key.includes("one.example"))).toBe(false);
+    await store.delete("https://one.example", "file:///work/a");
+    expect(await store.get("https://one.example", "file:///work/a")).toBeUndefined();
+    expect(await store.get("https://one.example", "file:///work/b")).toBe("ac_one_b");
   });
 
   it("keeps bindings separate for different workspace folders", async () => {
     const values = new Map<string, unknown>();
     const state = {
       get: (key: string) => values.get(key),
-      keys: () => [...values.keys()],
       update: async (key: string, value: unknown) => { if (value === undefined) values.delete(key); else values.set(key, value); },
     };
     const { BindingStore } = await import("../src/workspace/binding-store");
@@ -122,11 +126,10 @@ describe("binding and token storage boundaries", () => {
     await store.set({ serverOrigin: "https://server.example/", projectId: "project-b", workspaceUri: "file:///work/b" });
     expect(store.get("file:///work/a")?.projectId).toBe("project-a");
     expect(store.get("file:///work/b")?.projectId).toBe("project-b");
-    expect(await store.hasServerOrigin("https://server.example")).toBe(true);
     await store.delete("file:///work/a");
-    expect(await store.hasServerOrigin("https://server.example")).toBe(true);
+    expect(store.get("file:///work/b")?.projectId).toBe("project-b");
     await store.delete("file:///work/b");
-    expect(await store.hasServerOrigin("https://server.example")).toBe(false);
+    expect(store.get("file:///work/b")).toBeUndefined();
   });
 });
 
