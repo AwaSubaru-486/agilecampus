@@ -11,10 +11,11 @@
 ## 本地开发
 
 ```bash
-npm install
-npm run compile
+npm ci
+npm run check
+npm test
 ```
 
-在 VS Code 中打开 `vscode-extension/`，按 `F5` 启动 Extension Development Host。当前快照 API 返回明确的“未关联项目”空态；下一步接入 AgileCampus Personal API Token、GitHub workspace remote 和项目映射。
+在 VS Code 中单独打开 `vscode-extension/`，运行和调试面板选择 `AgileCampus Extension Development Host`，按 `F5` 启动 Extension Development Host。登录通过 AgileCampus 设置页创建的 Personal API Token 完成；GitHub 登录只用于 GitHub 接口，不用于 AgileCampus 登录。
 
-扩展 host 承担身份和网络请求，Webview 只拿过滤后的项目快照；Webview 不保存 GitHub token，也不直接调用 GitHub API。
+扩展 host 通过 VS Code SecretStorage 保存令牌并负责网络请求。Webview 只接收经过筛选的项目/任务数据，不接收 token。当前可读取真实项目任务；Agent 工作入口会打开网页端。session 记录、检查点和 Agent 原生接续仍未实现。
