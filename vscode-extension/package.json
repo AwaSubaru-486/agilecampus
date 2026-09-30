@@ -9,12 +9,19 @@
   "engines": {
     "vscode": ">=1.95.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "onView:agilecampus.projectView",
+    "onStartupFinished",
     "onCommand:agilecampus.openProject",
     "onCommand:agilecampus.refresh",
+    "onCommand:agilecampus.connect",
+    "onCommand:agilecampus.disconnect",
+    "onCommand:agilecampus.selectProject",
+    "onCommand:agilecampus.openTask",
     "onCommand:agilecampus.continueAiWork",
     "onCommand:agilecampus.reportBlocker"
   ],
@@ -30,19 +37,63 @@
       }
     },
     "commands": [
-      { "command": "agilecampus.openProject", "title": "AgileCampus: 打开项目" },
-      { "command": "agilecampus.refresh", "title": "AgileCampus: 刷新" },
-      { "command": "agilecampus.continueAiWork", "title": "AgileCampus: 继续 AI 工作" },
-      { "command": "agilecampus.reportBlocker", "title": "AgileCampus: 报告卡住" }
+      {
+        "command": "agilecampus.openProject",
+        "title": "AgileCampus: 打开项目"
+      },
+      {
+        "command": "agilecampus.refresh",
+        "title": "AgileCampus: 刷新"
+      },
+      {
+        "command": "agilecampus.connect",
+        "title": "AgileCampus: 连接项目"
+      },
+      {
+        "command": "agilecampus.disconnect",
+        "title": "AgileCampus: 断开连接"
+      },
+      {
+        "command": "agilecampus.selectProject",
+        "title": "AgileCampus: 切换项目"
+      },
+      {
+        "command": "agilecampus.openTask",
+        "title": "AgileCampus: 打开任务"
+      },
+      {
+        "command": "agilecampus.continueAiWork",
+        "title": "AgileCampus: 在网页中查看 Agent 工作"
+      },
+      {
+        "command": "agilecampus.reportBlocker",
+        "title": "AgileCampus: 报告卡住"
+      }
     ],
     "viewsContainers": {
       "activitybar": [
-        { "id": "agilecampus", "title": "AgileCampus", "icon": "resources/agilecampus.svg" }
+        {
+          "id": "agilecampus",
+          "title": "AgileCampus",
+          "icon": "resources/agilecampus.svg"
+        }
       ]
     },
     "views": {
       "agilecampus": [
-        { "id": "agilecampus.projectView", "name": "项目现场" }
+        {
+          "id": "agilecampus.projectView",
+          "name": "项目现场",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        { "command": "agilecampus.connect", "when": "view == agilecampus.projectView && agileCampus.connected != true", "group": "navigation" },
+        { "command": "agilecampus.selectProject", "when": "view == agilecampus.projectView && agileCampus.connected == true", "group": "navigation" },
+        { "command": "agilecampus.refresh", "when": "view == agilecampus.projectView", "group": "navigation" },
+        { "command": "agilecampus.disconnect", "when": "view == agilecampus.projectView && agileCampus.connected == true", "group": "navigation" }
       ]
     }
   },
@@ -50,7 +101,8 @@
     "compile": "npm run compile:extension && npm run compile:webview",
     "compile:extension": "tsc -p ./tsconfig.json",
     "compile:webview": "esbuild webview/src/App.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --jsx=automatic",
-    "check": "npm run compile"
+    "check": "npm run compile",
+    "test": "vitest run --configLoader runner"
   },
   "dependencies": {
     "react": "^19.2.4",
@@ -62,6 +114,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/vscode": "^1.95.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.11"
   }
 }
