@@ -40,6 +40,50 @@ function task(overrides: Partial<ConsoleTaskInput> = {}): ConsoleTaskInput {
 }
 
 describe("collaboration console view rules", () => {
+  const launchActor = { ...actor, canStartAgentRun: true };
+  const launchTask = () => task({ assigneeId: "agent-1", assigneeKind: "agent", contextPackFrozen: true });
+
+  it("启动要求真实能力、执行权限、Agent 负责人和冻结契约同时满足", () => {
+    expect(taskPrimaryAction(launchTask(), launchActor, capabilities)).toBe("start_agent");
+    expect(taskPrimaryAction(launchTask(), actor, capabilities)).toBe("view_task");
+    expect(taskPrimaryAction(launchTask(), launchActor, { ...capabilities, canStartAgentRun: false })).toBe("view_task");
+  });
+
+  it.each<Partial<ConsoleTaskInput>>([
+    { assigneeKind: "human" }, { assigneeKind: "unknown" }, { assigneeId: null },
+    { status: "done" }, { status: "review" }, { contextPackFrozen: false },
+    { contextPackFrozen: undefined }, { committedAt: null },
+    { committedHandoffVersion: 2 },
+  ])("未满足启动条件时不显示开始 Agent：%j", (overrides) => {
+    expect(taskPrimaryAction({ ...launchTask(), ...overrides }, { ...launchActor, canReview: false }, capabilities)).toBe("view_task");
+  });
+
+  it("运行标签与选中运行一致，不受查询返回顺序影响", () => {
+    const row = toTaskRowModel(task({ agentRuns: [
+      { id: "old", status: "queued", createdAt: "2026-09-30T08:00:00Z" },
+      { id: "new", status: "running", createdAt: "2026-09-30T09:00:00Z" },
+    ] }), actor, capabilities);
+    expect(row.activeRun?.id).toBe("new");
+    expect(row.agentRunStatusLabel).toBe("运行中");
+  });
+
+  it("失败提高处理优先级，但不改变任务状态或绕过运行查看权限", () => {
+    const input = task({ agentRuns: [{ id: "failed", status: "failed", createdAt: "2026-09-30T09:00:00Z" }] });
+    expect(taskPriorityGroup(input, actor)).toBe("blocked");
+    expect(taskPrimaryAction(input, actor, { ...capabilities, canViewAgentRun: false })).toBe("view_task");
+    expect(input.status).toBe("doing");
+    expect(taskPriorityGroup({ ...input, status: "done" }, actor)).toBe("done");
+    expect(taskPriorityGroup({ ...input, agentRuns: [...input.agentRuns,
+      { id: "active", status: "queued", createdAt: "2026-09-30T10:00:00Z" },
+    ] }, actor)).toBe("my_active");
+  });
+
+  it("执行完成不代表提交成功；原型属性也不能当作合法状态", () => {
+    expect(agentRunStatusLabel("completed")).toBe("执行完成");
+    expect(agentRunStatusLabel("toString")).toBe("未知状态");
+    expect(taskStatusLabel("constructor")).toBe("未知状态");
+  });
+
   it("待验收且当前用户有权限时排在第一组", () => {
     expect(taskPriorityGroup(task({ status: "review" }), actor)).toBe("awaiting_review");
     expect(taskPriorityGroup(task({ status: "review" }), noReviewActor)).toBe("todo");

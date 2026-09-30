@@ -27,6 +27,8 @@ export type ConsoleTaskInput = {
   committedHandoffVersion: number | null;
   handoffVersion: number | null;
   openBlockerCount: number;
+  /** 未验证冻结上下文时默认禁止启动。 */
+  contextPackFrozen?: boolean;
   agentRuns: ConsoleRunInput[];
 };
 
@@ -41,6 +43,8 @@ export type ConsoleRunInput = {
 export type ConsoleActor = {
   id: string;
   canReview: boolean;
+  /** 由服务端按当前任务权限计算，不能用能力开关代替。 */
+  canStartAgentRun?: boolean;
 };
 
 export type ConsoleCapabilities = {
@@ -91,7 +95,7 @@ const AGENT_RUN_STATUS_LABEL: Record<AgentRunStatus, string> = {
   queued: "排队中",
   dispatched: "已派发",
   running: "运行中",
-  completed: "已提交",
+  completed: "执行完成",
   failed: "失败",
   cancelled: "已取消",
 };
@@ -159,7 +163,9 @@ function hasCommittedContract(task: ConsoleTaskInput): boolean {
  */
 export function taskPriorityGroup(task: ConsoleTaskInput, actor: ConsoleActor): TaskPriorityGroup {
   if (task.status === "review" && actor.canReview) return "awaiting_review";
+  if (task.status === "done") return "done";
   if (task.openBlockerCount > 0) return "blocked";
+  if (!activeRun(task) && latestRun(task)?.status === "failed") return "blocked";
   if (task.status === "doing" && task.assigneeId === actor.id) return "my_active";
   if (task.status === "doing") return "active";
   if (task.status === "done") return "done";
@@ -172,7 +178,7 @@ export function taskPrimaryAction(
   actor: ConsoleActor,
   capabilities: ConsoleCapabilities,
 ): TaskAction {
-  if (!TASK_STATUS_LABEL[task.status as TaskStatus]) return "view_task";
+  if (!Object.hasOwn(TASK_STATUS_LABEL, task.status)) return "view_task";
   if (task.status === "review" && actor.canReview) return "review";
   if (task.openBlockerCount > 0) return "view_blocker";
 
@@ -180,18 +186,23 @@ export function taskPrimaryAction(
   if (current && capabilities.canViewAgentRun) return "view_run";
 
   const latest = latestRun(task);
-  if (latest?.status === "failed") return "view_error";
+  if (!current && latest?.status === "failed" && capabilities.canViewAgentRun) return "view_error";
   if (latest?.status === "completed" && capabilities.canViewEvidence) return "view_evidence";
-  if (!current && capabilities.canStartAgentRun && hasCommittedContract(task)) return "start_agent";
+  if (
+    !current && capabilities.canStartAgentRun && actor.canStartAgentRun === true &&
+    task.assigneeKind === "agent" && task.assigneeId !== null &&
+    (task.status === "todo" || task.status === "doing") &&
+    task.contextPackFrozen === true && hasCommittedContract(task)
+  ) return "start_agent";
   return "view_task";
 }
 
 function firstRunLabel(runs: ConsoleRunInput[]): string {
-  const current = runs.find((run) => isActiveRun(run.status));
+  const current = sortTaskRuns(runs).find((run) => isActiveRun(run.status));
   if (current) return AGENT_RUN_STATUS_LABEL[current.status as AgentRunStatus] ?? "未知状态";
   const latest = sortTaskRuns(runs)[0];
   if (!latest) return "暂无执行记录";
-  return AGENT_RUN_STATUS_LABEL[latest.status as AgentRunStatus] ?? "未知状态";
+  return agentRunStatusLabel(latest.status);
 }
 
 /** 将一条任务原始投影成列表所需模型；不会修改输入，也不会写数据库。 */
@@ -204,7 +215,7 @@ export function toTaskRowModel(
   const current = sortedRuns.find((run) => isActiveRun(run.status)) ?? null;
   return {
     ...task,
-    taskStatusLabel: TASK_STATUS_LABEL[task.status as TaskStatus] ?? "未知状态",
+    taskStatusLabel: taskStatusLabel(task.status),
     agentRunStatusLabel: firstRunLabel(task.agentRuns),
     activeRun: current,
     latestRun: sortedRuns[0] ?? null,
@@ -228,9 +239,9 @@ export function sortTaskRows(rows: TaskRowModel[]): TaskRowModel[] {
 }
 
 export function taskStatusLabel(status: string): string {
-  return TASK_STATUS_LABEL[status as TaskStatus] ?? "未知状态";
+  return Object.hasOwn(TASK_STATUS_LABEL, status) ? TASK_STATUS_LABEL[status as TaskStatus] : "未知状态";
 }
 
 export function agentRunStatusLabel(status: string): string {
-  return AGENT_RUN_STATUS_LABEL[status as AgentRunStatus] ?? "未知状态";
+  return Object.hasOwn(AGENT_RUN_STATUS_LABEL, status) ? AGENT_RUN_STATUS_LABEL[status as AgentRunStatus] : "未知状态";
 }
