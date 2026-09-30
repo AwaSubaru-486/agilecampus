@@ -21,7 +21,6 @@ export default async function HealthPage() {
       <header className="flex flex-col justify-between gap-5 border-b border-line pb-7 sm:flex-row sm:items-end">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">项目健康度</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">按风险级别列出项目和建议动作。</p>
         </div>
         <div className="flex gap-6 sm:gap-8">
           <Metric value={needAttention.length} label="需要关注的项目" />

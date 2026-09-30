@@ -45,7 +45,6 @@ export function ArchiveSection({
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke bg-ground/50 px-4 py-3">
         <div>
           <h2 className="font-display text-lg font-bold text-ink">项目档案</h2>
-          <p className="mt-0.5 text-xs text-ink-3">反馈、文档和成果。</p>
         </div>
         <dl className="grid grid-cols-3 gap-3 text-xs text-ink-3">
           <div><dt>反馈</dt><dd className="font-mono text-ink">{counts.feedback}</dd></div>

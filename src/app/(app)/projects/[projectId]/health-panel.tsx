@@ -51,7 +51,6 @@ export function HealthPanel({
               {issues.length} 项待处理{high > 0 ? `，其中 ${high} 项要紧` : ""}
             </span>
           </h2>
-          <p className="mt-0.5 text-xs text-ink-3">每条风险都附带原因、动作和负责人。</p>
         </div>
         <Link
           href="/health"

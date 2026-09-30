@@ -111,7 +111,6 @@ function LibraryHeader({
     <header className="grid border-b-2 border-ink lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="py-6 sm:py-9">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">项目资料</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-ink-2">按项目、类型和创建时间查看文档与成果。</p>
       </div>
       <dl className="grid grid-cols-3 border-t border-stroke text-left lg:border-l lg:border-t-0">
         <Link
@@ -188,7 +187,6 @@ function ArchiveLedger({
     <section className="grid lg:grid-cols-[12rem_minmax(0,1fr)]">
       <aside className="border-b border-stroke py-6 lg:border-b-0 lg:border-r lg:py-8 lg:pr-7">
         <p className="text-xs font-medium tracking-[0.08em] text-ink-3">筛选</p>
-        <p className="mt-2 max-w-[10rem] text-sm leading-6 text-ink-2">按创建时间倒序排列。</p>
         <div className="mt-6 hidden space-y-2 border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3 lg:block">
           <p className="flex items-center gap-2">
             <span className="inline-block h-0.5 w-4 bg-human" />

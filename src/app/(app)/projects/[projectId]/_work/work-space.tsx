@@ -54,7 +54,6 @@ export async function WorkSpace({
             <h2 className="font-display text-lg font-semibold text-ink">任务</h2>
             <span className="text-xs tabular-nums text-ink-3">显示 {visibleTasks.length} 项，共 {projectTasks.length} 项</span>
           </div>
-          <p className="mt-0.5 text-xs text-ink-3">按状态和负责人查看任务</p>
         </div>
         <div className="flex items-center gap-2">
           {canWrite && (
@@ -81,12 +80,6 @@ export async function WorkSpace({
         visible={visibleTasks.length}
         total={projectTasks.length}
       />
-
-      {filters.group === "status" && (
-        <p className="text-xs text-ink-3">
-          任务状态按接手、提交、验收推进。拖拽只调整分组，不改变状态。
-        </p>
-      )}
 
       <Board
         projectId={projectId}

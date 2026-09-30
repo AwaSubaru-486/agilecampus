@@ -142,9 +142,6 @@ export function DecisionLedger({ projectId, decisions: initialDecisions, canDeci
           <h2 id="decision-ledger-title" className="mt-1 font-display text-xl font-bold text-ink">
             决策记录
           </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-2">
-            AI 输出方案草案；项目成员确认后写入决策记录。
-          </p>
         </div>
         <dl className="grid grid-cols-3 divide-x divide-stroke border-y border-stroke sm:min-w-[18rem]">
           <div className="px-3 py-2">

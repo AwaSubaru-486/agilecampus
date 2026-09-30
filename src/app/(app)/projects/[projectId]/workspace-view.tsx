@@ -99,14 +99,10 @@ export function WorkspaceView({
                     打开 AI 协作
                   </Link>
                 </div>
-                <p className="mt-3 rounded border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3">
-                  接手后可以沿用原会话与上下文，不需要从头解释。
-                </p>
               </div>
             ) : (
               <div className="mt-3">
                 <p className="text-sm font-semibold text-ink">当前无阻塞</p>
-                <p className="mt-1 text-sm leading-6 text-ink-2">暂无需要处理的阻塞任务。</p>
                 <Link href={`/projects/${projectId}?space=work`} className="ac-btn-ghost mt-4">
                   查看任务流
                 </Link>
@@ -123,7 +119,6 @@ export function WorkspaceView({
               <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">交接</p>
               <h2 className="mt-1 text-base font-semibold text-ink">接力链</h2>
             </div>
-            <p className="text-xs text-ink-3">任务流转</p>
           </header>
           {relays.length === 0 ? (
             <p className="border-t border-stroke py-8 text-center text-sm text-ink-2">还没有流转中的工作。</p>

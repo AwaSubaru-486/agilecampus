@@ -50,7 +50,7 @@ export default async function ResourcesPage({
         </Link>
         <h1 className="font-display text-2xl font-semibold text-ink">{team.name}：资源占用</h1>
         <p className="text-sm text-ink-soft">
-          登记谁在何时占用了哪项共享资源。当前{" "}
+          当前{" "}
           <span className="font-medium text-doing">{active.length}</span> 项占用中。
         </p>
       </header>

@@ -262,7 +262,6 @@ export function ChatPanel({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold text-ink">AI 协作</h2>
-            <p className="mt-0.5 text-xs text-ink-3">共享上下文，人工确认后写入项目</p>
           </div>
           <Button
             type="button"

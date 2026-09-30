@@ -57,9 +57,6 @@ export async function RecordSpace({
             <span className="font-semibold tabular-nums text-ink">{contribution.span.totalEvents}</span> 条过程记录
           </span>
         </div>
-        <p className="mt-3 text-xs leading-5 text-ink-3">
-          数据由任务验收、项目成果和活动记录自动生成。
-        </p>
       </section>
 
       <DecisionLedger

@@ -185,7 +185,7 @@ export function TaskDrawer({
             </dl>
             {awaiting && (
               <p className="mt-2 rounded bg-warn-soft px-2 py-1 text-xs text-warn">
-                派下去了，但负责人还没回话
+                等待负责人确认
               </p>
             )}
             {task.commitmentNote && (
@@ -208,18 +208,18 @@ export function TaskDrawer({
           {/* 动作 */}
           {primary === "claim" && (
             <ActionBlock
-              title="这份活你接得住吗"
-              hint="接不住也是正当答复——说清为什么，派活的人好改派"
+              title="认领任务"
               action={claimTaskAction}
               projectId={projectId}
               taskId={task.id}
-              submitLabel="接住"
+              submitLabel="确认认领"
               fields={
                 <textarea
                   name="commitmentNote"
                   required
                   rows={2}
-                  placeholder="你打算怎么做？一句话说清路径，事后好对照"
+                  aria-label="执行计划"
+                  placeholder="执行计划（必填）"
                   className="ac-field text-sm"
                 />
               }
@@ -228,9 +228,9 @@ export function TaskDrawer({
                   action={declineTaskAction}
                   projectId={projectId}
                   taskId={task.id}
-                  label="接不住"
+                  label="拒绝认领"
                   submitLabel="说明原因并退回"
-                  placeholder="比如：这周有三门考试；缺必要的账密"
+                  placeholder="拒绝原因（必填）"
                 />
               }
             />
@@ -238,8 +238,7 @@ export function TaskDrawer({
 
           {primary === "submit" && (
             <ActionBlock
-              title="交出去"
-              hint="交完落到「待验收」，由组长或老师判"
+              title="提交成果"
               action={submitTaskAction}
               projectId={projectId}
               taskId={task.id}
@@ -249,7 +248,8 @@ export function TaskDrawer({
                   name="completionNote"
                   required
                   rows={2}
-                  placeholder="这次交付了什么？验收人要凭这句话判断"
+                  aria-label="交付说明"
+                  placeholder="交付说明（必填）"
                   className="ac-field text-sm"
                 />
               }
@@ -259,7 +259,6 @@ export function TaskDrawer({
           {primary === "review" && (
             <ActionBlock
               title="验收"
-              hint="通过则该任务完成；要改就写明改什么"
               action={reviewTaskAction}
               projectId={projectId}
               taskId={task.id}
@@ -269,7 +268,8 @@ export function TaskDrawer({
                   <textarea
                     name="note"
                     rows={2}
-                    placeholder="退回时必填：要改什么"
+                    aria-label="验收意见"
+                    placeholder="验收意见（退回时必填）"
                     className="ac-field text-sm"
                   />
                   <fieldset className="flex gap-4 text-sm text-ink-2">
@@ -316,7 +316,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function ActionBlock({
   title,
-  hint,
   action,
   projectId,
   taskId,
@@ -325,7 +324,6 @@ function ActionBlock({
   extraAction,
 }: {
   title: string;
-  hint: string;
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   projectId: string;
   taskId: string;
@@ -338,7 +336,6 @@ function ActionBlock({
   return (
     <section className="rounded-[var(--radius-panel)] border border-stroke-strong bg-sunken/40 p-3">
       <h3 className="text-sm font-semibold text-ink">{title}</h3>
-      <p className="mt-0.5 text-xs leading-5 text-ink-3">{hint}</p>
       <form action={formAction} className="mt-2.5 space-y-2">
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="taskId" value={taskId} />

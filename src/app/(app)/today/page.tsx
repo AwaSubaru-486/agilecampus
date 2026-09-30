@@ -58,7 +58,6 @@ export default async function TodayPage({
               </span>
             )}
           </div>
-          <p className="text-xs text-ink-3">按优先级排序</p>
         </header>
 
         {queue.items.length === 0 ? (

@@ -62,13 +62,10 @@ export default async function ActivityPage({
       <header className="ac-card p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
           <Link href={`/projects/${projectId}`} className="text-ink-faint hover:text-primary">
-            ← 返回工作台
+            ← {access.project.name}
           </Link>
         </div>
         <h1 className="mt-4 font-display text-3xl font-bold text-ink">项目活动流</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
-          {access.project.name} 的过程记录，按时间倒序显示。记录由任务、交接和项目资料的变更自动生成。
-        </p>
         <p className="mt-3 text-xs text-ink-faint">共 {events.length} 条记录</p>
       </header>
 

@@ -38,15 +38,11 @@ export default async function RetrospectivePage({
       <header className="ac-card p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
           <Link href={`/projects/${projectId}`} className="text-ink-faint hover:text-primary">
-            ← 返回工作台
+            ← {access.project.name}
           </Link>
           <span className="text-line-strong">/</span>
         </div>
         <h1 className="mt-4 font-display text-3xl font-bold text-ink">项目复盘</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
-          {access.project.name} 的过程记录。全部数据由系统在每次变更时自动登记，
-          <span className="font-medium text-ink">没有任何一格需要成员填写</span>。
-        </p>
         {hasData && (
           <div className="mt-4 flex flex-wrap gap-5 text-xs text-ink-faint">
             <span>共 {span.totalEvents} 条过程记录</span>
@@ -68,10 +64,7 @@ export default async function RetrospectivePage({
         <>
           <section className="ac-card overflow-hidden">
             <div className="border-b border-line px-4 py-3">
-              <h2 className="text-sm font-semibold text-ink">各人做了什么</h2>
-              <p className="mt-0.5 text-xs text-ink-faint">
-                头条数字是「被验收通过的任务数」，不是「创建了多少」——后者可以灌水。
-              </p>
+              <h2 className="text-sm font-semibold text-ink">成员贡献</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[46rem] text-sm">
@@ -139,7 +132,7 @@ export default async function RetrospectivePage({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="ac-card p-5">
-              <h2 className="text-sm font-semibold text-ink">卡住过几次、卡在哪</h2>
+              <h2 className="text-sm font-semibold text-ink">阻塞统计</h2>
               <div className="mt-3 flex flex-wrap gap-4 text-xs text-ink-soft">
                 <span>共 {blockerStats.total} 次求助</span>
                 <span className="text-done">已解决 {blockerStats.resolved}</span>
