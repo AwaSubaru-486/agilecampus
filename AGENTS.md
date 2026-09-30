@@ -48,7 +48,7 @@ schema、API route、orchestrator、task-status、任务 action、拖拽状态�
 
 ## 共同规则
 
-1. 从当前分支的最新 HEAD 开始工作，不回退到旧提交 `0d877b6`；网页端 UI 框架复用和 VS Code 双端施工以 [`docs/superpowers/plans/2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md`](docs/superpowers/plans/2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md) 为唯一主计划。
+1. 从当前分支的最新 HEAD 开始工作，不回退到旧提交。本轮人-Agent 协同执行台重构先读 [`Luna 逐单施工手册`](docs/superpowers/plans/2026-09-30-collaboration-console-execution-runbook.md)，再读 [`产品与架构计划`](docs/superpowers/plans/2026-09-30-human-agent-collaboration-console-rebuild.md)。本轮网页结构和导航以这两份文件为准；2026-09-29 文案计划继续有效；2026-09-28 网页框架与 VS Code 双端计划保留为长期规划，不再是本轮唯一主计划。原文件负责人边界仍有效，跨边界必须先协调。
 2. 一次只改自己负责的文件；跨边界前先说明，不直接覆盖。
 3. 每项独立提交：`feat(ui): ...`、`fix(core): ...` 或 `docs: ...`。
 4. 禁止 `git reset --hard`、删除测试、覆盖未提交改动。
