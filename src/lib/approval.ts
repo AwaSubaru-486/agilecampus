@@ -139,6 +139,7 @@ export async function listApprovalRequests(
   actorId: string,
   projectId: string,
   status?: ApprovalRequestStatus,
+  taskId?: string,
 ): Promise<ApprovalListItem[]> {
   const access = await getProjectForUser(actorId, projectId);
   if (!access) throw new ForbiddenError();
@@ -170,6 +171,11 @@ export async function listApprovalRequests(
     .where(
       and(
         eq(approvalRequests.projectId, projectId),
+        ...(taskId ? [inArray(approvalRequests.sourceConversationId,
+          db.select({ id: conversations.id }).from(conversations).where(and(
+            eq(conversations.projectId, projectId), eq(conversations.taskId, taskId),
+          )),
+        )] : []),
         ...(status ? [eq(approvalRequests.status, status)] : []),
       ),
     )
