@@ -122,9 +122,12 @@ export default async function ProjectPage({
           actorId={actorId}
           projectId={projectId}
           teamId={project.teamId}
+          role={role}
           selectedConversationId={conversationId}
           selectedTaskId={taskId}
           selectedApprovalId={approvalId}
+          view={typeof sp.view === "string" ? sp.view : null}
+          normalized={normalized}
         />
       )}
 

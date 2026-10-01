@@ -41,7 +41,7 @@ export function TopWorkbar({
   const projectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
   const navigationProject = projectId
     ? projects.find((project) => project.id === projectId) ?? null
-    : projects[0] ?? null;
+    : null;
   const currentSpace = parseProjectSpace(searchParams.get("space"));
   const currentTaskId = searchParams.get("task") ?? undefined;
   const currentConversation = searchParams.get("conversation") ?? undefined;
@@ -64,7 +64,7 @@ export function TopWorkbar({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setMobileOpen(false));
     return () => window.cancelAnimationFrame(frame);
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   function spaceHref(space: (typeof PROJECT_SPACES)[number]) {
     if (!navigationProject) return "/projects";
@@ -178,16 +178,31 @@ export function TopWorkbar({
                   {isActive && item.href === "/projects" && (
                     <SecondaryGroup label={navigationProject ? `项目：${navigationProject.name}` : "项目"}>
                       <SecondaryLink href="/projects" active={!projectId}>项目列表</SecondaryLink>
-                      {navigationProject && PROJECT_SPACES.map((space) => (
-                        <SecondaryLink
-                          key={space}
-                          href={spaceHref(space)}
-                          active={Boolean(projectId) && currentSpace === space}
-                          title={SPACE_HINT[space]}
-                        >
-                          {SPACE_LABEL[space]}
-                        </SecondaryLink>
-                      ))}
+                      {navigationProject && (
+                        <>
+                          <SecondaryLink
+                            href={spaceHref("work")}
+                            active={Boolean(projectId) && currentSpace === "work"}
+                            title={SPACE_HINT.work}
+                          >
+                            {SPACE_LABEL.work}
+                          </SecondaryLink>
+                          <SecondaryLink
+                            href={spaceHref("studio")}
+                            active={Boolean(projectId) && currentSpace === "studio"}
+                            title={SPACE_HINT.studio}
+                          >
+                            {SPACE_LABEL.studio}
+                          </SecondaryLink>
+                          <SecondaryLink
+                            href={spaceHref("record")}
+                            active={Boolean(projectId) && currentSpace === "record"}
+                            title={SPACE_HINT.record}
+                          >
+                            {SPACE_LABEL.record}
+                          </SecondaryLink>
+                        </>
+                      )}
                     </SecondaryGroup>
                   )}
 

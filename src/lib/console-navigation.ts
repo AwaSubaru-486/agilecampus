@@ -129,7 +129,7 @@ export function buildSelectTaskHref(
   current: NormalizedConsoleParams,
 ): string {
   const qs = new URLSearchParams();
-  qs.set("space", current.space === "studio" ? "work" : current.space);
+  qs.set("space", current.space);
   qs.set("task", taskId);
   // 保留筛选参数
   if (current.assignee) qs.set("assignee", current.assignee);

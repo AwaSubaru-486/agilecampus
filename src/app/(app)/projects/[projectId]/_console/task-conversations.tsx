@@ -32,16 +32,32 @@ export function TaskConversations({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium uppercase tracking-wide text-ink-2">会话与分支</h4>
-        <Link
-          href={`/projects/${projectId}?space=studio&task=${taskId}`}
-          className="text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-        >
-          在协同室查看 →
-        </Link>
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href={`/projects/${projectId}?space=studio&view=chat&task=${taskId}&new=1`}
+            className="text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+          >
+            + 新建会话
+          </Link>
+          <Link
+            href={`/projects/${projectId}?space=studio&view=chat&task=${taskId}`}
+            className="text-ink-2 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+          >
+            在协同室查看 →
+          </Link>
+        </div>
       </div>
 
       {conversations.length === 0 ? (
-        <p className="text-sm text-ink-3">该任务暂无会话</p>
+        <div className="rounded border border-dashed border-stroke p-3 text-center">
+          <p className="text-sm text-ink-3">该任务暂无会话</p>
+          <Link
+            href={`/projects/${projectId}?space=studio&view=chat&task=${taskId}&new=1`}
+            className="mt-1.5 inline-block text-xs text-signal hover:underline"
+          >
+            + 为此任务发起会话
+          </Link>
+        </div>
       ) : (
         <ul className="space-y-1">
           {conversations.map((c) => (

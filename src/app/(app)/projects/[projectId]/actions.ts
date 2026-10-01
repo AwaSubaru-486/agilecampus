@@ -8,6 +8,7 @@ import {
   createTask,
   declineTask,
   deleteTask,
+  getTaskDetail,
   reviewTask,
   setTaskSuccessors,
   submitTask,
@@ -18,6 +19,7 @@ import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { createEntry, deleteEntry } from "@/lib/entry";
+import { EVIDENCE_TYPES, type EvidenceType } from "@/lib/handoff";
 
 export type FormState = { error: string } | null;
 export type CreateTaskState = { error: string } | { ok: true; revision: string } | null;
@@ -197,6 +199,93 @@ export async function updateTaskAction(
     await setTaskLabels(session.user.id, taskId, labelIds);
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限修改任务" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+const updateTaskHandoffSchema = z.object({
+  taskId: z.uuid(),
+  projectId: z.uuid(),
+  assigneeId: z.string().optional(),
+  handoffBrief: z.string().trim().optional(),
+  doneCriteria: z.string().optional(),
+  requiredEvidence: z.string().trim().optional(),
+  responseDueAt: z.string().optional(),
+  contextPackId: z.string().optional(),
+});
+
+export async function updateTaskHandoffAction(
+  _prev: UpdateTaskState,
+  formData: FormData,
+): Promise<UpdateTaskState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const rawEvidence = formData.getAll("requiredEvidence");
+  const evidenceJoined =
+    rawEvidence.length > 0
+      ? rawEvidence.map((e) => String(e).trim()).filter(Boolean).join(",")
+      : raw.requiredEvidence
+        ? String(raw.requiredEvidence).trim()
+        : undefined;
+
+  const parsed = updateTaskHandoffSchema.safeParse({
+    ...raw,
+    assigneeId: raw.assigneeId === "" ? undefined : (raw.assigneeId ? String(raw.assigneeId) : undefined),
+    handoffBrief: raw.handoffBrief || undefined,
+    doneCriteria: raw.doneCriteria || undefined,
+    requiredEvidence: evidenceJoined || undefined,
+    responseDueAt: raw.responseDueAt || undefined,
+    contextPackId: raw.contextPackId || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { taskId, projectId, assigneeId, handoffBrief, doneCriteria, requiredEvidence, responseDueAt, contextPackId } = parsed.data;
+
+  const criteriaList = doneCriteria
+    ? doneCriteria
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
+
+  let parsedDueDate: Date | null | undefined = undefined;
+  if (responseDueAt) {
+    const d = new Date(responseDueAt);
+    if (!isNaN(d.getTime())) {
+      parsedDueDate = d;
+    }
+  }
+
+  const evidenceList = requiredEvidence
+    ? requiredEvidence
+        .split(/[,，、\s]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter((s): s is EvidenceType =>
+          (EVIDENCE_TYPES as readonly string[]).includes(s),
+        )
+    : undefined;
+
+  try {
+    const current = await getTaskDetail(session.user.id, taskId);
+    if (current.status === "review" || current.status === "done") {
+      return { error: "已进入验收或已完成的任务不可直接修改交接契约，请先退回修改" };
+    }
+
+    await updateTask(session.user.id, taskId, {
+      ...(assigneeId !== undefined && { assigneeId: assigneeId === "unassigned" ? null : assigneeId }),
+      handoffBrief: handoffBrief ?? null,
+      doneCriteria: criteriaList ?? null,
+      requiredEvidence: evidenceList && evidenceList.length > 0 ? evidenceList : null,
+      responseDueAt: parsedDueDate ?? null,
+      contextPackId: contextPackId && z.uuid().safeParse(contextPackId).success ? contextPackId : null,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限修改交接要求" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

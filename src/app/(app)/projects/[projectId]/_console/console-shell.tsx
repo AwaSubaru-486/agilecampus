@@ -12,7 +12,7 @@
  */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { TaskPriorityGroup, TaskAction } from "@/lib/collaboration-console-view";
 import { buildSelectTaskHref, buildClearTaskHref, type NormalizedConsoleParams } from "@/lib/console-navigation";
 import { TaskList } from "./task-list";
@@ -63,6 +63,32 @@ export type SelectedTaskDetail = {
   eventsCount: number;
   approvals: { id: string; title: string; status: string; canResolve: boolean }[];
   capabilities: { canStartAgentRun: boolean; canResumeAgentRun: boolean; canStopAgentRun: boolean };
+  evidence: {
+    id: string;
+    type: string;
+    title: string;
+    description?: string | null;
+    url?: string | null;
+    submittedAt?: string | null;
+    submitterName?: string | null;
+  }[];
+  conversations?: {
+    id: string;
+    title?: string | null;
+    updatedAt?: string | null;
+  }[];
+  availablePacks?: {
+    id: string;
+    title: string;
+    frozenAt?: string | null;
+  }[];
+};
+
+export type MemberSummary = {
+  id: string;
+  name: string;
+  role: string;
+  kind: string;
 };
 
 export function ConsoleShell({
@@ -76,6 +102,8 @@ export function ConsoleShell({
   selectedTaskId,
   selectedTask,
   selectedTaskError,
+  mode = "work",
+  members = [],
 }: {
   projectId: string;
   actorId: string;
@@ -87,10 +115,26 @@ export function ConsoleShell({
   selectedTaskId: string | null;
   selectedTask: SelectedTaskDetail | null;
   selectedTaskError: string | null;
+  mode?: "work" | "studio";
+  members?: MemberSummary[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+
+  // 10秒定时刷新：仅在存在活动运行时生效，并在前台可见时触发，不使用 POST 轮询（W03 §8）
+  useEffect(() => {
+    const hasActiveRun = taskRows.some((t) => Boolean(t.activeRun));
+    if (!hasActiveRun) return;
+
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        router.refresh();
+      }
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [taskRows, router]);
 
   // 窄屏：panel=list 时强制显示列表，否则显示详情
   const panel = searchParams.get("panel");
@@ -98,7 +142,7 @@ export function ConsoleShell({
 
   // 构造当前 NormalizedConsoleParams（仅需筛选参数，用于 buildSelectTaskHref）
   const currentParams: NormalizedConsoleParams = {
-    space: "work",
+    space: mode === "studio" ? "studio" : "work",
     task: selectedTaskId,
     conversation: null,
     approval: null,
@@ -111,6 +155,15 @@ export function ConsoleShell({
     overdue: searchParams.get("overdue"),
     group: searchParams.get("group"),
   };
+
+  // 桌面端无显式选中任务时，默认选当前页排序最前的待处理任务（用 replace 补入 URL，W01/W02）
+  useEffect(() => {
+    if (!selectedTaskId && taskRows.length > 0 && typeof window !== "undefined" && window.innerWidth >= 1120) {
+      const firstPending = taskRows.find((t) => t.status !== "done") ?? taskRows[0];
+      router.replace(buildSelectTaskHref(projectId, firstPending.id, currentParams));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTaskId, taskRows, projectId]);
 
   function selectTask(taskId: string) {
     startTransition(() => {
@@ -147,6 +200,7 @@ export function ConsoleShell({
             nextCursor={nextCursor}
             selectedTaskId={selectedTaskId}
             canWrite={canWrite}
+            mode={mode}
             onSelectTask={selectTask}
           />
         </div>
@@ -167,6 +221,7 @@ export function ConsoleShell({
             selectedTask={selectedTask}
             selectedTaskError={selectedTaskError}
             selectedTaskId={selectedTaskId}
+            members={members}
             onBack={clearTask}
             onOpenRunRail={() => setRunRailOpen(true)}
           />

@@ -35,6 +35,7 @@ export function TaskList({
   hasMore,
   selectedTaskId,
   canWrite,
+  mode = "work",
   onSelectTask,
 }: {
   projectId: string;
@@ -43,17 +44,27 @@ export function TaskList({
   nextCursor?: string | null;
   selectedTaskId: string | null;
   canWrite: boolean;
+  mode?: "work" | "studio";
   onSelectTask: (id: string) => void;
 }) {
+  const isStudio = mode === "studio";
+  const displayRows = isStudio
+    ? taskRows.filter(
+        (r) =>
+          r.agentRunStatusLabel !== "暂无执行记录" ||
+          r.activeRun !== null ||
+          r.openBlockerCount > 0,
+      )
+    : taskRows;
+
   const [doneExpanded, setDoneExpanded] = useState(
-    // 自动展开：选中任务在已完成组时
-    taskRows.some((t) => t.id === selectedTaskId && t.priorityGroup === "done"),
+    displayRows.some((t) => t.id === selectedTaskId && t.priorityGroup === "done"),
   );
 
   // 分组
   const groups: Partial<Record<TaskPriorityGroup, TaskRowSummary[]>> = {};
   const ORDER: TaskPriorityGroup[] = ["awaiting_review", "blocked", "my_active", "active", "todo", "done"];
-  for (const row of taskRows) {
+  for (const row of displayRows) {
     const g = row.priorityGroup;
     if (!groups[g]) groups[g] = [];
     groups[g]!.push(row);
@@ -64,21 +75,46 @@ export function TaskList({
       {/* 列表头 */}
       <div className="flex items-center justify-between border-b border-stroke px-3 py-2">
         <span className="text-xs font-medium text-ink-2">
-          任务
-          <span className="ml-1 tabular-nums text-ink-3">（当前页 {taskRows.length} 项）</span>
+          {isStudio ? "Agent 任务与运行" : "任务"}
+          <span className="ml-1 tabular-nums text-ink-3">
+            （当前页 {displayRows.length} 项）
+          </span>
         </span>
-        {canWrite && (
+        {isStudio ? (
           <Link
             href={`/projects/${projectId}?space=work`}
-            className="rounded px-2 py-0.5 text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            className="rounded px-2 py-0.5 text-xs text-ink-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
           >
-            + 新建
+            全部任务 →
           </Link>
+        ) : (
+          canWrite && (
+            <Link
+              href={`/projects/${projectId}?space=work`}
+              className="rounded px-2 py-0.5 text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            >
+              + 新建
+            </Link>
+          )
         )}
       </div>
 
-      {taskRows.length === 0 && (
-        <div className="px-3 py-6 text-center text-sm text-ink-3">暂无任务</div>
+      {displayRows.length === 0 && (
+        <div className="px-3 py-8 text-center text-sm text-ink-3">
+          {isStudio ? (
+            <div className="space-y-2">
+              <p>暂无执行记录</p>
+              <Link
+                href={`/projects/${projectId}?space=work`}
+                className="inline-block text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+              >
+                ← 返回任务列表
+              </Link>
+            </div>
+          ) : (
+            "暂无任务"
+          )}
+        </div>
       )}
 
       {/* 分组渲染 */}

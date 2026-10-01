@@ -1,7 +1,7 @@
-import { and, asc, count, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { activityEvents, agentRuns, blockers, contextPacks, tasks, users } from "@/db/schema";
+import { activityEvents, agentRuns, blockers, contextPacks, conversations, tasks, users } from "@/db/schema";
 import { getProjectForUser } from "./project";
 import { AppError, ForbiddenError } from "./errors";
 import { getTaskDetail } from "./task";
@@ -170,11 +170,65 @@ export async function getConsoleTask(actorId: string, projectId: string, taskId:
       catch (error) { if (error instanceof AppError) contextUnavailable = true; else throw error; }
     }
   }
-  const [evidence, approvals, runs, events] = await Promise.all([
-    listTaskEvidence(actorId, taskId), listApprovalRequests(actorId, projectId, undefined, taskId),
-    listConsoleRuns(actorId, projectId, taskId), listConsoleEvents(actorId, projectId, taskId),
+  const [evidence, approvals, runs, events, taskConversations, availablePacks] = await Promise.all([
+    listTaskEvidence(actorId, taskId),
+    listApprovalRequests(actorId, projectId, undefined, taskId),
+    listConsoleRuns(actorId, projectId, taskId),
+    listConsoleEvents(actorId, projectId, taskId),
+    db
+      .select({
+        id: conversations.id,
+        title: conversations.title,
+        updatedAt: conversations.updatedAt,
+      })
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.projectId, projectId),
+          eq(conversations.taskId, taskId),
+          or(eq(conversations.visibility, "project"), eq(conversations.createdById, actorId)),
+        ),
+      )
+      .orderBy(desc(conversations.updatedAt)),
+    db
+      .select({
+        id: contextPacks.id,
+        title: contextPacks.title,
+        frozenAt: contextPacks.frozenAt,
+      })
+      .from(contextPacks)
+      .leftJoin(conversations, eq(contextPacks.conversationId, conversations.id))
+      .where(
+        and(
+          eq(contextPacks.projectId, projectId),
+          eq(contextPacks.status, "frozen"),
+          sql`(${contextPacks.taskId} is null or ${contextPacks.taskId} = ${taskId}::uuid)`,
+          or(
+            isNull(contextPacks.conversationId),
+            eq(conversations.visibility, "project"),
+            eq(conversations.createdById, actorId),
+          ),
+        ),
+      )
+      .orderBy(desc(contextPacks.frozenAt), desc(contextPacks.createdAt)),
   ]);
-  return { task, context, contextUnavailable, evidence, runs, events,
+  return {
+    task,
+    context,
+    contextUnavailable,
+    evidence,
+    runs,
+    events,
+    conversations: taskConversations.map((c) => ({
+      id: c.id,
+      title: c.title,
+      updatedAt: c.updatedAt ? c.updatedAt.toISOString() : null,
+    })),
+    availablePacks: availablePacks.map((p) => ({
+      id: p.id,
+      title: p.title,
+      frozenAt: p.frozenAt ? p.frozenAt.toISOString() : null,
+    })),
     approvals: approvals.map(({ id, title, status, tool, canResolve, permissionReason, sourceConversationId }) =>
       ({ id, title, status, tool, canResolve, permissionReason, sourceConversationId })),
     capabilities: { canStartAgentRun: false, canResumeAgentRun: false, canStopAgentRun: false },

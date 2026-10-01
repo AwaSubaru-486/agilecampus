@@ -18,15 +18,15 @@ export const DEFAULT_SPACE: ProjectSpace = "work";
 
 export const SPACE_LABEL: Record<ProjectSpace, string> = {
   live: "概览",
-  work: "任务",
-  studio: "AI 协作",
-  record: "成果",
+  work: "协同执行",
+  studio: "Agent 协作",
+  record: "成果记录",
 };
 
 export const SPACE_HINT: Record<ProjectSpace, string> = {
   live: "项目进展、风险与当前接力",
   work: "任务如何拆分、交接与验收",
-  studio: "人和 Agent 一起推进任务",
+  studio: "运行记录、契约核对与会话分支",
   record: "已交付成果、决策与证据",
 };
 

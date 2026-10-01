@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getProjectForUser } from "@/lib/project";
+import { listTeamMembers } from "@/lib/team";
 import {
   listConsoleTasks,
   getConsoleTask,
@@ -35,8 +36,11 @@ export async function ExecutionConsole({
   const canReview = role === "admin" || role === "teacher";
   const canWrite = role === "admin" || role === "student";
 
-  // 分页加载任务列表
-  const tasksResult = await listConsoleTasks(actorId, projectId, { limit: 50 });
+  // 分页加载任务列表与团队成员
+  const [tasksResult, teamMembersList] = await Promise.all([
+    listConsoleTasks(actorId, projectId, { limit: 50 }),
+    listTeamMembers(access.project.teamId),
+  ]);
 
   // 选中任务详情
   let selectedTask: Awaited<ReturnType<typeof getConsoleTask>> | null = null;
@@ -148,10 +152,27 @@ export async function ExecutionConsole({
                 canResolve: a.canResolve,
               })),
               capabilities: selectedTask.capabilities,
+              evidence: selectedTask.evidence.map((e) => ({
+                id: e.id,
+                type: e.type,
+                title: e.label,
+                description: e.value,
+                url: e.type === "link" ? e.value : null,
+                submittedAt: e.createdAt.toISOString(),
+              })),
+              conversations: selectedTask.conversations,
+              availablePacks: selectedTask.availablePacks,
             }
           : null
       }
       selectedTaskError={selectedTaskError}
+      mode={normalized.space === "studio" ? "studio" : "work"}
+      members={teamMembersList.map((m) => ({
+        id: m.id,
+        name: m.name,
+        role: m.role,
+        kind: m.kind,
+      }))}
     />
   );
 }

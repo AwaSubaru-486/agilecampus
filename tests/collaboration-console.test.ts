@@ -133,11 +133,17 @@ describe("协同执行台只读投影", () => {
     expect(memberView.context).toBeNull();
     expect(memberView.contextUnavailable).toBe(true);
     expect(memberView.approvals).toEqual([]);
+    expect(memberView.conversations).toEqual([]);
+    expect(memberView.availablePacks).toEqual([]);
     expect(memberView.capabilities.canStartAgentRun).toBe(false);
     const ownerView = await getConsoleTask(owner.id, project.id, task.id);
     expect(ownerView.context?.pack.status).toBe("frozen");
     expect(ownerView.approvals).toHaveLength(1);
     expect(ownerView.approvals[0]).not.toHaveProperty("payload");
+    expect(ownerView.conversations).toHaveLength(1);
+    expect(ownerView.conversations[0].id).toBe(chat.id);
+    expect(ownerView.availablePacks).toHaveLength(1);
+    expect(ownerView.availablePacks[0].id).toBe(pack.pack.id);
     const other = await createTask(owner.id, project.id, { title: "无关任务" });
     expect((await getConsoleTask(owner.id, project.id, other.id)).approvals).toEqual([]);
   });

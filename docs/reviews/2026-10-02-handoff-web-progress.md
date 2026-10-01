@@ -186,64 +186,83 @@ npm test -- tests/console-navigation.test.ts tests/project-space.test.ts
 ## W04 — 交接资料真正可保存、可绑定、可确认
 
 工单：W04
-状态：存根完成（handoff-editor.tsx）
+状态：验收通过
+起点 HEAD：`1dc0b9c`
 
-### 本单新建文件
+### 本单修改/新建文件
 
-- `src/app/(app)/projects/[projectId]/_console/handoff-editor.tsx`
+- `src/app/(app)/projects/[projectId]/actions.ts`：实现 `updateTaskHandoffAction` 服务端 Action，支持接手人改派（改派自动重置承诺与认领）、`doneCriteria`（每行一条）、`requiredEvidence`（多类型解析）、`responseDueAt`、`contextPackId`；对 `review`/`done` 状态任务添加防篡改安全校验。
+- `src/app/(app)/projects/[projectId]/_console/handoff-editor.tsx`：实现完整内联交接契约表单，支持团队成员与 Agent 下拉选择、交接背景说明、完成条件逐行编辑、5 项证据规范复选（`link`, `file`, `text`, `test`, `demo`）、响应截止时间、可用冻结资料包下拉绑定；展示契约版本与已认领版本；保存后自动刷新并收起。
+- `src/app/(app)/projects/[projectId]/_console/task-contract-panel.tsx`：接入 `HandoffEditor`，向其注入 `members` 与 `availablePacks`。
+- `src/lib/collaboration-console.ts`：`getConsoleTask` 聚合查询可用冻结资料包 `availablePacks`，严格隔离私密会话衍生的上下文包。
+- `tests/collaboration-console.test.ts`：增加 `availablePacks` 任务与权限隔离性断言，通过。
 
-### 边界说明
+### 用户现在可点击的入口和变化
 
-- 当前阶段提供安全的任务编辑引导，复用既有 `updateTask` 动作流，未直接写库，契约版本保持自增。
+- 选定任务后，在交接工作面点击“编辑交接”即可打开内联契约编辑器。
+- 可直接选择团队中的人或 Agent 作为负责人；可选择已冻结的交接资料包；可勾选交付证据类型。
+- 保存后页面自动刷新，契约版本自增，改派时自动重置旧认领，接手人需重新确认。
 
 ---
 
 ## W05 — 认领、阻塞、交付、人工验收收进同一面板
 
 工单：W05
-状态：存根完成（evidence-list.tsx）
+状态：验收通过
 
-### 本单新建文件
+### 本单修改/新建文件
 
-- `src/app/(app)/projects/[projectId]/_console/evidence-list.tsx`
+- `src/app/(app)/projects/[projectId]/_console/task-contract-panel.tsx`：中央面板内建直达动作表单：
+  - 待办/未认领时：展示“认领任务”（需填写执行承诺与预估工时）与“接不住 / 拒绝认领”（退回并说明原因）。
+  - 进行中时：展示“提交成果”（填写交付说明并提交待验收）。
+  - 待验收时（且具有教师/管理员权限）：展示“验收任务”（通过/退回单选及验收意见）。
+  - 待确认审批项直达跳转链接。
+- `src/app/(app)/projects/[projectId]/_console/evidence-list.tsx`：真实交付证据列表，展示类型、名称、说明、提交人、时间及外部代码/文档链接。无 diff 不画虚假 diff，无测试结果不伪造绿标。
 
-### 边界说明
+### 用户现在可点击的入口和变化
 
-- 交付证据按真实出处、类型与外部链接展示；无 diff 不画虚假 diff，无测试结果不伪造绿标。
+- 用户在选定任务后，所有核心生命周期动作（认领、拒绝、交付、验收）均在中央交接工作面一站式完成，不再依赖多层弹窗。
+- 交付成果后，证据列表实时展示提交内容。
 
 ---
 
 ## W06 — 会话继承与分叉嵌入任务，修正误绑定
 
 工单：W06
-状态：存根完成（task-conversations.tsx）
+状态：验收通过
 
-### 本单新建文件
+### 本单修改/新建文件
 
-- `src/app/(app)/projects/[projectId]/_console/task-conversations.tsx`
+- `src/lib/collaboration-console.ts`：`getConsoleTask` 聚合查询当前任务下当前用户可读的会话列表，严格按 `projectId` + `taskId` 过滤，排除其他成员的私密会话。
+- `src/app/(app)/projects/[projectId]/_console/task-conversations.tsx`：嵌入任务会话列表；无会话时明确展示“该任务暂无会话”与“+ 为此任务发起会话”入口，绝不回落至其他任务的会话；提供直达协同室该会话链接；提示会话分叉仅保留上下文，不代表代码已恢复。
+- `src/app/(app)/projects/[projectId]/_studio/studio-space.tsx`：默认复用协同执行台（`mode="studio"`，聚焦展示 Agent 任务与活动），并通过 `?space=studio&view=chat` 完整保留项目历史会话与 ChatPanel，提供清晰的返回 Agent 执行台导航。
+- `tests/collaboration-console.test.ts`：增加 `memberView.conversations` 与 `ownerView.conversations` 任务作用域隔离性测试断言。
 
-### 边界说明
+### 用户现在可点击的入口和变化
 
-- 会话按当前 `taskId` 筛选归属，避免历史会话误落入无关联任务；明示会话分叉不代表代码分支恢复。
+- 中央交接工作面底部“会话与分支”直接展示关联到当前任务的真实会话。
+- 点击“+ 新建会话”自动带入当前任务上下文跳转至协同室。
 
 ---
 
 ## W07 — 明确网页与 VS Code 检查点边界
 
 工单：W07
-状态：完成（文档与文案边界锁定）
+状态：验收通过
 
-### 边界说明
+### 本单修改/新建文件
 
-- 网页执行台内明确标注“网页暂无 Agent 启动/恢复接口，请在 VS Code 插件中操作”。
-- 准确区隔会话、上下文包与本地检查点，不伪造原生 session resume 按钮。
+- `src/app/(app)/projects/[projectId]/_console/task-contract-panel.tsx`：新增折叠面板“本地检查点与接续说明（VS Code 插件）”，明确指出：
+  - 网页未接入跨环境检查点共享接口（E09 待签收），网页无法枚举队友本地运行的会话或断点。
+  - 标准接续流程：在 VS Code 插件中保存本地 Checkpoint → 选择材料导出 JSON → 队友导入 → 检查代码基线与交接契约 → 以新会话带入材料继续，或建立并行 worktree。
+  - 明确区隔带材料启动新会话与原生恢复 session（native resume unsupported）；不添加虚假的“上传 session”或“恢复 Agent”按钮。
 
 ---
 
 ## W08 — 全流程回归与交付
 
 工单：W08
-状态：进行中
+状态：验收通过
 
 ### 自动化检查结果
 
@@ -259,4 +278,5 @@ npm test -- tests/console-navigation.test.ts tests/project-space.test.ts
   - `tests/project-space.test.ts` (15 tests)
   - `tests/conversation-selection.test.ts` (3 tests)
   - 合计 83 项协同执行台测试 100% 通过
+
 

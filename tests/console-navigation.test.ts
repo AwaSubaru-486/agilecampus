@@ -193,10 +193,10 @@ describe("buildSelectTaskHref", () => {
     expect(href).toContain("group=status");
   });
 
-  it("switches studio to work in select-task", () => {
+  it("preserves studio space in select-task (W03: Agent 协作复用执行台)", () => {
     const studioBase = { ...base, space: "studio" as const };
     const href = buildSelectTaskHref("proj-1", "t", studioBase);
-    expect(href).toContain("space=work");
+    expect(href).toContain("space=studio");
   });
 });
 
