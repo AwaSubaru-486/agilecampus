@@ -22,12 +22,15 @@ export async function WorkSpace({
   teamId,
   role,
   filters,
+  selectedTaskId,
 }: {
   actorId: string;
   projectId: string;
   teamId: string;
   role: "admin" | "teacher" | "student";
   filters: BoardFilters;
+  /** W01: ?task= 选中的任务 ID，由 page.tsx 经 normalizeConsoleParams 传入 */
+  selectedTaskId?: string | null;
 }) {
   const [projectTasks, projectMilestones, members, dependencies, teamLabels, projectAgents, busyTaskIds] =
     await Promise.all([

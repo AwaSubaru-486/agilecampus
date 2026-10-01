@@ -3,10 +3,9 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { parseFilters } from "@/lib/board-filters";
-import { parseProjectSpace, spaceForConversationParams } from "@/lib/project-space";
-import { getDrawerTask, listTaskRefs } from "@/lib/task";
+import { normalizeConsoleParams, needsRedirect, serializeConsoleParams } from "@/lib/console-navigation";
+import { listTaskRefs } from "@/lib/task";
 import { ProjectBand } from "../../_shell/top-workbar";
-import { TaskDrawer } from "./_shared/task-drawer";
 import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
@@ -23,6 +22,13 @@ import { RecordSpace } from "./_record/record-space";
 //
 // 参数全部走 URL（`space` / `task` / `conversation` 与筛选项），
 // 可复制、可刷新、可前进后退。
+//
+// W01 变更：
+//   - 使用 normalizeConsoleParams 统一归一化（live→work，非法→work，
+//     带 conversation/approval→studio），幂等，不产生重定向循环。
+//   - ?task= 只用于查看，不再自动打开编辑框（task-card.tsx 已修）。
+//   - page.tsx 不再挂全局 TaskDrawer（执行台自身负责详情层，避免叠层）。
+//   - live 模式保留，通过概览标签进入；只是默认进入时不再首先显示它。
 
 export default async function ProjectPage({
   params,
@@ -44,42 +50,27 @@ export default async function ProjectPage({
   const { project, role } = access;
   const actorId = session.user.id;
 
-  // 带了 conversation 就必然落到协同室——否则「点了一条会话链接
-  // 却停在现场」会变成一桩悬案（见 lib/project-space.ts）
-  const requested = parseProjectSpace(sp.space);
-  const conversationId = typeof sp.conversation === "string" ? sp.conversation : null;
-  const approvalId = typeof sp.approval === "string" ? sp.approval : null;
-  const space = spaceForConversationParams(requested, Boolean(conversationId));
+  // 归一化所有参数：live→work，非法→work，带会话/审批→studio。
+  // 数组参数取第一项；规范化结果幂等，不产生重定向循环。
+  const rawParams = Object.fromEntries(
+    Object.entries(sp).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v ?? null]),
+  );
+  const normalized = normalizeConsoleParams(rawParams);
+  const { space, task: taskId, conversation: conversationId, approval: approvalId } = normalized;
 
-  // 地址栏要跟着走。只在服务端改渲染而不改 URL，会出现
-  // 「界面在协同室、地址写着现场」——复制出去就是错的，刷新还会跳回去
-  if (space !== requested) {
-    const qs = new URLSearchParams();
-    qs.set("space", space);
-    for (const [k, v] of Object.entries(sp)) {
-      if (typeof v === "string" && k !== "space") qs.set(k, v);
-    }
-    redirect(`/projects/${projectId}?${qs.toString()}`);
+  // 地址栏与规范化结果不一致时服务端 redirect，确保复制/刷新/前进后退正确。
+  if (needsRedirect(rawParams, normalized)) {
+    redirect(`/projects/${projectId}?${serializeConsoleParams(normalized)}`);
   }
-
-  const taskId = typeof sp.task === "string" ? sp.task : undefined;
 
   const canWrite = role === "admin" || role === "student";
 
-  // 上下文带要显示最近一个未完成的里程碑。这一条查询很小，
-  // 且四个模式都要用（带子本来就是全局的），故在页面层查。
+  // 里程碑：小查询，四个模式都要用（面包带子是全局的）。
   const milestones = await listProjectMilestones(actorId, projectId);
   const latestOpen = milestones.find((m) => m.status === "open") ?? null;
 
-  // 只在现场模式查接力链要的那四列。其余模式查了就是白费——
-  // 按需加载的要点在这里，不在「少渲染几个组件」
+  // 接力链只在现场模式需要，按需加载。
   const relayTasks = space === "live" ? await listTaskRefs(projectId) : [];
-
-  // 任务抽屉由 URL 驱动（`?task=`）：今日页点一条行动，一次跳转就能完成它。
-  // 只认属于本项目的任务——别项目的 id 塞进 URL 不该把它的内容透出来。
-  const drawerTask =
-    taskId && z.uuid().safeParse(taskId).success ? await getDrawerTask(actorId, taskId) : null;
-  const drawer = drawerTask?.projectId === projectId ? drawerTask : null;
 
   const filters = parseFilters(
     new URLSearchParams(
@@ -120,6 +111,7 @@ export default async function ProjectPage({
           teamId={project.teamId}
           role={role}
           filters={filters}
+          selectedTaskId={taskId}
         />
       )}
 
@@ -129,7 +121,7 @@ export default async function ProjectPage({
           projectId={projectId}
           teamId={project.teamId}
           selectedConversationId={conversationId}
-          selectedTaskId={taskId ?? null}
+          selectedTaskId={taskId}
           selectedApprovalId={approvalId}
         />
       )}
@@ -138,16 +130,9 @@ export default async function ProjectPage({
         <RecordSpace actorId={actorId} projectId={projectId} role={role} canWrite={canWrite} />
       )}
 
-      {/* 抽屉叠在任意模式之上——它是全局层，不占模式的画布 */}
-      {drawer && (
-        <TaskDrawer
-          task={drawer}
-          projectId={projectId}
-          currentUserId={actorId}
-          canWrite={canWrite}
-          canReview={role === "admin" || role === "teacher"}
-        />
-      )}
+      {/* TaskDrawer 已移除：执行台（WorkSpace）负责详情层，避免与旧卡片编辑框叠层。
+          studio/record 各自承载自己的详情 overlay。
+          旧 ?task= 深链仍有效——WorkSpace 会读取 selectedTaskId 并在中央展示详情。 */}
     </div>
   );
 }

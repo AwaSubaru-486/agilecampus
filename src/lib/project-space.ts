@@ -14,7 +14,7 @@
 export const PROJECT_SPACES = ["live", "work", "studio", "record"] as const;
 export type ProjectSpace = (typeof PROJECT_SPACES)[number];
 
-export const DEFAULT_SPACE: ProjectSpace = "live";
+export const DEFAULT_SPACE: ProjectSpace = "work";
 
 export const SPACE_LABEL: Record<ProjectSpace, string> = {
   live: "概览",

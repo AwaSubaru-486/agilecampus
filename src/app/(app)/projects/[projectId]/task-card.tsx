@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import {
   claimTaskAction,
@@ -96,16 +96,7 @@ export function TaskCard({
           : task.agentStatus === "offline"
             ? { label: "AI 离线", tone: "neutral" }
             : null;
-  const searchParams = useSearchParams();
   const router = useRouter();
-  // 深链 /projects/[id]?task=<taskId>：命中本卡片则打开详情弹窗（仅 canWrite 有 EditModal）。
-  // 于渲染期调整而非 useEffect：避免多渲染一轮，且用户手动关闭后不会被 effect 重开。
-  const deepLinked = canWrite && searchParams.get("task") === task.id;
-  const [prevDeepLinked, setPrevDeepLinked] = useState(false);
-  if (deepLinked !== prevDeepLinked) {
-    setPrevDeepLinked(deepLinked);
-    if (deepLinked) setEditing(true);
-  }
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     disabled: !dragEnabled || !canWrite || editing,
