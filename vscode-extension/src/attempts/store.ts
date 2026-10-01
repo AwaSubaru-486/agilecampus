@@ -151,9 +151,9 @@ export class AttemptStore {
     }, workdirLeaseIsStale);
     if (!lock) return false;
     let sentinelCreated = false;
+    const recoveredCurrentLease = lock.recovered?.kind === "workdir-lease" && lock.recovered.workdir === canonicalWorkdir;
     try {
       const legacy = await this.readLegacyLease(leasePath);
-      const recoveredCurrentLease = lock.recovered?.kind === "workdir-lease" && lock.recovered.workdir === canonicalWorkdir;
       if (legacy.present) {
         if (!legacy.owner && !recoveredCurrentLease) {
           throw new Error("检测到没有所有者记录的旧工作目录锁；为避免并发写入，请关闭其他 VS Code 窗口后再处理。");
@@ -199,7 +199,7 @@ export class AttemptStore {
       activeWorkdirLeases.set(key, active);
       return true;
     } catch (error) {
-      let rollbackComplete = true;
+      let rollbackComplete = !recoveredCurrentLease;
       if (sentinelCreated) {
         try { rollbackComplete = await this.rollbackFailedLease(leasePath, canonicalWorkdir, lock); }
         catch { rollbackComplete = false; }
