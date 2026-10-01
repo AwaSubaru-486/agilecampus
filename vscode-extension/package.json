@@ -27,7 +27,8 @@
     "onCommand:agilecampus.saveCheckpoint",
     "onCommand:agilecampus.listCheckpoints",
     "onCommand:agilecampus.exportCheckpoint",
-    "onCommand:agilecampus.importCheckpoint"
+    "onCommand:agilecampus.importCheckpoint",
+    "onCommand:agilecampus.prepareHandoff"
   ],
   "contributes": {
     "configuration": {
@@ -88,6 +89,10 @@
       {
         "command": "agilecampus.importCheckpoint",
         "title": "AgileCampus: 导入检查点交接包"
+      },
+      {
+        "command": "agilecampus.prepareHandoff",
+        "title": "AgileCampus: 检查接续条件"
       }
     ],
     "viewsContainers": {
@@ -144,6 +149,11 @@
           "command": "agilecampus.importCheckpoint",
           "when": "view == agilecampus.projectView && agileCampus.connected == true",
           "group": "navigation@5"
+        },
+        {
+          "command": "agilecampus.prepareHandoff",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@6"
         },
         {
           "command": "agilecampus.disconnect",

@@ -24,6 +24,11 @@ function checkpoint(): WorkCheckpoint {
     schemaVersion: 1, id: sourceId, parentCheckpointId: null, serverOrigin: origin, projectId, taskId,
     milestoneId: null, capturedAt: "2026-10-01T06:00:00.000Z", handoffVersion: 2,
     taskUpdatedAt: "2026-10-01T05:00:00.000Z",
+    taskSnapshot: {
+      title: "Continue task", status: "in_progress", priority: "medium", dueDate: null, assigneeId: "member-a", assigneeName: "A",
+      description: "Implement the task", handoffBrief: "Keep evidence", doneCriteria: ["check SHA"], requiredEvidence: ["test output"],
+      responseDueAt: null, completionNote: null, committedHandoffVersion: 2,
+    },
     repository: { key: "remote:opaque", headSha: "a".repeat(40), branch: "main", dirty: false, dirtyPolicy: "clean-only", recoveryBlockers: [] },
     session: { provider: "Entire CLI", providerVersion: "0.11.3", sessionId: "00000000-0000-4000-8000-000000000001", checkpointId: "01H00000000000000000000001", captureMode: "context-only" },
     handoff: { goal: "Continue task", completed: ["captured"], remaining: ["verify"], blocker: null, rejectedApproaches: [], nextAction: "verify the SHA" },

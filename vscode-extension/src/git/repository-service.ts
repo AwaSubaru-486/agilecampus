@@ -65,6 +65,12 @@ export function sameRepositorySnapshot(before: RepositorySnapshot, after: Reposi
     JSON.stringify(before.recoveryBlockers) === JSON.stringify(after.recoveryBlockers);
 }
 
+export async function hasCommit(workspacePath: string, sha: string): Promise<boolean> {
+  if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(sha)) return false;
+  try { await simpleGit(workspacePath).raw(["cat-file", "-e", `${sha}^{commit}`]); return true; }
+  catch { return false; }
+}
+
 function normalizeRemote(raw: string): string | null {
   try {
     const url = new URL(raw);

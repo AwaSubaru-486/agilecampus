@@ -27,6 +27,11 @@ function manifest(overrides: Partial<WorkCheckpoint> = {}): WorkCheckpoint {
     capturedAt: "2026-10-01T06:00:00.000Z",
     handoffVersion: 2,
     taskUpdatedAt: "2026-10-01T05:00:00.000Z",
+    taskSnapshot: {
+      title: "交接测试", status: "in_progress", priority: "medium", dueDate: null, assigneeId: null, assigneeName: null,
+      description: null, handoffBrief: "完成验证", doneCriteria: ["有可查结果"], requiredEvidence: [],
+      responseDueAt: null, completionNote: null, committedHandoffVersion: 2,
+    },
     repository: {
       key: "local:install-identity",
       headSha: "a".repeat(40),
@@ -94,6 +99,11 @@ describe("local checkpoint store", () => {
       artifacts: [{ id: "f011f4b5-f083-4865-97b6-b07935a8aa12", kind: "transcript", relativePath: "../../secret", byteLength: 1, sha256: "b".repeat(64) }],
     };
     expect(() => parseWorkCheckpoint(invalid)).toThrow("附件路径无效");
+  });
+
+  it("reads earlier schemaVersion 1 task snapshots without a due date field", () => {
+    const { dueDate: _legacyField, ...legacyTask } = manifest().taskSnapshot;
+    expect(parseWorkCheckpoint({ ...manifest(), taskSnapshot: legacyTask }).taskSnapshot.dueDate).toBeNull();
   });
 
   it("stores no transcript text in the manifest", async () => {

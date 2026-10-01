@@ -99,6 +99,28 @@ git diff --check：通过
 
 已知限制：SHA-256 只校验内容，不能认证发送人；导入的项目/任务 ID 是声明，只有在线 GET 校验通过时显示该次任务归属已核对；即便通过也不授予执行/发布权限。导出只用用户选定的本地路径，不上传云端。
 
-下一单：E06 接续前检查。
+下一单：E06 接续前检查（本次完成）。
 
 本单交付点：本机可导出/导入经验证的 JSON 包；按用户授权继续 E06，最终统一验收。
+
+## E06（接续前检查与接续材料）
+
+工单 ID / 状态：E06 / 自动检查通过，纳入用户授权的整批验收；Extension Host 手工操作待最终验收；不推送。
+
+起点 HEAD：`c1774fe`。
+
+改动文件：扩展检查点 schema、Git 服务、任务快照、接续 preflight/plan/命令注册和测试；扩展 README、命令面板与侧栏标题菜单；更新本进度和能力表。
+
+新增依赖：无。
+
+实现：E06 通过后只生成 Markdown 计划，不启动 Agent。启动条件检查工作区信任、当前 token 是否能读取任务、项目/任务 ID、任务是否已完成、任务字段和契约版本差异、仓库 remote/local identity、检查点 SHA 是否存在、HEAD 完全匹配、目录是否 dirty、Git LFS/submodule 限制；`CheckpointStore.read` 同时核验全部附件哈希/长度。任务变化逐字段展示并要求用户确认后，计划使用当前服务端版本；任务关闭、权限失效或代码目录不匹配则阻止。
+
+计划明确写出 SHA、目标目录、context-only 模式、附件类型与字节数、任务要求的验收证据和本地 workspace-write 权限边界。已有 schemaVersion 1 检查点若缺少本次新补充的 dueDate 仍可读取；该字段按 null 比较并在任务要求不同后要求人工确认。未知 Agent 来源版本不会被用于原生恢复，仅作为用户选择的附件材料并显示警告。
+
+自动测试：`npm --prefix vscode-extension run check` 退出码 0；`npm --prefix vscode-extension test` 退出码 0（当前 53 项）；`git diff --check` 通过。
+
+真实 VS Code / Agent / 跨机器验证：本单未在 Extension Development Host 点击命令；没有启动 Agent；跨机器未验证。
+
+证明材料：`vscode-extension/tests/handoff-preflight.test.ts` 覆盖任务变化、改派、已完成、权限/信任、仓库不符、缺 SHA、dirty、LFS/submodule、未知 adapter 版本；`checkpoint-store.test.ts` 覆盖早期 schemaVersion 1 数据兼容。
+
+下一单：E07 仅 context-only 新会话。Codex CLI 本机为 `0.153.4`；Entire 原生恢复仍 unsupported，不会使用 `--force` 或覆盖 session 日志。

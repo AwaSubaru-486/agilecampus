@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { readRepositorySnapshot } from "../src/git/repository-service";
+import { hasCommit, readRepositorySnapshot } from "../src/git/repository-service";
 
 const roots: string[] = [];
 const localId = "96fd6996-49ee-4d63-85ad-5855f0b4ad5b";
@@ -56,6 +56,14 @@ describe("checkpoint Git snapshot", () => {
     roots.push(root);
     git(root, ["init", "-q"]);
     await expect(readRepositorySnapshot(root, localId)).rejects.toThrow("首个提交");
+  });
+
+  it("checks a checkpoint SHA without fetching or changing the repository", async () => {
+    const root = await createRepository();
+    const before = git(root, ["rev-parse", "HEAD"]).trim();
+    await expect(hasCommit(root, before)).resolves.toBe(true);
+    await expect(hasCommit(root, "f".repeat(40))).resolves.toBe(false);
+    expect(git(root, ["rev-parse", "HEAD"]).trim()).toBe(before);
   });
 
   it("does not resolve a repository above the selected trusted workspace", async () => {

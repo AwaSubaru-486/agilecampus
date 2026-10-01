@@ -6,6 +6,7 @@ import { registerSaveCheckpointCommand } from "./commands/save-checkpoint";
 import { registerListCheckpointsCommand } from "./commands/list-checkpoints";
 import { registerExportCheckpointCommand } from "./commands/export-checkpoint";
 import { registerImportCheckpointCommand } from "./commands/import-checkpoint";
+import { registerPrepareHandoffCommand } from "./commands/prepare-handoff";
 import { ProjectViewProvider } from "./views/project-view-provider";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerListCheckpointsCommand(context);
   registerExportCheckpointCommand(context);
   registerImportCheckpointCommand(context);
+  registerPrepareHandoffCommand(context);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.connect", () => provider.connect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disconnect", () => provider.disconnect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.selectProject", () => provider.selectProject()));

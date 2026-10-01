@@ -15,8 +15,9 @@ export function parseWorkCheckpoint(value: unknown): WorkCheckpoint {
   }
   const repository = value.repository;
   const session = value.session;
+  const taskSnapshot = value.taskSnapshot;
   const handoff = value.handoff;
-  if (!record(repository) || !record(session) || !record(handoff)) throw new CheckpointSchemaError("检查点缺少必需字段");
+  if (!record(repository) || !record(session) || !record(taskSnapshot) || !record(handoff)) throw new CheckpointSchemaError("检查点缺少必需字段");
   if (!text(value.serverOrigin) || !validServerUrl(text(value.serverOrigin)) || !text(value.projectId) || !text(value.taskId) || !text(value.taskUpdatedAt)) {
     throw new CheckpointSchemaError("项目、任务和更新时间不能为空");
   }
@@ -29,6 +30,15 @@ export function parseWorkCheckpoint(value: unknown): WorkCheckpoint {
     throw new CheckpointSchemaError("Git 基线信息无效");
   }
   if (repository.branch !== null && typeof repository.branch !== "string") throw new CheckpointSchemaError("Git 分支信息无效");
+  if (!text(taskSnapshot.title) || !text(taskSnapshot.status) || !text(taskSnapshot.priority) ||
+      (taskSnapshot.dueDate !== undefined && !nullableText(taskSnapshot.dueDate)) ||
+      !nullableText(taskSnapshot.assigneeId) || !nullableText(taskSnapshot.assigneeName) ||
+      !nullableText(taskSnapshot.description) || !nullableText(taskSnapshot.handoffBrief) ||
+      !stringArray(taskSnapshot.doneCriteria) || !stringArray(taskSnapshot.requiredEvidence) ||
+      !nullableText(taskSnapshot.responseDueAt) || !nullableText(taskSnapshot.completionNote) ||
+      (taskSnapshot.committedHandoffVersion !== null && (!Number.isInteger(taskSnapshot.committedHandoffVersion) || (taskSnapshot.committedHandoffVersion as number) < 1))) {
+    throw new CheckpointSchemaError("任务要求快照无效");
+  }
   if (typeof session.provider !== "string" || typeof session.providerVersion !== "string" ||
       (session.sessionId !== null && typeof session.sessionId !== "string") ||
       (session.checkpointId !== null && typeof session.checkpointId !== "string") ||
@@ -68,6 +78,15 @@ export function parseWorkCheckpoint(value: unknown): WorkCheckpoint {
     serverOrigin: text(value.serverOrigin), projectId: text(value.projectId), taskId: text(value.taskId),
     milestoneId: typeof value.milestoneId === "string" ? value.milestoneId : null,
     capturedAt: text(value.capturedAt), handoffVersion: value.handoffVersion as number, taskUpdatedAt: text(value.taskUpdatedAt),
+    taskSnapshot: {
+      title: text(taskSnapshot.title), status: text(taskSnapshot.status), priority: text(taskSnapshot.priority),
+      dueDate: (taskSnapshot.dueDate ?? null) as string | null,
+      assigneeId: taskSnapshot.assigneeId as string | null, assigneeName: taskSnapshot.assigneeName as string | null,
+      description: taskSnapshot.description as string | null, handoffBrief: taskSnapshot.handoffBrief as string | null,
+      doneCriteria: taskSnapshot.doneCriteria as string[], requiredEvidence: taskSnapshot.requiredEvidence as string[],
+      responseDueAt: taskSnapshot.responseDueAt as string | null, completionNote: taskSnapshot.completionNote as string | null,
+      committedHandoffVersion: taskSnapshot.committedHandoffVersion as number | null,
+    },
     repository: {
       key: text(repository.key), headSha: text(repository.headSha), branch: typeof repository.branch === "string" ? repository.branch : null,
       dirty: repository.dirty as boolean, dirtyPolicy: repository.dirtyPolicy as "clean-only" | "excluded",
@@ -91,6 +110,7 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 function text(value: unknown): string { return typeof value === "string" ? value : ""; }
+function nullableText(value: unknown): boolean { return value === null || typeof value === "string"; }
 
 function stringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");

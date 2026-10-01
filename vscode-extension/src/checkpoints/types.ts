@@ -9,6 +9,21 @@ export type WorkCheckpoint = {
   capturedAt: string;
   handoffVersion: number;
   taskUpdatedAt: string;
+  taskSnapshot: {
+    title: string;
+    status: string;
+    priority: string;
+    dueDate: string | null;
+    assigneeId: string | null;
+    assigneeName: string | null;
+    description: string | null;
+    handoffBrief: string | null;
+    doneCriteria: string[];
+    requiredEvidence: string[];
+    responseDueAt: string | null;
+    completionNote: string | null;
+    committedHandoffVersion: number | null;
+  };
   repository: {
     key: string;
     headSha: string;
