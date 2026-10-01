@@ -211,7 +211,6 @@
     "test": "vitest run --configLoader runner"
   },
   "dependencies": {
-    "@bybrave/proper-lockfile2": "^5.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "simple-git": "4.0.2"

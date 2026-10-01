@@ -1,8 +1,16 @@
 # VS Code 检查点接续施工进度
 
+## 2026-10-01 跨进程锁二次审核修复
+
+复核已确认上一版 `@bybrave/proper-lockfile2` 的过期目录 rename 回收仍有三进程竞态：第二个回收者可能把第三个进程刚创建的新锁目录移走；旧目录内残留 `owner.json` 时还会留下 `.reclaim-*` 孤儿。本次移除该依赖，改用扩展 globalStorage 内的本地 bare Git 引用库：Attempt 更新锁与工作目录租约都由 `git update-ref <ref> <new-oid> <expected-old-oid>` 做条件更新；过期锁只能在旧 OID 仍匹配时删除，PID 或 Agent PID 仍存活则拒绝接管。Git 调用限定在扩展自己的仓库，禁用系统/全局配置与模板，不访问 remote，不改用户项目 refs。
+
+工作目录同时保留旧路径兼容标记：正常结束时清除；异常退出后先确认 Host/Agent PID 已结束，再迁移旧 `owner.json`、旧 sidecar 和旧库遗留的 `.reclaim-*`。缺少/冲突/格式错误的所有者记录 fail closed，不递归删除未知文件。Attempt 更新锁同样基于 CAS；更新超时不会覆盖旧记录。
+
+本次回归：`npm --prefix vscode-extension run check` 通过；Vitest 13 个测试文件、87 项全通过，其中新增三进程争抢过期租约、旧目录/sidecar/reclaim 孤儿迁移、Attempt 更新锁回收、Agent PID 仍存活时拒绝接管，以及验证崩溃在 owner 临时文件写入阶段可安全恢复。`git diff --check` 通过。VSIX `/tmp/agilecampus-vscode-lock-cas.vsix` 打包成功（9 个文件，291.01 KB），未安装、未发布。双窗口真实宿主和 Agent 崩溃后跨宿主恢复仍待手工验收。此次没有改动网页/后端，也未推送。
+
 ## 2026-10-01 代码复核补修
 
-复核结论：E07/E08/E10 的代码验收暂缓。此前审查发现 VSIX 未带入 `simple-git`、工作目录锁只在单个 Extension Host 生效、多窗口会误标活动进程、worktree 允许嵌套、Attempt 缺少完成回执等问题。本工作树已实现补修：宿主入口改为 esbuild 打包；工作目录租约与 Attempt 更新使用跨进程锁；旧租约并发回收由锁库处理，锁失效会终止 Agent；只在 Agent PID 不存在时转 `unknown`，增加人工确认结束入口；拒绝与已登记 worktree 路径重叠；保存 Agent 最终消息、完成时 HEAD/dirty 状态，并允许用户手工登记测试命令和结果。
+复核结论：E07/E08/E10 的代码验收暂缓。此前审查发现 VSIX 未带入 `simple-git`、工作目录锁只在单个 Extension Host 生效、多窗口会误标活动进程、worktree 允许嵌套、Attempt 缺少完成回执等问题。本工作树已实现补修：宿主入口改为 esbuild 打包；工作目录租约与 Attempt 更新使用跨进程锁；锁失效会终止 Agent；只在 Agent PID 不存在时转 `unknown`，增加人工确认结束入口；拒绝与已登记 worktree 路径重叠；保存 Agent 最终消息、完成时 HEAD/dirty 状态，并允许用户手工登记测试命令和结果。锁实现的第二轮竞态修复见本文件顶部。
 
 本轮核验：`npm --prefix vscode-extension run check` 通过；扩展 Vitest 81 项全通过（包括两个独立进程争抢过期工作目录锁、两个独立进程同时更新同一执行回执）；`git diff --check` 通过。重新打包 VSIX 成功（9 个文件，296.76 KB）；隔离加载检查确认宿主入口只依赖 VS Code API，不需要外置 npm 运行依赖。尚未安装到 VS Code、手工双窗口实测或验证真实 Agent 中断恢复；因此这些运行环境仍待人工验收。未推送、未发布。已有其他负责人未提交的网页端改动保持原样。
 

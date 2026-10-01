@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import lockfile = require("@bybrave/proper-lockfile2");
-import { lstat, mkdir, readFile, readdir, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, realpath, rename, rm, rmdir, utimes, writeFile } from "node:fs/promises";
 import * as path from "node:path";
+import { GitRefLockStore, type CoordinationLock, type CoordinationLockRecord } from "./git-ref-lock";
 
 export type AttemptState = "preparing" | "prepared" | "launching" | "running" | "finished" | "failed" | "awaiting_confirmation" | "unknown" | "ended_unverified";
 export type AttemptKind = "single" | "parallel";
@@ -35,12 +35,22 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const activeStates = new Set<AttemptState>(["preparing", "launching", "running", "awaiting_confirmation", "unknown"]);
 
 type WorkdirLease = { attemptId: string; workdir: string; hostPid: number; agentPid: number | null; token: string };
-type ActiveWorkdirLease = { attemptId: string; token: string; release: () => Promise<void> };
+type LegacyWorkdirLease = Omit<WorkdirLease, "token"> & { token?: string };
+type ActiveWorkdirLease = {
+  attemptId: string;
+  token: string;
+  lock: CoordinationLock;
+  onCompromised?: (error: Error) => void;
+  heartbeat: ReturnType<typeof setInterval>;
+  heartbeatPending?: Promise<void>;
+  queue: Promise<void>;
+};
 const activeWorkdirLeases = new Map<string, ActiveWorkdirLease>();
 
 export class AttemptStore {
   private readonly queues = new Map<string, Promise<void>>();
-  constructor(private readonly root: string) {}
+  private readonly coordination: GitRefLockStore;
+  constructor(private readonly root: string) { this.coordination = new GitRefLockStore(root); }
 
   async create(input: Omit<LocalAttempt, "id" | "startedAt" | "updatedAt">, id: string = randomUUID()): Promise<LocalAttempt> {
     if (!UUID.test(id)) throw new Error("Attempt ID 无效");
@@ -64,26 +74,14 @@ export class AttemptStore {
     const previous = this.queues.get(id) ?? Promise.resolve();
     let updated!: LocalAttempt;
     const next = previous.then(async () => {
-      const lockPath = this.recordLockPath(id);
-      await mkdir(path.dirname(lockPath), { recursive: true, mode: 0o700 });
-      let compromised: Error | undefined;
-      const release = await lockfile.lock(this.filePath(id), {
-        realpath: false,
-        lockfilePath: lockPath,
-        stale: 10_000,
-        update: 5_000,
-        retries: { retries: 100, minTimeout: 10, maxTimeout: 100, maxRetryTime: 15_000 },
-        onCompromised: (error) => { compromised = error; },
-      });
+      const lock = await this.acquireRecordLock(id);
       try {
-        if (compromised) throw compromised;
         const current = await this.read(id);
         if (!current) throw new Error("Attempt 记录不存在");
         updated = { ...current, ...patch, updatedAt: new Date().toISOString() };
         await this.write(updated);
-        if (compromised) throw compromised;
       } finally {
-        await release();
+        await lock.release();
       }
     });
     this.queues.set(id, next);
@@ -147,83 +145,136 @@ export class AttemptStore {
     const canonicalWorkdir = await realpath(workdir);
     await mkdir(this.leaseDirectory(), { recursive: true, mode: 0o700 });
     const leasePath = this.leasePath(canonicalWorkdir);
-    if (await this.hasLiveLegacyLease(leasePath)) return false;
-    const token = randomUUID();
-    let compromised: Error | undefined;
-    let release: (() => Promise<void>) | undefined;
+    const key = this.workdirLockKey(canonicalWorkdir);
+    const lock = await this.coordination.tryAcquire(key, {
+      kind: "workdir-lease", hostPid: process.pid, attemptId, workdir: canonicalWorkdir, agentPid: null,
+    }, workdirLeaseIsStale);
+    if (!lock) return false;
+    let sentinelCreated = false;
     try {
-      release = await lockfile.lock(canonicalWorkdir, {
-        realpath: false,
-        lockfilePath: leasePath,
-        stale: 30_000,
-        update: 10_000,
-        onCompromised: (error) => {
-          compromised = error;
-          if (activeWorkdirLeases.get(leasePath)?.token === token) activeWorkdirLeases.delete(leasePath);
-          onCompromised?.(error);
-        },
+      const legacy = await this.readLegacyLease(leasePath);
+      const recoveredCurrentLease = lock.recovered?.kind === "workdir-lease" && lock.recovered.workdir === canonicalWorkdir;
+      if (legacy.present) {
+        if (!legacy.owner && !recoveredCurrentLease) {
+          throw new Error("检测到没有所有者记录的旧工作目录锁；为避免并发写入，请关闭其他 VS Code 窗口后再处理。");
+        }
+        if (legacy.owner && workdirLeaseIsLive(legacy.owner)) {
+          await lock.release();
+          return false;
+        }
+        await this.removeLegacyLease(leasePath, recoveredCurrentLease);
+      }
+      if (!await this.removeStaleReclaimArtifacts(leasePath, canonicalWorkdir)) {
+        await lock.release();
+        return false;
+      }
+      try {
+        await mkdir(leasePath, { mode: 0o700 });
+        sentinelCreated = true;
+      } catch (error) {
+        if (!isCode(error, "EEXIST")) throw error;
+        // An old extension host may be entering the legacy lock protocol at
+        // the same time. Never infer ownership from an incomplete directory.
+        const raced = await this.readLegacyLease(leasePath);
+        if (raced.owner && workdirLeaseIsLive(raced.owner)) {
+          await lock.release();
+          return false;
+        }
+        throw new Error("旧版工作目录锁正在建立；本次没有启动 Agent，请稍后重试。");
+      }
+      await this.writeLease(leasePath, {
+        attemptId, workdir: canonicalWorkdir, hostPid: process.pid, agentPid: null, token: lock.record.token,
       });
-    } catch (error) {
-      if (isCode(error, "ELOCKED")) return false;
-      throw error;
-    }
-    try {
-      if (compromised) throw compromised;
-      await this.writeLease(leasePath, { attemptId, workdir: canonicalWorkdir, hostPid: process.pid, agentPid: null, token });
-      if (compromised) throw compromised;
-      activeWorkdirLeases.set(leasePath, { attemptId, token, release });
+      const active: ActiveWorkdirLease = {
+        attemptId, token: lock.record.token, lock, onCompromised,
+        queue: Promise.resolve(),
+        heartbeat: setInterval(() => {
+          active.heartbeatPending = (active.heartbeatPending ?? Promise.resolve()).then(() => utimes(leasePath, new Date(), new Date())).catch((error: unknown) => {
+            clearInterval(active.heartbeat);
+            active.onCompromised?.(error instanceof Error ? error : new Error("Agent 工作目录兼容锁已失效"));
+          });
+        }, 5_000),
+      };
+      active.heartbeat.unref?.();
+      activeWorkdirLeases.set(key, active);
       return true;
     } catch (error) {
-      if (!compromised) await release().catch(() => undefined);
+      if (sentinelCreated) await this.removeLeaseSentinel(leasePath, lock.record.token).catch(() => undefined);
+      await lock.release().catch(() => undefined);
       throw error;
     }
   }
 
   async updateWorkdirLeaseProcess(workdir: string, attemptId: string, agentPid: number | null): Promise<void> {
-    const leasePath = this.leasePath(await realpath(workdir));
-    const owner = await this.readLease(this.leaseOwnerPath(leasePath));
-    const active = activeWorkdirLeases.get(leasePath);
-    if (!owner || owner.attemptId !== attemptId || !active || active.attemptId !== attemptId || active.token !== owner.token) {
+    const key = this.workdirLockKey(await realpath(workdir));
+    const active = activeWorkdirLeases.get(key);
+    if (!active || active.attemptId !== attemptId) {
       throw new Error("Agent 工作目录锁已失效；停止继续启动");
     }
-    await this.writeLease(leasePath, { ...owner, agentPid });
+    try {
+      await enqueueLease(active, async () => {
+        await active.lock.update({ agentPid });
+        const canonicalWorkdir = await realpath(workdir);
+        await this.writeLease(this.leasePath(canonicalWorkdir), {
+          attemptId, workdir: canonicalWorkdir, hostPid: process.pid, agentPid, token: active.token,
+        });
+      });
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error("无法更新 Agent 工作目录锁");
+      active.onCompromised?.(failure);
+      throw failure;
+    }
   }
 
   async releaseWorkdirLease(workdir: string, attemptId: string): Promise<void> {
     const canonicalWorkdir = await canonicalPath(workdir);
     const leasePath = this.leasePath(canonicalWorkdir);
-    const owner = await this.readLease(this.leaseOwnerPath(leasePath));
-    if (!owner || owner.attemptId !== attemptId) return;
-    const active = activeWorkdirLeases.get(leasePath);
-    if (active?.attemptId === attemptId && active.token === owner.token) {
-      await rm(this.leaseOwnerPath(leasePath), { force: true });
-      activeWorkdirLeases.delete(leasePath);
-      await active.release();
+    const key = this.workdirLockKey(canonicalWorkdir);
+    const active = activeWorkdirLeases.get(key);
+    if (active?.attemptId === attemptId) {
+      await enqueueLease(active, async () => {
+        clearInterval(active.heartbeat);
+        await active.heartbeatPending?.catch(() => undefined);
+        await this.removeLeaseSentinel(leasePath, active.token);
+        await active.lock.release();
+        activeWorkdirLeases.delete(key);
+      });
       return;
     }
 
-    // A prior extension host may have exited without releasing its lease.
-    // Reacquiring through the lock library reclaims it only after it is stale.
-    let release: (() => Promise<void>) | undefined;
+    const owner = await this.coordination.readLock(key);
+    if (!owner || owner.kind !== "workdir-lease" || owner.attemptId !== attemptId || !workdirLeaseIsStale(owner)) return;
+    const recovery = await this.coordination.tryAcquire(key, {
+      kind: "workdir-lease", hostPid: process.pid, attemptId, workdir: canonicalWorkdir, agentPid: null,
+    }, workdirLeaseIsStale);
+    if (!recovery) return;
     try {
-      release = await lockfile.lock(canonicalWorkdir, {
-        realpath: false,
-        lockfilePath: leasePath,
-        stale: 30_000,
-        update: 10_000,
-      });
-    } catch (error) {
-      if (isCode(error, "ELOCKED")) return;
-      throw error;
-    }
-    try {
-      const current = await this.readLease(this.leaseOwnerPath(leasePath));
-      if (current?.attemptId === attemptId && current.token === owner.token) {
-        await rm(this.leaseOwnerPath(leasePath), { force: true });
+      const legacy = await this.readLegacyLease(leasePath);
+      if (legacy.owner && workdirLeaseIsLive(legacy.owner)) return;
+      if (legacy.present && !legacy.owner) {
+        const recoveredCurrentLease = recovery.recovered?.kind === "workdir-lease" && recovery.recovered.workdir === canonicalWorkdir;
+        if (!recoveredCurrentLease) throw new Error("过期锁缺少所有者记录；为避免误删，未清理旧锁目录。");
+        await this.removeLegacyLease(leasePath, true);
+      } else {
+        await this.removeLeaseSentinel(leasePath, owner.token);
       }
     } finally {
-      await release();
+      await recovery.release();
     }
+  }
+
+  private async acquireRecordLock(id: string): Promise<CoordinationLock> {
+    const deadline = Date.now() + 15_000;
+    let pause = 10;
+    while (Date.now() < deadline) {
+      const lock = await this.coordination.tryAcquire(`attempt:${id}`, {
+        kind: "attempt-update", hostPid: process.pid, attemptId: id,
+      }, (record) => !isRunningProcess(record.hostPid));
+      if (lock) return lock;
+      await delay(pause);
+      pause = Math.min(100, pause + 10);
+    }
+    throw new Error("等待其他 VS Code 窗口更新 Attempt 超时；本次没有覆盖记录。");
   }
 
   private async writeNew(attempt: LocalAttempt): Promise<void> {
@@ -254,37 +305,96 @@ export class AttemptStore {
   private filePath(id: string): string { return path.join(this.directory(), `${id}.json`); }
   private leaseDirectory(): string { return path.join(this.root, "attempt-locks"); }
   private leasePath(workdir: string): string { return path.join(this.leaseDirectory(), `${createHash("sha256").update(workdir).digest("hex")}.lock`); }
-  private leaseOwnerPath(leasePath: string): string { return `${leasePath}.owner.json`; }
-  private recordLockPath(id: string): string { return path.join(this.root, "attempt-record-locks", `${id}.lock`); }
+  private leaseOwnerPath(leasePath: string): string { return path.join(leasePath, "owner.json"); }
+  private legacySidecarPath(leasePath: string): string { return `${leasePath}.owner.json`; }
+  private workdirLockKey(workdir: string): string { return `workdir:${workdir}`; }
 
-  private async readLease(file: string): Promise<WorkdirLease | undefined> {
+  private async readLegacyLease(leasePath: string): Promise<{ present: boolean; owner?: LegacyWorkdirLease }> {
+    let directoryPresent = false;
     try {
+      const info = await lstat(leasePath);
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("旧版 Agent 工作目录锁不是普通目录；为避免并发写入，已停止。");
+      directoryPresent = true;
+    } catch (error) {
+      if (!isCode(error, "ENOENT")) throw error;
+    }
+
+    const owners: LegacyWorkdirLease[] = [];
+    for (const file of [this.leaseOwnerPath(leasePath), this.legacySidecarPath(leasePath)]) {
+      const owner = await this.readLegacyOwnerFile(file);
+      if (owner) owners.push(owner);
+    }
+    if (owners.length > 1 && owners.some((owner) => !sameLeaseOwner(owner, owners[0]))) {
+      throw new Error("检测到冲突的旧版工作目录锁记录；为避免并发写入，已停止。");
+    }
+    const owner = owners[0];
+    return { present: directoryPresent || owners.length > 0, ...(owner ? { owner } : {}) };
+  }
+
+  private async removeLegacyLease(leasePath: string, allowIncompleteOwner = false): Promise<void> {
+    try {
+      const entries = await readdir(leasePath);
+      const incompleteOwners = entries.filter((entry) => allowIncompleteOwner && /^owner\.json\.tmp-[0-9a-f-]{36}$/i.test(entry));
+      const unknown = entries.filter((entry) => entry !== "owner.json" && !incompleteOwners.includes(entry));
+      if (unknown.length) throw new Error("旧版工作目录锁包含未知文件；为避免删除用户数据，已停止。");
+      for (const entry of incompleteOwners) await rm(path.join(leasePath, entry), { force: true });
+      await rm(this.leaseOwnerPath(leasePath), { force: true });
+      await rmdir(leasePath);
+    } catch (error) {
+      if (!isCode(error, "ENOENT")) throw error;
+    }
+    await rm(this.legacySidecarPath(leasePath), { force: true });
+  }
+
+  private async removeStaleReclaimArtifacts(leasePath: string, workdir: string): Promise<boolean> {
+    let entries: string[];
+    try { entries = await readdir(this.leaseDirectory()); }
+    catch (error) { if (isCode(error, "ENOENT")) return true; throw error; }
+    const prefix = `${path.basename(leasePath)}.reclaim-`;
+    for (const entry of entries.filter((name) => name.startsWith(prefix))) {
+      const reclaimPath = path.join(this.leaseDirectory(), entry);
+      const info = await lstat(reclaimPath);
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("旧版工作目录锁回收目录不是普通目录；为避免并发写入，已停止。");
+      const owner = await this.readLegacyOwnerFile(path.join(reclaimPath, "owner.json"));
+      if (!owner || owner.workdir !== workdir) throw new Error("旧版工作目录锁回收目录缺少匹配的所有者记录；为避免并发写入，已停止。");
+      if (workdirLeaseIsLive(owner)) return false;
+      const contents = await readdir(reclaimPath);
+      if (contents.some((name) => name !== "owner.json")) {
+        throw new Error("旧版工作目录锁回收目录包含未知文件；为避免删除用户数据，已停止。");
+      }
+      await rm(path.join(reclaimPath, "owner.json"), { force: true });
+      await rmdir(reclaimPath);
+    }
+    return true;
+  }
+
+  private async readLegacyOwnerFile(file: string): Promise<LegacyWorkdirLease | undefined> {
+    try {
+      const info = await lstat(file);
+      if (!info.isFile() || info.isSymbolicLink() || info.size > 16_384) {
+        throw new Error("旧版 Agent 工作目录锁文件无效；为避免并发写入，已停止。");
+      }
       const item = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
       if (typeof item.attemptId !== "string" || !UUID.test(item.attemptId) || typeof item.workdir !== "string" ||
           !path.isAbsolute(item.workdir) || !Number.isSafeInteger(item.hostPid) ||
-          item.agentPid !== null && !Number.isSafeInteger(item.agentPid) || typeof item.token !== "string" || !UUID.test(item.token)) {
-        throw new Error("Agent 工作目录锁内容无效；为避免并发写入，已停止启动。");
+          item.agentPid !== null && !Number.isSafeInteger(item.agentPid) ||
+          item.token !== undefined && (typeof item.token !== "string" || !UUID.test(item.token))) {
+        throw new Error("旧版 Agent 工作目录锁内容无效；为避免并发写入，已停止。");
       }
-      return item as WorkdirLease;
+      return item as unknown as LegacyWorkdirLease;
     } catch (error) {
       if (isCode(error, "ENOENT")) return undefined;
-      throw error instanceof Error ? error : new Error("无法读取 Agent 工作目录锁");
+      throw error instanceof Error ? error : new Error("无法读取旧版 Agent 工作目录锁");
     }
   }
 
-  private async hasLiveLegacyLease(leasePath: string): Promise<boolean> {
-    try {
-      const item = JSON.parse(await readFile(path.join(leasePath, "owner.json"), "utf8")) as Record<string, unknown>;
-      if (typeof item.attemptId !== "string" || !UUID.test(item.attemptId) || typeof item.workdir !== "string" ||
-          !path.isAbsolute(item.workdir) || !Number.isSafeInteger(item.hostPid) ||
-          item.agentPid !== null && !Number.isSafeInteger(item.agentPid)) {
-        throw new Error("旧版 Agent 工作目录锁内容无效；为避免并发写入，已停止启动。");
-      }
-      return isRunningProcess(item.hostPid as number) || item.agentPid !== null && isRunningProcess(item.agentPid as number);
-    } catch (error) {
-      if (isCode(error, "ENOENT")) return false;
-      throw error instanceof Error ? error : new Error("无法读取旧版 Agent 工作目录锁");
-    }
+  private async removeLeaseSentinel(leasePath: string, token: string): Promise<void> {
+    const owner = await this.readLegacyLease(leasePath);
+    if (!owner.present) return;
+    if (owner.owner?.token !== token) throw new Error("Agent 工作目录锁所有者已变化；为避免删除其他锁，未释放目录记录。");
+    await rm(this.leaseOwnerPath(leasePath), { force: true });
+    await rmdir(leasePath);
+    await rm(this.legacySidecarPath(leasePath), { force: true });
   }
 
   private async writeLease(directory: string, owner: WorkdirLease): Promise<void> {
@@ -339,6 +449,29 @@ async function canonicalPath(value: string): Promise<string> {
 export function isRunningProcess(pid: number): boolean {
   try { process.kill(pid, 0); return true; }
   catch (error) { return !isCode(error, "ESRCH"); }
+}
+
+function workdirLeaseIsLive(owner: Pick<WorkdirLease, "hostPid" | "agentPid">): boolean {
+  return isRunningProcess(owner.hostPid) || owner.agentPid !== null && isRunningProcess(owner.agentPid);
+}
+
+function enqueueLease<T>(active: ActiveWorkdirLease, operation: () => Promise<T>): Promise<T> {
+  const next = active.queue.then(operation);
+  active.queue = next.then(() => undefined, () => undefined);
+  return next;
+}
+
+function workdirLeaseIsStale(record: CoordinationLockRecord): boolean {
+  return !isRunningProcess(record.hostPid) && (record.agentPid === null || record.agentPid === undefined || !isRunningProcess(record.agentPid));
+}
+
+function sameLeaseOwner(left: LegacyWorkdirLease, right: LegacyWorkdirLease): boolean {
+  return left.attemptId === right.attemptId && left.workdir === right.workdir && left.hostPid === right.hostPid &&
+    left.agentPid === right.agentPid && left.token === right.token;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function isCode(error: unknown, code: string): boolean {
