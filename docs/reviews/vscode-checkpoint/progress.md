@@ -170,3 +170,25 @@ git diff --check：通过
 证明材料：`vscode-extension/tests/worktree-service.test.ts`、`attempt-store.test.ts`、`handoff-preflight.test.ts`。测试用的临时 Git 仓库由 Vitest 自动清理。
 
 下一单：E09 只产出共享后端接口契约，交主线负责人评审；不能自行添加 API/schema。
+
+## E09（共享后端契约评审）
+
+工单 ID / 状态：E09 / 契约提案已完成，待主线和后端负责人签收；本单不改 API/schema，不推送。
+
+起点 HEAD：`3605acd`。
+
+改动文件：新增 `docs/reviews/vscode-checkpoint/backend-contract.md`；更新专项计划与本进度。
+
+新增依赖：无。
+
+核实现状：Bearer PAT 返回真人 `userId`，当前无 API scope；现有 agent project/task GET 可供扩展读取；Context Pack 创建/预览/冻结和 conversation fork route 目前使用网页登录 session；`/api/agent/runs` 代表登记的 Agent 身份，completed 会走现有提交待验收流程，不能用于报告真人启动的 Codex CLI。
+
+提案内容：定义 actor/role 的来源、CheckpointIndex/Handoff/Attempt 逻辑模型、提议中的 `/api/extension/v1` 接口、权限矩阵、expected version + Idempotency-Key 条件写、分页/冲突/撤权/删除/留存/大小与审计边界；明确 JSON 材料第一版人工传递、服务端只存索引与 hash，不冒充已传输附件。契约逐项签收前禁止插件假定新增接口可用。
+
+自动测试：文档核对；`git diff --check` 待本次统一验收执行。
+
+真实 VS Code / Agent / 跨机器验证：不适用；本单无运行时接口实现。
+
+已知限制：提案中的接口、响应、数据模型均未实现。还需产品/后端决定 PAT scope、handoff 是否改派任务、并行参与人规则、artifact 传输、删除和留存期。E10 只做现有 GET 自动刷新，不做共享写入或实时事件。
+
+下一单：E10 已开始，继续现有 GET 自动刷新、轮询生命周期测试、扩展构建/本地 VSIX 校验；不发布。
