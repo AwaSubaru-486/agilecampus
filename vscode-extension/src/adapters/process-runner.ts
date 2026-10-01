@@ -11,11 +11,13 @@ export type ProcessOutcome = {
   exitCode: number | null;
   providerSessionId: string | null;
   timedOut: boolean;
+  agentSummary: string | null;
 };
 
 export type CodexProcess = {
   pid: number | null;
   completion: Promise<ProcessOutcome>;
+  terminate(): void;
 };
 
 export type CodexProcessCallbacks = {
@@ -68,6 +70,7 @@ function observeCodexProcess(child: ChildProcessWithoutNullStreams, prompt: stri
   let providerSessionId: string | null = null;
   let sawCompletedTurn = false;
   let sawFailedTurn = false;
+  let agentSummary: string | null = null;
   let timedOut = false;
   let protocolFailed = false;
   let callbackChain = Promise.resolve();
@@ -86,6 +89,7 @@ function observeCodexProcess(child: ChildProcessWithoutNullStreams, prompt: stri
         exitCode,
         providerSessionId,
         timedOut,
+        agentSummary,
       });
     };
     const close = (exitCode: number | null): void => { void finish(exitCode); };
@@ -97,7 +101,11 @@ function observeCodexProcess(child: ChildProcessWithoutNullStreams, prompt: stri
       if (event.type === "session-started") {
         providerSessionId = event.sessionId;
         callbackChain = callbackChain.then(() => callbacks.onSessionStarted(event.sessionId)).catch(() => { sawFailedTurn = true; });
-      } else if (event.type === "turn-completed") sawCompletedTurn = true;
+      } else if (event.type === "assistant-message") agentSummary = event.text;
+      else if (event.type === "turn-completed") {
+        sawCompletedTurn = true;
+        if (event.agentSummary) agentSummary = event.agentSummary;
+      }
       else if (event.type === "turn-failed") sawFailedTurn = true;
     };
 
@@ -135,7 +143,16 @@ function observeCodexProcess(child: ChildProcessWithoutNullStreams, prompt: stri
     child.stdin.on("error", () => { /* A process closing stdin is reported by its exit and JSONL receipt. */ });
     child.stdin.end(prompt, "utf8");
   });
-  return { pid: child.pid ?? null, completion: process };
+  return {
+    pid: child.pid ?? null,
+    completion: process,
+    terminate: () => {
+      if (settled) return;
+      child.kill("SIGTERM");
+      const forceKill = setTimeout(() => { if (!settled) child.kill("SIGKILL"); }, 5_000);
+      forceKill.unref();
+    },
+  };
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -144,7 +161,8 @@ function record(value: unknown): value is Record<string, unknown> {
 
 export type CodexJsonlEvent =
   | { type: "session-started"; sessionId: string }
-  | { type: "turn-completed" }
+  | { type: "assistant-message"; text: string }
+  | { type: "turn-completed"; agentSummary?: string }
   | { type: "turn-failed" };
 
 export function parseCodexJsonlEvent(line: string): CodexJsonlEvent | "invalid" | null {
@@ -157,9 +175,31 @@ export function parseCodexJsonlEvent(line: string): CodexJsonlEvent | "invalid" 
       ? { type: "session-started", sessionId: value.thread_id }
       : "invalid";
   }
-  if (value.type === "turn.completed") return { type: "turn-completed" };
+  if (value.type === "item.completed" && record(value.item) && value.item.type === "agent_message") {
+    const text = extractMessageText(value.item);
+    return text ? { type: "assistant-message", text } : null;
+  }
+  if (value.type === "turn.completed") {
+    return {
+      type: "turn-completed",
+      ...(typeof value.last_agent_message === "string" && value.last_agent_message.trim()
+        ? { agentSummary: value.last_agent_message.slice(0, 24_000) }
+        : {}),
+    };
+  }
   if (value.type === "turn.failed" || value.type === "error") return { type: "turn-failed" };
   return null;
+}
+
+function extractMessageText(item: Record<string, unknown>): string | null {
+  if (typeof item.text === "string" && item.text.trim()) return item.text.slice(0, 24_000);
+  if (!Array.isArray(item.content)) return null;
+  const text = item.content.map((block) => {
+    if (typeof block === "string") return block;
+    if (record(block) && typeof block.text === "string") return block.text;
+    return "";
+  }).filter(Boolean).join("\n").trim();
+  return text ? text.slice(0, 24_000) : null;
 }
 
 function isUuid(value: string): boolean {

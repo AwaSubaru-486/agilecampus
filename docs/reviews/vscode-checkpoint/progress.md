@@ -1,5 +1,11 @@
 # VS Code 检查点接续施工进度
 
+## 2026-10-01 代码复核补修
+
+复核结论：E07/E08/E10 的代码验收暂缓。此前审查发现 VSIX 未带入 `simple-git`、工作目录锁只在单个 Extension Host 生效、多窗口会误标活动进程、worktree 允许嵌套、Attempt 缺少完成回执等问题。本工作树已实现补修：宿主入口改为 esbuild 打包；按真实 workdir 规范路径使用本机文件租约并记录 Extension Host/Agent PID；只在进程不可见时转 `unknown`，增加人工确认结束入口；拒绝与已登记 worktree 路径重叠；保存 Agent 最终消息、完成时 HEAD/dirty 状态，并允许用户手工登记测试命令和结果。
+
+本轮核验：`npm --prefix vscode-extension run check` 通过；`git diff --check` 通过。未运行测试、未重新打 VSIX，也未在 VS Code Extension Host 或双窗口实测。因此这些修复目前是编译通过的实现，不能写成回归测试或安装包验收通过。未推送、未发布。已有其他负责人未提交的网页端改动保持原样。
+
 ## E00–E02（第一轮）
 
 状态：E00–E02 的验收缺陷已修复并通过回归检查；真实 PAT 登录与任务读取仍待用户验收。

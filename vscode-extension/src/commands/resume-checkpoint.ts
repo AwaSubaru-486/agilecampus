@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
+import { randomUUID } from "node:crypto";
+import { realpath } from "node:fs/promises";
 import * as path from "node:path";
-import { AttemptStore, type LocalAttempt } from "../attempts/store";
+import { AttemptStore, isRunningProcess, type LocalAttempt } from "../attempts/store";
 import { inspectCodexCliVersion, startCodexContextSession } from "../adapters/process-runner";
 import { CheckpointStore } from "../checkpoints/store";
 import type { WorkCheckpoint } from "../checkpoints/types";
@@ -35,6 +37,8 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
   let launchLock = false;
   let processStarted = false;
   let launchKey: string | undefined;
+  let persistentLease = false;
+  let leaseAttemptId: string | undefined;
   try {
     await attemptStore.markInterruptedUnknown(activeAttemptIds);
     const records = await checkpointStore.list(binding.serverOrigin, binding.projectId);
@@ -60,7 +64,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     if (!targetChoice) return;
     const parallelAttempt = targetChoice.attempt;
     const workdir = parallelAttempt?.workdir ?? folder.uri.fsPath;
-    const activeKey = `agilecampus:${parallelAttempt?.id ?? `single:${choice.id}`}`;
+    const activeKey = `agilecampus:${await realpath(workdir)}`;
     launchKey = activeKey;
     if (activeLaunchKeys.has(activeKey) || parallelAttempt && activeAttemptIds.has(parallelAttempt.id)) {
       void vscode.window.showWarningMessage("此 Agent 尝试已在当前扩展实例启动。"); return;
@@ -71,8 +75,8 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       void vscode.window.showWarningMessage("选中的并行尝试不处于可启动状态。");
       return;
     }
-    if (!parallelAttempt && await attemptStore.hasPotentiallyActiveAttempt(choice.id, "single")) {
-      void vscode.window.showWarningMessage("此检查点已有未确认结束的当前工作区尝试。请先核实之前的 Agent 是否已退出，再继续。");
+    if (await attemptStore.hasPotentiallyActiveAttemptInWorkdir(workdir, parallelAttempt?.id)) {
+      void vscode.window.showWarningMessage("此工作目录已有未确认结束的 Agent 尝试。请先核实之前的 Agent 是否已退出，再继续。");
       return;
     }
     checkpoint = await checkpointStore.read(binding.serverOrigin, binding.projectId, choice.id);
@@ -146,6 +150,18 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     );
     if (accept !== "启动新的 Codex 会话") return;
 
+    const attemptId = parallelAttempt?.id ?? randomUUID();
+    leaseAttemptId = attemptId;
+    if (await attemptStore.hasPotentiallyActiveAttemptInWorkdir(workdir, parallelAttempt?.id)) {
+      void vscode.window.showWarningMessage("此工作目录已有未结束的 Agent 尝试；本次没有启动。");
+      return;
+    }
+    persistentLease = await attemptStore.acquireWorkdirLease(workdir, attemptId);
+    if (!persistentLease) {
+      void vscode.window.showWarningMessage("此工作目录已被另一个 VS Code 窗口或 Agent 占用；本次没有启动。");
+      return;
+    }
+
     const lastFresh = await readFreshInput(context, binding, workdir, checkpoint);
     const lastPlan = evaluateHandoffPreflight({ ...lastFresh, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: true });
     if (lastPlan.status !== "ready" || !samePreflightSnapshot(preflight, lastPlan)) {
@@ -158,7 +174,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       attemptKind: "single", mode: "context-only", provider: "codex-cli", providerSessionId: null, state: "launching",
       workdir, branch: preflight.plan.branch, baseSha: preflight.plan.baseSha,
       parentAttemptId: null, pid: null, exitCode: null, timedOut: false,
-    });
+    }, attemptId);
     if (parallelAttempt) await attemptStore.update(attempt.id, { state: "launching" });
     activeAttemptIds.add(attempt.id);
     output?.show(true);
@@ -172,15 +188,36 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
         },
       });
       processStarted = true;
+      try {
+        await attemptStore.updateWorkdirLeaseProcess(workdir, attempt.id, process.pid);
+      } catch (error) {
+        process.terminate();
+        await process.completion.catch(() => undefined);
+        await attemptStore.update(attempt.id, { state: "failed", pid: process.pid });
+        await attemptStore.releaseWorkdirLease(workdir, attempt.id);
+        persistentLease = false;
+        processStarted = false;
+        activeAttemptIds.delete(attempt.id);
+        throw new Error(`无法记录 Agent 进程锁；已向 Agent 发送终止信号。${error instanceof Error ? error.message : ""}`);
+      }
     } catch (error) {
       await attemptStore.update(attempt.id, { state: "failed" });
       activeAttemptIds.delete(attempt.id);
       throw error;
     }
     void process.completion.then(async (outcome) => {
+      let completionHeadSha: string | null = null;
+      let completionDirty: boolean | null = null;
+      try {
+        const localId = await getLocalOnlyRepositoryId(context, binding.workspaceUri);
+        const snapshot = await readRepositorySnapshot(workdir, localId);
+        completionHeadSha = snapshot.headSha;
+        completionDirty = snapshot.dirty;
+      } catch { /* Keep the observed repository result explicitly unavailable. */ }
       await attemptStore.update(attempt.id, {
         state: outcome.state, providerSessionId: outcome.providerSessionId,
         exitCode: outcome.exitCode, timedOut: outcome.timedOut,
+        agentSummary: outcome.agentSummary, completionHeadSha, completionDirty,
       });
       output?.appendLine(`Attempt ${attempt.id}: ${outcome.state}; exit=${outcome.exitCode ?? "unknown"}; session=${outcome.providerSessionId ?? "unconfirmed"}.`);
       activeAttemptIds.delete(attempt.id);
@@ -190,8 +227,13 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     }).catch(async () => {
       await attemptStore.update(attempt.id, { state: "awaiting_confirmation" }).catch(() => undefined);
       activeAttemptIds.delete(attempt.id);
-      activeLaunchKeys.delete(activeKey);
       output?.appendLine(`Attempt ${attempt.id}: receipt persistence failed; state requires manual confirmation.`);
+    }).finally(async () => {
+      activeAttemptIds.delete(attempt.id);
+      activeLaunchKeys.delete(activeKey);
+      await attemptStore.releaseWorkdirLease(workdir, attempt.id).catch((error) => {
+        output?.appendLine(`Attempt ${attempt.id}: could not release workdir lock: ${String(error)}.`);
+      });
     });
     await attemptStore.update(attempt.id, { pid: process.pid });
     void vscode.window.showInformationMessage(`Agent 已启动为新的 context-only 会话。Attempt ${attempt.id.slice(0, 8)}；正在等待真实 session 回执。`);
@@ -199,6 +241,9 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "启动检查点接续失败");
   } finally {
     if (launchLock && !processStarted && launchKey) activeLaunchKeys.delete(launchKey);
+    if (persistentLease && !processStarted && leaseAttemptId) {
+      await attemptStore.releaseWorkdirLease(launchKey?.replace(/^agilecampus:/, "") ?? "", leaseAttemptId).catch(() => undefined);
+    }
   }
 }
 
@@ -215,13 +260,52 @@ async function listAttempts(context: vscode.ExtensionContext): Promise<void> {
       item,
     })), { title: "本地 Agent 尝试记录" });
     if (!selected) return;
-    const item = selected.item;
+    let item = selected.item;
+    const actions = [
+      { label: "打开尝试记录", id: "open" },
+      { label: "记录测试命令和结果（手工提供）", id: "tests" },
+      ...(["unknown", "awaiting_confirmation"].includes(item.state)
+        ? [{ label: "确认 Agent 已结束（结果仍需核验）", id: "ended" }]
+        : []),
+    ];
+    const action = await vscode.window.showQuickPick(actions, { title: `Agent 尝试 ${item.id.slice(0, 8)}` });
+    if (!action) return;
+    if (action.id === "tests") {
+      const testEvidence = await vscode.window.showInputBox({
+        title: "记录测试证据",
+        prompt: "填写你实际运行的命令及结果；此记录由用户提供，扩展不会替你验证。",
+        value: item.testEvidence ?? "",
+        placeHolder: "例如：npm test — 76 passed（由我本地运行）",
+        ignoreFocusOut: true,
+      });
+      if (testEvidence === undefined) return;
+      item = await store.update(item.id, { testEvidence: testEvidence.trim() || null });
+      void vscode.window.showInformationMessage("测试说明已保存在本机尝试记录中。");
+      return;
+    }
+    if (action.id === "ended") {
+      if (item.pid !== null && item.pid !== undefined && isRunningProcess(item.pid)) {
+        void vscode.window.showWarningMessage("Agent 进程仍在运行；请等它结束后再确认。");
+        return;
+      }
+      const confirmed = await vscode.window.showWarningMessage(
+        "请先在系统进程列表或终端确认此 Agent 已退出。记录将标为“已确认结束，结果未核验”，不会代表任务完成或测试通过。",
+        { modal: true }, "我已确认进程结束",
+      );
+      if (confirmed !== "我已确认进程结束") return;
+      await store.update(item.id, { state: "ended_unverified" });
+      await store.releaseWorkdirLease(item.workdir, item.id);
+      void vscode.window.showInformationMessage("已记录 Agent 结束；工作目录可用于下一次尝试。结果和测试仍需人工核验。");
+      return;
+    }
     const document = await vscode.workspace.openTextDocument({ language: "json", content: JSON.stringify({
       id: item.id, checkpointId: item.checkpointId, projectId: item.projectId, taskId: item.taskId,
       attemptKind: item.attemptKind, mode: item.mode, provider: item.provider, providerSessionId: item.providerSessionId,
       state: item.state, startedAt: item.startedAt, updatedAt: item.updatedAt,
       workdir: item.workdir, branch: item.branch, baseSha: item.baseSha, parentAttemptId: item.parentAttemptId,
-      pid: item.pid, exitCode: item.exitCode, timedOut: item.timedOut,
+      pid: item.pid, hostPid: item.hostPid, exitCode: item.exitCode, timedOut: item.timedOut,
+      agentSummary: item.agentSummary, completionHeadSha: item.completionHeadSha,
+      completionDirty: item.completionDirty, userReportedTestEvidence: item.testEvidence,
     }, null, 2) });
     await vscode.window.showTextDocument(document, { preview: true });
   } catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "读取本地 Agent 尝试失败"); }

@@ -71,10 +71,7 @@ export async function createCheckpointWorktree(input: {
 
   const location = await resolveAttemptWorktreeLocation(parent, input.attemptId);
   const target = location.path;
-  const relative = path.relative(snapshot.rootPath, target);
-  if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))) {
-    throw new WorktreeError("worktree 必须位于源仓库之外的专用目录");
-  }
+  await assertDisjointFromRegisteredWorktrees(snapshot.rootPath, target);
   try { await lstat(target); throw new WorktreeError("生成的尝试目录已存在；未覆盖原目录"); }
   catch (error) { if (error instanceof WorktreeError) throw error; if (!isCode(error, "ENOENT")) throw new WorktreeError("无法检查目标目录"); }
 
@@ -125,6 +122,25 @@ export async function isRegisteredWorktree(sourceRepositoryPath: string, candida
     }
   } catch { return false; }
   return false;
+}
+
+async function assertDisjointFromRegisteredWorktrees(sourceRoot: string, target: string): Promise<void> {
+  const listings = await simpleGit(sourceRoot).raw(["worktree", "list", "--porcelain"]);
+  const worktreePaths = listings.split(/\r?\n/)
+    .filter((line) => line.startsWith("worktree "))
+    .map((line) => line.slice("worktree ".length));
+  for (const worktreePath of worktreePaths) {
+    try {
+      const registeredRoot = await realpath(worktreePath);
+      if (isWithin(registeredRoot, target) || isWithin(target, registeredRoot)) {
+        throw new WorktreeError(`并行尝试目录与已登记 worktree 重叠（${registeredRoot}）；请选择仓库以外的独立父目录`);
+      }
+    } catch (error) {
+      if (error instanceof WorktreeError) throw error;
+      if (isCode(error, "ENOENT")) continue;
+      throw new WorktreeError(`无法核验已登记 worktree 路径（${worktreePath}）；为避免目录重叠，未创建并行尝试`);
+    }
+  }
 }
 
 export async function readWorktreeDiffSummary(sourceRepositoryPath: string, attempt: {

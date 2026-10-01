@@ -205,7 +205,7 @@
   },
   "scripts": {
     "compile": "npm run compile:extension && npm run compile:webview",
-    "compile:extension": "tsc -p ./tsconfig.json",
+    "compile:extension": "tsc --noEmit -p ./tsconfig.json && esbuild src/extension.ts --bundle --platform=node --target=node20 --external:vscode --outfile=dist/extension.js",
     "compile:webview": "esbuild webview/src/App.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --jsx=automatic",
     "check": "npm run compile",
     "test": "vitest run --configLoader runner"
