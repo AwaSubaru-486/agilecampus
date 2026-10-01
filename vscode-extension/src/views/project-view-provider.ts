@@ -6,13 +6,14 @@ import { getGitWorkspaceSnapshot } from "../workspace/git-workspace";
 import { parseWebviewMessage } from "./webview-message";
 import { projectUrl } from "./project-url";
 import type { HostMessage, ProjectSnapshot, TaskDetail, WebviewMessage } from "../types";
+import { VisibleRefreshController, type RefreshResult } from "../sync/visible-refresh";
 
 const emptySnapshot = (state: ProjectSnapshot["state"] = "disconnected", error: string | null = null): ProjectSnapshot => ({
   state, error, updatedAt: null, projectName: "未连接项目", projectId: null,
   teamName: null, workspaceName: null, repository: null, currentBranch: null, tasks: [],
 });
 
-export class ProjectViewProvider implements vscode.WebviewViewProvider {
+export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   public static readonly viewType = "agilecampus.projectView";
   private view?: vscode.WebviewView;
   private snapshot = emptySnapshot();
@@ -22,26 +23,52 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
   private activeWorkspaceUri: string | null = null;
   private readonly tokenStore: TokenStore;
   private readonly bindingStore: BindingStore;
+  private readonly refreshController: VisibleRefreshController;
+  private viewDisposables: vscode.Disposable[] = [];
+  private lastRefreshBindingKey: string | null = null;
 
   constructor(private readonly extensionUri: vscode.Uri, private readonly context: vscode.ExtensionContext) {
     this.tokenStore = new TokenStore(context.secrets);
     this.bindingStore = new BindingStore(context.workspaceState);
     this.activeWorkspaceUri = context.globalState.get<string>("agileCampus.activeWorkspaceUri") ?? null;
+    this.refreshController = new VisibleRefreshController(() => this.loadSnapshot());
+    this.refreshController.setEnabled(Boolean(this.activeBinding()));
     void vscode.commands.executeCommand("setContext", "agileCampus.connected", Boolean(this.activeBinding()));
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
+    this.clearViewListeners();
     this.view = view;
     view.webview.options = {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "dist")],
     };
     view.webview.html = this.html(view.webview);
-    view.webview.onDidReceiveMessage((raw: unknown) => {
+    this.viewDisposables.push(view.webview.onDidReceiveMessage((raw: unknown) => {
       const message = parseWebviewMessage(raw);
       if (message) void this.handleMessage(message);
-    }, undefined, this.context.subscriptions);
+    }));
+    this.viewDisposables.push(view.onDidChangeVisibility(() => {
+      if (this.view === view) this.refreshController.setVisible(view.visible);
+    }));
+    this.viewDisposables.push(view.onDidDispose(() => {
+      if (this.view !== view) return;
+      this.view = undefined;
+      this.refreshController.setVisible(false);
+      this.clearViewListeners();
+    }));
+    this.refreshController.setVisible(view.visible);
     void this.refresh();
+  }
+
+  dispose(): void {
+    this.refreshController.dispose();
+    this.clearViewListeners();
+    this.view = undefined;
+  }
+
+  private clearViewListeners(): void {
+    for (const disposable of this.viewDisposables.splice(0)) disposable.dispose();
   }
 
   async connect(): Promise<void> {
@@ -104,7 +131,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
       await this.context.globalState.update("agileCampus.activeWorkspaceUri", this.activeWorkspaceUri);
       await vscode.commands.executeCommand("setContext", "agileCampus.connected", true);
       this.detailCache.clear();
-      await this.refresh();
+      await this.refresh(true);
       void vscode.window.showInformationMessage(`已连接项目「${project.name}」`);
     } catch (error) {
       void vscode.window.showErrorMessage(error instanceof Error ? error.message : "保存项目连接失败");
@@ -119,6 +146,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
       { modal: true }, "断开",
     );
     if (choice !== "断开") return;
+    this.refreshController.setEnabled(false);
     await this.bindingStore.delete(binding.workspaceUri);
     await this.tokenStore.delete(new URL(binding.serverOrigin).origin, binding.workspaceUri);
     this.requestGeneration += 1;
@@ -146,11 +174,20 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
       const project = await client.getProject(selected.project.id);
       await this.bindingStore.set({ ...binding, projectId: project.id });
       this.detailCache.clear();
-      await this.refresh();
+      await this.refresh(true);
     } catch (error) { void vscode.window.showErrorMessage(this.errorMessage(error)); }
   }
 
-  async refresh(): Promise<void> {
+  refresh(forceAfterCurrent = false): Promise<void> {
+    const binding = this.activeBinding();
+    const bindingKey = this.bindingIdentity(binding);
+    const bindingChanged = this.lastRefreshBindingKey !== null && this.lastRefreshBindingKey !== bindingKey;
+    this.lastRefreshBindingKey = bindingKey;
+    this.refreshController.setEnabled(Boolean(binding));
+    return this.refreshController.refreshNow(forceAfterCurrent || bindingChanged).then(() => undefined);
+  }
+
+  private async loadSnapshot(): Promise<RefreshResult> {
     const generation = ++this.requestGeneration;
     const binding = this.activeBinding();
     if (!binding) {
@@ -158,7 +195,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
       void vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
       this.snapshot = emptySnapshot();
       this.send({ type: "snapshot", snapshot: this.snapshot });
-      return;
+      return { ok: false, status: null };
     }
     const folder = vscode.workspace.workspaceFolders?.find((item) => item.uri.toString() === binding.workspaceUri);
     const bindingKey = `${binding.serverOrigin}|${binding.projectId}|${binding.workspaceUri}`;
@@ -170,13 +207,15 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
     this.snapshot.workspaceName = folder?.name ?? "本地工作区";
     this.send({ type: "snapshot", snapshot: this.snapshot });
     const client = await this.clientFor(binding);
-    if (!client) return;
+    if (!client) return { ok: false, status: this.snapshot.state === "disconnected" ? 401 : null };
     try {
       const [project, tasks, git, projects] = await Promise.all([
         client.getProject(binding.projectId), client.listTasks(binding.projectId),
         getGitWorkspaceSnapshot(binding.workspaceUri), client.listProjects(),
       ]);
-      if (generation !== this.requestGeneration) return;
+      if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) {
+        return { ok: true, status: null, stale: true };
+      }
       if (project.id !== binding.projectId) throw new Error("服务返回了其他项目的数据");
       const projectSummary = projects.find((item) => item.id === project.id);
       if (!projectSummary) throw new ApiError("当前账号无法访问所选项目", 403);
@@ -189,14 +228,18 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider {
       };
       this.loadedBindingKey = bindingKey;
       this.send({ type: "snapshot", snapshot: this.snapshot });
+      return { ok: true, status: null };
     } catch (error) {
-      if (generation !== this.requestGeneration) return;
+      if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) {
+        return { ok: true, status: null, stale: true };
+      }
       this.snapshot = { ...this.snapshot, state: "error", error: this.errorMessage(error) };
       this.send({ type: "snapshot", snapshot: this.snapshot });
       if (error instanceof ApiError && error.status === 401) {
         await this.tokenStore.delete(new URL(binding.serverOrigin).origin, binding.workspaceUri);
         await vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
       }
+      return { ok: false, status: error instanceof ApiError ? error.status : null };
     }
   }
 

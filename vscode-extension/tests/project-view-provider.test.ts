@@ -79,9 +79,10 @@ describe("project view request lifecycle", () => {
     const refreshA = subject.refresh();
     await requestedA;
     binding = { ...binding, projectId: "B" };
-    await subject.refresh();
+    const refreshB = subject.refresh();
     finishProjectA([project("A", "团队 A")]);
     await refreshA;
+    await refreshB;
 
     expect(subject.snapshot).toMatchObject({ projectId: "B", projectName: "项目 B", teamName: "团队 B" });
   });

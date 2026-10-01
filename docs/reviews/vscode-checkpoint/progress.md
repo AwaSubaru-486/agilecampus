@@ -191,4 +191,28 @@ git diff --check：通过
 
 已知限制：提案中的接口、响应、数据模型均未实现。还需产品/后端决定 PAT scope、handoff 是否改派任务、并行参与人规则、artifact 传输、删除和留存期。E10 只做现有 GET 自动刷新，不做共享写入或实时事件。
 
-下一单：E10 已开始，继续现有 GET 自动刷新、轮询生命周期测试、扩展构建/本地 VSIX 校验；不发布。
+下一单：E10 已完成本地实现与自动验收；进入全量验收并交用户验收扩展宿主。
+
+## E10（现有 GET 自动刷新与本地打包）
+
+工单 ID / 状态：E10 / 本地代码和自动验收通过；Extension Host 手工交互、真实 PAT 和跨设备交接待最终用户验收；无后端共享写入、无发布。
+
+起点 HEAD：`57983cc`。
+
+改动文件：扩展新增 `src/sync/visible-refresh.ts`、对应假时钟测试、`.vscodeignore`；更新 `src/views/project-view-provider.ts`、`src/extension.ts`、README、capabilities、专项计划与进度。
+
+新增依赖：项目无新增依赖。VSIX 用一次性 `npm exec --package @vscode/vsce` 打包，不写入扩展依赖或 lockfile。
+
+实现：WebviewView 可见且项目已绑定时每 15 秒 GET 自动刷新；隐藏、断开或扩展释放后停止定时器。任何时刻同一刷新通道最多一个未完成请求；等待期间的手动刷新在其完成后串行执行。失败按 15/30/60 秒阶梯和 ±20% 随机抖动退避，成功复位；401 清除当前令牌并暂停自动刷新，需显式重连/刷新；403 保留错误状态并退避重试。轮询只调用现有 GET，不自动重试共享写操作。Webview visibility/message listeners 由 provider 管理并在销毁时 dispose。
+
+自动测试命令/结果：`npm --prefix vscode-extension run check` 通过；`npm --prefix vscode-extension test` 退出码 0（13 个测试文件、76 项）；`git diff --check` 通过。真实 Git worktree 和 Codex Agent 的 E03–E08 临时仓库证据仍见各单记录。
+
+本地打包：`vsce package --no-dependencies` 成功，生成 `/tmp/agilecampus-vscode-e10-local.vsix`（45 个文件，约 289 KB）。加入 `.vscodeignore` 排除源码、测试、开发配置；实际扩展文件和 dist 均包含。vsce 提示 package manifest 未声明 repository 且无 LICENSE 文件；没有擅自补许可证或改项目法律声明。VSIX 未安装到用户 VS Code，不代表 Extension Host 完整验收。
+
+真实 VS Code / Agent / 跨机器验证：自动化假时钟覆盖轮询间隔、隐藏暂停、错误退避、成功复位、401 停机/人工重连、请求串行、卸载清理；尚未在 Extension Development Host 手工切换可见性/输入真实 PAT；没有双成员跨机器 API，因为后端契约待签收。
+
+已知限制：E09 提案新增 API 没有实现；服务端仍无 checkpoint/handoff 索引写入、收件箱、artifact 传输或推送事件。E10 自动刷新现有项目/任务 GET，不是实时推送。对 403 当前保留权限错误并按退避重新 GET。
+
+证明材料：`vscode-extension/tests/visible-refresh.test.ts`、`tests/project-view-provider.test.ts`；VSIX 列表由 vsce 打包输出核对；产物留在 `/tmp`，未加入仓库。
+
+下一步：由主线负责人评审并签收 `backend-contract.md` 后另开后端实施单；用户在 VS Code Extension Development Host 做统一手工验收。不得把本地交接描述为已完成跨设备协同。

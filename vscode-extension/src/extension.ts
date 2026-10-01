@@ -14,6 +14,7 @@ import { ProjectViewProvider } from "./views/project-view-provider";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ProjectViewProvider(context.extensionUri, context);
+  context.subscriptions.push(provider);
   context.subscriptions.push(vscode.window.registerWebviewViewProvider(ProjectViewProvider.viewType, provider));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.refresh", () => provider.refresh()));
   registerOpenWebCommand(context, provider);

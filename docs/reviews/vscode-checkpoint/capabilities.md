@@ -17,6 +17,7 @@
 | 本地 Agent 启动与执行回执 | implemented; awaiting Extension Host acceptance | 仅支持核验过的 Codex CLI `0.153.4`；shell=false、`workspace-write`、人工二次确认；JSONL `thread.started` / `turn.completed` 确认回执；不保存 prompt/transcript，不改任务状态；真实 CLI 在一次性仓库验证通过 |
 | 并行 checkpoint Attempts | implemented; awaiting Extension Host acceptance | 精确 SHA worktrees、唯一 branch、共用基线；不跑 setup、不合并；Git 真实 diff summary；尚未实测双 Agent 同时执行 |
 | 共享身份/checkpoint/handoff HTTP API | proposed only; backend sign-off required | `backend-contract.md` 定义提案；现有 PAT 无 scope，Context Pack/fork 是网页登录态，Agent Run 不能代表本机 Codex；扩展未调用任何提案接口 |
-| 本地任务自动刷新 | in progress for E10 | 目标为视图可见每 15 秒 GET、隐藏暂停、退避与认证错误停机；尚未最终集成/验收 |
+| 本地任务自动刷新 | implemented; automated acceptance passed | 视图可见每 15 秒 GET、隐藏/断开暂停、单请求串行、15/30/60 秒抖动退避、401 停止、成功复位；Extension Host 手动切换可见性仍待用户验收 |
 | 共享实时事件/文件传输 | not implemented; blocked on backend contract | 无签收契约和存储能力，不宣传实时同步、不假装服务端有 checkpoint 原文 |
-| VSIX 安装/商店发布 | unverified | 本轮不打包/发布 |
+| 本地 VSIX 打包 | verified; not installed | `vsce package --no-dependencies` 本机打包成功；未经 Extension Host 安装验收；打包提示仓库 LICENSE 文件缺失 |
+| VSIX 商店发布 | not performed | 用户未要求发布；本轮明确不发布 |
