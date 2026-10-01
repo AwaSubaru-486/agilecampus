@@ -77,6 +77,28 @@ git diff --check：通过
 
 已知限制：附件原文需逐次确认，限制单附件 5 MiB、总量 10 MiB；会话附件作为 context-only，不代表原生恢复；Git LFS/submodule 标记恢复限制；没有代码 checkout/recovery；ignored 文件不属于 Git dirty 检查；清单只在本机 globalStorage，不会同步给队友。
 
-下一单：E05 人工 JSON 导出/导入。
+下一单：E05 人工 JSON 导出/导入（当前进行中）。
 
 本单交付点：本地检查点保存与查看命令、存储/完整性验证已实现。按用户授权继续 E05，最终统一验收。
+
+## E05（人工导出与导入）
+
+工单 ID / 状态：E05 / 代码完成，纳入用户授权的整批验收；不推送。
+
+起点 HEAD：`cfa679d`。
+
+改动文件：新增 `src/checkpoints/share-package.ts`、`src/commands/{export-checkpoint,import-checkpoint}.ts`；扩展命令注册、README、capabilities 和专项进度。
+
+新增依赖：无。
+
+自动测试：`npm --prefix vscode-extension run check` 退出码 0；`npm --prefix vscode-extension test` 退出码 0（45 项）；`git diff --check` 通过。
+
+真实 VS Code / Agent / 跨机器验证：Extension Host 文件选择器、预览和两个扩展实例尚未手工验收；未调用 Agent；跨机器未验证。
+
+证明材料：`vscode-extension/tests/share-package.test.ts` 覆盖 JSON round-trip、context-only 与 transcript 包、损坏 hash、路径逃逸、重复 ID、大小限制和明显凭据模式。
+
+已知限制：SHA-256 只校验内容，不能认证发送人；导入的项目/任务 ID 是声明，只有在线 GET 校验通过时显示该次任务归属已核对；即便通过也不授予执行/发布权限。导出只用用户选定的本地路径，不上传云端。
+
+下一单：E06 接续前检查。
+
+本单交付点：本机可导出/导入经验证的 JSON 包；按用户授权继续 E06，最终统一验收。

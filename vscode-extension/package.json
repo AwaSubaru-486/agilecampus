@@ -25,7 +25,9 @@
     "onCommand:agilecampus.continueAiWork",
     "onCommand:agilecampus.reportBlocker",
     "onCommand:agilecampus.saveCheckpoint",
-    "onCommand:agilecampus.listCheckpoints"
+    "onCommand:agilecampus.listCheckpoints",
+    "onCommand:agilecampus.exportCheckpoint",
+    "onCommand:agilecampus.importCheckpoint"
   ],
   "contributes": {
     "configuration": {
@@ -78,6 +80,14 @@
       {
         "command": "agilecampus.listCheckpoints",
         "title": "AgileCampus: 查看本地检查点"
+      },
+      {
+        "command": "agilecampus.exportCheckpoint",
+        "title": "AgileCampus: 导出检查点交接包"
+      },
+      {
+        "command": "agilecampus.importCheckpoint",
+        "title": "AgileCampus: 导入检查点交接包"
       }
     ],
     "viewsContainers": {
@@ -124,6 +134,16 @@
           "command": "agilecampus.listCheckpoints",
           "when": "view == agilecampus.projectView && agileCampus.connected == true",
           "group": "navigation@3"
+        },
+        {
+          "command": "agilecampus.exportCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@4"
+        },
+        {
+          "command": "agilecampus.importCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@5"
         },
         {
           "command": "agilecampus.disconnect",

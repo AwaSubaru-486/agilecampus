@@ -101,6 +101,17 @@ export class CheckpointStore {
     return manifest;
   }
 
+  async readArtifact(serverOrigin: string, projectId: string, checkpointId: string, artifactId: string): Promise<Buffer | undefined> {
+    const manifest = await this.read(serverOrigin, projectId, checkpointId);
+    if (!manifest) return undefined;
+    const artifact = manifest.artifacts.find((item) => item.id === artifactId);
+    if (!artifact) return undefined;
+    const bytes = await readFile(path.join(this.scopePath(serverOrigin, projectId), checkpointId, artifact.relativePath));
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    if (bytes.byteLength !== artifact.byteLength || digest !== artifact.sha256) throw new CheckpointStoreError("检查点附件完整性校验失败");
+    return bytes;
+  }
+
   private scopePath(serverOrigin: string, projectId: string): string {
     return path.join(this.storageRoot, "checkpoints", hash(serverOrigin), hash(projectId));
   }

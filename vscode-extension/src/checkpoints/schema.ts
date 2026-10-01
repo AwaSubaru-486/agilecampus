@@ -57,6 +57,10 @@ export function parseWorkCheckpoint(value: unknown): WorkCheckpoint {
     if (item.relativePath !== `artifacts/${item.id}.${extension}`) throw new CheckpointSchemaError("检查点附件路径无效");
     return { id: text(item.id), kind: item.kind as "transcript" | "context", relativePath: text(item.relativePath), byteLength: item.byteLength as number, sha256: text(item.sha256) };
   });
+  if (new Set(artifacts.map((item) => item.id)).size !== artifacts.length ||
+      new Set(artifacts.map((item) => item.relativePath)).size !== artifacts.length) {
+    throw new CheckpointSchemaError("检查点附件 ID 或路径重复");
+  }
   return {
     schemaVersion: 1,
     id: text(value.id),
