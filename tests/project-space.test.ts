@@ -40,8 +40,8 @@ describe("parseProjectSpace", () => {
     expect(parseProjectSpace([])).toBe(DEFAULT_SPACE);
   });
 
-  it("默认模式是 live", () => {
-    expect(DEFAULT_SPACE).toBe("live");
+  it("默认模式是 work（W01 变更：协同执行台为默认入口）", () => {
+    expect(DEFAULT_SPACE).toBe("work");
   });
 
   it("每个模式都有中文名与一句话说明", () => {

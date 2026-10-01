@@ -112,6 +112,8 @@ export default async function ProjectPage({
           role={role}
           filters={filters}
           selectedTaskId={taskId}
+          view={typeof sp.view === "string" ? sp.view : null}
+          normalized={normalized}
         />
       )}
 
