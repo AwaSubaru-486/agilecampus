@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "agents": ["Codex"],
+  "active_sessions": [],
+  "checkpoint_push_disabled": true
+}

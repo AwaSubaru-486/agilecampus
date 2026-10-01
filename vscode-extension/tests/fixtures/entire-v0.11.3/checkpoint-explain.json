@@ -1,0 +1,20 @@
+{
+  "checkpoint_id": "01H00000000000000000000001",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": ["checkpoint_probe.py"],
+  "session_count": 1,
+  "sessions": [
+    {
+      "index": 0,
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "agent": "Codex",
+      "model": "gpt-5.6-luna",
+      "created_at": "2026-10-01T06:19:24Z",
+      "turn_id": "redacted-turn-id",
+      "files_touched": ["checkpoint_probe.py"],
+      "token_usage": { "input_tokens": 100, "output_tokens": 10, "cache_read_tokens": 0 }
+    }
+  ]
+}

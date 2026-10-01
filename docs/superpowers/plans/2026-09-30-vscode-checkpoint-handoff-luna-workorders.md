@@ -1,6 +1,6 @@
 # 个人负责模块：VS Code 工作台、检查点与人–Agent 接续
 
-状态：E00–E02 已完成代码施工并停在用户验收点；E03 需在用户验收通过后再执行。本文仍是专项工单，完成状态以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
+状态：E00–E03 已完成代码施工并停在用户验收点；E03 已在一次性临时仓库完成 Entire 真实验证。本文仍是专项工单，完成状态以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
 核查基线：2026-09-30，HEAD `e6723a7`。执行时从最新 HEAD 开始，禁止重置到此提交。
 负责人：用户本人负责本模块，Luna 负责按单实现；共享后端由主线负责人协调。
 
