@@ -1,6 +1,6 @@
 # 个人负责模块：VS Code 工作台、检查点与人–Agent 接续
 
-状态：E00–E07 已逐单实现并提交；E06/E07 自动检查通过，E07 的 Codex CLI context-only 流程已在一次性仓库完成真实 Agent 验证，扩展宿主 UI 仍待统一人工验收。当前用户已明确授权连续施工至仓库范围内可完成项。Entire 原生 session resume unsupported。E00–E02 真实 PAT 路径尚待验收。本文仍是专项工单，进度以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
+状态：E00–E08 已逐单实现并提交；E06–E08 自动检查通过，E07 的 Codex CLI context-only 流程已在一次性仓库完成真实 Agent 验证，E08 两 worktree 已由自动 Git 集成测试验证；扩展宿主 UI 仍待统一人工验收。当前用户已明确授权连续施工至仓库范围内可完成项。Entire 原生 session resume unsupported。E00–E02 真实 PAT 路径尚待验收。本文仍是专项工单，进度以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
 核查基线：2026-09-30，HEAD `e6723a7`。执行时从最新 HEAD 开始，禁止重置到此提交。
 负责人：用户本人负责本模块，Luna 负责按单实现；共享后端由主线负责人协调。
 

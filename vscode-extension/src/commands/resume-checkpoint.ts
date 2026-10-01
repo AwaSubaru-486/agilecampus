@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { AttemptStore } from "../attempts/store";
+import * as path from "node:path";
+import { AttemptStore, type LocalAttempt } from "../attempts/store";
 import { inspectCodexCliVersion, startCodexContextSession } from "../adapters/process-runner";
 import { CheckpointStore } from "../checkpoints/store";
 import type { WorkCheckpoint } from "../checkpoints/types";
@@ -8,10 +9,11 @@ import { buildContextPrompt, type SelectedMaterial } from "../handoff/launch";
 import { evaluateHandoffPreflight, type PreflightResult } from "../handoff/preflight";
 import type { RepositorySnapshot } from "../git/repository-service";
 import { hasCommit, readRepositorySnapshot } from "../git/repository-service";
+import { isRegisteredWorktree } from "../git/worktree-service";
 import type { WorkspaceBinding } from "../workspace/binding-store";
 import { createWorkspaceApi, getLocalOnlyRepositoryId, selectBoundWorkspace } from "./checkpoint-support";
 
-const activeCheckpointIds = new Set<string>();
+const activeLaunchKeys = new Set<string>();
 const activeAttemptIds = new Set<string>();
 let output: vscode.OutputChannel | undefined;
 
@@ -32,6 +34,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
   let checkpoint: WorkCheckpoint | undefined;
   let launchLock = false;
   let processStarted = false;
+  let launchKey: string | undefined;
   try {
     await attemptStore.markInterruptedUnknown(activeAttemptIds);
     const records = await checkpointStore.list(binding.serverOrigin, binding.projectId);
@@ -43,17 +46,51 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       id: manifest.id,
     })), { title: "选择 Agent 接续检查点" });
     if (!choice) return;
-    if (activeCheckpointIds.has(choice.id)) { void vscode.window.showWarningMessage("此检查点已有 Agent 进程在本扩展实例中运行。"); return; }
-    activeCheckpointIds.add(choice.id);
+    const prepared = (await attemptStore.list()).filter((item) => item.checkpointId === choice.id && item.attemptKind === "parallel" && item.state === "prepared");
+    const targetChoices: Array<{ label: string; description: string; key: string; attempt?: LocalAttempt }> = [
+      { label: "当前干净工作区", description: "直接在当前仓库启动；已有未确认的单次尝试时会阻止重复启动", key: "single" },
+      ...prepared.map((item) => ({
+        label: `并行尝试 · ${item.branch ?? item.id.slice(0, 8)}`,
+        description: `${item.baseSha?.slice(0, 10) ?? "无已验证基线"} · ${item.workdir}`,
+        key: item.id,
+        attempt: item,
+      })),
+    ];
+    const targetChoice = await vscode.window.showQuickPick(targetChoices, { title: "选择 Agent 写入位置" });
+    if (!targetChoice) return;
+    const parallelAttempt = targetChoice.attempt;
+    const workdir = parallelAttempt?.workdir ?? folder.uri.fsPath;
+    const activeKey = `agilecampus:${parallelAttempt?.id ?? `single:${choice.id}`}`;
+    launchKey = activeKey;
+    if (activeLaunchKeys.has(activeKey) || parallelAttempt && activeAttemptIds.has(parallelAttempt.id)) {
+      void vscode.window.showWarningMessage("此 Agent 尝试已在当前扩展实例启动。"); return;
+    }
+    activeLaunchKeys.add(activeKey);
     launchLock = true;
-    if (await attemptStore.hasPotentiallyActiveAttempt(choice.id)) {
-      void vscode.window.showWarningMessage("此检查点已有未确认结束的本地尝试。请先核实之前的 Agent 是否已退出，再继续，避免重复修改。");
+    if (parallelAttempt && parallelAttempt.state !== "prepared") {
+      void vscode.window.showWarningMessage("选中的并行尝试不处于可启动状态。");
+      return;
+    }
+    if (!parallelAttempt && await attemptStore.hasPotentiallyActiveAttempt(choice.id, "single")) {
+      void vscode.window.showWarningMessage("此检查点已有未确认结束的当前工作区尝试。请先核实之前的 Agent 是否已退出，再继续。");
       return;
     }
     checkpoint = await checkpointStore.read(binding.serverOrigin, binding.projectId, choice.id);
     if (!checkpoint) throw new Error("检查点已不存在");
+    if (parallelAttempt) {
+      const expectedBranch = `agilecampus/attempt-${parallelAttempt.id.replace(/-/g, "").slice(0, 12)}`;
+      const expectedPath = `agilecampus-attempt-${parallelAttempt.id.slice(0, 8)}`;
+      if (parallelAttempt.checkpointId !== checkpoint.id || parallelAttempt.projectId !== checkpoint.projectId ||
+          parallelAttempt.baseSha !== checkpoint.repository.headSha || !parallelAttempt.branch ||
+          (parallelAttempt.branch !== expectedBranch && !new RegExp(`^${expectedBranch}-[1-9][0-9]*$`).test(parallelAttempt.branch)) ||
+          path.basename(parallelAttempt.workdir) !== expectedPath ||
+          !await isRegisteredWorktree(folder.uri.fsPath, parallelAttempt.workdir)) {
+        await showBlockers(["尝试记录与 Git 注册的 worktree 不一致；未启动 Agent。"]);
+        return;
+      }
+    }
 
-    const initial = await readFreshInput(context, binding, folder.uri.fsPath, checkpoint);
+    const initial = await readFreshInput(context, binding, workdir, checkpoint);
     let preflight = evaluateHandoffPreflight({ ...initial, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: false });
     if (preflight.status === "blocked") { await showBlockers(preflight.blockers); return; }
     if (preflight.status === "needs-confirmation") {
@@ -86,7 +123,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     const cli = await inspectCodexCliVersion();
     if (cli.status !== "ready") { void vscode.window.showErrorMessage(cli.reason); return; }
 
-    const finalFresh = await readFreshInput(context, binding, folder.uri.fsPath, checkpoint);
+    const finalFresh = await readFreshInput(context, binding, workdir, checkpoint);
     const currentPlan = evaluateHandoffPreflight({ ...finalFresh, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: true });
     if (currentPlan.status !== "ready" || !samePreflightSnapshot(preflight, currentPlan)) {
       await showBlockers(currentPlan.status === "blocked" ? currentPlan.blockers : ["预检后任务、SHA、仓库或工作区状态已变化；请重新运行接续命令。"]);
@@ -104,29 +141,31 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法准备 Agent 上下文"); return; }
 
     const accept = await vscode.window.showWarningMessage(
-      `将启动新的 Codex CLI ${cli.version} 会话，不是恢复原 session。Agent 会在当前目录 ${folder.name} 中读写；所选任务文本${materials.length ? "和附件" : "（未选附件）"}会发给你已配置的 Codex 服务。不会提交、推送或改平台任务状态。`,
+      `将启动新的 Codex CLI ${cli.version} 会话，不是恢复原 session。Agent 会在 ${workdir} 中读写；所选任务文本${materials.length ? "和附件" : "（未选附件）"}会发给你已配置的 Codex 服务。不会提交、推送或改平台任务状态。`,
       { modal: true }, "启动新的 Codex 会话",
     );
     if (accept !== "启动新的 Codex 会话") return;
 
-    const lastFresh = await readFreshInput(context, binding, folder.uri.fsPath, checkpoint);
+    const lastFresh = await readFreshInput(context, binding, workdir, checkpoint);
     const lastPlan = evaluateHandoffPreflight({ ...lastFresh, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: true });
     if (lastPlan.status !== "ready" || !samePreflightSnapshot(preflight, lastPlan)) {
       await showBlockers(lastPlan.status === "blocked" ? lastPlan.blockers : ["确认对话期间工作状态发生变化；本次未启动，请重新预检。"]);
       return;
     }
 
-    const attempt = await attemptStore.create({
+    const attempt = parallelAttempt ?? await attemptStore.create({
       checkpointId: checkpoint.id, projectId: checkpoint.projectId, taskId: checkpoint.taskId,
-      mode: "context-only", provider: "codex-cli", providerSessionId: null, state: "launching",
-      workdir: folder.uri.fsPath, pid: null, exitCode: null, timedOut: false,
+      attemptKind: "single", mode: "context-only", provider: "codex-cli", providerSessionId: null, state: "launching",
+      workdir, branch: preflight.plan.branch, baseSha: preflight.plan.baseSha,
+      parentAttemptId: null, pid: null, exitCode: null, timedOut: false,
     });
+    if (parallelAttempt) await attemptStore.update(attempt.id, { state: "launching" });
     activeAttemptIds.add(attempt.id);
     output?.show(true);
     output?.appendLine(`Attempt ${attempt.id}: launching context-only Codex CLI.`);
     let process: ReturnType<typeof startCodexContextSession>;
     try {
-      process = startCodexContextSession(folder.uri.fsPath, prompt, {
+      process = startCodexContextSession(workdir, prompt, {
         onSessionStarted: async (sessionId) => {
           await attemptStore.update(attempt.id, { providerSessionId: sessionId, state: "running" });
           output?.appendLine(`Attempt ${attempt.id}: Codex session ${sessionId} started.`);
@@ -145,13 +184,13 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       });
       output?.appendLine(`Attempt ${attempt.id}: ${outcome.state}; exit=${outcome.exitCode ?? "unknown"}; session=${outcome.providerSessionId ?? "unconfirmed"}.`);
       activeAttemptIds.delete(attempt.id);
-      activeCheckpointIds.delete(checkpoint!.id);
+      activeLaunchKeys.delete(activeKey);
       const label = outcome.state === "finished" ? "Codex 会话已完成" : outcome.state === "failed" ? "Codex 会话失败" : "Codex 会话结束状态待核对";
       void vscode.window.showInformationMessage(`${label}。Attempt ${attempt.id.slice(0, 8)}；退出码 ${outcome.exitCode ?? "未知"}。查看“AgileCampus: 查看本地 Agent 尝试”核对记录。`);
     }).catch(async () => {
       await attemptStore.update(attempt.id, { state: "awaiting_confirmation" }).catch(() => undefined);
       activeAttemptIds.delete(attempt.id);
-      activeCheckpointIds.delete(checkpoint!.id);
+      activeLaunchKeys.delete(activeKey);
       output?.appendLine(`Attempt ${attempt.id}: receipt persistence failed; state requires manual confirmation.`);
     });
     await attemptStore.update(attempt.id, { pid: process.pid });
@@ -159,7 +198,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "启动检查点接续失败");
   } finally {
-    if (launchLock && checkpoint && !processStarted) activeCheckpointIds.delete(checkpoint.id);
+    if (launchLock && !processStarted && launchKey) activeLaunchKeys.delete(launchKey);
   }
 }
 
@@ -179,9 +218,10 @@ async function listAttempts(context: vscode.ExtensionContext): Promise<void> {
     const item = selected.item;
     const document = await vscode.workspace.openTextDocument({ language: "json", content: JSON.stringify({
       id: item.id, checkpointId: item.checkpointId, projectId: item.projectId, taskId: item.taskId,
-      mode: item.mode, provider: item.provider, providerSessionId: item.providerSessionId,
+      attemptKind: item.attemptKind, mode: item.mode, provider: item.provider, providerSessionId: item.providerSessionId,
       state: item.state, startedAt: item.startedAt, updatedAt: item.updatedAt,
-      workdir: item.workdir, pid: item.pid, exitCode: item.exitCode, timedOut: item.timedOut,
+      workdir: item.workdir, branch: item.branch, baseSha: item.baseSha, parentAttemptId: item.parentAttemptId,
+      pid: item.pid, exitCode: item.exitCode, timedOut: item.timedOut,
     }, null, 2) });
     await vscode.window.showTextDocument(document, { preview: true });
   } catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "读取本地 Agent 尝试失败"); }

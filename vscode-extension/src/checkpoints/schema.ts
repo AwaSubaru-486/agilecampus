@@ -15,9 +15,16 @@ export function parseWorkCheckpoint(value: unknown): WorkCheckpoint {
   }
   const repository = value.repository;
   const session = value.session;
-  const taskSnapshot = value.taskSnapshot;
   const handoff = value.handoff;
-  if (!record(repository) || !record(session) || !record(taskSnapshot) || !record(handoff)) throw new CheckpointSchemaError("检查点缺少必需字段");
+  if (!record(repository) || !record(session) || !record(handoff)) throw new CheckpointSchemaError("检查点缺少必需字段");
+  // E04 schemaVersion 1 checkpoints predate the task-field snapshot. Preserve them as unverified historical snapshots;
+  // E06 will display all current-vs-saved changes and require user confirmation before proceeding.
+  const taskSnapshot = record(value.taskSnapshot) ? value.taskSnapshot : {
+    title: typeof handoff.goal === "string" && handoff.goal.trim() ? `旧检查点：${handoff.goal}` : "旧检查点（无任务快照）",
+    status: "unknown", priority: "unknown", dueDate: null,
+    assigneeId: null, assigneeName: null, description: null, handoffBrief: null,
+    doneCriteria: [], requiredEvidence: [], responseDueAt: null, completionNote: null, committedHandoffVersion: null,
+  };
   if (!text(value.serverOrigin) || !validServerUrl(text(value.serverOrigin)) || !text(value.projectId) || !text(value.taskId) || !text(value.taskUpdatedAt)) {
     throw new CheckpointSchemaError("项目、任务和更新时间不能为空");
   }

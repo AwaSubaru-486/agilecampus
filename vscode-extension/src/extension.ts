@@ -8,6 +8,8 @@ import { registerExportCheckpointCommand } from "./commands/export-checkpoint";
 import { registerImportCheckpointCommand } from "./commands/import-checkpoint";
 import { registerPrepareHandoffCommand } from "./commands/prepare-handoff";
 import { registerResumeCheckpointCommand } from "./commands/resume-checkpoint";
+import { registerForkAttemptCommand } from "./commands/fork-attempt";
+import { registerCompareAttemptsCommand } from "./commands/compare-attempts";
 import { ProjectViewProvider } from "./views/project-view-provider";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -23,6 +25,8 @@ export function activate(context: vscode.ExtensionContext): void {
   registerImportCheckpointCommand(context);
   registerPrepareHandoffCommand(context);
   registerResumeCheckpointCommand(context);
+  registerForkAttemptCommand(context);
+  registerCompareAttemptsCommand(context);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.connect", () => provider.connect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disconnect", () => provider.disconnect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.selectProject", () => provider.selectProject()));

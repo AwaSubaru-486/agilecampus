@@ -147,4 +147,26 @@ git diff --check：通过
 
 已知限制：只核验一个 CLI 版本；output channel 仅显示状态和真实 session ID，不镜像 transcript；Agent 的文件更改由 Codex workspace-write sandbox 限制在当前工作区，但这不是操作系统级进程隔离；native resume、取消、跨设备分配仍不支持。
 
-下一单：E08 同检查点 worktree 并行探索；每个尝试须从 checkpoint SHA 建独立分支/目录，不自动跑 setup 脚本。
+下一单：E08 同检查点 worktree 并行探索（本次完成）；每个尝试从 checkpoint SHA 建独立分支/目录，不自动跑 setup 脚本。
+
+## E08（同检查点并行探索）
+
+工单 ID / 状态：E08 / 代码、临时仓库 Git 集成测试完成，纳入用户授权的整批验收；VS Code 多根工作区和双 Agent 实际操作待最终人工验收；不推送。
+
+起点 HEAD：`6e07a3b`。
+
+改动文件：新增 `src/git/worktree-service.ts`、`src/commands/fork-attempt.ts`、`src/commands/compare-attempts.ts` 和 Git worktree 集成测试；扩展 AttemptStore 加入并行 Attempt 元数据；接续命令可选择预建 worktree；更新命令注册、README、能力表、计划和进度。
+
+新增依赖：无；复用已锁定 `simple-git@4.0.2`。
+
+实现：创建并行 Attempt 前要求检查点为 clean-only、无 dirty/LFS/submodule；源仓库须 clean、repo key 匹配、checkpoint SHA 已在本地对象库中存在。通过简单 Git worktree API 从该精确 SHA 新建 host 生成的 `agilecampus/attempt-<id>` 分支和用户选择父目录下的独立目录；源工作树状态、分支和 HEAD 在创建后复核。不会联网 fetch、stash、checkout、删除目录、安装依赖、运行项目脚本、启动 Agent、自动合并或将任务标 done。每个准备中的 Attempt 可由 E07 接续命令单独启动，两个并行 Attempt 不相互锁定。
+
+“比较并行尝试”只允许选同 checkpoint、同 base SHA 且已结束/失败的两个并行尝试；核对 Git worktree 登记、仓库身份和按 ID 生成的 branch 后，显示双方实际 HEAD、commit count、dirty 状态、变更文件和 `diff --stat`。不自动评价方案。Attempt store 为 E07 旧记录提供向前兼容映射；E04 旧检查点缺少 taskSnapshot 时会作为历史快照保留，并在接续前显示差异要求确认，不丢弃本机数据。
+
+自动测试：`npm --prefix vscode-extension run check` 退出码 0；`npm --prefix vscode-extension test` 退出码 0（71 项）；`git diff --check` 通过。真实 Git 测试在一次性目录创建两个 worktree，从同一 SHA 分别修改同名文件，确认两个结果和源工作树互不影响；diff summary 能展示真实文件差异，并验证分支冲突生成新名称。
+
+真实 VS Code / Agent / 跨机器验证：未通过 Extension Host 手工点击；未在实际 AgileCampus 仓库创建 worktree；并行 Agent 双跑、A/B 人工评审和跨设备未验证。
+
+证明材料：`vscode-extension/tests/worktree-service.test.ts`、`attempt-store.test.ts`、`handoff-preflight.test.ts`。测试用的临时 Git 仓库由 Vitest 自动清理。
+
+下一单：E09 只产出共享后端接口契约，交主线负责人评审；不能自行添加 API/schema。

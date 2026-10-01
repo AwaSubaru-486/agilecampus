@@ -23,3 +23,5 @@ npm test
 “检查接续条件”会重新读取服务端任务和本地 Git 状态，比较任务契约、检查点 SHA、仓库身份和附件完整性，然后生成只读的 context-only 计划。此命令不会启动 Agent、改分支或写任务状态；Entire 原生 session 恢复当前关闭。“从检查点启动 Agent”会再做检查、让用户选择附件并预览，再要求确认后调用本机已核验的 Codex CLI 0.153.4；它是新会话，prompt 与附件会发送到用户已配置的 Codex 服务，Agent 在当前干净工作区获得 `workspace-write`。不会启用危险绕过、执行附件命令、提交、推送或更改平台任务。未找到真实 session / turn 回执时记录为待核对，不显示为成功。Agent 尝试元数据保存在 VS Code globalStorage，不保存 prompt 或 transcript 正文。
 
 VS Code 命令面板还提供“AgileCampus: 保存本地检查点”“AgileCampus: 查看本地检查点”“AgileCampus: 检查接续条件”“AgileCampus: 从检查点启动 Agent”和“AgileCampus: 查看本地 Agent 尝试”。扩展重启后无法证明旧进程仍运行时会把尝试标为 `unknown`，并阻止重复启动。卸载扩展前，检查点与尝试元数据位于 VS Code 为此扩展分配的 globalStorage 目录；删除扩展存储会一并删除这些本地材料。
+
+“创建并行尝试 worktree”会在用户挑选的源仓库之外目录创建唯一分支和 Git worktree，基线强制使用检查点 SHA；每个尝试互不共享可写工作目录。操作只创建目录/分支，不跑 `npm install` 或项目脚本、不自动启动 Agent、不 cherry-pick/merge，也不清理已有尝试。之后在“从检查点启动 Agent”里选择对应 worktree。“比较并行尝试”只展示两条尝试的真实 HEAD、提交数、文件状态和 Git diff 统计，不自动判优。worktree 只隔离 Git 工作树，不是操作系统安全沙箱。

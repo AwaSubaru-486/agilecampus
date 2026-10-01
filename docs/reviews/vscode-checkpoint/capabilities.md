@@ -15,5 +15,5 @@
 | Checkpoint handoff preflight | implemented; awaiting Extension Host acceptance | 在线校验任务/契约，核对 repo key、精确 SHA、dirty 和附件完整性；变更须确认；只输出 context-only 计划，不启动进程 |
 | Cross-machine resume/fork/cancel | unverified | JSON 包可人工传递但尚未做双设备实测；native resume/fork/cancel 未验证 |
 | 本地 Agent 启动与执行回执 | implemented; awaiting Extension Host acceptance | 仅支持核验过的 Codex CLI `0.153.4`；shell=false、`workspace-write`、人工二次确认；JSONL `thread.started` / `turn.completed` 确认回执；不保存 prompt/transcript，不改任务状态；真实 CLI 在一次性仓库验证通过 |
-| 独立 worktree 并行探索 | unimplemented | 后续 E08 |
+| 并行 checkpoint Attempts | implemented; awaiting Extension Host acceptance | 精确 SHA worktrees、唯一 branch、共用基线；不跑 setup、不合并；Git 真实 diff summary；尚未实测双 Agent 同时执行 |
 | VSIX 安装/商店发布 | unverified | 本轮不打包/发布 |

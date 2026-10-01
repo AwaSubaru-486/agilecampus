@@ -20,6 +20,7 @@ export function evaluateHandoffPreflight(input: {
   materialSummary: Array<{ kind: "context" | "transcript"; byteLength: number }>;
   checkpointCommitAvailable: boolean;
   confirmedChangedTask: boolean;
+  requireHeadMatch?: boolean;
 }): PreflightResult {
   const { checkpoint, task, repository } = input;
   const blockers: string[] = [];
@@ -35,7 +36,7 @@ export function evaluateHandoffPreflight(input: {
   else {
     if (repository.key !== checkpoint.repository.key) blockers.push("当前仓库标识与检查点不匹配。");
     if (!input.checkpointCommitAvailable) blockers.push("检查点的 Git SHA 在本机仓库中不存在。");
-    if (repository.headSha !== checkpoint.repository.headSha) blockers.push("当前 HEAD 与检查点基线不同；不会自动 checkout 或重置分支。");
+    if (input.requireHeadMatch !== false && repository.headSha !== checkpoint.repository.headSha) blockers.push("当前 HEAD 与检查点基线不同；不会自动 checkout 或重置分支。");
     if (repository.dirty) blockers.push("当前工作区有未提交或未跟踪改动；为保护用户文件，不能准备 Agent 工作目录。");
     blockers.push(...repository.recoveryBlockers);
   }
@@ -48,6 +49,9 @@ export function evaluateHandoffPreflight(input: {
   if (changes.length && !input.confirmedChangedTask) return { status: "needs-confirmation", blockers: [], changes };
   const warnings = ["仅支持携带已选材料创建新会话；不会恢复 Entire 的原生 session。"];
   if (checkpoint.repository.dirtyPolicy === "excluded") warnings.push("检查点创建时的未提交/未跟踪改动已排除，只能基于记录的 Git SHA 继续。");
+  if (input.requireHeadMatch === false && repository && repository.headSha !== checkpoint.repository.headSha) {
+    warnings.push("源工作区当前 HEAD 与检查点不同；并行尝试会从检查点 SHA 新建分支，不会从当前 HEAD 复制。");
+  }
   if (checkpoint.session.provider !== "Entire CLI" || checkpoint.session.providerVersion !== "0.11.3") {
     warnings.push("检查点中的 Agent 来源或版本未通过本地 adapter 核验；只把附件当作用户提供的上下文，不尝试原生恢复。");
   }

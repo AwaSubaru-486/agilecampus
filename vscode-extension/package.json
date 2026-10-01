@@ -30,7 +30,9 @@
     "onCommand:agilecampus.importCheckpoint",
     "onCommand:agilecampus.prepareHandoff",
     "onCommand:agilecampus.resumeCheckpoint",
-    "onCommand:agilecampus.listAttempts"
+    "onCommand:agilecampus.listAttempts",
+    "onCommand:agilecampus.forkAttempt",
+    "onCommand:agilecampus.compareAttempts"
   ],
   "contributes": {
     "configuration": {
@@ -103,6 +105,14 @@
       {
         "command": "agilecampus.listAttempts",
         "title": "AgileCampus: 查看本地 Agent 尝试"
+      },
+      {
+        "command": "agilecampus.forkAttempt",
+        "title": "AgileCampus: 创建并行尝试 worktree"
+      },
+      {
+        "command": "agilecampus.compareAttempts",
+        "title": "AgileCampus: 比较并行尝试"
       }
     ],
     "viewsContainers": {
@@ -174,6 +184,16 @@
           "command": "agilecampus.listAttempts",
           "when": "view == agilecampus.projectView",
           "group": "navigation@8"
+        },
+        {
+          "command": "agilecampus.forkAttempt",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@9"
+        },
+        {
+          "command": "agilecampus.compareAttempts",
+          "when": "view == agilecampus.projectView",
+          "group": "navigation@10"
         },
         {
           "command": "agilecampus.disconnect",

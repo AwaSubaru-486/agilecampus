@@ -106,6 +106,11 @@ describe("local checkpoint store", () => {
     expect(parseWorkCheckpoint({ ...manifest(), taskSnapshot: legacyTask }).taskSnapshot.dueDate).toBeNull();
   });
 
+  it("keeps E04 schemaVersion 1 checkpoints without any task snapshot as legacy records", () => {
+    const { taskSnapshot: _legacyField, ...legacy } = manifest();
+    expect(parseWorkCheckpoint(legacy).taskSnapshot).toMatchObject({ title: "旧检查点：验证交接", status: "unknown", priority: "unknown" });
+  });
+
   it("stores no transcript text in the manifest", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "agile-checkpoint-"));
     roots.push(root);
