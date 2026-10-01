@@ -163,15 +163,19 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
   async selectProject(): Promise<void> {
     const binding = this.activeBinding();
     if (!binding) return this.connect();
-    const client = await this.clientFor(binding);
+    const generation = this.requestGeneration;
+    const client = await this.clientFor(binding, generation);
     if (!client) return;
     try {
       const projects = await client.listProjects();
+      if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) return;
       const selected = await vscode.window.showQuickPick(projects.map((project) => ({
         label: project.name, description: `${project.teamName} · ${project.status}`, project,
       })), { title: "切换关联项目" });
+      if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) return;
       if (!selected || selected.project.id === binding.projectId) return;
       const project = await client.getProject(selected.project.id);
+      if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) return;
       await this.bindingStore.set({ ...binding, projectId: project.id });
       this.detailCache.clear();
       await this.refresh(true);
@@ -206,7 +210,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
       : { ...emptySnapshot("loading"), projectId: binding.projectId, workspaceName: folder?.name ?? "本地工作区" };
     this.snapshot.workspaceName = folder?.name ?? "本地工作区";
     this.send({ type: "snapshot", snapshot: this.snapshot });
-    const client = await this.clientFor(binding);
+    const client = await this.clientFor(binding, generation);
     if (!client) return { ok: false, status: this.snapshot.state === "disconnected" ? 401 : null };
     try {
       const [project, tasks, git, projects] = await Promise.all([
@@ -266,7 +270,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
     const requestedBinding = this.bindingIdentity(binding);
     const cached = this.detailCache.get(taskId);
     if (cached) { this.send({ type: "taskDetail", taskId, detail: cached }); return; }
-    const client = await this.clientFor(binding);
+    const client = await this.clientFor(binding, generation);
     if (!client || generation !== this.requestGeneration) return;
     try {
       const detail = await client.getTask(taskId);
@@ -311,10 +315,11 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
     return undefined;
   }
 
-  private async clientFor(binding: WorkspaceBinding): Promise<AgileCampusApiClient | null> {
+  private async clientFor(binding: WorkspaceBinding, generation = this.requestGeneration): Promise<AgileCampusApiClient | null> {
     const token = await this.tokenStore.get(new URL(binding.serverOrigin).origin, binding.workspaceUri);
+    if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) return null;
     if (!token) {
-      await vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
+      void vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
       this.snapshot = emptySnapshot("disconnected", "请连接 AgileCampus Personal API Token");
       this.send({ type: "snapshot", snapshot: this.snapshot });
       return null;

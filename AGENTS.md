@@ -2,6 +2,10 @@
 
 > 这是共享工作区的最高优先级协作说明。开始改代码前先确认自己负责的区域；不要覆盖另一位 Agent 的未提交改动。
 
+## 当前优先入口：网页交接主线（2026-10-02）
+
+用户本轮要求 **Codex 只写工单，由 Luna 施工**。执行网页重构请先读 [人–Agent 交接网页工单](docs/superpowers/plans/2026-10-02-handoff-first-web-luna-workorders.md)，首次完成 W00–W03 的可见工作面后停下来验收。该工单对本轮网页导航、组件挂载和交付批次优先；Luna 获准修改其中列出的网页 UI/导航文件，原 Antigravity 边界不再阻挡这些具体文件。其他执行者未提交改动仍须保留，不接管 VS Code 或未签收共享后端。本文下方“首次 E00–E02”仅适用于独立扩展专项，不适用于这次网页工单。
+
 ## 用户个人模块：Luna 执行入口
 
 [VS Code 工作台、检查点与接续专项工单](docs/superpowers/plans/2026-09-30-vscode-checkpoint-handoff-luna-workorders.md)用于用户负责的版本迭代协同模块。执行此专项时，先读该工单；其 E00–E10 顺序优先于网页执行台工单，不表示接管网页重构。首次只做 E00–E02，完成后停下来验收。
@@ -54,7 +58,7 @@ schema、API route、orchestrator、task-status、任务 action、拖拽状态�
 
 ## 共同规则
 
-1. 从当前分支的最新 HEAD 开始工作，不回退到旧提交。本轮人-Agent 协同执行台重构先读 [`Luna 逐单施工手册`](docs/superpowers/plans/2026-09-30-collaboration-console-execution-runbook.md)，再读 [`产品与架构计划`](docs/superpowers/plans/2026-09-30-human-agent-collaboration-console-rebuild.md)。本轮网页结构和导航以这两份文件为准；2026-09-29 文案计划继续有效；2026-09-28 网页框架与 VS Code 双端计划保留为长期规划，不再是本轮唯一主计划。原文件负责人边界仍有效，跨边界必须先协调。
+1. 从当前分支的最新 HEAD 开始工作，不回退到旧提交。本轮网页重构先读 [`2026-10-02 交接主线工单`](docs/superpowers/plans/2026-10-02-handoff-first-web-luna-workorders.md)，以其导航、挂载和批次要求为准；[`2026-09-30 逐单施工手册`](docs/superpowers/plans/2026-09-30-collaboration-console-execution-runbook.md)与[`产品与架构计划`](docs/superpowers/plans/2026-09-30-human-agent-collaboration-console-rebuild.md)保留领域语义和权限约束。2026-09-29 文案规则继续有效；2026-09-28 双端计划保留为长期规划。本页顶部已明确授权的网页文件可由 Luna 修改，其余跨边界修改仍须协调。
 2. 一次只改自己负责的文件；跨边界前先说明，不直接覆盖。
 3. 每项独立提交：`feat(ui): ...`、`fix(core): ...` 或 `docs: ...`。
 4. 禁止 `git reset --hard`、删除测试、覆盖未提交改动。

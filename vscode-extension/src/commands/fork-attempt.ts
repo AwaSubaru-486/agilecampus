@@ -40,7 +40,7 @@ async function forkAttempt(context: vscode.ExtensionContext): Promise<void> {
       return;
     }
 
-    let initial = await readPreflight(context, binding, folder.uri.fsPath, checkpoint);
+    const initial = await readPreflight(context, binding, folder.uri.fsPath, checkpoint);
     let preflight = evaluateHandoffPreflight({ ...initial, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: false, requireHeadMatch: false });
     if (preflight.status === "blocked") { await showBlockers(preflight.blockers); return; }
     if (preflight.status === "needs-confirmation") {

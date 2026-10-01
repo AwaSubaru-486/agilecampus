@@ -1,5 +1,7 @@
 # AgileCampus 敏捷校园
 
+> **当前网页重构 / Luna 执行入口（2026-10-02）**：[人–Agent 交接主线施工工单](docs/superpowers/plans/2026-10-02-handoff-first-web-luna-workorders.md)。先做 W00–W03：将任务、交接资料与真实执行记录挂到同一页面，桌面/窄屏验收后暂停。当前仅制定工单，页面尚未按此重构；不要将下面的扩展专项当作本轮起点。
+
 > **个人负责模块 / Luna 执行入口**：[VS Code 工作台、检查点与人–Agent 接续专项工单](docs/superpowers/plans/2026-09-30-vscode-checkpoint-handoff-luna-workorders.md)。首次只做 E00–E02，完成后停下来验收；不接管全站 UI 或共享后端。
 
 **面向高校团队的人机协作现场。** 不替学生做项目，而是让团队在人与 AI 之间交接工作时，不丢背景、不丢责任、不丢证据。

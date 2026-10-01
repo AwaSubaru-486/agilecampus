@@ -19,15 +19,11 @@ function App() {
       const message = event.data;
       if (message.type === "snapshot") {
         setSnapshot(message.snapshot);
+        setDetails({});
         setSelectedTaskId((current) => message.snapshot.tasks.some((task) => task.id === current) ? current : null);
         if (!message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) selectedTaskRef.current = null;
         if (message.snapshot.state === "ready" && selectedTaskRef.current && message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) {
           const taskId = selectedTaskRef.current;
-          setDetails((current) => {
-            const next = { ...current };
-            delete next[taskId];
-            return next;
-          });
           api.postMessage({ type: "openTask", taskId });
         }
       }
@@ -106,7 +102,12 @@ function App() {
               <dt>证据要求</dt><dd>{selectedDetail.requiredEvidence.length ? selectedDetail.requiredEvidence.join("、") : "未填写"}</dd>
               {selectedDetail.completionNote ? <><dt>提交说明</dt><dd>{selectedDetail.completionNote}</dd></> : null}
             </dl>
-          </> : selected && !("error" in selected) ? null : <p className="muted">正在读取任务详情…</p>}
+          </> : null}
+          {!selectedDetail && !(selected && "error" in selected) ? (
+            snapshot?.state === "error"
+              ? <p className="error-state" role="alert">项目刷新失败，任务详情暂不可用。请重试项目刷新。</p>
+              : <p className="muted">正在读取任务详情…</p>
+          ) : null}
           <button className="text-button" onClick={() => api.postMessage({ type: "viewAgentWork", taskId: selectedTaskId })}>在网页中查看 Agent 工作</button>
         </section> : null}
       </> : null}

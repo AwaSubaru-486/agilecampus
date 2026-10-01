@@ -71,8 +71,7 @@ describe("Codex CLI process receipt parsing", () => {
     const stdin = new PassThrough();
     const stdout = new PassThrough();
     const stderr = new PassThrough();
-    let child: ChildProcessWithoutNullStreams;
-    child = Object.assign(new EventEmitter(), { stdin, stdout, stderr, pid: 1234, kill: () => { setTimeout(() => child.emit("close", 143), 0); return true; } }) as unknown as ChildProcessWithoutNullStreams;
+    const child: ChildProcessWithoutNullStreams = Object.assign(new EventEmitter(), { stdin, stdout, stderr, pid: 1234, kill: () => { setTimeout(() => child.emit("close", 143), 0); return true; } }) as unknown as ChildProcessWithoutNullStreams;
     const spawned = startCodexContextSession("/tmp/worktree", "test", { onSessionStarted() {} }, (() => child) as never, 5);
     await expect(spawned.completion).resolves.toMatchObject({ state: "failed", timedOut: true });
   });
