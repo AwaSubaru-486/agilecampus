@@ -30,7 +30,7 @@ E00–E02 验收状态：代码侧已按上一轮验收意见修正；用户随�
 
 ## E03（Entire session adapter）
 
-状态：实现和一次性仓库真实验证完成，等待用户验收；不推送。
+状态：捕获/读取实现及一次性仓库真实验证完成；精确 checkpoint 接续已因日志覆盖语义改为 fail closed，等待用户验收；不推送。
 
 验证环境：Entire CLI `0.11.3`（官方 Homebrew tap/cask，MIT）、Codex CLI `0.153.4`，执行模型为 Codex CLI 默认模型。测试在 `mktemp` 建立的临时 Git 仓库完成；仓库无 remote，未复制项目 `.env`、聊天历史或登录资料，也未在 AgileCampus 仓库启用 Entire。
 
@@ -39,20 +39,20 @@ E00–E02 验收状态：代码侧已按上一轮验收意见修正；用户随�
 - 新增 `vscode-extension/src/adapters/session-adapter.ts` 与 `entire-adapter.ts`：提供 `inspectCapabilities`、`listSessions`、`capture`、`readCheckpoint`、`prepareResume`。
 - 只接受已验证版本 Entire `0.11.3`；未知版本 fail closed。用 `execFile` 参数数组执行，不拼 shell 命令；工作目录必须是绝对路径；校验 session/checkpoint ID；剔除继承的 Git 环境变量；错误响应不回显 stderr。
 - Entire session list 默认会跨 worktree；adapter 按 `worktree_path` 与当前工作区规范路径匹配，缺少路径时 fail closed；单条 capture 二次验证归属。列表和 info 中的 `last_prompt` 不进入返回对象；测试确认其他 worktree 的会话与文件名不会泄漏。
-- `prepareResume` 只返回待确认的 executable/argv，不启动 Agent、不切分支。native resume 可能改变 checkout，未来执行前需要单独检查 worktree 和 dirty 状态。
+- `prepareResume` 在 checkpoint/session 元数据吻合时仍 fail closed：Entire 0.11.3 默认不覆盖已有本机会话日志，当前 adapter 无法证明已有日志停留在所选 checkpoint。强制恢复会覆盖本机日志，因此没有生成接续命令。
 - 临时仓库中真实完成“Codex 修改文件 → 提交形成 checkpoint → 枚举与读取 session/checkpoint transcript → Entire resume 恢复同一 session → Codex 继续修改 → 第二个 checkpoint”的流程。
 - 临时仓库的 push sessions 已关闭，status 显示 `checkpoint_push_disabled: true`；telemetry 设置关闭，命令环境也设置退出变量；没有 remote、没有 push、没有调用 `--generate`。本次没有抓包，故不把设置检查夸大为网络层零外连保证。
 - Codex 显示 `trust_review_needed`。为临时测试检查 hooks 后使用了仅限测试调用的危险信任绕过参数；普通用户的 hook 审批流程仍未手工验收。不要把该绕过参数用于产品或正常开发。
-- 验收修复：版本解析要求完整版本号，拒绝 `0.11.3-rc.*`；工作区状态解析 hooks review，未完成授权时将 capture/native resume 标记为 `unverified`；接续计划使用 `entire checkpoint resume --checkpoint <id>` 精确指定 checkpoint，并在该 session 已出现更新 checkpoint 时拒绝生成计划。Entire 官方命令可能切换到 checkpoint 所在分支的当前提交，因此执行前仍需检查工作区状态。
+- 验收修复：版本解析要求完整版本号，拒绝 `0.11.3-rc.*`；工作区状态解析 hooks review，未完成授权时将 capture/native resume 标记为 `unverified`；若同一 session 在所选 checkpoint 后继续但没有新 checkpoint，adapter 不会误把 `last_checkpoint_id` 相等当成上下文一致，而是拒绝生成原生接续计划。Entire CLI 的 `--force` 会覆盖本机已有 session 日志；E03 未实现可回滚的安全备份，因此不生成带 `--force` 的命令。
 - 原始 transcript 有可能包含完整 prompt、模型回复和工具输入输出；不写入 fixtures、不接到云端、不对其他成员展示。fixtures 使用合成 ID。
 
-能力：临时实验在 trust bypass 条件下证明了 capture/read/native resume；正常 hooks 信任流程未验证。adapter 在 hooks 有警告或更新 checkpoint 导致接续目标不明确时 fail closed；portable export、cross-machine resume、fork、cancel 均未验证。适配器的 `export` 能力也明确为 `unverified`。详见 [Entire CLI 真实验证记录](entire-spike.md) 与 [能力核实表](capabilities.md)。
+能力：临时实验在 trust bypass 条件下证明了 capture/read 和 Entire CLI 原生 session resume 命令；正常 hooks 信任流程未验证。adapter 的精确 checkpoint 原生接续目前 fail closed，因为无法安全替换本机较新的 session 日志；portable export、cross-machine resume、fork、cancel 均未验证。适配器的 `export` 能力也明确为 `unverified`。详见 [Entire CLI 真实验证记录](entire-spike.md) 与 [能力核实表](capabilities.md)。
 
 测试结果：
 
 ```text
 npm --prefix vscode-extension run check：通过
-npm --prefix vscode-extension test：27 项通过（本轮验收修复后未重跑）
+npm --prefix vscode-extension test：28 项通过
 真实 Entire CLI 临时仓库集成探针：通过（捕获、读取、resume、二次 checkpoint）
 git diff --check：通过
 ```

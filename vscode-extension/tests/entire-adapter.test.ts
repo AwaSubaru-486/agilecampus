@@ -95,20 +95,14 @@ describe("Entire CLI adapter", () => {
     expect(calls).toEqual([]);
   });
 
-  it("reads a checkpoint transcript and prepares argv without executing resume", async () => {
+  it("reads a checkpoint transcript but refuses unsafe native resume plans", async () => {
     const readyStatus = JSON.stringify({ ...statusFixture, codex_hooks: null });
     const { calls, run } = fixtureRunner({ "status --json": readyStatus });
     const adapter = new EntireAdapter(run);
     const read = await adapter.readCheckpoint(workspacePath, checkpointId);
     expect(read).toMatchObject({ status: "ok", value: { checkpointId, branch: "main", transcript: "{\"type\":\"checkpoint\"}\n" } });
     const plan = await adapter.prepareResume(workspacePath, checkpointId);
-    expect(plan).toMatchObject({ status: "ok", value: {
-      executesAgent: false,
-      commands: [
-        { executable: "entire", args: ["checkpoint", "resume", "--checkpoint", checkpointId] },
-        { executable: "codex", args: ["resume", sessionId] },
-      ],
-    } });
+    expect(plan).toMatchObject({ status: "unsupported", reason: expect.stringContaining("无法验证") });
     expect(calls.some((call) => call.args[0] === "session" && call.args[1] === "resume")).toBe(false);
 
     const newerCheckpointRunner = fixtureRunner({
@@ -116,6 +110,21 @@ describe("Entire CLI adapter", () => {
       [`session info ${sessionId} --json`]: JSON.stringify({ ...sessionFixture, last_checkpoint_id: "01H00000000000000000000002" }),
     });
     await expect(new EntireAdapter(newerCheckpointRunner.run).prepareResume(workspacePath, checkpointId)).resolves.toMatchObject({ status: "unsupported" });
+  });
+
+  it("refuses a checkpoint when the same session continued without creating a newer checkpoint", async () => {
+    const readyStatus = JSON.stringify({ ...statusFixture, codex_hooks: null });
+    const continuedSession = JSON.stringify({ ...sessionFixture, status: "active", turns: 3, last_checkpoint_id: checkpointId });
+    const { calls, run } = fixtureRunner({
+      "status --json": readyStatus,
+      [`session info ${sessionId} --json`]: continuedSession,
+    });
+
+    const result = await new EntireAdapter(run).prepareResume(workspacePath, checkpointId);
+
+    expect(result).toMatchObject({ status: "unsupported", reason: expect.stringContaining("本机已有 session 日志") });
+    expect(calls.map((call) => call.args)).not.toContainEqual(["checkpoint", "resume", "--checkpoint", checkpointId]);
+    expect(calls.map((call) => call.args)).not.toContainEqual(["codex", "resume", sessionId]);
   });
 
   it("does not expose stderr or prompt text when the CLI fails", async () => {

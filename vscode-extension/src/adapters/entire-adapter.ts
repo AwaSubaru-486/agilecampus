@@ -6,7 +6,6 @@ import type {
   CapturedSession,
   CapabilityState,
   CheckpointSummary,
-  PreparedCommand,
   ReadCheckpoint,
   ResumePlan,
   SessionAdapter,
@@ -158,23 +157,9 @@ export class EntireAdapter implements SessionAdapter {
     if (session.lastCheckpointId !== checkpointId) {
       return { status: "unsupported", reason: "此 session 已有更新的 checkpoint；当前 CLI 不保证覆盖本机较新的 session 记录，暂不生成旧断点接续命令" };
     }
-    if (!checkpoint.value.branch || !isSafeBranch(checkpoint.value.branch)) {
-      return { status: "unsupported", reason: "checkpoint 缺少可安全传递的分支名" };
-    }
-    const commands: PreparedCommand[] = [
-      { executable: "entire", args: ["checkpoint", "resume", "--checkpoint", checkpointId] },
-      { executable: "codex", args: ["resume", selectedSession.sessionId] },
-    ];
     return {
-      status: "ok",
-      value: {
-        checkpointId,
-        sessionId: selectedSession.sessionId,
-        branch: checkpoint.value.branch,
-        commands,
-        executesAgent: false,
-        warning: "此 checkpoint 命令会恢复指定会话日志，并可能切换到其分支当前提交；执行前需检查工作区改动。此计划不会执行命令或启动 Agent。",
-      },
+      status: "unsupported",
+      reason: "Entire 0.11.3 默认保留本机已有 session 日志；当前无法验证它与所选 checkpoint 的上下文一致。强制恢复会覆盖本机记录，因此暂不生成接续命令。",
     };
   }
 
@@ -327,8 +312,4 @@ function canonicalPath(value: string): string {
   const resolved = path.resolve(value);
   try { return realpathSync.native(resolved); }
   catch { return resolved; }
-}
-
-function isSafeBranch(branch: string): boolean {
-  return branch.length > 0 && branch.length <= 250 && !branch.startsWith("-") && !/[\u0000-\u0020~^:?*[\\]/.test(branch) && !branch.includes("..") && !branch.includes("@{") && !branch.endsWith("/") && !branch.endsWith(".") && !branch.includes("//");
 }
