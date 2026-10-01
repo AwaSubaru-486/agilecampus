@@ -96,7 +96,8 @@ describe("Entire CLI adapter", () => {
   });
 
   it("reads a checkpoint transcript and prepares argv without executing resume", async () => {
-    const { calls, run } = fixtureRunner();
+    const readyStatus = JSON.stringify({ ...statusFixture, codex_hooks: null });
+    const { calls, run } = fixtureRunner({ "status --json": readyStatus });
     const adapter = new EntireAdapter(run);
     const read = await adapter.readCheckpoint(workspacePath, checkpointId);
     expect(read).toMatchObject({ status: "ok", value: { checkpointId, branch: "main", transcript: "{\"type\":\"checkpoint\"}\n" } });
@@ -111,6 +112,7 @@ describe("Entire CLI adapter", () => {
     expect(calls.some((call) => call.args[0] === "session" && call.args[1] === "resume")).toBe(false);
 
     const newerCheckpointRunner = fixtureRunner({
+      "status --json": readyStatus,
       [`session info ${sessionId} --json`]: JSON.stringify({ ...sessionFixture, last_checkpoint_id: "01H00000000000000000000002" }),
     });
     await expect(new EntireAdapter(newerCheckpointRunner.run).prepareResume(workspacePath, checkpointId)).resolves.toMatchObject({ status: "unsupported" });

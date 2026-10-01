@@ -139,6 +139,11 @@ export class EntireAdapter implements SessionAdapter {
     const cwd = this.validCwd(workspacePath);
     if (!cwd) return { status: "error", reason: "工作区路径无效" };
     if (!CHECKPOINT_ID.test(checkpointId)) return { status: "error", reason: "checkpoint ID 格式无效" };
+    const capabilityResult = await this.inspectCapabilities(cwd);
+    if (capabilityResult.status !== "ok") return capabilityResult;
+    if (capabilityResult.value.capabilities.nativeResume !== "verified") {
+      return { status: "unsupported", reason: "当前工作区的 Codex hooks 尚未就绪，不能准备原生 Agent 接续" };
+    }
     const checkpoint = await this.checkpointSummary(cwd, checkpointId);
     if (checkpoint.status !== "ok") return checkpoint;
     if (checkpoint.value.sessions.length !== 1) return { status: "unsupported", reason: "仅支持包含单条 Codex session 的 checkpoint" };
