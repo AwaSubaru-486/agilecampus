@@ -10,9 +10,10 @@
 | Entire CLI 可用版本和安装 | verified for Entire `0.11.3` + Codex CLI | E03 在无 remote 的一次性 Git 仓库验证；未在 AgileCampus 仓库启用；正常 hook trust 审批 UI 尚未验收 |
 | Session capture/read | verified in isolated CLI 0.11.3 test; capture requires clean hook status | session/checkpoint transcript 可读取；hooks trust warning 时 capture 为 unverified |
 | Exact checkpoint native resume plan | unsupported by adapter | Entire CLI 的 resume 已在临时仓库运行验证；但 CLI 默认保留本机已有 session 日志，`--force` 会覆盖日志。adapter 无法证明本机上下文与所选 checkpoint 一致，也没有安全备份/回滚流程，因此不生成接续命令 |
+| Local checkpoint capture and read | implemented; awaiting Extension Host acceptance | 本机保存任务交接、Git SHA/branch/dirty 状态；存储在 VS Code globalStorage；附件单独同意并校验 SHA-256。保存和查看命令已有；尚未在 Extension Development Host 手工验收 |
 | Portable export | unverified | 本地读取 transcript 不等于已验证便携包导出；E04/E05 需做 context-only 包和跨机器验收 |
 | Cross-machine resume/fork/cancel | unverified | 暂无真实跨设备、分叉或取消实验；不得在 UI 宣称可用 |
-| 本地检查点、人工导入导出 | unimplemented | 后续 E04–E06；导出 transcript 前必须预览、脱敏并由用户确认 |
+| 手工导入导出 | unimplemented | E05；导出 transcript 前必须预览、脱敏并由用户确认 |
 | 本地 Agent 启动与执行回执 | unimplemented | 后续 E07；共享分配授权先过 E09 |
 | 独立 worktree 并行探索 | unimplemented | 后续 E08 |
 | VSIX 安装/商店发布 | unverified | 本轮不打包/发布 |

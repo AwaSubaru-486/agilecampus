@@ -2,6 +2,8 @@ import * as vscode from "vscode";
 import { registerContinueAiCommand } from "./commands/continue-ai";
 import { registerOpenWebCommand } from "./commands/open-web";
 import { registerReportBlockerCommand } from "./commands/report-blocker";
+import { registerSaveCheckpointCommand } from "./commands/save-checkpoint";
+import { registerListCheckpointsCommand } from "./commands/list-checkpoints";
 import { ProjectViewProvider } from "./views/project-view-provider";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -11,6 +13,8 @@ export function activate(context: vscode.ExtensionContext): void {
   registerOpenWebCommand(context, provider);
   registerContinueAiCommand(context, provider);
   registerReportBlockerCommand(context, provider);
+  registerSaveCheckpointCommand(context);
+  registerListCheckpointsCommand(context);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.connect", () => provider.connect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disconnect", () => provider.disconnect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.selectProject", () => provider.selectProject()));
