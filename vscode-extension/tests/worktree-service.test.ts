@@ -52,6 +52,20 @@ describe("checkpoint parallel worktrees", () => {
       .rejects.toThrow("源仓库之外");
   });
 
+  it("refuses to create a nested attempt inside another registered worktree", async () => {
+    const { root, parent, sha } = await createRepository();
+    const snapshot = await readRepositorySnapshot(root, localId);
+    const first = await createCheckpointWorktree({
+      workspacePath: root, parentDirectory: parent, localRepositoryId: localId,
+      checkpointRepositoryKey: snapshot.key, checkpointSha: sha, attemptId: attemptA, recoveryBlockers: [],
+    });
+    await expect(createCheckpointWorktree({
+      workspacePath: root, parentDirectory: first.path, localRepositoryId: localId,
+      checkpointRepositoryKey: snapshot.key, checkpointSha: sha, attemptId: attemptB, recoveryBlockers: [],
+    })).rejects.toThrow("已登记 worktree 重叠");
+    expect(git(first.path, ["status", "--porcelain"]).trim()).toBe("");
+  });
+
   it("refuses missing commits and known LFS/submodule recovery blockers without fetching", async () => {
     const { root, parent, sha } = await createRepository();
     const snapshot = await readRepositorySnapshot(root, localId);

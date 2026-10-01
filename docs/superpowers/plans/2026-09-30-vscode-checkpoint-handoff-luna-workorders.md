@@ -1,6 +1,6 @@
 # 个人负责模块：VS Code 工作台、检查点与人–Agent 接续
 
-状态：E00–E10 曾按前次检查完成；2026-10-01 复核发现 E07/E08/E10 仍有交付缺陷，当前工作树已补修 VSIX 依赖打包、跨窗口工作目录互斥、尝试状态核对、worktree 重叠检查和执行回执。补修仅通过 TypeScript/前端编译与 diff whitespace 检查；回归测试、VSIX 重新打包/独立加载、双窗口实测尚未执行，故 E07/E08/E10 暂不标记为最终验收。E09 共享后端契约待主线签收。扩展宿主 UI 仍待统一人工验收；本轮无推送、无发布。Entire 原生 session resume unsupported；E00–E02 真实 PAT 路径尚待验收。进度以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
+状态：E00–E10 曾按前次检查完成；2026-10-01 复核发现 E07/E08/E10 仍有交付缺陷，当前已补修 VSIX 依赖打包、跨窗口工作目录互斥、尝试状态核对、worktree 重叠检查和执行回执。补修后 TypeScript/前端编译通过、扩展 78 项测试通过、VSIX 重新打包并检查宿主入口不再外部依赖 `simple-git`。尚未安装 VSIX、手工双窗口实测或验证真实 Agent 中断恢复，因此 E07/E08/E10 的本地自动验收通过，运行环境验收待完成。E09 共享后端契约待主线签收。扩展宿主 UI 仍待统一人工验收；本轮无推送、无发布。Entire 原生 session resume unsupported；E00–E02 真实 PAT 路径尚待验收。进度以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
 核查基线：2026-09-30，HEAD `e6723a7`。执行时从最新 HEAD 开始，禁止重置到此提交。
 负责人：用户本人负责本模块，Luna 负责按单实现；共享后端由主线负责人协调。
 

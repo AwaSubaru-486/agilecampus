@@ -13,6 +13,10 @@ describe("Codex CLI process receipt parsing", () => {
     expect(parseCodexJsonlEvent('{"type":"thread.started","thread_id":"00000000-0000-4000-8000-000000000001"}'))
       .toEqual({ type: "session-started", sessionId: "00000000-0000-4000-8000-000000000001" });
     expect(parseCodexJsonlEvent('{"type":"turn.completed","turn_id":"turn-1"}')).toEqual({ type: "turn-completed" });
+    expect(parseCodexJsonlEvent('{"type":"item.completed","item":{"type":"agent_message","text":"完成说明"}}'))
+      .toEqual({ type: "assistant-message", text: "完成说明" });
+    expect(parseCodexJsonlEvent('{"type":"turn.completed","last_agent_message":"改动与结果摘要"}'))
+      .toEqual({ type: "turn-completed", agentSummary: "改动与结果摘要" });
     expect(parseCodexJsonlEvent('{"type":"turn.failed"}')).toEqual({ type: "turn-failed" });
   });
 

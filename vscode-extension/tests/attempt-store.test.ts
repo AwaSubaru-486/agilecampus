@@ -39,6 +39,36 @@ describe("local attempt receipts", () => {
     await expect(store.hasPotentiallyActiveAttempt(attempt.checkpointId)).resolves.toBe(false);
   });
 
+  it("shares a workdir lease across AttemptStore instances and keeps live processes running", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "agile-attempt-")); roots.push(root);
+    const workdir = path.join(root, "workspace"); await mkdir(workdir);
+    const storeA = new AttemptStore(path.join(root, "global"));
+    const storeB = new AttemptStore(path.join(root, "global"));
+    const firstId = "d87c4e10-09d1-40d6-9e55-62bc029940b9";
+    const secondId = "1ebf6bb2-2a62-4a12-aac0-3c0f39f64b0e";
+
+    const [firstAcquired, secondAcquired] = await Promise.all([
+      storeA.acquireWorkdirLease(workdir, firstId),
+      storeB.acquireWorkdirLease(path.resolve(workdir), secondId),
+    ]);
+    expect([firstAcquired, secondAcquired].filter(Boolean)).toHaveLength(1);
+    const owner = firstAcquired ? storeA : storeB;
+    const next = firstAcquired ? storeB : storeA;
+    const ownerId = firstAcquired ? firstId : secondId;
+    const nextId = firstAcquired ? secondId : firstId;
+    await owner.releaseWorkdirLease(workdir, ownerId);
+    await expect(next.acquireWorkdirLease(workdir, nextId)).resolves.toBe(true);
+    await next.releaseWorkdirLease(workdir, nextId);
+
+    const live = await storeA.create({
+      checkpointId: "00000000-0000-4000-8000-000000000001", projectId: "project-a", taskId: "task-a",
+      attemptKind: "single", mode: "context-only", provider: "codex-cli", providerSessionId: null, state: "running",
+      workdir, branch: "main", baseSha: "a".repeat(40), parentAttemptId: null, pid: process.pid, exitCode: null, timedOut: false,
+    });
+    await storeB.markInterruptedUnknown();
+    await expect(storeB.read(live.id)).resolves.toMatchObject({ state: "running" });
+  });
+
   it("keeps pre-E08 E07 attempt records readable without branch metadata", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "agile-attempt-")); roots.push(root);
     const store = new AttemptStore(root);

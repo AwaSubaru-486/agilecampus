@@ -133,7 +133,7 @@ async function assertDisjointFromRegisteredWorktrees(sourceRoot: string, target:
     try {
       const registeredRoot = await realpath(worktreePath);
       if (isWithin(registeredRoot, target) || isWithin(target, registeredRoot)) {
-        throw new WorktreeError(`并行尝试目录与已登记 worktree 重叠（${registeredRoot}）；请选择仓库以外的独立父目录`);
+        throw new WorktreeError(`worktree 必须位于源仓库之外且不能与已登记 worktree 重叠（${registeredRoot}）；请选择仓库以外的独立父目录`);
       }
     } catch (error) {
       if (error instanceof WorktreeError) throw error;
