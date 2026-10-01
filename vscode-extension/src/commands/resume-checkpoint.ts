@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import * as path from "node:path";
+import type { CodexProcess } from "../adapters/process-runner";
 import { AttemptStore, isRunningProcess, type LocalAttempt } from "../attempts/store";
 import { inspectCodexCliVersion, startCodexContextSession } from "../adapters/process-runner";
 import { CheckpointStore } from "../checkpoints/store";
@@ -39,6 +40,8 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
   let launchKey: string | undefined;
   let persistentLease = false;
   let leaseAttemptId: string | undefined;
+  let agentProcess: CodexProcess | undefined;
+  let leaseCompromised = false;
   try {
     await attemptStore.markInterruptedUnknown(activeAttemptIds);
     const records = await checkpointStore.list(binding.serverOrigin, binding.projectId);
@@ -156,7 +159,11 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       void vscode.window.showWarningMessage("此工作目录已有未结束的 Agent 尝试；本次没有启动。");
       return;
     }
-    persistentLease = await attemptStore.acquireWorkdirLease(workdir, attemptId);
+    persistentLease = await attemptStore.acquireWorkdirLease(workdir, attemptId, (error) => {
+      leaseCompromised = true;
+      agentProcess?.terminate();
+      output?.appendLine(`Attempt ${attemptId}: workdir lock was compromised; stopping the Agent. ${error.message}`);
+    });
     if (!persistentLease) {
       void vscode.window.showWarningMessage("此工作目录已被另一个 VS Code 窗口或 Agent 占用；本次没有启动。");
       return;
@@ -168,6 +175,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       await showBlockers(lastPlan.status === "blocked" ? lastPlan.blockers : ["确认对话期间工作状态发生变化；本次未启动，请重新预检。"]);
       return;
     }
+    if (leaseCompromised) throw new Error("Agent 工作目录锁已失效；本次未启动，请重新检查。");
 
     const attempt = parallelAttempt ?? await attemptStore.create({
       checkpointId: checkpoint.id, projectId: checkpoint.projectId, taskId: checkpoint.taskId,
@@ -179,7 +187,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     activeAttemptIds.add(attempt.id);
     output?.show(true);
     output?.appendLine(`Attempt ${attempt.id}: launching context-only Codex CLI.`);
-    let process: ReturnType<typeof startCodexContextSession>;
+    let process: CodexProcess;
     try {
       process = startCodexContextSession(workdir, prompt, {
         onSessionStarted: async (sessionId) => {
@@ -187,7 +195,9 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
           output?.appendLine(`Attempt ${attempt.id}: Codex session ${sessionId} started.`);
         },
       });
+      agentProcess = process;
       processStarted = true;
+      if (leaseCompromised) process.terminate();
       try {
         await attemptStore.updateWorkdirLeaseProcess(workdir, attempt.id, process.pid);
       } catch (error) {

@@ -2,9 +2,9 @@
 
 ## 2026-10-01 代码复核补修
 
-复核结论：E07/E08/E10 的代码验收暂缓。此前审查发现 VSIX 未带入 `simple-git`、工作目录锁只在单个 Extension Host 生效、多窗口会误标活动进程、worktree 允许嵌套、Attempt 缺少完成回执等问题。本工作树已实现补修：宿主入口改为 esbuild 打包；按真实 workdir 规范路径使用本机文件租约并记录 Extension Host/Agent PID；只在 Agent PID 不存在时转 `unknown`，增加人工确认结束入口；拒绝与已登记 worktree 路径重叠；保存 Agent 最终消息、完成时 HEAD/dirty 状态，并允许用户手工登记测试命令和结果。
+复核结论：E07/E08/E10 的代码验收暂缓。此前审查发现 VSIX 未带入 `simple-git`、工作目录锁只在单个 Extension Host 生效、多窗口会误标活动进程、worktree 允许嵌套、Attempt 缺少完成回执等问题。本工作树已实现补修：宿主入口改为 esbuild 打包；工作目录租约与 Attempt 更新使用跨进程锁；旧租约并发回收由锁库处理，锁失效会终止 Agent；只在 Agent PID 不存在时转 `unknown`，增加人工确认结束入口；拒绝与已登记 worktree 路径重叠；保存 Agent 最终消息、完成时 HEAD/dirty 状态，并允许用户手工登记测试命令和结果。
 
-本轮核验：`npm --prefix vscode-extension run check` 通过；扩展 Vitest 78 项全通过（覆盖跨 Store 工作目录锁、存活 PID 状态保留、worktree 禁止嵌套和 Agent 回执解析）；`git diff --check` 通过。重新打包 VSIX 成功（9 个文件，286.5 KB）；检查包内宿主入口只保留 `require("vscode")`，不再要求 `simple-git`。尚未安装到 VS Code、手工双窗口实测或验证真实 Agent 中断恢复；因此这些运行环境仍待人工验收。未推送、未发布。已有其他负责人未提交的网页端改动保持原样。
+本轮核验：`npm --prefix vscode-extension run check` 通过；扩展 Vitest 81 项全通过（包括两个独立进程争抢过期工作目录锁、两个独立进程同时更新同一执行回执）；`git diff --check` 通过。重新打包 VSIX 成功（9 个文件，296.76 KB）；隔离加载检查确认宿主入口只依赖 VS Code API，不需要外置 npm 运行依赖。尚未安装到 VS Code、手工双窗口实测或验证真实 Agent 中断恢复；因此这些运行环境仍待人工验收。未推送、未发布。已有其他负责人未提交的网页端改动保持原样。
 
 ## E00–E02（第一轮）
 
