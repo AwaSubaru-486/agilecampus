@@ -437,3 +437,38 @@ git status --short
 5. **N05：跨人闭环验收（双方）。** 成员 A 留下明确卡点并分享；成员 B 取得代码与选定会话材料后，能够说明先前尝试及下一步，并产生可追溯结果；两人另从同一检查点分别探索方案。覆盖断网重试、重复上传、材料损坏、缺失 SHA 和成员权限撤销。原始 session 文件、上下文新会话、原生恢复三种状态分别展示、分别验收。
 
 代码材料约束：当前检查点只记录 Git HEAD，未提交和未跟踪改动被排除。跨人演示先使用明确提交且双方可取得的基线；后续若加入补丁包，应另立工单，预览所选改动、校验基线并在独立 worktree 中应用，不能把会话上传误当作代码已经传输。
+
+## 12. 深挖方向与 worktree 协作建议 待用户选择
+
+本节是讨论候选，不是全部开工授权。依据用户提供的《AgileCampus.docx》，产品仍服务高校代码团队的计划、执行、沟通、验收和沉淀。差异化假设是减少开发交接中的重复解释、并行改代码的互相影响和成果验收的信息缺失；需通过真实用户任务验证，不宣称其他协作产品完全没有这些能力。
+
+| 编号 | 候选方向 | 能让用户做什么 | 分工建议 |
+| --- | --- | --- | --- |
+| D1 | 会话检查点 | 固定会话截止位置、已完成/失败尝试、代码版本，重启后找到原来的工作；原生 resume 与上下文新会话分开标记 | 用户 |
+| D2 | 跨人交接 | 选择、预览会话材料并私有传递，队友确认收到后接续；代码通过 Git 取得，未提交改动另行明确处理 | 用户与后端 |
+| D3 | 项目记忆检索 | 按当前任务取回相关历史片段和放弃方案，摘要附原始记录出处，支持纠错和失效标记 | 用户 |
+| D4 | 会话分叉 | 从同一历史检查点探索新方案，记录父子关系，不修改原会话；采纳结论需人工确认 | 用户 |
+| D5 | 并行 Agent 尝试 | 同一基线开两条独立 session/分支/worktree，同时做不同方案 | worktree 负责人提供环境，用户提供 session/Attempt 关联 |
+| D6 | 开发与验证分工 | 开发 Agent 产生改动，验证 Agent 针对冻结的结果检查；审阅建议单独提交，避免两个 Agent 同写一个目录 | 双方 |
+| D7 | 提前发现协作冲突 | 根据实际改动提示同文件/接口重叠和基线过期，并说明哪些只是风险推断 | worktree 负责人 |
+| D8 | AI 辅助成果集成 | 在专用集成 worktree 中试合并，Agent 结合双方需求、差异和已记录决策提出修复，提交人审 | 双方 |
+| D9 | 并行方案对比 | 按共同验收条件对比真实测试结果、改动规模、耗时及实际可取得的调用成本，不靠 AI 自评分选优 | 双方 |
+| D10 | 开发证据回到敏捷任务 | 关联任务、检查点、Attempt、代码差异、测试和 PR；生成带出处的组会/复盘材料，由负责人验收任务 | 用户与后端 |
+
+建议先选 D1 + D2 + D5，D10 只做必要关联，再考虑 D3 或 D8。用两名学生接续同一个卡点、并行尝试两种方案的完整演示衡量成果：接手所需解释次数/耗时、是否重做已失败方案、材料取得率、代码互不覆盖、人工验收结果。不要预先编造改进百分比。
+
+### 给 worktree 负责人的对接说明
+
+仓库已有 `vscode-extension/src/git/worktree-service.ts`、`src/commands/fork-attempt.ts` 与 `src/commands/compare-attempts.ts`，先复用其基线、路径检查和真实 diff 能力。Git worktree 提供同一仓库的多个工作目录，不保存 Agent 记忆，也不隔离数据库、端口、依赖缓存或操作系统权限。[Git worktree 文档](https://git-scm.com/docs/git-worktree)
+
+双方以 Attempt 为接口：用户侧提供 `taskId/checkpointId/attemptId/parentAttemptId` 和冻结材料的引用/hash；worktree 侧提供实际核验的 `repositoryKey/baseSha/branch/workdir`；执行启动后记录真实 `providerSessionId`，结束时回传 HEAD、dirty、diff、实际测试结果与剩余问题。`workdir` 只在本机使用，服务端保存 Attempt 等逻辑 ID。原生 fork 是否支持必须由工具适配器确认；不支持时以新 session 装载已选上下文。
+
+worktree 侧重点：每个运行中的 Attempt 对应独立可写目录，Agent 的 cwd 必须指向该目录；同目录启动互斥。为并行服务安排独立端口、测试数据和必要环境配置，依赖安装/脚本执行保持可见且有明确授权；限制并发数量。失败尝试保留证据，删除目录前检查活动进程和未提交成果，由人确认。用户侧重点：保存和分享的会话边界、原文来源、任务与代码基线绑定、启动材料预览、真实 session 回执与交接记录。
+
+### 合并任务与合并代码的区别
+
+多人拆分不同子任务时，可能需要集成双方成果；多人尝试同一需求的替代方案时，往往先选择一个方案，不能把所有实现强行合并。即便 Git 合并没有文本冲突，也可能存在接口或业务行为冲突；代码已合并不代表任务已验收。
+
+建议后续 D8 流程：冻结来源提交 SHA 和目标 SHA → 创建独立集成 worktree → Git 试合并 → AI 读取冲突、双方目标与所选决策记录并提出修复 → 运行实际集成检查 → 生成修复差异和解释 → 人审 PR → 按仓库规则合并 → 平台单独验收。目标分支更新后重新验证组合结果。AI 可以尝试修复，但不能保证修复正确；方案取舍和需求矛盾应交给人。
+
+GitHub auto-merge 是在所需 review/checks 通过后自动合并；merge queue 会验证与最新基线及排队变更组合后的结果，遇到冲突或检查失败会移出队列，不会替你用 AI 修业务。merge queue 有仓库归属与套餐限制，不作为本项目 V1 必需依赖。[Auto-merge 文档](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/automatically-merging-a-pull-request)；[Merge queue 文档](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
