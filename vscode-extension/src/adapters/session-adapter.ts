@@ -9,6 +9,7 @@ export type SessionCapabilities = {
   cliVersion: string;
   workspaceEnabled: boolean;
   codexHooksConfigured: boolean;
+  codexHooksReady: boolean;
   automaticPushDisabled: boolean | null;
   capabilities: {
     capture: CapabilityState;

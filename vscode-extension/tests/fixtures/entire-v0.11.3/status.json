@@ -2,5 +2,9 @@
   "enabled": true,
   "agents": ["Codex"],
   "active_sessions": [],
+  "codex_hooks": {
+    "state": "trust_review_needed",
+    "missing_approvals": ["session_start", "session_end"]
+  },
   "checkpoint_push_disabled": true
 }

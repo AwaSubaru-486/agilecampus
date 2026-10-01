@@ -25,27 +25,8 @@ type CommandRunner = (args: readonly string[], cwd: string) => Promise<CommandOu
 type EntireStatus = {
   enabled: boolean;
   agents: string[];
+  codex_hooks_state: string | null;
   checkpoint_push_disabled?: boolean;
-};
-type EntireSession = {
-  session_id: string;
-  agent: string;
-  model?: string;
-  status: string;
-  branch?: string;
-  started_at?: string;
-  ended_at?: string;
-  turns?: number;
-  last_checkpoint_id?: string;
-  files_touched?: string[];
-};
-type EntireCheckpoint = {
-  checkpoint_id: string;
-  branch?: string;
-  message?: string;
-  date?: string;
-  sessions: Array<{ session_id: string; agent: string; model?: string }>;
-  files_touched?: string[];
 };
 
 export class EntireAdapter implements SessionAdapter {
@@ -66,23 +47,23 @@ export class EntireAdapter implements SessionAdapter {
     if (!status) return { status: "error", reason: "Entire 返回了无法识别的工作区状态" };
 
     const codexHooksConfigured = status.agents.some((agent) => agent.toLowerCase() === "codex");
-    const ready = status.enabled && codexHooksConfigured;
-    const capability = (ready ? "verified" : "unverified") as CapabilityState;
+    const codexHooksReady = status.codex_hooks_state === null;
+    const captureReady = status.enabled && codexHooksConfigured && codexHooksReady;
+    const captureCapability: CapabilityState = captureReady ? "verified" : "unverified";
     const capabilities: SessionCapabilities["capabilities"] = {
-      capture: capability,
-      read: capability,
+      capture: captureCapability,
+      read: "verified",
       export: "unverified",
-      nativeResume: capability,
+      nativeResume: captureCapability,
       crossMachineResume: "unverified",
       fork: "unverified",
       cancel: "unverified",
     };
-    const notes = ready
-      ? [
-          "Codex session hooks are configured; normal use still requires the user to approve the hooks in Codex.",
-          "Local transcript reading was verified; portable checkpoint export has not been verified.",
-        ]
-      : ["Enable Entire for Codex only in a disposable repository before capture testing."];
+    const notes = ["Local transcript reading was verified; portable checkpoint export has not been verified."];
+    if (!status.enabled) notes.push("Entire is not enabled in this workspace.");
+    if (!codexHooksConfigured) notes.push("Codex hooks are not configured in this workspace.");
+    if (status.codex_hooks_state === "trust_review_needed") notes.push("Codex hooks need user approval before session capture can be relied on.");
+    else if (status.codex_hooks_state !== null) notes.push("Entire reports a Codex hooks issue; resolve it before session capture can be relied on.");
     if (status.checkpoint_push_disabled === false) notes.push("Entire may automatically push checkpoint data; disable push_sessions before local-only use.");
     if (status.checkpoint_push_disabled === undefined) notes.push("The CLI did not report checkpoint push state; treat it as unverified.");
     return {
@@ -92,6 +73,7 @@ export class EntireAdapter implements SessionAdapter {
         cliVersion: version.value,
         workspaceEnabled: status.enabled,
         codexHooksConfigured,
+        codexHooksReady,
         automaticPushDisabled: typeof status.checkpoint_push_disabled === "boolean" ? status.checkpoint_push_disabled : null,
         capabilities,
         notes,
@@ -159,14 +141,24 @@ export class EntireAdapter implements SessionAdapter {
     if (!CHECKPOINT_ID.test(checkpointId)) return { status: "error", reason: "checkpoint ID 格式无效" };
     const checkpoint = await this.checkpointSummary(cwd, checkpointId);
     if (checkpoint.status !== "ok") return checkpoint;
-    const selectedSession = checkpoint.value.sessions.at(-1);
-    if (!selectedSession) return { status: "unsupported", reason: "checkpoint 不包含可接续的 session" };
+    if (checkpoint.value.sessions.length !== 1) return { status: "unsupported", reason: "仅支持包含单条 Codex session 的 checkpoint" };
+    const selectedSession = checkpoint.value.sessions[0];
+    const sessionMetadataOutput = await this.command(["session", "info", selectedSession.sessionId, "--json"], cwd);
+    if (sessionMetadataOutput.status !== "ok") return sessionMetadataOutput;
+    const sessionMetadataValue = parseJson(sessionMetadataOutput.value.stdout);
+    const session = sessionMetadataValue ? parseSession(sessionMetadataValue) : null;
+    if (!session || !isRecord(sessionMetadataValue) || !matchesWorkspace(sessionMetadataValue.worktree_path, cwd)) {
+      return { status: "unsupported", reason: "无法确认 checkpoint session 属于当前工作区" };
+    }
+    if (session.lastCheckpointId !== checkpointId) {
+      return { status: "unsupported", reason: "此 session 已有更新的 checkpoint；当前 CLI 不保证覆盖本机较新的 session 记录，暂不生成旧断点接续命令" };
+    }
     if (!checkpoint.value.branch || !isSafeBranch(checkpoint.value.branch)) {
       return { status: "unsupported", reason: "checkpoint 缺少可安全传递的分支名" };
     }
     const commands: PreparedCommand[] = [
-      { executable: "entire", args: ["session", "resume", checkpoint.value.branch] },
-      { executable: "codex", args: ["exec", "resume", selectedSession.sessionId] },
+      { executable: "entire", args: ["checkpoint", "resume", "--checkpoint", checkpointId] },
+      { executable: "codex", args: ["resume", selectedSession.sessionId] },
     ];
     return {
       status: "ok",
@@ -176,7 +168,7 @@ export class EntireAdapter implements SessionAdapter {
         branch: checkpoint.value.branch,
         commands,
         executesAgent: false,
-        warning: "执行 Entire resume 前必须重新检查分支和工作区改动；此计划不会切换分支或启动 Agent。",
+        warning: "此 checkpoint 命令会恢复指定会话日志，并可能切换到其分支当前提交；执行前需检查工作区改动。此计划不会执行命令或启动 Agent。",
       },
     };
   }
@@ -193,7 +185,8 @@ export class EntireAdapter implements SessionAdapter {
   private async entireVersion(cwd: string): Promise<AdapterResult<string>> {
     const output = await this.command(["version"], cwd);
     if (output.status !== "ok") return output;
-    const match = output.value.stdout.match(/\bEntire CLI (\d+\.\d+\.\d+)\b/);
+    const firstLine = output.value.stdout.split(/\r?\n/, 1)[0]?.trim() ?? "";
+    const match = /^Entire CLI (\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/.exec(firstLine);
     return match ? { status: "ok", value: match[1] } : { status: "error", reason: "无法识别 Entire CLI 版本" };
   }
 
@@ -286,9 +279,15 @@ function parseCheckpoint(value: unknown): CheckpointSummary | null {
 function parseEntireStatus(value: unknown): EntireStatus | null {
   if (!isRecord(value) || typeof value.enabled !== "boolean" || !Array.isArray(value.agents)) return null;
   if (!value.agents.every((agent) => typeof agent === "string")) return null;
+  let codexHooksState: string | null = null;
+  if (value.codex_hooks !== undefined && value.codex_hooks !== null) {
+    if (!isRecord(value.codex_hooks) || typeof value.codex_hooks.state !== "string") return null;
+    codexHooksState = value.codex_hooks.state;
+  }
   return {
     enabled: value.enabled,
     agents: value.agents,
+    codex_hooks_state: codexHooksState,
     ...(typeof value.checkpoint_push_disabled === "boolean" ? { checkpoint_push_disabled: value.checkpoint_push_disabled } : {}),
   };
 }

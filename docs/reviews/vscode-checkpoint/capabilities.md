@@ -8,7 +8,7 @@
 | Webview host 权限隔离 | implemented; activation verified | Extension Host 日志确认扩展激活；PAT 留在 SecretStorage，按服务和工作区隔离；host 只向 Webview post task DTO；runtime message 白名单 |
 | VS Code workspace/Git branch 读取 | implemented; API shape regression tested | 使用内置 Git API 的 `RepositoryState.remotes`；无 Git 时仍可查看任务；需用户打开项目视图后确认显示 |
 | Entire CLI 可用版本和安装 | verified for Entire `0.11.3` + Codex CLI | E03 在无 remote 的一次性 Git 仓库验证；未在 AgileCampus 仓库启用；正常 hook trust 审批 UI 尚未验收 |
-| Session capture/read/native resume | verified on one local Codex CLI session | E03 真实 session 捕获、读取 transcript、临时分支原生 resume 后继续修改并生成第二个 checkpoint；原始会话材料未入库 |
+| Session capture/read/native resume | read verified; capture/resume require clean hook status | E03 临时 session 完成捕获与接续；当前 hooks trust warning 时 adapter 明确标记 capture/nativeResume 为 unverified |
 | Portable export | unverified | 本地读取 transcript 不等于已验证便携包导出；E04/E05 需做 context-only 包和跨机器验收 |
 | Cross-machine resume/fork/cancel | unverified | 暂无真实跨设备、分叉或取消实验；不得在 UI 宣称可用 |
 | 本地检查点、人工导入导出 | unimplemented | 后续 E04–E06；导出 transcript 前必须预览、脱敏并由用户确认 |

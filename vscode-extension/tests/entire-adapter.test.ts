@@ -30,19 +30,19 @@ function fixtureRunner(overrides: Record<string, string> = {}) {
 }
 
 describe("Entire CLI adapter", () => {
-  it("reports only capabilities verified against the pinned CLI and workspace status", async () => {
+  it("keeps capture unavailable until Codex hook trust review is complete", async () => {
     const { calls, run } = fixtureRunner();
     const result = await new EntireAdapter(run).inspectCapabilities(workspacePath);
     expect(result).toMatchObject({ status: "ok", value: {
       cliVersion: "0.11.3", workspaceEnabled: true, codexHooksConfigured: true,
-      automaticPushDisabled: true,
-      capabilities: { capture: "verified", read: "verified", export: "unverified", nativeResume: "verified", crossMachineResume: "unverified", fork: "unverified", cancel: "unverified" },
+      codexHooksReady: false, automaticPushDisabled: true,
+      capabilities: { capture: "unverified", read: "verified", export: "unverified", nativeResume: "unverified", crossMachineResume: "unverified", fork: "unverified", cancel: "unverified" },
     } });
     expect(calls.every((call) => call.cwd === workspacePath)).toBe(true);
   });
 
   it("fails closed on an Entire version without a verified output contract", async () => {
-    const { calls, run } = fixtureRunner({ version: "Entire CLI 0.12.0\n" });
+    const { calls, run } = fixtureRunner({ version: "Entire CLI 0.11.3-rc.99\n" });
     await expect(new EntireAdapter(run).listSessions(workspacePath)).resolves.toMatchObject({ status: "unsupported" });
     expect(calls.map((call) => call.args)).toEqual([["version"]]);
   });
@@ -104,11 +104,16 @@ describe("Entire CLI adapter", () => {
     expect(plan).toMatchObject({ status: "ok", value: {
       executesAgent: false,
       commands: [
-        { executable: "entire", args: ["session", "resume", "main"] },
-        { executable: "codex", args: ["exec", "resume", sessionId] },
+        { executable: "entire", args: ["checkpoint", "resume", "--checkpoint", checkpointId] },
+        { executable: "codex", args: ["resume", sessionId] },
       ],
     } });
     expect(calls.some((call) => call.args[0] === "session" && call.args[1] === "resume")).toBe(false);
+
+    const newerCheckpointRunner = fixtureRunner({
+      [`session info ${sessionId} --json`]: JSON.stringify({ ...sessionFixture, last_checkpoint_id: "01H00000000000000000000002" }),
+    });
+    await expect(new EntireAdapter(newerCheckpointRunner.run).prepareResume(workspacePath, checkpointId)).resolves.toMatchObject({ status: "unsupported" });
   });
 
   it("does not expose stderr or prompt text when the CLI fails", async () => {

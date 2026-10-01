@@ -43,15 +43,16 @@ E00–E02 验收状态：代码侧已按上一轮验收意见修正；用户随�
 - 临时仓库中真实完成“Codex 修改文件 → 提交形成 checkpoint → 枚举与读取 session/checkpoint transcript → Entire resume 恢复同一 session → Codex 继续修改 → 第二个 checkpoint”的流程。
 - 临时仓库的 push sessions 已关闭，status 显示 `checkpoint_push_disabled: true`；telemetry 设置关闭，命令环境也设置退出变量；没有 remote、没有 push、没有调用 `--generate`。本次没有抓包，故不把设置检查夸大为网络层零外连保证。
 - Codex 显示 `trust_review_needed`。为临时测试检查 hooks 后使用了仅限测试调用的危险信任绕过参数；普通用户的 hook 审批流程仍未手工验收。不要把该绕过参数用于产品或正常开发。
+- 验收修复：版本解析要求完整版本号，拒绝 `0.11.3-rc.*`；工作区状态解析 hooks review，未完成授权时将 capture/native resume 标记为 `unverified`；接续计划使用 `entire checkpoint resume --checkpoint <id>` 精确指定 checkpoint，并在该 session 已出现更新 checkpoint 时拒绝生成计划。Entire 官方命令可能切换到 checkpoint 所在分支的当前提交，因此执行前仍需检查工作区状态。
 - 原始 transcript 有可能包含完整 prompt、模型回复和工具输入输出；不写入 fixtures、不接到云端、不对其他成员展示。fixtures 使用合成 ID。
 
-能力：capture/read/native resume 在当前组合下已验证；portable export、cross-machine resume、fork、cancel 均未验证。适配器的 `export` 能力也明确为 `unverified`。详见 [Entire CLI 真实验证记录](entire-spike.md) 与 [能力核实表](capabilities.md)。
+能力：临时实验在 trust bypass 条件下证明了 capture/read/native resume；正常 hooks 信任流程未验证。adapter 在 hooks 有警告或更新 checkpoint 导致接续目标不明确时 fail closed；portable export、cross-machine resume、fork、cancel 均未验证。适配器的 `export` 能力也明确为 `unverified`。详见 [Entire CLI 真实验证记录](entire-spike.md) 与 [能力核实表](capabilities.md)。
 
 测试结果：
 
 ```text
 npm --prefix vscode-extension run check：通过
-npm --prefix vscode-extension test：27 项通过
+npm --prefix vscode-extension test：27 项通过（本轮验收修复后未重跑）
 真实 Entire CLI 临时仓库集成探针：通过（捕获、读取、resume、二次 checkpoint）
 git diff --check：通过
 ```
