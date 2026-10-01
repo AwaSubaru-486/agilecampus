@@ -8,6 +8,10 @@
 
 本次回归：`npm --prefix vscode-extension run check` 通过；Vitest 13 个测试文件、87 项全通过，其中新增三进程争抢过期租约、旧目录/sidecar/reclaim 孤儿迁移、Attempt 更新锁回收、Agent PID 仍存活时拒绝接管，以及验证崩溃在 owner 临时文件写入阶段可安全恢复。`git diff --check` 通过。VSIX `/tmp/agilecampus-vscode-lock-cas.vsix` 打包成功（9 个文件，291.01 KB），未安装、未发布。双窗口真实宿主和 Agent 崩溃后跨宿主恢复仍待手工验收。此次没有改动网页/后端，也未推送。
 
+## 2026-10-01 锁验收问题修复
+
+后续故障注入发现两项问题并已修正：工作目录 owner 标记写入失败时，只有在能证明并安全清理本次创建的锁目录后才释放 Git 租约；清理无法确认时保留租约，待 Extension Host 退出后由旧租约恢复逻辑处理。Git 锁存储现在显式创建 SHA-1 bare 仓库、清除 `GIT_DEFAULT_HASH`，并按已存在仓库实际对象格式识别 SHA-1/SHA-256 与校验 OID 长度，因此可处理早前环境变量导致创建的 SHA-256 锁库。`npm run check` 与 `git diff --check` 通过；本次未新增或运行自动测试。双窗口宿主与真实 Agent 中断接续仍需手工验收。
+
 ## 2026-10-01 代码复核补修
 
 复核结论：E07/E08/E10 的代码验收暂缓。此前审查发现 VSIX 未带入 `simple-git`、工作目录锁只在单个 Extension Host 生效、多窗口会误标活动进程、worktree 允许嵌套、Attempt 缺少完成回执等问题。本工作树已实现补修：宿主入口改为 esbuild 打包；工作目录租约与 Attempt 更新使用跨进程锁；锁失效会终止 Agent；只在 Agent PID 不存在时转 `unknown`，增加人工确认结束入口；拒绝与已登记 worktree 路径重叠；保存 Agent 最终消息、完成时 HEAD/dirty 状态，并允许用户手工登记测试命令和结果。锁实现的第二轮竞态修复见本文件顶部。

@@ -199,8 +199,15 @@ export class AttemptStore {
       activeWorkdirLeases.set(key, active);
       return true;
     } catch (error) {
-      if (sentinelCreated) await this.removeLeaseSentinel(leasePath, lock.record.token).catch(() => undefined);
-      await lock.release().catch(() => undefined);
+      let rollbackComplete = true;
+      if (sentinelCreated) {
+        try { rollbackComplete = await this.rollbackFailedLease(leasePath, canonicalWorkdir, lock); }
+        catch { rollbackComplete = false; }
+      }
+      if (rollbackComplete) await lock.release().catch(() => undefined);
+      else {
+        throw new Error("工作目录锁写入失败，且残留目录无法安全清理；本地锁已保留以阻止并发启动。关闭 VS Code 后再重试。", { cause: error });
+      }
       throw error;
     }
   }
@@ -395,6 +402,29 @@ export class AttemptStore {
     await rm(this.leaseOwnerPath(leasePath), { force: true });
     await rmdir(leasePath);
     await rm(this.legacySidecarPath(leasePath), { force: true });
+  }
+
+  private async rollbackFailedLease(leasePath: string, workdir: string, lock: CoordinationLock): Promise<boolean> {
+    const current = await this.coordination.readLock(this.workdirLockKey(workdir));
+    if (current?.token !== lock.record.token) return false;
+
+    const legacy = await this.readLegacyLease(leasePath);
+    if (!legacy.present) return true;
+    if (legacy.owner) {
+      if (legacy.owner.token !== lock.record.token) return false;
+      await this.removeLeaseSentinel(leasePath, lock.record.token);
+      return true;
+    }
+
+    let entries: string[];
+    try { entries = await readdir(leasePath); }
+    catch (error) { if (isCode(error, "ENOENT")) return true; throw error; }
+    const incompleteOwners = entries.filter((entry) => /^owner\.json\.tmp-[0-9a-f-]{36}$/i.test(entry));
+    if (entries.length !== incompleteOwners.length) return false;
+    for (const entry of incompleteOwners) await rm(path.join(leasePath, entry), { force: true });
+    try { await rmdir(leasePath); }
+    catch (error) { if (!isCode(error, "ENOENT")) throw error; }
+    return true;
   }
 
   private async writeLease(directory: string, owner: WorkdirLease): Promise<void> {

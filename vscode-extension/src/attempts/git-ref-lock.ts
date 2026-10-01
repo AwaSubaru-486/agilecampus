@@ -3,7 +3,6 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 
-const ZERO_OID = "0".repeat(40);
 const LOCK_NAMESPACE = "refs/agilecampus/locks";
 const initialized = new Map<string, Promise<void>>();
 
@@ -28,6 +27,7 @@ export class GitRefLockStore {
   private readonly repository: string;
   private readonly emptyTemplate: string;
   private readonly emptyGlobalConfig: string;
+  private objectIdLength?: 40 | 64;
 
   constructor(private readonly root: string) {
     this.repository = path.join(root, "coordination.git");
@@ -65,7 +65,7 @@ export class GitRefLockStore {
       };
       const oid = await this.writeBlob(record);
       try {
-        await this.git(["update-ref", ref, oid, ZERO_OID]);
+        await this.git(["update-ref", ref, oid, "0".repeat(this.objectIdLength!)]);
         return this.createHandle(ref, record, recovered);
       } catch (error) {
         // Concurrent creators contend on Git's ref lock. If a ref now exists,
@@ -131,7 +131,9 @@ export class GitRefLockStore {
       if (isExitCode(error, 1)) return undefined;
       throw error;
     }
-    if (!/^[0-9a-f]{40}$/i.test(oid)) throw new Error("本地协同锁引用格式无效；为避免并发写入，已停止。");
+    if (oid.length !== this.objectIdLength || !/^[0-9a-f]+$/i.test(oid)) {
+      throw new Error("本地协同锁引用格式无效；为避免并发写入，已停止。");
+    }
 
     let raw: string;
     try { raw = await this.git(["cat-file", "blob", oid]); }
@@ -146,7 +148,9 @@ export class GitRefLockStore {
   private async writeBlob(record: CoordinationLockRecord): Promise<string> {
     const output = await this.git(["hash-object", "-w", "--stdin"], JSON.stringify(record));
     const oid = output.trim();
-    if (!/^[0-9a-f]{40}$/i.test(oid)) throw new Error("Git 未返回有效的本地协同锁对象 ID");
+    if (oid.length !== this.objectIdLength || !/^[0-9a-f]+$/i.test(oid)) {
+      throw new Error("Git 未返回符合本地仓库格式的协同锁对象 ID");
+    }
     return oid;
   }
 
@@ -158,6 +162,16 @@ export class GitRefLockStore {
       void task.catch(() => { if (initialized.get(this.repository) === task) initialized.delete(this.repository); });
     }
     await task;
+    if (this.objectIdLength === undefined) {
+      let objectFormat: string;
+      try { objectFormat = (await this.git(["rev-parse", "--show-object-format"])).trim(); }
+      catch (error) {
+        throw new Error("无法识别本地协同锁仓库的 Git 对象格式；为避免损坏锁记录，已停止。", { cause: error });
+      }
+      if (objectFormat === "sha1") this.objectIdLength = 40;
+      else if (objectFormat === "sha256") this.objectIdLength = 64;
+      else throw new Error(`不支持本地协同锁仓库的 Git 对象格式：${objectFormat || "unknown"}`);
+    }
   }
 
   private async initializeRepository(): Promise<void> {
@@ -173,7 +187,7 @@ export class GitRefLockStore {
       } catch (error) {
         if (isCode(error, "ENOENT")) throw new Error("Attempt 跨窗口互斥需要本机已安装 Git 命令行工具。", { cause: error });
       }
-      try { await this.git(["init", "--bare", "--quiet", `--template=${this.emptyTemplate}`, this.repository]); }
+      try { await this.git(["init", "--bare", "--quiet", "--object-format=sha1", `--template=${this.emptyTemplate}`, this.repository]); }
       catch (error) {
         if (isCode(error, "ENOENT")) throw new Error("Attempt 跨窗口互斥需要本机已安装 Git 命令行工具。", { cause: error });
         lastError = error;
@@ -192,6 +206,7 @@ export class GitRefLockStore {
     delete env.GIT_OBJECT_DIRECTORY;
     delete env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
     delete env.GIT_TEMPLATE_DIR;
+    delete env.GIT_DEFAULT_HASH;
     delete env.GIT_CONFIG_COUNT;
     delete env.GIT_CONFIG_PARAMETERS;
     for (const key of Object.keys(env)) {
