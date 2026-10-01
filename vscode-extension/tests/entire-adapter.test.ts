@@ -99,6 +99,8 @@ describe("Entire CLI adapter", () => {
     const readyStatus = JSON.stringify({ ...statusFixture, codex_hooks: null });
     const { calls, run } = fixtureRunner({ "status --json": readyStatus });
     const adapter = new EntireAdapter(run);
+    const capabilities = await adapter.inspectCapabilities(workspacePath);
+    expect(capabilities).toMatchObject({ status: "ok", value: { capabilities: { capture: "verified", nativeResume: "unverified" } } });
     const read = await adapter.readCheckpoint(workspacePath, checkpointId);
     expect(read).toMatchObject({ status: "ok", value: { checkpointId, branch: "main", transcript: "{\"type\":\"checkpoint\"}\n" } });
     const plan = await adapter.prepareResume(workspacePath, checkpointId);

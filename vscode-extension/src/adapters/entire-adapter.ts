@@ -53,12 +53,12 @@ export class EntireAdapter implements SessionAdapter {
       capture: captureCapability,
       read: "verified",
       export: "unverified",
-      nativeResume: captureCapability,
+      nativeResume: "unverified",
       crossMachineResume: "unverified",
       fork: "unverified",
       cancel: "unverified",
     };
-    const notes = ["Local transcript reading was verified; portable checkpoint export has not been verified."];
+    const notes = ["Local transcript reading was verified; portable checkpoint export and exact checkpoint restore are not supported by this adapter yet."];
     if (!status.enabled) notes.push("Entire is not enabled in this workspace.");
     if (!codexHooksConfigured) notes.push("Codex hooks are not configured in this workspace.");
     if (status.codex_hooks_state === "trust_review_needed") notes.push("Codex hooks need user approval before session capture can be relied on.");
@@ -140,8 +140,11 @@ export class EntireAdapter implements SessionAdapter {
     if (!CHECKPOINT_ID.test(checkpointId)) return { status: "error", reason: "checkpoint ID 格式无效" };
     const capabilityResult = await this.inspectCapabilities(cwd);
     if (capabilityResult.status !== "ok") return capabilityResult;
-    if (capabilityResult.value.capabilities.nativeResume !== "verified") {
+    if (!capabilityResult.value.codexHooksReady) {
       return { status: "unsupported", reason: "当前工作区的 Codex hooks 尚未就绪，不能准备原生 Agent 接续" };
+    }
+    if (!capabilityResult.value.workspaceEnabled || !capabilityResult.value.codexHooksConfigured) {
+      return { status: "unsupported", reason: "当前工作区未启用已验证的 Codex session 捕获配置" };
     }
     const checkpoint = await this.checkpointSummary(cwd, checkpointId);
     if (checkpoint.status !== "ok") return checkpoint;

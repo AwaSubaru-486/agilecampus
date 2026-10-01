@@ -1,6 +1,6 @@
 # 个人负责模块：VS Code 工作台、检查点与人–Agent 接续
 
-状态：E00–E03 已完成代码施工并停在用户验收点；E03 已在一次性临时仓库完成 Entire 真实验证。本文仍是专项工单，完成状态以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
+状态：E00–E03 已提交；E03 的 capture/read 和 Entire CLI 原生 session resume 已在临时仓库验证，但 adapter 尚不能安全准备精确 checkpoint 恢复。E00–E02 真实 PAT 路径尚待验收。本文仍是专项工单，进度以 `docs/reviews/vscode-checkpoint/progress.md` 为准。
 核查基线：2026-09-30，HEAD `e6723a7`。执行时从最新 HEAD 开始，禁止重置到此提交。
 负责人：用户本人负责本模块，Luna 负责按单实现；共享后端由主线负责人协调。
 
@@ -38,11 +38,11 @@
 | 文件 | 当前事实 |
 | --- | --- |
 | `vscode-extension/src/extension.ts` | 注册 Webview 和少量命令 |
-| `vscode-extension/src/agilecampus/api-client.ts` | getSnapshot 返回空数据，不是真实 API |
-| `vscode-extension/src/views/project-view-provider.ts` | 继续 AI / 报告阻塞只是网页跳转，当前 task 路径缺项目 ID |
+| `vscode-extension/src/agilecampus/api-client.ts` | 已读取现有项目、任务详情 GET API；无检查点/交接写 API |
+| `vscode-extension/src/views/project-view-provider.ts` | 已显示项目任务和详情，网页跳转含 projectId/taskId；Agent 工作入口仍只跳网页 |
 | `vscode-extension/src/auth/github-session.ts` | GitHub 登录辅助函数；不是 AgileCampus 身份认证 |
 | `vscode-extension/src/github/github-client.ts` | 仓库读取封装，不是本机 Git 或 session 管理 |
-| `vscode-extension/webview/src/App.tsx` | 项目、任务空态骨架 |
+| `vscode-extension/webview/src/App.tsx` | 项目任务列表和详情 Webview；无检查点保存 UI |
 | `src/lib/agent/conversation.ts` | 已有共享/私密会话和从消息边界 fork |
 | `src/lib/context-pack.ts` | 已有上下文包预览、创建、冻结、权限检查 |
 | `src/lib/task.ts` | 已有契约版本、认领、提交、人工验收 |
@@ -320,6 +320,8 @@ preflight 顺序锁定：
 
 ### E07：真实启动并记录回执
 
+**前置门：E03R 精确原生恢复实验通过，或本次明确只交付 context-only 新会话。** `nativeResume` 能力必须与 `prepareResume` 实际可返回行为一致。不能仅因 Entire CLI 在单次临时实验能恢复 latest session，就将精确 checkpoint restore 标为 verified。
+
 新增：`src/adapters/process-runner.ts`、`src/handoff/launch.ts`、`src/commands/resume-checkpoint.ts` 和测试。
 
 1. 仅从 E06 通过的计划发起；用户确认后重新检查关键状态，防止计划生成后目录已变。
@@ -332,6 +334,10 @@ preflight 顺序锁定：
 验收：真实 Agent 从检查点材料继续修改一个测试文件，并能追到原检查点；另测错误码、无认证、用户取消、超时、重复点击。先在临时仓库执行。
 
 提交：`feat(vscode): launch checkpoint continuations with execution receipts`。
+
+#### E03R：精确恢复 checkpoint 的日志保护实验（E07 前置门）
+
+在一次性仓库验证 Entire 0.11.3 对选中旧 checkpoint 的恢复语义。测试覆盖：保存 C1 后在同一 session 继续但不新建 checkpoint；本机存在 C2 后选择 C1；恢复中断或失败。只有能精确恢复到所选 checkpoint、先备份本机更新日志并能回滚、且不会把相邻 session 混入时，才将 adapter 的 `nativeResume`/`prepareResume` 标为 verified。若 CLI 无安全方式，明确保持 unsupported，按 E07 的 context-only 模式完成可用闭环；不得默默加 `--force` 或丢弃更新日志。
 
 ### E08：从同一检查点并行探索
 
