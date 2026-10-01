@@ -28,7 +28,9 @@
     "onCommand:agilecampus.listCheckpoints",
     "onCommand:agilecampus.exportCheckpoint",
     "onCommand:agilecampus.importCheckpoint",
-    "onCommand:agilecampus.prepareHandoff"
+    "onCommand:agilecampus.prepareHandoff",
+    "onCommand:agilecampus.resumeCheckpoint",
+    "onCommand:agilecampus.listAttempts"
   ],
   "contributes": {
     "configuration": {
@@ -93,6 +95,14 @@
       {
         "command": "agilecampus.prepareHandoff",
         "title": "AgileCampus: 检查接续条件"
+      },
+      {
+        "command": "agilecampus.resumeCheckpoint",
+        "title": "AgileCampus: 从检查点启动 Agent"
+      },
+      {
+        "command": "agilecampus.listAttempts",
+        "title": "AgileCampus: 查看本地 Agent 尝试"
       }
     ],
     "viewsContainers": {
@@ -154,6 +164,16 @@
           "command": "agilecampus.prepareHandoff",
           "when": "view == agilecampus.projectView && agileCampus.connected == true",
           "group": "navigation@6"
+        },
+        {
+          "command": "agilecampus.resumeCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@7"
+        },
+        {
+          "command": "agilecampus.listAttempts",
+          "when": "view == agilecampus.projectView",
+          "group": "navigation@8"
         },
         {
           "command": "agilecampus.disconnect",

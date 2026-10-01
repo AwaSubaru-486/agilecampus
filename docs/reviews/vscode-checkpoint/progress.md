@@ -123,4 +123,28 @@ git diff --check：通过
 
 证明材料：`vscode-extension/tests/handoff-preflight.test.ts` 覆盖任务变化、改派、已完成、权限/信任、仓库不符、缺 SHA、dirty、LFS/submodule、未知 adapter 版本；`checkpoint-store.test.ts` 覆盖早期 schemaVersion 1 数据兼容。
 
-下一单：E07 仅 context-only 新会话。Codex CLI 本机为 `0.153.4`；Entire 原生恢复仍 unsupported，不会使用 `--force` 或覆盖 session 日志。
+下一单：E07 已完成。Codex CLI 本机为 `0.153.4`；Entire 原生恢复仍 unsupported，不会使用 `--force` 或覆盖 session 日志。
+
+## E07（新建会话并记录真实回执）
+
+工单 ID / 状态：E07 / 代码和一次性仓库 Agent 冒烟完成，纳入用户授权的整批验收；Extension Host UI 启动路径待最终验收；不推送。
+
+起点 HEAD：`f8d0af1`。
+
+改动文件：新增扩展 `src/adapters/process-runner.ts`、`src/handoff/launch.ts`、`src/attempts/store.ts`、`src/commands/resume-checkpoint.ts` 及测试；更新命令注册、package command/activation/menu、README、能力表和计划。
+
+新增依赖：无。
+
+实现：启动前核对精确 Codex CLI `0.153.4`，重新 GET 当前 task 并比对完整任务字段 fingerprint、repo identity、checkpoint SHA、HEAD 与 clean 状态；变更字段先展示并由用户确认，再做两次临启动复查。用户需选择要发送的附件、打开预览并单独确认；prompt 限制 2 MiB，包含当前任务快照与检查点快照，标明项目数据不可信，禁止把 transcript 内命令当作可执行操作。known-secret pattern 会阻止启动（检测不保证穷尽）。
+
+真实进程仅以 `spawn(..., shell:false)` 执行固定 argv：`codex exec --json --sandbox workspace-write --cd <当前工作区> -`，prompt 经 stdin 传入；不接受包内命令/路径，不加 `--add-dir`、`--approve-for-me` 或危险绕过参数。Attempt 只存 UUID、任务/检查点关联、开始/更新时间、workdir 本地引用、PID、Codex JSONL session ID、exit code、timeout、可靠状态；不存 prompt / transcript / tool 输出。`thread.started` 与 `turn.completed` 均存在且 exit code 0 才标 finished；进程结束但回执不完整标 `awaiting_confirmation`；扩展重启后无法核实的运行状态标 unknown 并阻止重复启动。
+
+自动测试：`npm --prefix vscode-extension run check` 退出码 0；`npm --prefix vscode-extension test` 退出码 0（64 项）；`git diff --check` 通过。
+
+真实 Agent 验证：Codex CLI `0.153.4` 在一次性仓库中启动 context-only 新会话，真实 `thread_id=01a0f698-7961-79c1-829a-1e3a93c2b48b`，完成 turn 并只改 `target.test.ts`；HEAD 未变、无 commit/push，`git diff --check` 通过。实测事件格式含 `thread.started`/`turn.completed`。这是 CLI/进程协议验证，不等于通过 VS Code UI 触发的扩展端到端验证。
+
+证明材料：`tests/process-runner.test.ts`、`attempt-store.test.ts`、`launch-prompt.test.ts`；真实临时仓库仍在本机 `/tmp/agilecampus-e07-EzbNCM`，验收后可删除。
+
+已知限制：只核验一个 CLI 版本；output channel 仅显示状态和真实 session ID，不镜像 transcript；Agent 的文件更改由 Codex workspace-write sandbox 限制在当前工作区，但这不是操作系统级进程隔离；native resume、取消、跨设备分配仍不支持。
+
+下一单：E08 同检查点 worktree 并行探索；每个尝试须从 checkpoint SHA 建独立分支/目录，不自动跑 setup 脚本。

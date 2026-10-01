@@ -14,6 +14,6 @@
 | Manual checkpoint export/import | implemented; awaiting two-workspace acceptance | JSON 包有 15 MiB 上限；context 可选、transcript 默认不选且预览/二次确认；导入先本机验证 schema、路径、大小和 SHA。作者身份、共享授权和跨机器原生恢复均未验证 |
 | Checkpoint handoff preflight | implemented; awaiting Extension Host acceptance | 在线校验任务/契约，核对 repo key、精确 SHA、dirty 和附件完整性；变更须确认；只输出 context-only 计划，不启动进程 |
 | Cross-machine resume/fork/cancel | unverified | JSON 包可人工传递但尚未做双设备实测；native resume/fork/cancel 未验证 |
-| 本地 Agent 启动与执行回执 | unimplemented | 后续 E07 仅允许经过再次预检和人工确认的 Codex CLI context-only 新会话；原生恢复 unsupported；不改任务状态 |
+| 本地 Agent 启动与执行回执 | implemented; awaiting Extension Host acceptance | 仅支持核验过的 Codex CLI `0.153.4`；shell=false、`workspace-write`、人工二次确认；JSONL `thread.started` / `turn.completed` 确认回执；不保存 prompt/transcript，不改任务状态；真实 CLI 在一次性仓库验证通过 |
 | 独立 worktree 并行探索 | unimplemented | 后续 E08 |
 | VSIX 安装/商店发布 | unverified | 本轮不打包/发布 |

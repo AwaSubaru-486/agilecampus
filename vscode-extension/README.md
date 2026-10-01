@@ -20,6 +20,6 @@ npm test
 
 “导出检查点交接包”会生成一个版本化 JSON。交接内容默认包含；context 附件可选；transcript 默认不选，选中后会先打开原文预览，再要求单独确认。导出会拦截几类常见凭据文本模式；这只能发现部分明显格式，不保证识别所有秘密。导入会先校验包大小、schema、附件引用、base64、SHA-256 和路径；附件写入使用本机生成的文件名，不执行包内命令。导入只按本地数据查看，SHA-256 不证明作者身份，执行前必须重新在线核对任务、代码 SHA 和工作区状态。
 
-“检查接续条件”会重新读取服务端任务和本地 Git 状态，比较任务契约、检查点 SHA、仓库身份和附件完整性，然后生成只读的 context-only 计划。此命令不会启动 Agent、改分支或写任务状态；Entire 原生 session 恢复当前关闭。
+“检查接续条件”会重新读取服务端任务和本地 Git 状态，比较任务契约、检查点 SHA、仓库身份和附件完整性，然后生成只读的 context-only 计划。此命令不会启动 Agent、改分支或写任务状态；Entire 原生 session 恢复当前关闭。“从检查点启动 Agent”会再做检查、让用户选择附件并预览，再要求确认后调用本机已核验的 Codex CLI 0.153.4；它是新会话，prompt 与附件会发送到用户已配置的 Codex 服务，Agent 在当前干净工作区获得 `workspace-write`。不会启用危险绕过、执行附件命令、提交、推送或更改平台任务。未找到真实 session / turn 回执时记录为待核对，不显示为成功。Agent 尝试元数据保存在 VS Code globalStorage，不保存 prompt 或 transcript 正文。
 
-VS Code 命令面板还提供“AgileCampus: 保存本地检查点”和“AgileCampus: 查看本地检查点”。卸载扩展前，检查点位于 VS Code 为此扩展分配的 globalStorage 目录；删除扩展存储会一并删除这些本地材料。
+VS Code 命令面板还提供“AgileCampus: 保存本地检查点”“AgileCampus: 查看本地检查点”“AgileCampus: 检查接续条件”“AgileCampus: 从检查点启动 Agent”和“AgileCampus: 查看本地 Agent 尝试”。扩展重启后无法证明旧进程仍运行时会把尝试标为 `unknown`，并阻止重复启动。卸载扩展前，检查点与尝试元数据位于 VS Code 为此扩展分配的 globalStorage 目录；删除扩展存储会一并删除这些本地材料。

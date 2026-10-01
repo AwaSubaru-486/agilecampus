@@ -83,4 +83,14 @@ describe("checkpoint handoff preflight", () => {
       expect.stringContaining("仅支持携带已选材料"), expect.stringContaining("未通过本地 adapter 核验"),
     ] });
   });
+
+  it("changes task fingerprint even if a service failed to advance updatedAt", () => {
+    const before = evaluate({ confirmedChangedTask: true });
+    const after = evaluate({ task: task({ title: "Edited title" }), confirmedChangedTask: true });
+    expect(before.status).toBe("ready");
+    expect(after.status).toBe("ready");
+    if (before.status === "ready" && after.status === "ready") {
+      expect(after.plan.taskFingerprint).not.toBe(before.plan.taskFingerprint);
+    }
+  });
 });

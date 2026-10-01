@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { TaskDetail } from "../types";
 import type { WorkCheckpoint } from "../checkpoints/types";
 import type { RepositorySnapshot } from "../git/repository-service";
@@ -62,6 +63,8 @@ export function evaluateHandoffPreflight(input: {
       baseSha: checkpoint.repository.headSha,
       branch: checkpoint.repository.branch,
       targetDirectory: repository?.rootPath ?? "",
+      repositoryKey: repository?.key ?? "",
+      taskFingerprint: task ? taskFingerprint(task) : "",
       materials: input.materialSummary.map(({ kind, byteLength }) => ({ kind, bytes: byteLength })),
       evidenceRequirements: task!.requiredEvidence,
       taskUpdatedAt: task!.updatedAt,
@@ -70,6 +73,17 @@ export function evaluateHandoffPreflight(input: {
       executesAgent: false,
     },
   };
+}
+
+function taskFingerprint(task: TaskDetail): string {
+  const current = {
+    id: task.id, projectId: task.projectId, title: task.title, status: task.status, priority: task.priority,
+    dueDate: task.dueDate, assigneeId: task.assigneeId, assigneeName: task.assigneeName, handoffBrief: task.handoffBrief,
+    doneCriteria: task.doneCriteria, requiredEvidence: task.requiredEvidence, updatedAt: task.updatedAt,
+    description: task.description, completionNote: task.completionNote, responseDueAt: task.responseDueAt,
+    handoffVersion: task.handoffVersion, committedHandoffVersion: task.committedHandoffVersion,
+  };
+  return createHash("sha256").update(JSON.stringify(current)).digest("hex");
 }
 
 function compareTask(checkpoint: WorkCheckpoint, task: TaskDetail): TaskRequirementChange[] {

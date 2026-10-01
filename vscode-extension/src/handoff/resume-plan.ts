@@ -5,6 +5,8 @@ export type HandoffPlan = {
   baseSha: string;
   branch: string | null;
   targetDirectory: string;
+  repositoryKey: string;
+  taskFingerprint: string;
   materials: Array<{ kind: "context" | "transcript"; bytes: number }>;
   evidenceRequirements: string[];
   taskUpdatedAt: string;
