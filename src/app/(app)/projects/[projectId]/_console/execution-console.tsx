@@ -7,11 +7,12 @@
 
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { getProjectForUser } from "@/lib/project";
+import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listTeamMembers } from "@/lib/team";
 import {
   listConsoleTasks,
   getConsoleTask,
+  getConsoleRun,
 } from "@/lib/collaboration-console";
 import { toTaskRowModel } from "@/lib/collaboration-console-view";
 import { ConsoleShell } from "./console-shell";
@@ -37,14 +38,17 @@ export async function ExecutionConsole({
   const canWrite = role === "admin" || role === "student";
 
   // 分页加载任务列表与团队成员
-  const [tasksResult, teamMembersList] = await Promise.all([
+  const [tasksResult, teamMembersList, milestones] = await Promise.all([
     listConsoleTasks(actorId, projectId, { limit: 50 }),
     listTeamMembers(access.project.teamId),
+    listProjectMilestones(actorId, projectId),
   ]);
 
   // 选中任务详情
   let selectedTask: Awaited<ReturnType<typeof getConsoleTask>> | null = null;
   let selectedTaskError: string | null = null;
+  let selectedRun: Awaited<ReturnType<typeof getConsoleRun>> | null = null;
+  let selectedRunError: string | null = null;
 
   if (normalized.task && z.string().uuid().safeParse(normalized.task).success) {
     try {
@@ -54,6 +58,24 @@ export async function ExecutionConsole({
     }
   }
 
+  if (selectedTask && normalized.run) {
+    try {
+      selectedRun = await getConsoleRun(actorId, projectId, selectedTask.task.id, normalized.run);
+    } catch {
+      selectedRunError = "运行记录不存在或无权查看";
+    }
+  }
+
+  const serializeRunResult = (result: unknown) => {
+    if (result == null) return null;
+    try {
+      const serialized = JSON.stringify(result, null, 2);
+      return serialized.length > 12000 ? `${serialized.slice(0, 12000)}\n…（内容已截断）` : serialized;
+    } catch {
+      return "运行结果无法显示";
+    }
+  };
+
   // 映射为行模型（排序、分组、主动作）
   const actor = { id: actorId, canReview };
   const capabilities = {
@@ -62,8 +84,8 @@ export async function ExecutionConsole({
     canViewEvidence: true,
   };
 
-  const taskRows = tasksResult.items.map((t) =>
-    toTaskRowModel(
+  const taskRows = tasksResult.items.map((t) => ({
+    ...toTaskRowModel(
       {
         id: t.id,
         title: t.title,
@@ -82,7 +104,8 @@ export async function ExecutionConsole({
       actor,
       capabilities,
     ),
-  );
+    assigneeName: t.assigneeName ?? null,
+  }));
 
   return (
     <ConsoleShell
@@ -96,7 +119,7 @@ export async function ExecutionConsole({
         status: r.status,
         priority: r.priority,
         assigneeId: r.assigneeId,
-        assigneeName: (r as unknown as { assigneeName?: string | null }).assigneeName ?? null,
+        assigneeName: r.assigneeName,
         dueDate: r.dueDate ?? null,
         taskStatusLabel: r.taskStatusLabel,
         agentRunStatusLabel: r.agentRunStatusLabel,
@@ -142,9 +165,39 @@ export async function ExecutionConsole({
                 ? new Date(selectedTask.context.pack.frozenAt).toISOString()
                 : null,
               contextStale: selectedTask.context?.stale ?? null,
-              runsCount: selectedTask.runs.items.length,
+              runs: selectedTask.runs.items.map((run) => ({
+                id: run.id,
+                agentId: run.agentId,
+                agentName: run.agentName ?? null,
+                status: run.status,
+                createdAt: run.createdAt.toISOString(),
+                startedAt: run.startedAt?.toISOString() ?? null,
+                finishedAt: run.finishedAt?.toISOString() ?? null,
+              })),
               hasMoreRuns: selectedTask.runs.hasMore,
-              eventsCount: selectedTask.events.items.length,
+              runsNextCursor: selectedTask.runs.nextCursor,
+              events: selectedTask.events.items.map((event) => ({
+                id: event.id,
+                type: event.type,
+                summary: event.summary,
+                actorId: event.actorId ?? null,
+                actorName: event.actorName ?? null,
+                createdAt: event.createdAt.toISOString(),
+              })),
+              hasMoreEvents: selectedTask.events.hasMore,
+              eventsNextCursor: selectedTask.events.nextCursor,
+              selectedRun: selectedRun ? {
+                id: selectedRun.id,
+                status: selectedRun.status,
+                agentId: selectedRun.agentId,
+                agentName: selectedRun.agentName ?? null,
+                createdAt: selectedRun.createdAt.toISOString(),
+                startedAt: selectedRun.startedAt?.toISOString() ?? null,
+                finishedAt: selectedRun.finishedAt?.toISOString() ?? null,
+                resultPreview: serializeRunResult(selectedRun.result),
+                error: selectedRun.error?.slice(0, 8000) ?? null,
+              } : null,
+              selectedRunError,
               approvals: selectedTask.approvals.map((a) => ({
                 id: a.id,
                 title: a.title,
@@ -173,6 +226,7 @@ export async function ExecutionConsole({
         role: m.role,
         kind: m.kind,
       }))}
+      milestones={milestones.map((milestone) => ({ id: milestone.id, title: milestone.title }))}
     />
   );
 }

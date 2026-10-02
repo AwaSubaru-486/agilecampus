@@ -160,6 +160,20 @@ export function buildClearTaskHref(
   return `/projects/${projectId}?${qs.toString()}`;
 }
 
+/** 选中某次 Run；Run 与 task 同时写入 URL，便于复制和刷新后回到同一条记录。 */
+export function buildSelectRunHref(
+  projectId: string,
+  taskId: string,
+  space: ProjectSpace,
+  runId: string,
+): string {
+  const qs = new URLSearchParams();
+  qs.set("space", space);
+  qs.set("task", taskId);
+  qs.set("run", runId);
+  return `/projects/${projectId}?${qs.toString()}`;
+}
+
 /**
  * 从 NormalizedConsoleParams 序列化为 URLSearchParams 字符串（用于 redirect）。
  */

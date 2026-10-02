@@ -12,9 +12,10 @@
  */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { TaskPriorityGroup, TaskAction } from "@/lib/collaboration-console-view";
 import { buildSelectTaskHref, buildClearTaskHref, type NormalizedConsoleParams } from "@/lib/console-navigation";
+import { NewTaskForm } from "../new-task-form";
 import { TaskList } from "./task-list";
 import { TaskContractPanel } from "./task-contract-panel";
 import { AgentRunRail } from "./agent-run-rail";
@@ -37,6 +38,8 @@ export type TaskRowSummary = {
   committedAt: string | null;
 };
 
+export type ConsoleLayout = "mobile" | "tablet" | "desktop";
+
 export type SelectedTaskDetail = {
   id: string;
   title: string;
@@ -58,9 +61,39 @@ export type SelectedTaskDetail = {
   contextFrozen: boolean | null;
   contextFrozenAt: string | null;
   contextStale: boolean | null;
-  runsCount: number;
+  runs: {
+    id: string;
+    agentId: string;
+    agentName: string | null;
+    status: string;
+    createdAt: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+  }[];
   hasMoreRuns: boolean;
-  eventsCount: number;
+  runsNextCursor: string | null;
+  events: {
+    id: string;
+    type: string;
+    summary: string | null;
+    actorId: string | null;
+    actorName: string | null;
+    createdAt: string;
+  }[];
+  hasMoreEvents: boolean;
+  eventsNextCursor: string | null;
+  selectedRun: {
+    id: string;
+    status: string;
+    agentId: string;
+    agentName: string | null;
+    createdAt: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+    resultPreview: string | null;
+    error: string | null;
+  } | null;
+  selectedRunError: string | null;
   approvals: { id: string; title: string; status: string; canResolve: boolean }[];
   capabilities: { canStartAgentRun: boolean; canResumeAgentRun: boolean; canStopAgentRun: boolean };
   evidence: {
@@ -104,6 +137,7 @@ export function ConsoleShell({
   selectedTaskError,
   mode = "work",
   members = [],
+  milestones = [],
 }: {
   projectId: string;
   actorId: string;
@@ -117,10 +151,35 @@ export function ConsoleShell({
   selectedTaskError: string | null;
   mode?: "work" | "studio";
   members?: MemberSummary[];
+  milestones?: { id: string; title: string }[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const consoleRef = useRef<HTMLDivElement>(null);
+  const runRailRef = useRef<HTMLDivElement>(null);
+  const runRailTriggerRef = useRef<HTMLButtonElement>(null);
+  const newTaskTriggerRef = useRef<HTMLButtonElement>(null);
+  const [layout, setLayout] = useState<ConsoleLayout>("mobile");
+  const [runRailOpen, setRunRailOpen] = useState(false);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+
+  // 分栏跟随执行台实际可用宽度，避免受全局侧栏和窗口宽度影响。
+  useEffect(() => {
+    const element = consoleRef.current;
+    if (!element) return;
+    const update = (width: number) => {
+      setLayout(width >= 1120 ? "desktop" : width >= 760 ? "tablet" : "mobile");
+    };
+    update(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? element.clientWidth;
+      update(width);
+      if (width >= 1120) setRunRailOpen(false);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   // 10秒定时刷新：仅在存在活动运行时生效，并在前台可见时触发，不使用 POST 轮询（W03 §8）
   useEffect(() => {
@@ -136,7 +195,7 @@ export function ConsoleShell({
     return () => clearInterval(timer);
   }, [taskRows, router]);
 
-  // 窄屏：panel=list 时强制显示列表，否则显示详情
+  // 手机：panel=list 时强制显示列表，否则显示详情。
   const panel = searchParams.get("panel");
   const showListOnNarrow = !selectedTaskId || panel === "list";
 
@@ -156,14 +215,14 @@ export function ConsoleShell({
     group: searchParams.get("group"),
   };
 
-  // 桌面端无显式选中任务时，默认选当前页排序最前的待处理任务（用 replace 补入 URL，W01/W02）
+  // 列表与详情能并排时，默认选中当前页第一个未完成任务。
   useEffect(() => {
-    if (!selectedTaskId && taskRows.length > 0 && typeof window !== "undefined" && window.innerWidth >= 1120) {
+    if (!selectedTaskId && taskRows.length > 0 && layout !== "mobile") {
       const firstPending = taskRows.find((t) => t.status !== "done") ?? taskRows[0];
       router.replace(buildSelectTaskHref(projectId, firstPending.id, currentParams));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTaskId, taskRows, projectId]);
+  }, [selectedTaskId, taskRows, projectId, layout]);
 
   function selectTask(taskId: string) {
     startTransition(() => {
@@ -177,20 +236,63 @@ export function ConsoleShell({
     });
   }
 
-  // 执行记录抽屉（中等宽度使用）
-  const [runRailOpen, setRunRailOpen] = useState(false);
+  const openRunRail = useCallback((trigger: HTMLButtonElement) => {
+    runRailTriggerRef.current = trigger;
+    setRunRailOpen(true);
+  }, []);
+  const openNewTask = useCallback((trigger: HTMLButtonElement) => {
+    newTaskTriggerRef.current = trigger;
+    setNewTaskOpen(true);
+  }, []);
+  const handleNewTaskOpenChange = useCallback((open: boolean) => setNewTaskOpen(open), []);
+
+  useEffect(() => {
+    if (!runRailOpen) {
+      if (layout !== "desktop" && runRailTriggerRef.current?.isConnected) runRailTriggerRef.current.focus();
+      return;
+    }
+    const dialog = runRailRef.current;
+    dialog?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setRunRailOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [runRailOpen, layout]);
+
+  useEffect(() => {
+    if (!newTaskOpen && newTaskTriggerRef.current?.isConnected) newTaskTriggerRef.current.focus();
+  }, [newTaskOpen]);
 
   return (
-    <div className="relative flex min-h-0 w-full flex-col">
+    <div ref={consoleRef} className="relative flex min-h-0 w-full flex-col">
       {/* 桌面/平板三栏或双栏容器 */}
       <div className="flex min-h-0 flex-1 divide-x divide-stroke overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
 
         {/* ── 左栏：任务列表 ── */}
         <div
           className={[
-            "flex w-full flex-col overflow-y-auto xl:w-[280px] xl:shrink-0",
-            // 窄屏：选中任务时隐藏列表，除非 panel=list
-            selectedTaskId && !showListOnNarrow ? "hidden xl:flex" : "flex",
+            "flex w-full flex-col overflow-y-auto",
+            layout !== "mobile" ? "w-[280px] shrink-0" : "",
+            layout === "mobile" && selectedTaskId && !showListOnNarrow ? "hidden" : "",
           ].join(" ")}
         >
           <TaskList
@@ -202,6 +304,7 @@ export function ConsoleShell({
             canWrite={canWrite}
             mode={mode}
             onSelectTask={selectTask}
+            onNewTask={openNewTask}
           />
         </div>
 
@@ -210,7 +313,7 @@ export function ConsoleShell({
           className={[
             "min-w-0 flex-1 overflow-y-auto",
             // 窄屏：有选中任务且不是列表面板时显示
-            selectedTaskId && !showListOnNarrow ? "flex flex-col" : "hidden xl:flex xl:flex-col",
+            layout !== "mobile" || (selectedTaskId && !showListOnNarrow) ? "flex flex-col" : "hidden",
           ].join(" ")}
         >
           <TaskContractPanel
@@ -222,39 +325,41 @@ export function ConsoleShell({
             selectedTaskError={selectedTaskError}
             selectedTaskId={selectedTaskId}
             members={members}
+            layout={layout}
             onBack={clearTask}
-            onOpenRunRail={() => setRunRailOpen(true)}
+            onOpenRunRail={openRunRail}
           />
         </div>
 
         {/* ── 右栏：执行记录（≥1120px 固定显示；<1120px 抽屉） ── */}
-        <div className="hidden w-[320px] shrink-0 flex-col overflow-y-auto min-[1120px]:flex">
+        <div className={layout === "desktop" ? "flex w-[320px] shrink-0 flex-col overflow-y-auto" : "hidden"}>
           <AgentRunRail
             projectId={projectId}
             actorId={actorId}
             selectedTask={selectedTask}
             drawerMode={false}
+            mode={mode}
           />
         </div>
       </div>
 
       {/* 执行记录抽屉（<1120px） */}
-      {runRailOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end min-[1120px]:hidden">
-          <div
-            aria-hidden
+      {layout !== "desktop" && (
+        <div aria-hidden={!runRailOpen} className={`fixed inset-0 z-50 justify-end ${runRailOpen ? "flex" : "hidden"}`}>
+            <div
+              aria-hidden
             className="absolute inset-0 bg-ink/20"
             onClick={() => setRunRailOpen(false)}
           />
-          <div className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-panel shadow-xl">
+          <div ref={runRailRef} role="dialog" aria-modal="true" aria-labelledby="run-rail-dialog-title" tabIndex={-1} className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-panel shadow-xl focus:outline-none">
             <div className="flex items-center justify-between border-b border-stroke px-4 py-3">
-              <span className="text-sm font-medium text-ink">执行记录</span>
+              <span id="run-rail-dialog-title" className="text-sm font-medium text-ink">执行记录</span>
               <button
                 onClick={() => setRunRailOpen(false)}
                 className="ac-pressable rounded p-1 text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
                 aria-label="关闭执行记录"
               >
-                ✕
+                关闭
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -263,10 +368,22 @@ export function ConsoleShell({
                 actorId={actorId}
                 selectedTask={selectedTask}
                 drawerMode
+                mode={mode}
               />
             </div>
           </div>
         </div>
+      )}
+      {canWrite && (
+        <NewTaskForm
+          projectId={projectId}
+          members={members}
+          milestones={milestones}
+          open={newTaskOpen}
+          onOpenChange={handleNewTaskOpenChange}
+          showTrigger={false}
+          dialog
+        />
       )}
     </div>
   );

@@ -274,9 +274,17 @@ npm test -- tests/console-navigation.test.ts tests/project-space.test.ts
 - 核心执行台测试通过：
   - `tests/collaboration-console-view.test.ts` (26 tests)
   - `tests/collaboration-console.test.ts` (6 tests)
-  - `tests/console-navigation.test.ts` (33 tests)
+  - `tests/console-navigation.test.ts` (34 tests)
   - `tests/project-space.test.ts` (15 tests)
   - `tests/conversation-selection.test.ts` (3 tests)
-  - 合计 83 项协同执行台测试 100% 通过
+  - 合计 84 项协同执行台测试 100% 通过
+
+### 交互细节与无障碍优化（终态补充）
+
+- **容器宽度感知**：通过 `ResizeObserver` 精确区分 `<760px` 手机端（列表/详情切换）、`760px–1119px` 平板端（列表+详情并排、执行记录抽屉按钮）、`≥1120px` 桌面端（标准三栏 280 / 剩余 / 320）。
+- **键盘焦点与无障碍 (a11y)**：执行记录侧抽屉与新建任务弹窗均接入 `dialog` + `aria-modal` + Tab/Shift-Tab 焦点陷阱环回 + Escape 键快捷关闭，关闭后自动恢复焦点至触发按钮。
+- **分页与详情查看**：新增服务端动作 `loadConsoleRunsPage` 与 `loadConsoleEventsPage`，支持前端点击“加载更多”按游标追加历史 Run 和任务活动；新增 `buildSelectRunHref` 支持选中特定 Run 查看错误与结果。
+- **契约重新确认**：当任务认领时的契约版本低于当前最新契约版本（或未记录）时，中央动作自动变为“重新确认交接承诺”与“确认新契约并继续”，确保接手人签署最新契约。
+
 
 

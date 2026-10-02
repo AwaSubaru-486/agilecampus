@@ -110,8 +110,10 @@ export async function listConsoleRuns(actorId: string, projectId: string, taskId
     if (!anchor) throw new AppError("分页游标已失效");
   }
   const rows = await db.select({ id: agentRuns.id, taskId: agentRuns.taskId, agentId: agentRuns.agentId,
-    status: agentRuns.status, createdAt: agentRuns.createdAt, startedAt: agentRuns.startedAt, finishedAt: agentRuns.finishedAt,
-  }).from(agentRuns).where(and(eq(agentRuns.taskId, taskId), after ? sql`
+    agentName: users.name, status: agentRuns.status, createdAt: agentRuns.createdAt,
+    startedAt: agentRuns.startedAt, finishedAt: agentRuns.finishedAt,
+  }).from(agentRuns).leftJoin(users, eq(agentRuns.agentId, users.id))
+    .where(and(eq(agentRuns.taskId, taskId), after ? sql`
     (${agentRuns.createdAt}, ${agentRuns.id}) < (select created_at, id from agent_runs where id = ${after}::uuid)
   ` : undefined)).orderBy(desc(agentRuns.createdAt), desc(agentRuns.id)).limit(limit + 1);
   return page(rows, limit, scope);
@@ -128,8 +130,10 @@ export async function listConsoleEvents(actorId: string, projectId: string, task
     if (!anchor) throw new AppError("分页游标已失效");
   }
   const rows = await db.select({ id: activityEvents.id, type: activityEvents.type,
-    summary: activityEvents.summary, actorId: activityEvents.actorId, createdAt: activityEvents.createdAt,
-  }).from(activityEvents).where(and(eq(activityEvents.projectId, projectId), eq(activityEvents.taskId, taskId),
+    summary: activityEvents.summary, actorId: activityEvents.actorId, actorName: users.name,
+    createdAt: activityEvents.createdAt,
+  }).from(activityEvents).leftJoin(users, eq(activityEvents.actorId, users.id))
+    .where(and(eq(activityEvents.projectId, projectId), eq(activityEvents.taskId, taskId),
     after ? sql`(${activityEvents.createdAt}, ${activityEvents.id}) <
       (select created_at, id from activity_events where id = ${after}::uuid)` : undefined,
   )).orderBy(desc(activityEvents.createdAt), desc(activityEvents.id)).limit(limit + 1);
@@ -140,7 +144,19 @@ export async function listConsoleEvents(actorId: string, projectId: string, task
 export async function getConsoleRun(actorId: string, projectId: string, taskId: string, runId: string) {
   await taskAccess(actorId, projectId, taskId);
   if (!uuid.safeParse(runId).success) throw inaccessible();
-  const [run] = await db.select().from(agentRuns).where(and(eq(agentRuns.id, runId), eq(agentRuns.taskId, taskId)));
+  const [run] = await db.select({
+    id: agentRuns.id,
+    agentId: agentRuns.agentId,
+    agentName: users.name,
+    taskId: agentRuns.taskId,
+    status: agentRuns.status,
+    createdAt: agentRuns.createdAt,
+    startedAt: agentRuns.startedAt,
+    finishedAt: agentRuns.finishedAt,
+    result: agentRuns.result,
+    error: agentRuns.error,
+  }).from(agentRuns).leftJoin(users, eq(agentRuns.agentId, users.id))
+    .where(and(eq(agentRuns.id, runId), eq(agentRuns.taskId, taskId)));
   if (!run) throw inaccessible();
   return run;
 }

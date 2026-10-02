@@ -37,6 +37,7 @@ export function TaskList({
   canWrite,
   mode = "work",
   onSelectTask,
+  onNewTask,
 }: {
   projectId: string;
   taskRows: TaskRowSummary[];
@@ -46,6 +47,7 @@ export function TaskList({
   canWrite: boolean;
   mode?: "work" | "studio";
   onSelectTask: (id: string) => void;
+  onNewTask: (trigger: HTMLButtonElement) => void;
 }) {
   const isStudio = mode === "studio";
   const displayRows = isStudio
@@ -89,12 +91,13 @@ export function TaskList({
           </Link>
         ) : (
           canWrite && (
-            <Link
-              href={`/projects/${projectId}?space=work`}
+            <button
+              type="button"
+              onClick={(event) => onNewTask(event.currentTarget)}
               className="rounded px-2 py-0.5 text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             >
               + 新建
-            </Link>
+            </button>
           )
         )}
       </div>

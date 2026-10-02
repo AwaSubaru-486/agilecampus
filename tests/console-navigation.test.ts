@@ -4,6 +4,7 @@ import {
   needsRedirect,
   buildSelectTaskHref,
   buildClearTaskHref,
+  buildSelectRunHref,
   serializeConsoleParams,
   type ConsoleParams,
   type NormalizedConsoleParams,
@@ -233,6 +234,15 @@ describe("buildClearTaskHref", () => {
   it("switches studio to work in clear-task", () => {
     const href = buildClearTaskHref("proj-1", { ...base, space: "studio" as const });
     expect(href).toContain("space=work");
+  });
+});
+
+describe("buildSelectRunHref", () => {
+  it("任务和运行都进入 URL，并保留 work/studio 模式", () => {
+    expect(buildSelectRunHref("proj-1", "task-1", "work", "run-1"))
+      .toBe("/projects/proj-1?space=work&task=task-1&run=run-1");
+    expect(buildSelectRunHref("proj-1", "task-1", "studio", "run-1"))
+      .toBe("/projects/proj-1?space=studio&task=task-1&run=run-1");
   });
 });
 

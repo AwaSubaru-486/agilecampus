@@ -98,10 +98,13 @@ describe("协同执行台只读投影", () => {
     const first = await listConsoleRuns(owner.id, project.id, task.id);
     const second = await listConsoleRuns(owner.id, project.id, task.id, { cursor: first.nextCursor! });
     expect(first.items).toHaveLength(30);
+    expect(first.items[0].agentName).toBe("执行器");
     expect(second.items).toHaveLength(1);
     expect(new Set([...first.items, ...second.items].map((r) => r.id)).size).toBe(31);
     expect(JSON.stringify(first)).not.toContain("DO_NOT_LIST");
-    expect((await getConsoleRun(owner.id, project.id, task.id, first.items[0].id)).error).toBe("DO_NOT_LIST_ERROR");
+    const selectedRun = await getConsoleRun(owner.id, project.id, task.id, first.items[0].id);
+    expect(selectedRun.error).toBe("DO_NOT_LIST_ERROR");
+    expect(selectedRun.agentName).toBe("执行器");
     const rows = await listConsoleTasks(owner.id, project.id);
     expect(rows.items[0].priorityGroup).toBe("blocked");
     expect(JSON.stringify(rows)).not.toContain("DO_NOT_LIST");
@@ -112,6 +115,7 @@ describe("协同执行台只读投影", () => {
     const events = await listConsoleEvents(owner.id, project.id, task.id);
     const more = await listConsoleEvents(owner.id, project.id, task.id, { cursor: events.nextCursor! });
     expect(events.items).toHaveLength(30);
+    expect(events.items.some((event) => event.actorId === owner.id && event.actorName === owner.name)).toBe(true);
     expect(new Set([...events.items, ...more.items].map((row) => row.id)).size).toBe(32); // plus task_created
     expect(JSON.stringify(events)).not.toContain("DO_NOT_LIST");
     await expect(listConsoleEvents(owner.id, project.id, task.id, { cursor: first.nextCursor! })).rejects.toThrow("分页游标无效");

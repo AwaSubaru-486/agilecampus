@@ -30,8 +30,7 @@ export function TaskConversations({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-medium uppercase tracking-wide text-ink-2">会话与分支</h4>
+      <div className="flex justify-end">
         <div className="flex items-center gap-2 text-xs">
           <Link
             href={`/projects/${projectId}?space=studio&view=chat&task=${taskId}&new=1`}

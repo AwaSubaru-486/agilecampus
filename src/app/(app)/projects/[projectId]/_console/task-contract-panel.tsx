@@ -24,7 +24,7 @@ import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
-import type { MemberSummary, SelectedTaskDetail } from "./console-shell";
+import type { ConsoleLayout, MemberSummary, SelectedTaskDetail } from "./console-shell";
 
 const STATUS_LABEL: Record<string, string> = {
   todo: "待办",
@@ -49,6 +49,7 @@ export function TaskContractPanel({
   selectedTaskError,
   selectedTaskId,
   members = [],
+  layout,
   onBack,
   onOpenRunRail,
 }: {
@@ -60,8 +61,9 @@ export function TaskContractPanel({
   selectedTaskError: string | null;
   selectedTaskId: string | null;
   members?: MemberSummary[];
+  layout: ConsoleLayout;
   onBack: () => void;
-  onOpenRunRail: () => void;
+  onOpenRunRail: (trigger: HTMLButtonElement) => void;
 }) {
   const [editingHandoff, setEditingHandoff] = useState(false);
 
@@ -105,10 +107,16 @@ export function TaskContractPanel({
     task.committedHandoffVersion === task.handoffVersion;
 
   // 动作权限计算
-  const canClaim = canWrite && isInFlight(task.status) && (!task.assigneeId || (isMine && !task.committedAt));
-  const awaiting = isAwaitingResponse(task.status, task.assigneeId, task.committedAt ? new Date(task.committedAt) : null);
+  const canClaim = canWrite && isInFlight(task.status) && (!task.assigneeId || (isMine && (!task.committedAt || !versionMatch)));
+  const awaiting = isAwaitingResponse(
+    task.status,
+    task.assigneeId,
+    task.committedAt ? new Date(task.committedAt) : null,
+    task.committedHandoffVersion,
+    task.handoffVersion,
+  );
   const canDecline = isMine && awaiting;
-  const canSubmit = isMine && isInFlight(task.status) && Boolean(task.committedAt);
+  const canSubmit = isMine && isInFlight(task.status) && Boolean(task.committedAt) && versionMatch;
   const canReviewThis = canReview && isInReview(task.status) && !isMine;
 
   return (
@@ -118,7 +126,7 @@ export function TaskContractPanel({
         {/* 返回按钮（窄屏） */}
         <button
           onClick={onBack}
-          className="shrink-0 text-xs text-ink-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal xl:hidden"
+          className={`shrink-0 text-xs text-ink-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal ${layout === "mobile" ? "" : "hidden"}`}
           aria-label="返回任务列表"
         >
           ←
@@ -151,8 +159,8 @@ export function TaskContractPanel({
         )}
         {/* 执行记录按钮（<1120px） */}
         <button
-          onClick={onOpenRunRail}
-          className="shrink-0 rounded border border-stroke px-2 py-1 text-xs text-ink-2 hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal min-[1120px]:hidden"
+          onClick={(event) => onOpenRunRail(event.currentTarget)}
+          className={`shrink-0 rounded border border-stroke px-2 py-1 text-xs text-ink-2 hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal ${layout === "desktop" ? "hidden" : ""}`}
         >
           执行记录
         </button>
@@ -233,7 +241,7 @@ export function TaskContractPanel({
               )}
               {task.contextStale && (
                 <div className="mt-1.5 rounded bg-caution/10 px-2 py-1 text-xs text-caution">
-                  ⚠ 资料包内容可能已过期，建议重新冻结
+                  资料包内容可能已过期。建议重新冻结。
                 </div>
               )}
             </div>
@@ -248,8 +256,14 @@ export function TaskContractPanel({
             <div className="text-sm text-ink">
               已认领
               <span className="ml-1 text-xs text-ink-3">
-                （契约版本 v{task.committedHandoffVersion}
-                {versionMatch ? "" : <span className="text-caution">，交接契约已更新至 v{task.handoffVersion}，需重新确认</span>}）
+                （{task.committedHandoffVersion === null ? (
+                  <><span>认领时版本未记录</span><span className="text-caution">，请重新确认交接契约</span></>
+                ) : (
+                  <>
+                    契约版本 v{task.committedHandoffVersion}
+                    {!versionMatch && <span className="text-caution">，交接契约已更新至 v{task.handoffVersion}，需重新确认</span>}
+                  </>
+                )}）
               </span>
             </div>
           ) : (
@@ -263,11 +277,11 @@ export function TaskContractPanel({
         {/* ── 任务动作面板（W05: 认领、拒绝、交付、验收） ── */}
         {canClaim && (
           <ActionFormBlock
-            title="认领任务"
+            title={task.committedAt ? "重新确认交接承诺" : "认领任务"}
             action={claimTaskAction}
             projectId={projectId}
             taskId={task.id}
-            submitLabel="确认认领"
+            submitLabel={task.committedAt ? "确认新契约并继续" : "确认认领"}
           >
             <textarea
               name="commitmentNote"
@@ -418,12 +432,6 @@ export function TaskContractPanel({
           </div>
         </details>
 
-        {/* 任务动作说明：无网页执行器时不虚设启动按钮 */}
-        {!task.capabilities.canStartAgentRun && (
-          <p className="text-xs text-ink-3">
-            网页暂无 Agent 执行器接口。如需启动、恢复或停止 Agent 执行，请在 VS Code 插件中操作。
-          </p>
-        )}
       </div>
     </div>
   );
