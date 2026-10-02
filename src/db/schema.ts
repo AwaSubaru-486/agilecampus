@@ -928,3 +928,6 @@ export const agentRuns = pgTable(
     index("agent_runs_status_idx").on(t.status, t.createdAt),
   ],
 );
+
+// ── VS Code Checkpoints, Handoffs, and Attempt Receipts (B01/B02) ──
+export * from "./schema-checkpoint";

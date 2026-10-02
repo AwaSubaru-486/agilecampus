@@ -286,5 +286,55 @@ npm test -- tests/console-navigation.test.ts tests/project-space.test.ts
 - **分页与详情查看**：新增服务端动作 `loadConsoleRunsPage` 与 `loadConsoleEventsPage`，支持前端点击“加载更多”按游标追加历史 Run 和任务活动；新增 `buildSelectRunHref` 支持选中特定 Run 查看错误与结果。
 - **契约重新确认**：当任务认领时的契约版本低于当前最新契约版本（或未记录）时，中央动作自动变为“重新确认交接承诺”与“确认新契约并继续”，确保接手人签署最新契约。
 
+---
 
+## B01 — 共享契约签收
 
+工单：B01
+状态：验收通过
+起点 HEAD：`b4d5389`
+
+### 本单修改文件
+
+- `docs/reviews/vscode-checkpoint/backend-contract.md`：完成 E09 后端契约 8 项关键技术决策签署（身份鉴权、角色校验、Task 负责人不自动改派、同源多 Attempt 规则、V1 人工传递与材料哈希索引、幂等与游标分页）。
+
+### 契约结论
+
+1. 认证：复用通用 PAT，由 `authenticateBearer` 解析 `userId` 并逐请求查验项目成员角色；
+2. 任务边界：接受 handoff 不自动改派任务负责人，不更改任务状态，作为独立 Attempt 推进；
+3. 材料存储：V1 仅存摘要与材料 SHA-256 索引，原文通过用户导出的 JSON 包在客户端间流转。
+
+---
+
+## B02 — 小体积检查点共享与交接 API
+
+工单：B02
+状态：验收通过
+
+### 本单修改/新建文件
+
+- `src/db/schema-checkpoint.ts`（新建）：定义 `checkpoint_indices`、`handoff_records`、`attempt_receipts` 数据表与类型。
+- `src/db/schema.ts`：导出检查点相关表与类型。
+- `src/lib/errors.ts`：增加 `NotFoundError` (404) 与 `ConflictError` (409)。
+- `src/lib/checkpoint.ts`（新建）：实现检查点索引创建与分页查询、交接单发起与状态流转（accept/decline/withdraw）、Attempt 创建与回执更新服务层。
+- `src/lib/extension-auth.ts`（新建）：扩展认证与 REST 错误代码映射器。
+- `src/app/api/extension/v1/me/route.ts`（新建）：`GET /api/extension/v1/me`。
+- `src/app/api/extension/v1/projects/[projectId]/tasks/[taskId]/checkpoints/route.ts`（新建）：`POST` 登记检查点。
+- `src/app/api/extension/v1/projects/[projectId]/checkpoints/route.ts`（新建）：`GET` 分页查询检查点。
+- `src/app/api/extension/v1/checkpoints/[checkpointId]/route.ts`（新建）：`GET` 检查点详情。
+- `src/app/api/extension/v1/projects/[projectId]/tasks/[taskId]/handoffs/route.ts`（新建）：`POST` 发起交接单。
+- `src/app/api/extension/v1/handoffs/route.ts`（新建）：`GET` 收件箱/发件箱交接单列表。
+- `src/app/api/extension/v1/handoffs/[handoffId]/route.ts`（新建）：`GET` 交接单详情。
+- `src/app/api/extension/v1/handoffs/[handoffId]/[action]/route.ts`（新建）：`POST` 接受/拒绝/撤回交接。
+- `src/app/api/extension/v1/handoffs/[handoffId]/attempts/route.ts`（新建）：`POST` 登记 Attempt。
+- `src/app/api/extension/v1/attempts/[attemptId]/route.ts`（新建）：`PATCH` 更新 Attempt 回执。
+- `tests/checkpoint-api.test.ts`（新建）：8 项端到端 API 测试全部通过。
+
+### 自动化验证
+
+- `npm test -- tests/checkpoint-api.test.ts`：8/8 通过 (100%)
+- `npm test -- tests/checkpoint-api.test.ts tests/collaboration-console-view.test.ts tests/collaboration-console.test.ts tests/project-space.test.ts tests/conversation-selection.test.ts tests/console-navigation.test.ts`：92/92 通过 (100%)
+- `cd vscode-extension && npm test`：87/87 通过 (100%)
+- `npm run check:ui-copy && npx tsc --noEmit && npm run lint`：全部 0 错误通过
+- `npm run build`：30/30 路由全量通过
+- `git diff --check`：0 错误

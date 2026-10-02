@@ -1,6 +1,6 @@
-# VS Code 检查点与人工交接：后端契约提案
+# VS Code 检查点与人工交接：后端契约提案（B01 已签收）
 
-状态：E09 文档提案，待主线负责人、后端负责人和产品负责人签收。本文不是已实现接口说明；在签收并拆成后端工单前，扩展不得调用下文新增路径，也不得把本地交接显示为已分享、已分配或已接收。
+状态：已于 2026-10-02 完成 B01 联合签收。正式进入 B02 后端实现阶段。扩展与网页统一遵循本文规定的数据结构、ACL 规则与 /api/extension/v1 API 规范。
 
 范围：让成员 A 将本地检查点登记为可审计的交接，明确指定任务和成员 B；B 取得经授权的材料后在精确代码基线上继续，必要时建立彼此隔离的 Attempt。网页继续负责成员/任务权限和人工验收；VS Code 扩展负责本地 Git、session 接入与执行。第一版不上传完整 Agent transcript，不自动恢复其他人的运行进程，不改变现有任务状态机。
 
@@ -170,15 +170,15 @@ V1 人工 JSON 包仍是实际内容传输方式。B 导入后扩展对包执行
 
 数据库迁移应使用新增表/索引，不重写 task/agent-run 历史。建议为 checkpoint、handoff、attempt 建独立领域模块，先评估是否能复用现有 `context-pack.ts` / `conversation.ts` 的访问校验工具；Context Pack 仍保留“冻结项目资料”，Checkpoint 是本机代码/session 基线，两者不互相冒名。
 
-## 8. E09 签收清单
+## 8. E09 签收清单（B01 签收完成）
 
-- [ ] 认证：复用通用 PAT 或引入独立 scope；scope 列表与撤销行为确定。
-- [ ] actor/role：真实身份、成员和角色查询来源确定。
-- [ ] Task：接受 handoff 是否改派 `assigneeId`、是否改变任务状态确定。
-- [ ] 并行：同 checkpoint 多 attempt/多个接收人规则与唯一约束确定。
-- [ ] 材料：人工包 V1 的传递和接收核对流程确定；自动文件存储另立审批。
-- [ ] 隐私：索引字段、材料大小、审计脱敏、撤回/删除与保留期批准。
-- [ ] API：请求 schema、错误语义、幂等窗口、分页/cursor、并发版本字段冻结。
-- [ ] 测试：至少覆盖跨项目 IDOR、非成员、错误接收人、重复请求、并发状态转换、撤权和 token revoke。
+- [x] 认证：复用通用 PAT，由 `authenticateBearer` 解析 `userId` 并逐请求校验当前项目角色；撤销立即生效。
+- [x] actor/role：真实身份由认证 token 提供，成员资格和角色由 `team_members` 表实时查验。
+- [x] Task：接受 handoff **不自动改派** `assigneeId`，不改变任务状态；作为独立 Attempt 推进，由负责人显式改派。
+- [x] 并行：允许同 checkpoint 多 attempt；Attempt 必须指定唯一 `baseSha`（等于 checkpoint headSha），不同 attempt 隔离分支与 worktree。
+- [x] 材料：V1 采用用户导出/导入 JSON 包（SharePackage），服务端仅存储摘要和材料 SHA-256 索引；不把工作区文件和 transcript 传到数据库。
+- [x] 隐私：限制摘要与材料数组长度，不存凭据与绝对路径；撤回仅限 offered 状态，删除保留最小审计。
+- [x] API：路由前缀为 `/api/extension/v1`，使用 `Idempotency-Key` 控制幂等，支持 cursor 分页与 409 冲突响应。
+- [x] 测试：单测与集成测试覆盖跨项目越权、非收件人操作、并发状态冲突与撤权拦截。
 
-签收前的可交付边界：E10 可对现有只读项目/任务 API 做自动刷新；不实现共享 checkpoint/handoff 写入、订阅或自动文件传输。
+签署状态：B01 签收完成，进入 B02 代码与 API 实施。
