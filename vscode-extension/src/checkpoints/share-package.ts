@@ -10,8 +10,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 export type SharePackage = {
   format: "agilecampus-checkpoint";
-  version: 1;
+  version: 1 | 2;
   sourceCheckpointId: string;
+  sourceServerCheckpointId?: string | null;
   manifest: WorkCheckpoint;
   artifacts: Array<{ id: string; kind: "transcript" | "context"; encoding: "base64"; data: string }>;
   manifestSha256: string;
@@ -24,7 +25,9 @@ export class SharePackageError extends Error {
 export function createSharePackage(
   source: WorkCheckpoint,
   included: Array<{ id: string; kind: "transcript" | "context"; content: Uint8Array }>,
+  sourceServerCheckpointId: string | null = null,
 ): { value: SharePackage; bytes: Buffer; artifacts: NewCheckpointArtifact[] } {
+  if (sourceServerCheckpointId !== null && !UUID.test(sourceServerCheckpointId)) throw new SharePackageError("来源服务端检查点 ID 无效");
   if (included.length > MAX_PACKAGE_ARTIFACTS) throw new SharePackageError("附件数量超过 20 项");
   const byId = new Map(source.artifacts.map((artifact) => [artifact.id, artifact]));
   let total = 0;
@@ -55,11 +58,12 @@ export function createSharePackage(
   });
   const value: SharePackage = {
     format: "agilecampus-checkpoint",
-    version: 1,
+    version: 2,
     sourceCheckpointId: source.id,
+    sourceServerCheckpointId,
     manifest,
     artifacts: content.map(({ id, kind, data }) => ({ id, kind, encoding: "base64", data })),
-    manifestSha256: sha(Buffer.from(JSON.stringify(manifest), "utf8")),
+    manifestSha256: sha(Buffer.from(JSON.stringify({ sourceCheckpointId: source.id, sourceServerCheckpointId, manifest }), "utf8")),
   };
   const bytes = Buffer.from(JSON.stringify(value), "utf8");
   if (bytes.byteLength > MAX_PACKAGE_BYTES) throw new SharePackageError("导出文件超过 15 MiB");
@@ -75,10 +79,13 @@ export function parseSharePackage(bytes: Uint8Array): { value: SharePackage; art
   let parsed: unknown;
   try { parsed = JSON.parse(Buffer.from(bytes).toString("utf8")); }
   catch { throw new SharePackageError("交接包不是有效 JSON"); }
-  if (!record(parsed) || parsed.format !== "agilecampus-checkpoint" || parsed.version !== 1 ||
+  if (!record(parsed) || parsed.format !== "agilecampus-checkpoint" || ![1, 2].includes(Number(parsed.version)) ||
       typeof parsed.sourceCheckpointId !== "string" || !UUID.test(parsed.sourceCheckpointId) ||
       typeof parsed.manifestSha256 !== "string" || !Array.isArray(parsed.artifacts) || parsed.artifacts.length > MAX_PACKAGE_ARTIFACTS) {
     throw new SharePackageError("交接包格式或版本不受支持");
+  }
+  if (parsed.version === 2 && !(parsed.sourceServerCheckpointId === null || (typeof parsed.sourceServerCheckpointId === "string" && UUID.test(parsed.sourceServerCheckpointId)))) {
+    throw new SharePackageError("交接包服务端来源 ID 无效");
   }
   let manifest: WorkCheckpoint;
   try { manifest = parseWorkCheckpoint(parsed.manifest); }
@@ -86,7 +93,10 @@ export function parseSharePackage(bytes: Uint8Array): { value: SharePackage; art
   if (manifest.id === parsed.sourceCheckpointId || manifest.parentCheckpointId !== parsed.sourceCheckpointId) {
     throw new SharePackageError("交接包来源关系无效");
   }
-  if (sha(Buffer.from(JSON.stringify(manifest), "utf8")) !== parsed.manifestSha256) throw new SharePackageError("交接包清单校验失败");
+  const expectedDigest = parsed.version === 1
+    ? JSON.stringify(manifest)
+    : JSON.stringify({ sourceCheckpointId: parsed.sourceCheckpointId, sourceServerCheckpointId: parsed.sourceServerCheckpointId, manifest });
+  if (sha(Buffer.from(expectedDigest, "utf8")) !== parsed.manifestSha256) throw new SharePackageError("交接包清单校验失败");
   if (manifest.artifacts.length !== parsed.artifacts.length) throw new SharePackageError("交接包附件与清单不一致");
 
   let total = 0;

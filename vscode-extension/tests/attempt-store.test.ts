@@ -3,10 +3,12 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { AttemptStore } from "../src/attempts/store";
 
 const roots: string[] = [];
+const storeSourcePath = fileURLToPath(new URL("../src/attempts/store.ts", import.meta.url));
 afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
 
 const storeWorker = `
@@ -18,8 +20,7 @@ const storeWorker = `
     const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
     module._compile(output, filename);
   };
-  const sourcePath = path.resolve(process.cwd(), "src/attempts/store.ts");
-  const [storage, operation, target, payload] = process.argv.slice(1);
+  const [sourcePath, storage, operation, target, payload] = process.argv.slice(1);
   const { AttemptStore } = require(sourcePath);
   const store = new AttemptStore(storage);
   const action = operation === "lease" || operation === "lease-hold"
@@ -40,7 +41,7 @@ const storeWorker = `
 
 function runStoreWorker(storage: string, operation: string, target: string, payload: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["-e", storeWorker, storage, operation, target, payload], { cwd: process.cwd() });
+    const child = spawn(process.execPath, ["-e", storeWorker, storeSourcePath, storage, operation, target, payload], { cwd: process.cwd() });
     let stdout = "";
     let stderr = "";
     child.stdout.setEncoding("utf8").on("data", (chunk: string) => { stdout += chunk; });
@@ -51,7 +52,7 @@ function runStoreWorker(storage: string, operation: string, target: string, payl
 }
 
 function spawnStoreWorker(storage: string, operation: string, target: string, payload: string) {
-  return spawn(process.execPath, ["-e", storeWorker, storage, operation, target, payload], { cwd: process.cwd() });
+  return spawn(process.execPath, ["-e", storeWorker, storeSourcePath, storage, operation, target, payload], { cwd: process.cwd() });
 }
 
 async function getExitedProcessId(): Promise<number> {

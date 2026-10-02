@@ -1,4 +1,4 @@
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   checkpointIndices,
@@ -16,11 +16,11 @@ import {
   type AttemptState,
   type AttemptReceipt,
 } from "@/db/schema";
-import { AppError, ConflictError, ForbiddenError, NotFoundError } from "./errors";
+import { AppError, ConflictError, ForbiddenError, NotFoundError, isUniqueViolation } from "./errors";
 import { getProjectForUser } from "./project";
-import { getTeamMembership } from "./team";
 
 export type CreateCheckpointInput = {
+  idempotencyKey?: string;
   visibility?: "project" | "assignee";
   parentCheckpointId?: string | null;
   taskHandoffVersion: number;
@@ -53,6 +53,29 @@ export type UpdateAttemptInput = {
   state?: AttemptState;
   receipt?: Partial<AttemptReceipt>;
 };
+
+function toValidDate(value: string | Date, fieldName: string): Date {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new AppError(`${fieldName} 无效`);
+  return date;
+}
+
+function sameHandoffPayload(
+  existing: typeof handoffRecords.$inferSelect,
+  projectId: string,
+  taskId: string,
+  input: CreateHandoffInput,
+  expectedTaskUpdatedAt: Date,
+) {
+  return (
+    existing.projectId === projectId &&
+    existing.taskId === taskId &&
+    existing.checkpointId === input.checkpointId &&
+    existing.toUserId === input.toUserId &&
+    existing.expectedHandoffVersion === input.expectedHandoffVersion &&
+    existing.expectedTaskUpdatedAt.getTime() === expectedTaskUpdatedAt.getTime()
+  );
+}
 
 // 游标编解码辅助
 function encodeCursor(createdAt: Date, id: string): string {
@@ -109,6 +132,19 @@ export async function getActorProfile(actorId: string) {
   };
 }
 
+/** Current human recipients for a project-scoped handoff. Never expose email or stale member data. */
+export async function listProjectHandoffRecipients(actorId: string, projectId: string) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError("无权访问该项目");
+
+  return db
+    .select({ userId: teamMembers.userId, displayName: users.name, role: teamMembers.role })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(and(eq(teamMembers.teamId, access.project.teamId), eq(users.kind, "human")))
+    .orderBy(asc(users.name), asc(users.id));
+}
+
 /** 创建检查点索引 */
 export async function createCheckpoint(
   actorId: string,
@@ -118,6 +154,19 @@ export async function createCheckpoint(
 ) {
   const access = await getProjectForUser(actorId, projectId);
   if (!access) throw new ForbiddenError("无权访问该项目");
+
+  const taskUpdatedAt = toValidDate(input.taskUpdatedAt, "检查点任务更新时间");
+  const normalizedInput = { ...input, visibility: input.visibility ?? "project", taskUpdatedAt };
+  if (input.idempotencyKey) {
+    const [existing] = await db
+      .select()
+      .from(checkpointIndices)
+      .where(and(eq(checkpointIndices.creatorId, actorId), eq(checkpointIndices.idempotencyKey, input.idempotencyKey)));
+    if (existing) {
+      if (sameCheckpointPayload(existing, projectId, taskId, actorId, normalizedInput)) return existing;
+      throw new ConflictError("相同幂等键已用于其他检查点发布请求");
+    }
+  }
 
   const [task] = await db
     .select({
@@ -133,6 +182,9 @@ export async function createCheckpoint(
 
   if (input.taskHandoffVersion !== task.handoffVersion) {
     throw new ConflictError("任务交接契约版本已更新，当前最新为 v" + task.handoffVersion);
+  }
+  if (taskUpdatedAt.getTime() !== task.updatedAt.getTime()) {
+    throw new ConflictError("任务在检查点采集后已更新，请刷新任务并重新保存检查点");
   }
 
   if (input.parentCheckpointId) {
@@ -160,28 +212,60 @@ export async function createCheckpoint(
   }
   if (totalBytes > 10 * 1024 * 1024) throw new AppError("附件总量不能超过 10 MiB");
 
-  const taskUpdatedAt =
-    input.taskUpdatedAt instanceof Date ? input.taskUpdatedAt : new Date(input.taskUpdatedAt);
+  try {
+    const [created] = await db
+      .insert(checkpointIndices)
+      .values({
+        projectId,
+        taskId,
+        creatorId: actorId,
+        idempotencyKey: input.idempotencyKey ?? null,
+        visibility: input.visibility ?? "project",
+        parentCheckpointId: input.parentCheckpointId ?? null,
+        taskHandoffVersion: input.taskHandoffVersion,
+        taskUpdatedAt,
+        repositoryKeyHash: input.repositoryKeyHash,
+        headSha: input.headSha,
+        source: input.source,
+        handoffSummary: input.handoffSummary,
+        materials: input.materials,
+      })
+      .returning();
 
-  const [created] = await db
-    .insert(checkpointIndices)
-    .values({
-      projectId,
-      taskId,
-      creatorId: actorId,
-      visibility: input.visibility ?? "project",
-      parentCheckpointId: input.parentCheckpointId ?? null,
-      taskHandoffVersion: input.taskHandoffVersion,
-      taskUpdatedAt,
-      repositoryKeyHash: input.repositoryKeyHash,
-      headSha: input.headSha,
-      source: input.source,
-      handoffSummary: input.handoffSummary,
-      materials: input.materials,
-    })
-    .returning();
+    return created;
+  } catch (error) {
+    if (!input.idempotencyKey || !isUniqueViolation(error)) throw error;
+    const [raced] = await db
+      .select()
+      .from(checkpointIndices)
+      .where(and(eq(checkpointIndices.creatorId, actorId), eq(checkpointIndices.idempotencyKey, input.idempotencyKey)));
+    if (!raced) throw error;
+    if (sameCheckpointPayload(raced, projectId, taskId, actorId, normalizedInput)) return raced;
+    throw new ConflictError("相同幂等键已用于其他检查点发布请求");
+  }
+}
 
-  return created;
+function sameCheckpointPayload(
+  existing: typeof checkpointIndices.$inferSelect,
+  projectId: string,
+  taskId: string,
+  actorId: string,
+  input: CreateCheckpointInput & { visibility: "project" | "assignee"; taskUpdatedAt: Date },
+): boolean {
+  return existing.projectId === projectId && existing.taskId === taskId && existing.creatorId === actorId &&
+    existing.visibility === input.visibility && existing.parentCheckpointId === (input.parentCheckpointId ?? null) &&
+    existing.taskHandoffVersion === input.taskHandoffVersion && existing.taskUpdatedAt.getTime() === input.taskUpdatedAt.getTime() &&
+    existing.repositoryKeyHash === input.repositoryKeyHash && existing.headSha === input.headSha &&
+    stableJson(existing.source) === stableJson(input.source) && stableJson(existing.handoffSummary) === stableJson(input.handoffSummary) &&
+    stableJson(existing.materials) === stableJson(input.materials);
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 /** 分页列出项目检查点 */
@@ -297,6 +381,7 @@ export async function createHandoff(
 ) {
   const access = await getProjectForUser(actorId, projectId);
   if (!access) throw new ForbiddenError("无权访问该项目");
+  const expectedTaskUpdatedAt = toValidDate(input.expectedTaskUpdatedAt, "任务更新时间");
 
   // 幂等校验
   const [existing] = await db
@@ -310,74 +395,95 @@ export async function createHandoff(
     );
 
   if (existing) {
-    if (
-      existing.checkpointId === input.checkpointId &&
-      existing.toUserId === input.toUserId &&
-      existing.taskId === taskId
-    ) {
+    if (sameHandoffPayload(existing, projectId, taskId, input, expectedTaskUpdatedAt)) {
       return { record: existing, isNew: false };
     }
     throw new ConflictError("相同幂等键已用于其他交接请求");
   }
 
-  // 接收方同团队验证
-  const recipientMembership = await getTeamMembership(input.toUserId, access.project.teamId);
-  if (!recipientMembership) throw new AppError("接收人不是该项目团队成员");
+  try {
+    const created = await db.transaction(async (tx) => {
+      // The initial project lookup is an early rejection only. Re-check both
+      // people at write time because either membership may have changed.
+      const memberships = await tx
+        .select({ userId: teamMembers.userId, role: teamMembers.role })
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.teamId, access.project.teamId),
+            inArray(teamMembers.userId, [actorId, input.toUserId]),
+          ),
+        );
+      const actorMembership = memberships.find((member) => member.userId === actorId);
+      const recipientMembership = memberships.find((member) => member.userId === input.toUserId);
+      if (!actorMembership) throw new ForbiddenError("当前用户已不属于该项目团队");
+      if (!recipientMembership) throw new AppError("接收人不是该项目团队成员");
 
-  const [task] = await db
-    .select({
-      id: tasks.id,
-      handoffVersion: tasks.handoffVersion,
-      updatedAt: tasks.updatedAt,
-    })
-    .from(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)));
+      // Serialize against task contract edits so the version checked here is
+      // the one this handoff is actually based on.
+      const [task] = await tx
+        .select({ id: tasks.id, handoffVersion: tasks.handoffVersion, updatedAt: tasks.updatedAt })
+        .from(tasks)
+        .where(and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)))
+        .for("update");
+      if (!task) throw new NotFoundError("任务不存在");
+      if (task.handoffVersion !== input.expectedHandoffVersion) {
+        throw new ConflictError("任务交接契约版本已变化，当前最新为 v" + task.handoffVersion);
+      }
+      if (task.updatedAt.getTime() !== expectedTaskUpdatedAt.getTime()) {
+        throw new ConflictError("任务已更新，请刷新后重新发起交接");
+      }
 
-  if (!task) throw new NotFoundError("任务不存在");
-  if (task.handoffVersion !== input.expectedHandoffVersion) {
-    throw new ConflictError("任务交接契约版本已变化，当前最新为 v" + task.handoffVersion);
+      const [checkpoint] = await tx
+        .select({ id: checkpointIndices.id, creatorId: checkpointIndices.creatorId })
+        .from(checkpointIndices)
+        .where(
+          and(
+            eq(checkpointIndices.id, input.checkpointId),
+            eq(checkpointIndices.projectId, projectId),
+            eq(checkpointIndices.taskId, taskId),
+          ),
+        );
+      if (!checkpoint) throw new NotFoundError("检查点不存在或不匹配此任务");
+      if (checkpoint.creatorId !== actorId && actorMembership.role !== "admin") {
+        throw new ForbiddenError("只有检查点创建者或管理员可以发起以此检查点为基准的交接");
+      }
+
+      const [record] = await tx
+        .insert(handoffRecords)
+        .values({
+          projectId,
+          taskId,
+          checkpointId: input.checkpointId,
+          fromUserId: actorId,
+          toUserId: input.toUserId,
+          expectedTaskUpdatedAt,
+          expectedHandoffVersion: input.expectedHandoffVersion,
+          state: "offered",
+          idempotencyKey: input.idempotencyKey,
+        })
+        .returning();
+      return record;
+    });
+    return { record: created, isNew: true };
+  } catch (error) {
+    // The unique index remains the final arbiter for concurrent retries.
+    if (!isUniqueViolation(error)) throw error;
+    const [raced] = await db
+      .select()
+      .from(handoffRecords)
+      .where(
+        and(
+          eq(handoffRecords.fromUserId, actorId),
+          eq(handoffRecords.idempotencyKey, input.idempotencyKey),
+        ),
+      );
+    if (!raced) throw error;
+    if (sameHandoffPayload(raced, projectId, taskId, input, expectedTaskUpdatedAt)) {
+      return { record: raced, isNew: false };
+    }
+    throw new ConflictError("相同幂等键已用于其他交接请求");
   }
-
-  const [checkpoint] = await db
-    .select({
-      id: checkpointIndices.id,
-      creatorId: checkpointIndices.creatorId,
-    })
-    .from(checkpointIndices)
-    .where(
-      and(
-        eq(checkpointIndices.id, input.checkpointId),
-        eq(checkpointIndices.projectId, projectId),
-        eq(checkpointIndices.taskId, taskId),
-      ),
-    );
-
-  if (!checkpoint) throw new NotFoundError("检查点不存在或不匹配此任务");
-  if (checkpoint.creatorId !== actorId && access.role !== "admin") {
-    throw new ForbiddenError("只有检查点创建者或管理员可以发起以此检查点为基准的交接");
-  }
-
-  const expectedTaskUpdatedAt =
-    input.expectedTaskUpdatedAt instanceof Date
-      ? input.expectedTaskUpdatedAt
-      : new Date(input.expectedTaskUpdatedAt);
-
-  const [created] = await db
-    .insert(handoffRecords)
-    .values({
-      projectId,
-      taskId,
-      checkpointId: input.checkpointId,
-      fromUserId: actorId,
-      toUserId: input.toUserId,
-      expectedTaskUpdatedAt,
-      expectedHandoffVersion: input.expectedHandoffVersion,
-      state: "offered",
-      idempotencyKey: input.idempotencyKey,
-    })
-    .returning();
-
-  return { record: created, isNew: true };
 
 }
 
@@ -460,6 +566,7 @@ export async function getHandoff(actorId: string, handoffId: string) {
       toUserId: handoffRecords.toUserId,
       expectedTaskUpdatedAt: handoffRecords.expectedTaskUpdatedAt,
       expectedHandoffVersion: handoffRecords.expectedHandoffVersion,
+      idempotencyKey: handoffRecords.idempotencyKey,
       state: handoffRecords.state,
       reason: handoffRecords.reason,
       createdAt: handoffRecords.createdAt,
@@ -503,78 +610,75 @@ export async function resolveHandoff(
   actorId: string,
   handoffId: string,
   action: "accept" | "decline" | "withdraw",
-  options: { reason?: string; expectedHandoffVersion?: number } = {},
+  options: { reason?: string; expectedHandoffVersion: number },
 ) {
-  const [handoff] = await db
-    .select()
-    .from(handoffRecords)
-    .where(eq(handoffRecords.id, handoffId));
+  return db.transaction(async (tx) => {
+    const [handoff] = await tx
+      .select()
+      .from(handoffRecords)
+      .where(eq(handoffRecords.id, handoffId))
+      .for("update");
+    if (!handoff) throw new NotFoundError("交接单不存在");
 
-  if (!handoff) throw new NotFoundError("交接单不存在");
+    const [membership] = await tx
+      .select({ role: teamMembers.role })
+      .from(projects)
+      .innerJoin(teamMembers, eq(teamMembers.teamId, projects.teamId))
+      .where(and(eq(projects.id, handoff.projectId), eq(teamMembers.userId, actorId)));
+    if (!membership) throw new ForbiddenError("当前用户已不属于该项目团队");
 
-  if (handoff.state !== "offered") {
-    throw new ConflictError(`交接单当前状态为 ${handoff.state}，无法执行 ${action}`);
-  }
-
-  const now = new Date();
-
-  if (action === "accept") {
-    if (handoff.toUserId !== actorId) {
-      throw new ForbiddenError("只有指定接收人可以接收此交接单");
+    if (handoff.state !== "offered") {
+      throw new ConflictError(`交接单当前状态为 ${handoff.state}，无法执行 ${action}`);
     }
-    // 核对当前任务契约版本
-    const [task] = await db
-      .select({ handoffVersion: tasks.handoffVersion })
-      .from(tasks)
-      .where(eq(tasks.id, handoff.taskId));
-    if (task && task.handoffVersion !== handoff.expectedHandoffVersion) {
-      throw new ConflictError("任务契约已更新，原有交接单已失效，请发起方重新交接");
+    if (handoff.expectedHandoffVersion !== options.expectedHandoffVersion) {
+      throw new ConflictError("交接单版本已变化，请刷新后重试");
     }
 
-    const [updated] = await db
+    if (action === "accept" || action === "decline") {
+      if (handoff.toUserId !== actorId) {
+        throw new ForbiddenError(`只有指定接收人可以${action === "accept" ? "接收" : "拒绝"}此交接单`);
+      }
+    } else if (action === "withdraw") {
+      if (handoff.fromUserId !== actorId) {
+        throw new ForbiddenError("只有发起人可以撤回此交接单");
+      }
+    } else {
+      throw new AppError("未知的交接处理动作");
+    }
+
+    if (action === "accept") {
+      // Hold the task row while comparing its live contract version; a contract
+      // update cannot slip between this check and the state transition.
+      const [task] = await tx
+        .select({ handoffVersion: tasks.handoffVersion })
+        .from(tasks)
+        .where(eq(tasks.id, handoff.taskId))
+        .for("update");
+      if (!task) throw new NotFoundError("关联任务不存在");
+      if (task.handoffVersion !== handoff.expectedHandoffVersion) {
+        throw new ConflictError("任务契约已更新，原有交接单已失效，请发起方重新交接");
+      }
+    }
+
+    const nextState = action === "accept" ? "accepted" : action === "decline" ? "declined" : "withdrawn";
+    const [updated] = await tx
       .update(handoffRecords)
       .set({
-        state: "accepted",
-        resolvedAt: now,
+        state: nextState,
+        reason: action === "accept" ? handoff.reason : options.reason ?? null,
+        resolvedAt: new Date(),
       })
-      .where(eq(handoffRecords.id, handoffId))
+      .where(
+        and(
+          eq(handoffRecords.id, handoffId),
+          eq(handoffRecords.state, "offered"),
+          eq(handoffRecords.expectedHandoffVersion, options.expectedHandoffVersion),
+        ),
+      )
       .returning();
+    if (!updated) throw new ConflictError("交接单状态或版本已变化，请刷新后重试");
     return updated;
-  }
-
-  if (action === "decline") {
-    if (handoff.toUserId !== actorId) {
-      throw new ForbiddenError("只有指定接收人可以拒绝此交接单");
-    }
-    const [updated] = await db
-      .update(handoffRecords)
-      .set({
-        state: "declined",
-        reason: options.reason ?? null,
-        resolvedAt: now,
-      })
-      .where(eq(handoffRecords.id, handoffId))
-      .returning();
-    return updated;
-  }
-
-  if (action === "withdraw") {
-    if (handoff.fromUserId !== actorId) {
-      throw new ForbiddenError("只有发起人可以撤回此交接单");
-    }
-    const [updated] = await db
-      .update(handoffRecords)
-      .set({
-        state: "withdrawn",
-        reason: options.reason ?? null,
-        resolvedAt: now,
-      })
-      .where(eq(handoffRecords.id, handoffId))
-      .returning();
-    return updated;
-  }
-
-  throw new AppError("未知的交接处理动作");
+  });
 }
 
 /** 登记 Attempt 执行回执 */
@@ -751,4 +855,46 @@ export async function evaluateServerHandoffPreflight(
       materialsCount: handoff.checkpoint?.materials?.length ?? 0,
     },
   };
+}
+
+/** B04: 查询指定任务下的所有 Attempt 执行记录（支持同源并行方案比对） */
+export async function listTaskAttempts(
+  actorId: string,
+  projectId: string,
+  taskId: string,
+) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError("无权访问该项目");
+
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)));
+
+  if (!task) throw new NotFoundError("任务不存在或不属于该项目");
+
+  const rows = await db
+    .select({
+      id: attemptReceipts.id,
+      handoffId: attemptReceipts.handoffId,
+      checkpointId: attemptReceipts.checkpointId,
+      taskId: attemptReceipts.taskId,
+      actorId: attemptReceipts.actorId,
+      actorName: users.name,
+      baseSha: attemptReceipts.baseSha,
+      branchName: attemptReceipts.branchName,
+      kind: attemptReceipts.kind,
+      provider: attemptReceipts.provider,
+      providerVersion: attemptReceipts.providerVersion,
+      state: attemptReceipts.state,
+      receipt: attemptReceipts.receipt,
+      createdAt: attemptReceipts.createdAt,
+      updatedAt: attemptReceipts.updatedAt,
+    })
+    .from(attemptReceipts)
+    .leftJoin(users, eq(attemptReceipts.actorId, users.id))
+    .where(eq(attemptReceipts.taskId, taskId))
+    .orderBy(desc(attemptReceipts.createdAt));
+
+  return rows;
 }

@@ -3,6 +3,8 @@ import { registerContinueAiCommand } from "./commands/continue-ai";
 import { registerOpenWebCommand } from "./commands/open-web";
 import { registerReportBlockerCommand } from "./commands/report-blocker";
 import { registerSaveCheckpointCommand } from "./commands/save-checkpoint";
+import { registerPublishCheckpointCommand } from "./commands/publish-checkpoint";
+import { registerSendHandoffCommand } from "./commands/send-handoff";
 import { registerListCheckpointsCommand } from "./commands/list-checkpoints";
 import { registerExportCheckpointCommand } from "./commands/export-checkpoint";
 import { registerImportCheckpointCommand } from "./commands/import-checkpoint";
@@ -21,6 +23,8 @@ export function activate(context: vscode.ExtensionContext): void {
   registerContinueAiCommand(context, provider);
   registerReportBlockerCommand(context, provider);
   registerSaveCheckpointCommand(context);
+  registerPublishCheckpointCommand(context);
+  registerSendHandoffCommand(context);
   registerListCheckpointsCommand(context);
   registerExportCheckpointCommand(context);
   registerImportCheckpointCommand(context);

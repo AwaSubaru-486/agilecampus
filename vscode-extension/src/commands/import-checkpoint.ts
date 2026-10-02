@@ -2,8 +2,10 @@ import * as vscode from "vscode";
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { CheckpointStore } from "../checkpoints/store";
+import { saveImportedCheckpoint } from "../checkpoints/import-store";
 import { parseSharePackage, SharePackageError } from "../checkpoints/share-package";
 import { createWorkspaceApi, selectBoundWorkspace } from "./checkpoint-support";
+import { ServerCheckpointMappingStore } from "../checkpoints/server-mapping";
 
 export function registerImportCheckpointCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.importCheckpoint", () => importCheckpoint(context)));
@@ -48,15 +50,41 @@ async function importCheckpoint(context: vscode.ExtensionContext): Promise<void>
     if (consent !== "导入会话材料") return;
   }
 
+  const api = createWorkspaceApi(context, selected.binding);
   let taskVerified = false;
   try {
-    const task = await createWorkspaceApi(context, selected.binding).getTask(manifest.taskId);
+    const task = await api.getTask(manifest.taskId);
     taskVerified = task.id === manifest.taskId && task.projectId === manifest.projectId;
   } catch { /* Import remains local-only; execution will recheck online in E06. */ }
+  let verifiedSourceServerCheckpointId: string | null = null;
+  if (packageData.value.sourceServerCheckpointId) {
+    try {
+      const source = await api.getCheckpointIndex(packageData.value.sourceServerCheckpointId);
+      if (source.id === packageData.value.sourceServerCheckpointId && source.projectId === manifest.projectId && source.taskId === manifest.taskId) {
+        verifiedSourceServerCheckpointId = source.id;
+      }
+    } catch { /* Keep the package local; parent mapping will be retried by a later import. */ }
+  }
   try {
-    const imported = await new CheckpointStore(context.globalStorageUri.fsPath).save(manifest, packageData.artifacts);
+    const imported = await saveImportedCheckpoint(new CheckpointStore(context.globalStorageUri.fsPath), manifest, packageData.artifacts);
+    let parentMappingSaved = false;
+    if (verifiedSourceServerCheckpointId) {
+      try {
+        await new ServerCheckpointMappingStore(context.workspaceState).set({
+          serverOrigin: selected.binding.serverOrigin,
+          projectId: manifest.projectId,
+          taskId: manifest.taskId,
+          localCheckpointId: packageData.value.sourceCheckpointId,
+          serverCheckpointId: verifiedSourceServerCheckpointId,
+        });
+        parentMappingSaved = true;
+      } catch { /* The local package remains usable; publishing its child stays blocked until the mapping is restored. */ }
+    }
     const verification = taskVerified ? "任务归属已在线核对" : "项目/任务声明尚未在线核对，材料仅本机查看";
-    void vscode.window.showInformationMessage(`检查点已导入（${imported.repository.headSha.slice(0, 10)}）；${verification}。SHA-256 不证明发送者身份。`);
+    const lineage = packageData.value.sourceServerCheckpointId
+      ? parentMappingSaved ? "父检查点已与服务端核对" : "父检查点尚未在线核对，当前只能保留本地历史关系"
+      : "交接包没有服务端父检查点映射，发布前需先建立父级映射";
+    void vscode.window.showInformationMessage(`检查点已导入（${imported.repository.headSha.slice(0, 10)}）；${verification}；${lineage}。SHA-256 不证明发送者身份。`);
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "保存导入检查点失败");
   }

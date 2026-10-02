@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
+import { mayUseOfflineTaskSnapshot } from "./checkpoint-offline-policy";
 import { EntireAdapter } from "../adapters/entire-adapter";
 import { CheckpointStore } from "../checkpoints/store";
 import type { WorkCheckpoint, NewCheckpointArtifact } from "../checkpoints/types";
 import { readRepositorySnapshot, sameRepositorySnapshot } from "../git/repository-service";
+import type { TaskDetail } from "../types";
 import { createWorkspaceApi, getLocalOnlyRepositoryId, promptText, selectBoundWorkspace, splitItems } from "./checkpoint-support";
 
 export function registerSaveCheckpointCommand(context: vscode.ExtensionContext): void {
@@ -19,26 +21,76 @@ async function saveCheckpoint(context: vscode.ExtensionContext): Promise<void> {
   if (!selectedWorkspace) return;
   const { folder, binding } = selectedWorkspace;
   const api = createWorkspaceApi(context, binding);
-  let tasks;
+  const store = new CheckpointStore(context.globalStorageUri.fsPath);
+  let tasks: Awaited<ReturnType<typeof api.listTasks>> = [];
+  let pickedTask: { task: { id: string; title: string; status: string; assigneeName: string | null } } | undefined;
+  let task: TaskDetail | undefined;
+  let usingOfflineSnapshot = false;
   try {
     tasks = await api.listTasks(binding.projectId);
   } catch (error) {
-    void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法读取项目任务");
+    if (!mayUseOfflineTaskSnapshot(error)) {
+      void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法读取项目任务");
+      return;
+    }
+    const local = await store.list(binding.serverOrigin, binding.projectId).catch(() => []);
+    if (!local.length) {
+      void vscode.window.showErrorMessage(`${error instanceof Error ? error.message : "无法读取项目任务"}；尚无本地检查点可用作离线任务基线。`);
+      return;
+    }
+    const previous = await vscode.window.showQuickPick(local.map(({ manifest }) => ({
+      label: manifest.taskSnapshot.title,
+      description: `${manifest.repository.headSha.slice(0, 10)} · 本地快照 ${new Date(manifest.capturedAt).toLocaleString()}`,
+      manifest,
+    })), { title: "离线保存：选择已有任务基线" });
+    if (!previous) return;
+    const useOffline = await vscode.window.showWarningMessage(
+      `服务端暂不可用。将使用 ${new Date(previous.manifest.taskUpdatedAt).toLocaleString()} 的任务契约快照；新检查点仅保存在本机，恢复连接后发布前必须重新核对版本。`,
+      { modal: true }, "继续离线保存",
+    );
+    if (useOffline !== "继续离线保存") return;
+    const snapshot = previous.manifest.taskSnapshot;
+    task = {
+      id: previous.manifest.taskId,
+      projectId: previous.manifest.projectId,
+      title: snapshot.title,
+      status: snapshot.status,
+      priority: snapshot.priority,
+      dueDate: snapshot.dueDate,
+      assigneeId: snapshot.assigneeId,
+      assigneeName: snapshot.assigneeName,
+      handoffBrief: snapshot.handoffBrief,
+      doneCriteria: snapshot.doneCriteria,
+      requiredEvidence: snapshot.requiredEvidence,
+      updatedAt: previous.manifest.taskUpdatedAt,
+      description: snapshot.description,
+      completionNote: snapshot.completionNote,
+      responseDueAt: snapshot.responseDueAt,
+      handoffVersion: previous.manifest.handoffVersion,
+      committedHandoffVersion: snapshot.committedHandoffVersion,
+    };
+    pickedTask = { task: { id: task.id, title: task.title, status: task.status, assigneeName: task.assigneeName } };
+    usingOfflineSnapshot = true;
+  }
+  if (!pickedTask) {
+    if (!tasks.length) {
+      void vscode.window.showInformationMessage("此项目没有可关联的任务。");
+      return;
+    }
+    const onlineChoice = await vscode.window.showQuickPick(tasks.map((item) => ({
+      label: item.title,
+      description: `${item.status} · ${item.assigneeName ?? "未分配"}`,
+      task: item,
+    })), { title: "选择检查点关联任务" });
+    if (!onlineChoice) return;
+    pickedTask = onlineChoice;
+    try { task = await api.getTask(pickedTask.task.id); }
+    catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法读取任务要求"); return; }
+  }
+  if (!pickedTask || !task) {
+    void vscode.window.showErrorMessage("未能取得有效任务快照，检查点未保存。");
     return;
   }
-  if (!tasks.length) {
-    void vscode.window.showInformationMessage("此项目没有可关联的任务。");
-    return;
-  }
-  const pickedTask = await vscode.window.showQuickPick(tasks.map((task) => ({
-    label: task.title,
-    description: `${task.status} · ${task.assigneeName ?? "未分配"}`,
-    task,
-  })), { title: "选择检查点关联任务" });
-  if (!pickedTask) return;
-  let task;
-  try { task = await api.getTask(pickedTask.task.id); }
-  catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法读取任务要求"); return; }
   if (task.projectId !== binding.projectId || task.id !== pickedTask.task.id) {
     void vscode.window.showErrorMessage("任务与当前项目不匹配，未保存检查点。");
     return;
@@ -130,12 +182,26 @@ async function saveCheckpoint(context: vscode.ExtensionContext): Promise<void> {
     artifacts.push({ kind: "transcript", content: Buffer.from(captured.value.transcript, "utf8") });
   }
 
-  try {
-    const latestTask = await api.getTask(task.id);
-    if (latestTask.projectId !== binding.projectId || latestTask.updatedAt !== task.updatedAt || latestTask.handoffVersion !== task.handoffVersion) {
-      void vscode.window.showWarningMessage("任务要求在保存期间发生变化；检查点未保存，请重新核对后再试。");
-      return;
+  if (!usingOfflineSnapshot) {
+    try {
+      const latestTask = await api.getTask(task.id);
+      if (latestTask.projectId !== binding.projectId || latestTask.updatedAt !== task.updatedAt || latestTask.handoffVersion !== task.handoffVersion) {
+        void vscode.window.showWarningMessage("任务要求在保存期间发生变化；检查点未保存，请重新核对后再试。");
+        return;
+      }
+    } catch (error) {
+      if (!mayUseOfflineTaskSnapshot(error)) {
+        void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法刷新任务");
+        return;
+      }
+      const proceed = await vscode.window.showWarningMessage(
+        `${error instanceof Error ? error.message : "无法刷新任务"}。任务快照在本次填写前已读取；可以仅保存在本机，稍后发布前再核对。`,
+        { modal: true }, "仅本地保存",
+      );
+      if (proceed !== "仅本地保存") return;
     }
+  }
+  try {
     const after = await readRepositorySnapshot(folder.uri.fsPath, localOnlyId);
     if (!sameRepositorySnapshot(before, after)) {
       void vscode.window.showWarningMessage("Git 基线在填写交接内容期间发生变化；检查点未保存，请重新捕获。");
@@ -187,10 +253,11 @@ async function saveCheckpoint(context: vscode.ExtensionContext): Promise<void> {
       tests: [],
       artifacts: [],
     };
-    await new CheckpointStore(context.globalStorageUri.fsPath).save(manifest, artifacts);
+    await store.save(manifest, artifacts);
     const dirtyNote = before.dirty ? "；未提交修改已排除" : "";
     const blockerNote = before.recoveryBlockers.length ? "；包含暂不支持恢复的仓库材料" : "";
-    void vscode.window.showInformationMessage(`本地检查点已保存（${before.headSha.slice(0, 10)}）${dirtyNote}${blockerNote}。当前保存的是 context-only 交接材料。`);
+    const offlineNote = usingOfflineSnapshot ? "；使用历史任务快照，发布前需核对版本" : "";
+    void vscode.window.showInformationMessage(`本地检查点已保存（${before.headSha.slice(0, 10)}）${dirtyNote}${blockerNote}${offlineNote}。当前保存的是 context-only 交接材料。`);
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "检查点保存失败");
   }

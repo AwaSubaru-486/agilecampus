@@ -90,6 +90,154 @@ describe("AgileCampus API client", () => {
       vi.fn(async () => response(200, { tasks: [{}] })) as unknown as typeof fetch);
     await expect(malformed.listTasks("project-1")).rejects.toThrow("包含无效记录");
   });
+
+  it("posts only the confirmed checkpoint index fields and validates the server response", async () => {
+    const payload = {
+      idempotencyKey: "00000000-0000-5000-8000-000000000001",
+      visibility: "project" as const, parentCheckpointId: null,
+      taskHandoffVersion: 3, taskUpdatedAt: "2026-10-01T05:00:00.000Z",
+      repositoryKeyHash: "a".repeat(64), headSha: "b".repeat(40),
+      source: { provider: "Entire CLI", providerVersion: "0.11.3", captureMode: "context-only" as const },
+      handoffSummary: { goal: "实现检查点", completed: ["本地保存"], remaining: ["发布索引"], blocker: null, nextAction: "核对发布结果" },
+      materials: [{ id: "d87c4e10-09d1-40d6-9e55-62bc029940b9", kind: "transcript" as const, sha256: "c".repeat(64), byteLength: 21, transferred: false as const }],
+    };
+    const record = {
+      id: "d87c4e10-09d1-40d6-9e55-62bc02994100", projectId: "project-a", taskId: "task-a", creatorId: "user-a",
+      idempotencyKey: payload.idempotencyKey,
+      visibility: "project", parentCheckpointId: null, taskHandoffVersion: 3, taskUpdatedAt: payload.taskUpdatedAt,
+      repositoryKeyHash: payload.repositoryKeyHash, headSha: payload.headSha, source: payload.source,
+      handoffSummary: payload.handoffSummary, materials: payload.materials, createdAt: payload.taskUpdatedAt,
+    };
+    let body = "";
+    let seenInit: RequestInit | undefined;
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      body = String(init?.body ?? ""); seenInit = init;
+      return response(201, record);
+    }) as unknown as typeof fetch;
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test", fetcher);
+    await expect(client.createCheckpointIndex("project-a", "task-a", payload)).resolves.toMatchObject({ id: record.id });
+    expect(seenInit?.method).toBe("POST");
+    expect(seenInit?.redirect).toBe("error");
+    expect(new Headers(seenInit?.headers).get("content-type")).toBe("application/json");
+    expect(JSON.parse(body)).toEqual(payload);
+    expect(body).not.toContain("PRIVATE_TRANSCRIPT_BODY");
+    expect(body).not.toContain("/Users/");
+    expect(body).not.toContain("API_KEY");
+    expect(body).not.toContain("uncommitted source");
+  });
+
+  it("rejects a checkpoint response that does not match the requested project, task, and summary", async () => {
+    const payload = {
+      visibility: "project" as const, parentCheckpointId: null, taskHandoffVersion: 1,
+      taskUpdatedAt: "2026-10-01T05:00:00.000Z", repositoryKeyHash: "a", headSha: "b",
+      source: { provider: "test", providerVersion: "1", captureMode: "context-only" as const },
+      handoffSummary: { goal: "预期摘要", completed: [], remaining: [], blocker: null, nextAction: "下一步" }, materials: [],
+    };
+    const record = {
+      id: "checkpoint", projectId: "wrong-project", taskId: "task-a", creatorId: "user-a", visibility: "project",
+      parentCheckpointId: null, taskHandoffVersion: 1, taskUpdatedAt: payload.taskUpdatedAt, repositoryKeyHash: "a", headSha: "b",
+      source: payload.source, handoffSummary: payload.handoffSummary, materials: [], createdAt: payload.taskUpdatedAt,
+    };
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(201, record)) as unknown as typeof fetch);
+    await expect(client.createCheckpointIndex("project-a", "task-a", payload)).rejects.toThrow("与已确认内容不一致");
+  });
+
+  it("parses the current actor and only validated project member fields", async () => {
+    const responses = [
+      { actor: { id: "actor-1", displayName: "发起人", email: "private@example.test" } },
+      { projectId: "project-a", items: [
+        { userId: "actor-1", displayName: "发起人", role: "student" },
+        { userId: "recipient-1", displayName: "接收人", role: "teacher", email: "private@example.test" },
+      ] },
+    ];
+    const fetcher = vi.fn(async () => response(200, responses.shift())) as unknown as typeof fetch;
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test", fetcher);
+    await expect(client.getCurrentActor()).resolves.toEqual({ id: "actor-1", displayName: "发起人" });
+    await expect(client.listProjectHandoffMembers("project-a")).resolves.toEqual([
+      { userId: "actor-1", displayName: "发起人", role: "student" },
+      { userId: "recipient-1", displayName: "接收人", role: "teacher" },
+    ]);
+    expect(String((fetcher as unknown as ReturnType<typeof vi.fn>).mock.calls[1][0])).toContain("/api/extension/v1/projects/project-a/members");
+
+    const wrongProject = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(200, { projectId: "other-project", items: [] })) as unknown as typeof fetch);
+    await expect(wrongProject.listProjectHandoffMembers("project-a")).rejects.toThrow("返回格式无效");
+    const unknownRole = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(200, { projectId: "project-a", items: [{ userId: "u1", displayName: "用户", role: "unknown" }] })) as unknown as typeof fetch);
+    await expect(unknownRole.listProjectHandoffMembers("project-a")).rejects.toThrow("包含无效记录");
+  });
+
+  it("posts a handoff with the stable idempotency key and validates all identity/version fields", async () => {
+    const payload = {
+      checkpointId: "d87c4e10-09d1-40d6-9e55-62bc029940b9",
+      toUserId: "d87c4e10-09d1-40d6-9e55-62bc029940ba",
+      expectedTaskUpdatedAt: "2026-10-01T05:00:00.000Z",
+      expectedHandoffVersion: 3,
+      idempotencyKey: "d87c4e10-09d1-40d6-9e55-62bc029940bb",
+    };
+    const record = {
+      id: "d87c4e10-09d1-40d6-9e55-62bc029940bc",
+      projectId: "d87c4e10-09d1-40d6-9e55-62bc029940bd",
+      taskId: "d87c4e10-09d1-40d6-9e55-62bc029940be",
+      fromUserId: "d87c4e10-09d1-40d6-9e55-62bc029940bf",
+      ...payload,
+      state: "offered", reason: null, createdAt: payload.expectedTaskUpdatedAt, resolvedAt: null,
+    };
+    let seenUrl = "";
+    let seenInit: RequestInit | undefined;
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      seenUrl = String(input); seenInit = init;
+      return response(201, record);
+    }) as unknown as typeof fetch);
+    await expect(client.createHandoff(record.projectId, record.taskId, payload, record.fromUserId)).resolves.toMatchObject({ id: record.id, state: "offered" });
+    expect(seenUrl).toBe(`http://localhost:3000/api/extension/v1/projects/${record.projectId}/tasks/${record.taskId}/handoffs`);
+    expect(seenInit?.method).toBe("POST");
+    expect(seenInit?.redirect).toBe("error");
+    expect(JSON.parse(String(seenInit?.body))).toEqual(payload);
+
+    const mismatched = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(201, { ...record, fromUserId: "another-actor" })) as unknown as typeof fetch);
+    await expect(mismatched.createHandoff(record.projectId, record.taskId, payload, record.fromUserId)).rejects.toThrow("与已确认请求不一致");
+
+    const acceptedReplay = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(200, { ...record, state: "accepted" })) as unknown as typeof fetch);
+    await expect(acceptedReplay.createHandoff(record.projectId, record.taskId, payload, record.fromUserId))
+      .resolves.toMatchObject({ id: record.id, state: "accepted" });
+
+    const mismatches = [
+      { projectId: "another-project" }, { taskId: "another-task" }, { checkpointId: "another-checkpoint" },
+      { fromUserId: "another-actor" }, { toUserId: "another-recipient" }, { expectedHandoffVersion: 99 },
+    ];
+    for (const mismatch of mismatches) {
+      const invalid = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+        vi.fn(async () => response(201, { ...record, ...mismatch })) as unknown as typeof fetch);
+      await expect(invalid.createHandoff(record.projectId, record.taskId, payload, record.fromUserId))
+        .rejects.toThrow("与已确认请求不一致");
+    }
+  });
+
+  it("reads a handoff status and validates that the returned record matches the requested ID", async () => {
+    const record = {
+      id: "d87c4e10-09d1-40d6-9e55-62bc029940bc",
+      projectId: "d87c4e10-09d1-40d6-9e55-62bc029940bd",
+      taskId: "d87c4e10-09d1-40d6-9e55-62bc029940be",
+      checkpointId: "d87c4e10-09d1-40d6-9e55-62bc029940b9",
+      toUserId: "d87c4e10-09d1-40d6-9e55-62bc029940ba",
+      fromUserId: "d87c4e10-09d1-40d6-9e55-62bc029940bf",
+      expectedTaskUpdatedAt: "2026-10-01T05:00:00.000Z",
+      expectedHandoffVersion: 3,
+      idempotencyKey: "d87c4e10-09d1-40d6-9e55-62bc029940bb",
+      state: "declined", reason: "暂时无法接手", createdAt: "2026-10-01T05:00:00.000Z", resolvedAt: "2026-10-01T06:00:00.000Z",
+    };
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(200, record)) as unknown as typeof fetch);
+    await expect(client.getHandoff(record.id)).resolves.toMatchObject({ id: record.id, state: "declined" });
+
+    const mismatched = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test",
+      vi.fn(async () => response(200, { ...record, id: "another-handoff" })) as unknown as typeof fetch);
+    await expect(mismatched.getHandoff(record.id)).rejects.toThrow("其他交接记录");
+  });
 });
 
 describe("binding and token storage boundaries", () => {

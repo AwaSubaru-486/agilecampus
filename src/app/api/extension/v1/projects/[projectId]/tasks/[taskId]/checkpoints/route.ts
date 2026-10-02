@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapExtensionError } from "@/lib/extension-auth";
+import { authenticateBearer, unauthorized, mapExtensionError, parseExtensionJson } from "@/lib/extension-auth";
 import { createCheckpoint } from "@/lib/checkpoint";
 
 type Ctx = { params: Promise<{ projectId: string; taskId: string }> };
@@ -28,6 +28,7 @@ const summarySchema = z.object({
 });
 
 const createCheckpointSchema = z.object({
+  idempotencyKey: z.string().uuid().optional(),
   visibility: z.enum(["project", "assignee"]).default("project"),
   parentCheckpointId: z.string().uuid().nullable().optional(),
   taskHandoffVersion: z.number().int().nonnegative(),
@@ -52,7 +53,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "taskId 无效" }, { status: 400 });
     }
 
-    const body = await req.json();
+    const body = await parseExtensionJson(req);
     const input = createCheckpointSchema.parse(body);
 
     const checkpoint = await createCheckpoint(actorId, projectId, taskId, input);

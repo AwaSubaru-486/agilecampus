@@ -3,6 +3,16 @@ import { AppError } from "./errors";
 export const EVIDENCE_TYPES = ["link", "file", "text", "test", "demo"] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 
+export function parseRequiredEvidence(value: unknown): EvidenceType[] | null {
+  if (value == null) return null;
+  const isEvidenceType = (item: unknown): item is EvidenceType =>
+    typeof item === "string" && (EVIDENCE_TYPES as readonly string[]).includes(item);
+  if (!Array.isArray(value) || !value.every(isEvidenceType)) {
+    throw new AppError("任务证据要求数据格式无效");
+  }
+  return [...value];
+}
+
 export const MAX_DONE_CRITERIA = 8;
 export const MAX_HANDOFF_BRIEF_LENGTH = 2_000;
 

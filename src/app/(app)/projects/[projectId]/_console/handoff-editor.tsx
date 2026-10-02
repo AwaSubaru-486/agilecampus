@@ -21,7 +21,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { updateTaskHandoffAction, type UpdateTaskState } from "../actions";
 import type { MemberSummary, SelectedTaskDetail } from "./console-shell";
-import { EVIDENCE_TYPES, type EvidenceType } from "@/lib/handoff";
+import type { EvidenceType } from "@/lib/handoff";
 
 const EVIDENCE_CONFIG: { type: EvidenceType; label: string; desc: string }[] = [
   { type: "link", label: "外部链接", desc: "PR / Commit / 文档" },
@@ -58,22 +58,24 @@ export function HandoffEditor({
   }, [state, onClose]);
 
   // 解析既有的证据要求
-  const initialEvidenceTypes = new Set<string>();
-  if (selectedTask.requiredEvidence) {
-    selectedTask.requiredEvidence
-      .split(/[,，、\s]+/)
-      .map((s) => s.trim().toLowerCase())
-      .filter((s) => (EVIDENCE_TYPES as readonly string[]).includes(s))
-      .forEach((t) => initialEvidenceTypes.add(t));
-  }
-  const [checkedEvidence, setCheckedEvidence] = useState<Set<string>>(initialEvidenceTypes);
+  const evidenceSourceKey = selectedTask.id + "\0" + (selectedTask.requiredEvidence ?? []).join("\0");
+  const [evidenceDraft, setEvidenceDraft] = useState<{
+    sourceKey: string;
+    values: Set<EvidenceType>;
+  }>(() => ({ sourceKey: evidenceSourceKey, values: new Set(selectedTask.requiredEvidence ?? []) }));
+  const checkedEvidence = evidenceDraft.sourceKey === evidenceSourceKey
+    ? evidenceDraft.values
+    : new Set(selectedTask.requiredEvidence ?? []);
 
-  function toggleEvidence(type: string) {
-    setCheckedEvidence((prev) => {
-      const next = new Set(prev);
+  function toggleEvidence(type: EvidenceType) {
+    setEvidenceDraft((previous) => {
+      const current = previous.sourceKey === evidenceSourceKey
+        ? previous.values
+        : new Set(selectedTask.requiredEvidence ?? []);
+      const next = new Set(current);
       if (next.has(type)) next.delete(type);
       else next.add(type);
-      return next;
+      return { sourceKey: evidenceSourceKey, values: next };
     });
   }
 

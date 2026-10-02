@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapExtensionError } from "@/lib/extension-auth";
+import { authenticateBearer, unauthorized, mapExtensionError, parseExtensionJson } from "@/lib/extension-auth";
 import { evaluateServerHandoffPreflight } from "@/lib/checkpoint";
 
 type Ctx = { params: Promise<{ handoffId: string }> };
@@ -21,13 +21,9 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "handoffId 无效" }, { status: 400 });
     }
 
-    let clientInput: z.infer<typeof preflightInputSchema> = {};
-    try {
-      const json = await req.json();
-      clientInput = preflightInputSchema.parse(json);
-    } catch {
-      // body is optional
-    }
+    const clientInput = preflightInputSchema.parse(
+      await parseExtensionJson(req, { allowEmpty: true }),
+    );
 
     const report = await evaluateServerHandoffPreflight(actorId, handoffId, clientInput);
     return NextResponse.json(report);

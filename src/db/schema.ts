@@ -931,3 +931,4 @@ export const agentRuns = pgTable(
 
 // ── VS Code Checkpoints, Handoffs, and Attempt Receipts (B01/B02) ──
 export * from "./schema-checkpoint";
+export * from "./schema-session-memory";

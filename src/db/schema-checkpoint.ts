@@ -45,6 +45,7 @@ export const checkpointIndices = pgTable(
     creatorId: uuid("creator_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key"),
     visibility: text("visibility").notNull().default("project"), // "project" | "assignee"
     parentCheckpointId: uuid("parent_checkpoint_id"),
     taskHandoffVersion: integer("task_handoff_version").notNull(),
@@ -60,6 +61,7 @@ export const checkpointIndices = pgTable(
     index("checkpoint_indices_project_task_idx").on(t.projectId, t.taskId),
     index("checkpoint_indices_task_created_idx").on(t.taskId, t.createdAt),
     index("checkpoint_indices_creator_idx").on(t.creatorId),
+    uniqueIndex("checkpoint_indices_creator_idempotency_unique").on(t.creatorId, t.idempotencyKey),
   ],
 );
 
@@ -143,5 +145,35 @@ export const attemptReceipts = pgTable(
   (t) => [
     index("attempt_receipts_handoff_idx").on(t.handoffId),
     index("attempt_receipts_task_actor_idx").on(t.taskId, t.actorId),
+  ],
+);
+
+export type MemoryCategory = "constraint" | "decision" | "learned" | "rejected_approach";
+export type MemoryStatus = "active" | "needs_review" | "superseded";
+
+export const projectMemories = pgTable(
+  "project_memories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    creatorId: uuid("creator_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    confirmedById: uuid("confirmed_by_id").references(() => users.id, { onDelete: "set null" }),
+    category: text("category").$type<MemoryCategory>().notNull().default("constraint"),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    status: text("status").$type<MemoryStatus>().notNull().default("active"),
+    supersededById: uuid("superseded_by_id"),
+    codeRefSha: text("code_ref_sha"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("project_memories_project_status_idx").on(t.projectId, t.status),
+    index("project_memories_task_idx").on(t.taskId),
   ],
 );

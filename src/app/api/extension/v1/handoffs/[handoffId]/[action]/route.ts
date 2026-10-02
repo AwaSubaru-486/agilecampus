@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapExtensionError } from "@/lib/extension-auth";
+import { authenticateBearer, unauthorized, mapExtensionError, parseExtensionJson } from "@/lib/extension-auth";
 import { resolveHandoff } from "@/lib/checkpoint";
 
 type Ctx = { params: Promise<{ handoffId: string; action: string }> };
 
 const actionBodySchema = z.object({
   reason: z.string().max(1000).optional(),
-  expectedHandoffVersion: z.number().int().nonnegative().optional(),
-  idempotencyKey: z.string().max(256).optional(),
-}).optional();
+  expectedHandoffVersion: z.number().int().positive(),
+}).strict();
 
 export async function POST(req: Request, ctx: Ctx) {
   try {
@@ -25,13 +24,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "无效的交接动作，仅支持 accept, decline, withdraw" }, { status: 400 });
     }
 
-    let body: z.infer<typeof actionBodySchema> = {};
-    try {
-      const json = await req.json();
-      body = actionBodySchema.parse(json);
-    } catch {
-      // body is optional
-    }
+    const body = actionBodySchema.parse(await parseExtensionJson(req));
 
     const updated = await resolveHandoff(actorId, handoffId, action, {
       reason: body?.reason,

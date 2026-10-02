@@ -6,6 +6,20 @@ import { claimTask, createTask, getTaskDetail, submitTask, updateTask } from "@/
 import { createContextPack } from "@/lib/context-pack";
 import { createEvidenceItem, listTaskEvidence } from "@/lib/evidence";
 import { resetDb } from "./helpers";
+import { parseRequiredEvidence } from "@/lib/handoff";
+
+describe("任务证据要求解析", () => {
+  it("接受空值、空数组和有效证据类型数组", () => {
+    expect(parseRequiredEvidence(null)).toBeNull();
+    expect(parseRequiredEvidence([])).toEqual([]);
+    expect(parseRequiredEvidence(["link", "test"])).toEqual(["link", "test"]);
+  });
+
+  it("拒绝不是数组或包含未知类型的旧数据", () => {
+    expect(() => parseRequiredEvidence("link,test")).toThrow("任务证据要求数据格式无效");
+    expect(() => parseRequiredEvidence(["link", "unknown"])).toThrow("任务证据要求数据格式无效");
+  });
+});
 
 async function scene() {
   const owner = await createUser({

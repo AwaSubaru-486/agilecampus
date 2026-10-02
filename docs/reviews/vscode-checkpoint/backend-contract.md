@@ -81,7 +81,9 @@ type Attempt = {
 
 `actorId` 永远由服务端认证确定。`sessionId` 只作为来源工具给出的不透明标识，除非用户显式确认其可分享，否则不可反向查询其他人的 transcript。回执是客户端可提供的证据，不是服务器独立验证了本地文件；UI 必须显示证据出处。任何 Attempt 都不自动变成 `agent_runs`。
 
-## 4. 建议 API（全部为提案，尚未实现）
+## 4. API 契约（提案与实现状态）
+
+本节下方保留最初提案。扩展后端已有实际路由；已实现并经 R02 回归确认的行为以本段和当前路由为准，不应再按“尚未实现”理解：Bearer 身份由服务端确定；接收/处理交接时重查团队成员资格；accept/decline/withdraw 的 JSON body 必须提供正整数 `expectedHandoffVersion`，且必须等于交接单记录的版本；非法 JSON 与类型错误返回 400；任务交接契约版本过期、交接状态竞争返回 409。创建 handoff 的同一幂等键仅在完整规范化载荷（项目、任务、检查点、接收人、任务时间、契约版本）一致时复用记录，否则 409。实际代码仍未实现本节其他标注的建议能力（例如 Attempt 写入幂等、checkpoint 请求幂等、服务端材料传输）。
 
 路径建议放在 `/api/extension/v1`，让扩展身份、幂等和版本规则与既有 Agent API 区分开。所有请求需要 HTTPS、`Authorization: Bearer`；成功响应 JSON；除另有说明，ID 均 UUID。响应中的项目/任务标题及个人信息按现有成员权限最小化返回。
 
@@ -101,6 +103,15 @@ type Attempt = {
 
 只有 `actor.id` 和服务端实际允许的成员关系是权限事实；客户端不得缓存 capability 作为永久授权。若采用扩展专用 token scope，scope 还须在服务端逐请求执行；`capabilities` 只用于 UI 提示，不替代授权判断。
 
+当前已实现的接收人目录：
+
+```http
+GET /api/extension/v1/projects/{projectId}/members
+Authorization: Bearer ac_…
+```
+
+响应形状为 `{ "projectId": "<uuid>", "items": [{ "userId": "<uuid>", "displayName": "成员名称", "role": "student" }] }`。服务端每次请求重新检查调用者当前仍属于该项目团队；只返回当前人类成员，不返回邮箱，也不列出不能以个人 VS Code PAT 接收交接的系统 Agent。无凭据为 401，非成员/撤权为 403，非法项目 UUID 为 400；响应设置 `Cache-Control: private, no-store`。这是接收人选择目录，不替代创建 handoff 时对双方成员关系的事务内复核。
+
 ### Checkpoint 索引
 
 - `POST /api/extension/v1/projects/{projectId}/tasks/{taskId}/checkpoints`：创建索引。请求不得含 `creatorId`、绝对路径、raw transcript、token、工具输出；需含 `expectedTaskUpdatedAt`、`expectedHandoffVersion`、仓库 key hash、SHA、可见范围、摘要、materials hash/size/type 和 `Idempotency-Key`。服务端原子校验项目成员、任务归属、版本及字段上限，再由认证身份填 creator。
@@ -115,7 +126,7 @@ V1 人工 JSON 包仍是实际内容传输方式。B 导入后扩展对包执行
 - `POST /api/extension/v1/projects/{projectId}/tasks/{taskId}/handoffs`：请求 `{checkpointId,toUserId,expectedTaskUpdatedAt,expectedHandoffVersion,idempotencyKey}`。后端检查 A 与 B 都是该项目有效成员、A 对动作有权限、任务可交接、checkpoint 属于同一 project/task 且 creator 为 A 或 A 有明确分享权、checkpoint SHA/契约版本符合策略。服务端从 Bearer 取 `fromUserId`。若任务已变化返回 409，不能最后写入覆盖。
 - `GET /api/extension/v1/handoffs?projectId=…&state=…&cursor=…`：仅列出当前用户被授权看见的 handoff；收件箱默认仅 `toUserId = actorId`，发件箱仅 `fromUserId = actorId`，项目列表受角色和 visibility 限制。
 - `GET /api/extension/v1/handoffs/{handoffId}`：返回最小任务/检查点/成员信息、当前状态和服务器版本，不包含原始 artifact。
-- `POST /api/extension/v1/handoffs/{handoffId}/accept`、`/decline`、`/withdraw`：均为条件转换，body `{expectedState,expectedVersion,idempotencyKey,reason?}`。accept/decline 仅接收者，withdraw 仅发起者，且仅允许 `offered`；同一幂等键重复请求返回首次结果。任何状态/版本冲突返回 409，并提供当前状态版本供 UI 刷新。
+- `POST /api/extension/v1/handoffs/{handoffId}/accept`、`/decline`、`/withdraw`：当前已实现 body `{expectedHandoffVersion,reason?}`。版本号必填且必须匹配记录；accept/decline 仅接收者，withdraw 仅发起者，当前用户还必须仍是项目成员；仅允许从 `offered` 转换。数据库事务锁定交接记录并以 `state=offered` + 版本作条件更新，因此并发时最多一个转换成功，输家返回 409。任务契约变化会阻止 accept，但不阻止接收者拒绝或发起者撤回过期交接。状态动作幂等键尚未实现；客户端收到不确定的 POST 结果不得盲目创建另一交接。
 
 **关键产品决策仍待签收：** 接受 handoff 不应自动把任务指派给 B 或改变 Task status；它只表明 B 接受尝试。建议 `assigneeId` 与原 owner 保持不变，直到项目负责人明确改派；允许 B 以显式 Attempt 身份接续并留下记录。若要变更 assignee，必须调用现有任务领域状态机、应用角色规则并产生正常任务事件，不能在 handoff route 旁写一份平行逻辑。A 的旧 Attempt 是否可继续、同一 checkpoint 是否允许多位 receiver、拒绝后能否重新邀请，也需由产品/后端签收。
 

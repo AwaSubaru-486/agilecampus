@@ -25,6 +25,7 @@ import { HandoffEditor } from "./handoff-editor";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
 import type { ConsoleLayout, MemberSummary, SelectedTaskDetail } from "./console-shell";
+import type { EvidenceType } from "@/lib/handoff";
 
 const STATUS_LABEL: Record<string, string> = {
   todo: "待办",
@@ -38,6 +39,41 @@ const STATUS_CLASSES: Record<string, string> = {
   doing: "bg-signal/10 text-signal",
   review: "bg-caution/10 text-caution",
   done: "bg-success/10 text-success",
+};
+
+const EVIDENCE_LABELS: Record<EvidenceType, string> = {
+  link: "外部链接",
+  file: "交付文件",
+  text: "文本说明",
+  test: "单测日志",
+  demo: "演示证据",
+};
+
+const ATTEMPT_STATE_LABELS: Record<string, string> = {
+  started: "执行中",
+  finished: "已完成",
+  failed: "已失败",
+  unknown: "未知状态",
+};
+
+const ATTEMPT_STATE_CLASSES: Record<string, string> = {
+  started: "bg-signal/10 text-signal border-signal/30",
+  finished: "bg-success/10 text-success border-success/30",
+  failed: "bg-risk/10 text-risk border-risk/30",
+  unknown: "bg-ink-3/20 text-ink-2 border-stroke",
+};
+
+const MEMORY_CATEGORY_LABELS: Record<string, string> = {
+  constraint: "约束限制",
+  decision: "架构决策",
+  learned: "已验证经验",
+  rejected_approach: "废弃方案",
+};
+
+const MEMORY_STATUS_LABELS: Record<string, string> = {
+  active: "生效中",
+  needs_review: "待复核",
+  superseded: "已替代",
 };
 
 export function TaskContractPanel({
@@ -212,9 +248,11 @@ export function TaskContractPanel({
         )}
 
         {/* 交件要求 */}
-        {task.requiredEvidence && (
+        {task.requiredEvidence && task.requiredEvidence.length > 0 && (
           <Section label="交件要求">
-            <p className="whitespace-pre-wrap text-sm text-ink">{task.requiredEvidence}</p>
+            <p className="whitespace-pre-wrap text-sm text-ink">
+              {task.requiredEvidence.map((type) => EVIDENCE_LABELS[type]).join("、")}
+            </p>
           </Section>
         )}
 
@@ -411,23 +449,142 @@ export function TaskContractPanel({
           />
         </Section>
 
-        {/* 本地检查点与接续说明（W07） */}
+        {/* 并行接续尝试（B04） */}
+        <Section label="并行接续尝试">
+          {task.attempts && task.attempts.length > 0 ? (
+            <div className="space-y-2">
+              {task.attempts.map((attempt) => (
+                <div
+                  key={attempt.id}
+                  className="rounded border border-stroke bg-sunken/30 p-2.5 space-y-1.5 text-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-ink">
+                        {attempt.actorName || "执行者"}
+                      </span>
+                      <span className="rounded bg-ink-3/15 px-1.5 py-0.5 text-[10px] text-ink-2">
+                        {attempt.kind === "parallel" ? "并行分支" : "主线接续"}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${
+                        ATTEMPT_STATE_CLASSES[attempt.state] ?? ATTEMPT_STATE_CLASSES.unknown
+                      }`}
+                    >
+                      {ATTEMPT_STATE_LABELS[attempt.state] ?? attempt.state}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-[11px] font-mono">
+                    {attempt.branchName && (
+                      <span>分支: <strong className="text-ink-2">{attempt.branchName}</strong></span>
+                    )}
+                    <span>基线: {attempt.baseSha.slice(0, 8)}</span>
+                    {attempt.receipt.headSha && (
+                      <span>产出: {attempt.receipt.headSha.slice(0, 8)}</span>
+                    )}
+                  </div>
+
+                  {attempt.receipt.tests && attempt.receipt.tests.length > 0 && (
+                    <div className="mt-1 space-y-1 rounded bg-panel/60 p-1.5 border border-stroke/50">
+                      <div className="text-[10px] font-medium text-ink-3 uppercase">测试验证回执</div>
+                      <div className="space-y-0.5 font-mono text-[11px]">
+                        {attempt.receipt.tests.map((t, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-ink-2">
+                            <span className="truncate">{t.commandLabel}</span>
+                            <span
+                              className={`shrink-0 font-sans font-medium px-1 rounded text-[10px] ${
+                                t.exitCode === 0
+                                  ? "text-success bg-success/10"
+                                  : "text-risk bg-risk/10"
+                              }`}
+                            >
+                              {t.exitCode === 0 ? "通过" : `退出码 ${t.exitCode ?? "异常"}`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {attempt.receipt.changedPaths && attempt.receipt.changedPaths.length > 0 && (
+                    <div className="text-[11px] text-ink-3">
+                      变更文件: {attempt.receipt.changedPaths.length} 个
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-ink-3">
+              暂无并行尝试记录。在 VS Code 插件中接收交接后，即可创建主线或并行分支尝试并回传执行回执。
+            </p>
+          )}
+        </Section>
+
+        {/* 有效项目记忆（B05） */}
+        <Section label="有效项目记忆">
+          {task.memories && task.memories.length > 0 ? (
+            <div className="space-y-2">
+              {task.memories.map((mem) => (
+                <div
+                  key={mem.id}
+                  className="rounded border border-stroke bg-sunken/30 p-2.5 space-y-1 text-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-signal/15 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                        {MEMORY_CATEGORY_LABELS[mem.category] ?? mem.category}
+                      </span>
+                      <strong className="text-ink font-medium">{mem.title}</strong>
+                    </div>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        mem.status === "active"
+                          ? "bg-success/10 text-success"
+                          : mem.status === "needs_review"
+                            ? "bg-caution/10 text-caution"
+                            : "bg-ink-3/20 text-ink-3 line-through"
+                      }`}
+                    >
+                      {MEMORY_STATUS_LABELS[mem.status] ?? mem.status}
+                    </span>
+                  </div>
+                  <p className="text-ink-2 whitespace-pre-wrap leading-relaxed">{mem.content}</p>
+                  <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-ink-3 pt-0.5">
+                    {mem.creatorName && <span>记录人: {mem.creatorName}</span>}
+                    {mem.codeRefSha && (
+                      <span className="font-mono">代码引用: {mem.codeRefSha.slice(0, 8)}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-ink-3">
+              当前任务暂无关联的有效记忆。可沉淀技术决策、约束限制或废弃方案供团队与后续 Agent 复用。
+            </p>
+          )}
+        </Section>
+
+        {/* 检查点共享与接续契约（W07/B01） */}
         <details className="group rounded border border-stroke bg-sunken/30 text-xs">
           <summary className="cursor-pointer px-3 py-2 font-medium text-ink-2 hover:text-ink select-none flex items-center justify-between">
-            <span>本地检查点与接续说明（VS Code 插件）</span>
+            <span>检查点共享与接续契约（VS Code 插件）</span>
             <span className="text-ink-3 group-open:rotate-180 transition-transform">▼</span>
           </summary>
           <div className="border-t border-stroke px-3 py-2.5 space-y-2 text-ink-2 leading-relaxed">
             <p>
-              <strong className="text-ink">当前边界：</strong>
-              网页未接入跨环境共享读取接口（E09 待签收），网页无法枚举队友本地运行的会话或断点。
+              <strong className="text-ink">共享契约状态：</strong>
+              E09 契约已签署，支持通过 VS Code 插件登记小体积检查点索引、发起点对点交接并执行基线预检（Preflight）。
             </p>
             <p>
-              <strong className="text-ink">接续材料流转说明：</strong>
-              在 VS Code 插件中保存本地 Checkpoint → 选择材料导出 JSON → 队友导入 → 检查代码基线与交接契约 → 以新会话带入材料继续，或建立并行 worktree。
+              <strong className="text-ink">接续流转机制：</strong>
+              发起交接 → 接收人运行预检（校验 Git 基线与工作区状态）→ 接收后自动创建 Attempt 执行回执 → 并行尝试结果实时聚合回传。
             </p>
             <p className="text-ink-3">
-              提示：原生恢复同一 Session（Native resume）目前不支持；会话分叉与材料继承不代表代码工作区或 Agent 进程已恢复。
+              提示：Handoff 接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
             </p>
           </div>
         </details>

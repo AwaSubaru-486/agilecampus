@@ -14,6 +14,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { TaskPriorityGroup, TaskAction } from "@/lib/collaboration-console-view";
+import type { EvidenceType } from "@/lib/handoff";
 import { buildSelectTaskHref, buildClearTaskHref, type NormalizedConsoleParams } from "@/lib/console-navigation";
 import { NewTaskForm } from "../new-task-form";
 import { TaskList } from "./task-list";
@@ -50,7 +51,7 @@ export type SelectedTaskDetail = {
   description: string | null;
   handoffBrief: string | null;
   doneCriteria: string[] | null;
-  requiredEvidence: string | null;
+  requiredEvidence: EvidenceType[] | null;
   responseDueAt: string | null;
   handoffVersion: number;
   committedHandoffVersion: number | null;
@@ -115,6 +116,42 @@ export type SelectedTaskDetail = {
     title: string;
     frozenAt?: string | null;
   }[];
+  attempts?: AttemptSummary[];
+  memories?: MemorySummary[];
+};
+
+export type AttemptSummary = {
+  id: string;
+  handoffId: string;
+  actorId: string;
+  actorName: string | null;
+  baseSha: string;
+  branchName: string | null;
+  kind: string;
+  state: string;
+  receipt: {
+    sessionId: string | null;
+    headSha: string | null;
+    changedPaths: string[];
+    tests: Array<{
+      commandLabel: string;
+      exitCode: number | null;
+      source: string;
+    }>;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MemorySummary = {
+  id: string;
+  category: string;
+  title: string;
+  content: string;
+  status: string;
+  codeRefSha: string | null;
+  creatorName: string | null;
+  createdAt: string;
 };
 
 export type MemberSummary = {

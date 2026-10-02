@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { tasks, teamMembers } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
+import { createAgent } from "@/lib/agent-member";
 import { createTask, updateTask } from "@/lib/task";
 import { createApiToken } from "@/lib/api-token";
 import { resetDb } from "./helpers";
 
 import { GET as meRoute } from "@/app/api/extension/v1/me/route";
+import { GET as projectMembersRoute } from "@/app/api/extension/v1/projects/[projectId]/members/route";
 import { POST as createCheckpointRoute } from "@/app/api/extension/v1/projects/[projectId]/tasks/[taskId]/checkpoints/route";
 import { GET as listCheckpointsRoute } from "@/app/api/extension/v1/projects/[projectId]/checkpoints/route";
 import { GET as getCheckpointRoute } from "@/app/api/extension/v1/checkpoints/[checkpointId]/route";
@@ -17,6 +22,9 @@ import { POST as resolveHandoffRoute } from "@/app/api/extension/v1/handoffs/[ha
 import { POST as createAttemptRoute } from "@/app/api/extension/v1/handoffs/[handoffId]/attempts/route";
 import { PATCH as updateAttemptRoute } from "@/app/api/extension/v1/attempts/[attemptId]/route";
 import { POST as preflightRoute } from "@/app/api/extension/v1/handoffs/[handoffId]/preflight/route";
+import { GET as listTaskAttemptsRoute } from "@/app/api/extension/v1/projects/[projectId]/tasks/[taskId]/attempts/route";
+import { GET as listProjectMemoriesRoute, POST as createProjectMemoryRoute } from "@/app/api/extension/v1/projects/[projectId]/memories/route";
+import { PATCH as updateProjectMemoryRoute } from "@/app/api/extension/v1/projects/[projectId]/memories/[memoryId]/route";
 
 
 function req(body?: unknown, token?: string, method = "POST") {
@@ -27,6 +35,12 @@ function req(body?: unknown, token?: string, method = "POST") {
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+}
+
+function rawReq(body: string, token?: string, method = "POST") {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (token) headers.authorization = `Bearer ${token}`;
+  return new Request("http://localhost:3000/api/extension/v1/test", { method, headers, body });
 }
 
 async function testScene() {
@@ -50,8 +64,90 @@ async function testScene() {
   return { alice, bob, stranger, team, project, task, aliceToken, bobToken, strangerToken };
 }
 
+async function makeOfferedHandoff(
+  scene: Awaited<ReturnType<typeof testScene>>,
+  idempotencyKey: string,
+) {
+  const { project, task, bob, aliceToken } = scene;
+  const params = { params: Promise.resolve({ projectId: project.id, taskId: task.id }) };
+  const checkpointResponse = await createCheckpointRoute(
+    req({
+      taskHandoffVersion: task.handoffVersion,
+      taskUpdatedAt: task.updatedAt.toISOString(),
+      repositoryKeyHash: "sha256:handoff-test",
+      headSha: "0123456789012345678901234567890123456789",
+      source: { provider: "codex-cli", providerVersion: "test", captureMode: "context-only" },
+      handoffSummary: { goal: "测试交接", completed: [], remaining: ["继续实现"], blocker: null, nextAction: "接班" },
+      materials: [],
+    }, aliceToken),
+    params,
+  );
+  expect(checkpointResponse.status).toBe(201);
+  const checkpoint = await checkpointResponse.json();
+  const response = await createHandoffRoute(
+    req({
+      checkpointId: checkpoint.id,
+      toUserId: bob.id,
+      expectedTaskUpdatedAt: task.updatedAt.toISOString(),
+      expectedHandoffVersion: task.handoffVersion,
+      idempotencyKey,
+    }, aliceToken),
+    params,
+  );
+  expect(response.status).toBe(201);
+  return response.json();
+}
+
 describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
   beforeEach(resetDb);
+
+  describe("GET /api/extension/v1/projects/{projectId}/members", () => {
+    it("只返回当前项目中的人类成员 ID、显示名和角色，不返回邮箱", async () => {
+      const { alice, bob, project, team, aliceToken } = await testScene();
+      await createAgent(alice.id, team.id, {
+        name: "自动化 Agent",
+        provider: "codex",
+      });
+      const response = await projectMembersRoute(
+        req(undefined, aliceToken, "GET"),
+        { params: Promise.resolve({ projectId: project.id }) },
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      const data = await response.json();
+      expect(data.projectId).toBe(project.id);
+      expect(data.items).toEqual([
+        { userId: alice.id, displayName: "Alice", role: "admin" },
+        { userId: bob.id, displayName: "Bob", role: "student" },
+      ]);
+      expect(JSON.stringify(data)).not.toContain("@test.local");
+    });
+
+    it("拒绝未认证和非项目成员，并在成员离队后立即反映权限变化", async () => {
+      const { alice, bob, project, aliceToken, bobToken, strangerToken, team } = await testScene();
+      const params = { params: Promise.resolve({ projectId: project.id }) };
+      expect((await projectMembersRoute(req(undefined, undefined, "GET"), params)).status).toBe(401);
+      expect((await projectMembersRoute(req(undefined, strangerToken, "GET"), params)).status).toBe(403);
+
+      await db.delete(teamMembers).where(and(eq(teamMembers.teamId, team.id), eq(teamMembers.userId, bob.id)));
+      expect((await projectMembersRoute(req(undefined, bobToken, "GET"), params)).status).toBe(403);
+
+      const refreshed = await projectMembersRoute(req(undefined, aliceToken, "GET"), params);
+      expect(refreshed.status).toBe(200);
+      expect((await refreshed.json()).items).toEqual([
+        { userId: alice.id, displayName: "Alice", role: "admin" },
+      ]);
+    });
+
+    it("对格式错误的项目 ID 返回 400", async () => {
+      const { aliceToken } = await testScene();
+      const response = await projectMembersRoute(
+        req(undefined, aliceToken, "GET"),
+        { params: Promise.resolve({ projectId: "not-a-uuid" }) },
+      );
+      expect(response.status).toBe(400);
+    });
+  });
 
   describe("GET /api/extension/v1/me", () => {
     it("未鉴权或伪造 token 拒绝", async () => {
@@ -119,6 +215,8 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       await updateTask(alice.id, task.id, { handoffBrief: "更新了交接要求" });
 
       const ctx = { params: Promise.resolve({ projectId: project.id, taskId: task.id }) };
+      const malformed = await createCheckpointRoute(rawReq("{", aliceToken), ctx);
+      expect(malformed.status).toBe(400);
       // 传入旧版本 1 (此时最新应为 2)
       const res = await createCheckpointRoute(req({ ...validCheckpointData, taskHandoffVersion: 1 }, aliceToken), ctx);
       expect(res.status).toBe(409);
@@ -129,7 +227,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
     it("成功创建检查点并在列表中分页读取", async () => {
       const { alice, project, task, aliceToken, bobToken } = await testScene();
       const createCtx = { params: Promise.resolve({ projectId: project.id, taskId: task.id }) };
-      const res = await createCheckpointRoute(req(validCheckpointData, aliceToken), createCtx);
+      const res = await createCheckpointRoute(req({ ...validCheckpointData, taskUpdatedAt: task.updatedAt.toISOString() }, aliceToken), createCtx);
       expect(res.status).toBe(201);
       const checkpoint = await res.json();
       expect(checkpoint.id).toBeDefined();
@@ -159,6 +257,36 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       expect(detail.id).toBe(checkpoint.id);
       expect(detail.materials).toHaveLength(1);
     });
+
+    it("相同幂等键重放发布只返回原检查点，改动载荷则冲突", async () => {
+      const { project, task, aliceToken } = await testScene();
+      const ctx = { params: Promise.resolve({ projectId: project.id, taskId: task.id }) };
+      const payload = { ...validCheckpointData, taskUpdatedAt: task.updatedAt.toISOString(), idempotencyKey: "11111111-1111-4111-8111-111111111111" };
+      const first = await createCheckpointRoute(req(payload, aliceToken), ctx);
+      const firstRecord = await first.json();
+      const replay = await createCheckpointRoute(req(payload, aliceToken), ctx);
+      const replayRecord = await replay.json();
+      expect(first.status).toBe(201);
+      expect(replay.status).toBe(201);
+      expect(replayRecord.id).toBe(firstRecord.id);
+
+      const conflict = await createCheckpointRoute(req({ ...payload, headSha: "c".repeat(40) }, aliceToken), ctx);
+      expect(conflict.status).toBe(409);
+    });
+
+    it("并行到达的同一发布请求只创建一条检查点", async () => {
+      const { project, task, aliceToken } = await testScene();
+      const ctx = { params: Promise.resolve({ projectId: project.id, taskId: task.id }) };
+      const payload = { ...validCheckpointData, taskUpdatedAt: task.updatedAt.toISOString(), idempotencyKey: "22222222-2222-4222-8222-222222222222" };
+      const [first, second] = await Promise.all([
+        createCheckpointRoute(req(payload, aliceToken), ctx),
+        createCheckpointRoute(req(payload, aliceToken), ctx),
+      ]);
+      const [firstRecord, secondRecord] = await Promise.all([first.json(), second.json()]);
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(201);
+      expect(firstRecord.id).toBe(secondRecord.id);
+    });
   });
 
   describe("Handoff 发起、幂等性与状态流转", () => {
@@ -169,7 +297,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       const cpRes = await createCheckpointRoute(
         req({
           taskHandoffVersion: 1,
-          taskUpdatedAt: new Date().toISOString(),
+          taskUpdatedAt: task.updatedAt.toISOString(),
           repositoryKeyHash: "sha256:repohash",
           headSha: "b2c3d4e5f6789012345678901234567890123456",
           source: { provider: "codex-cli", providerVersion: "1.0", captureMode: "context-only" },
@@ -184,24 +312,36 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       const handoffPayload = {
         checkpointId: cp.id,
         toUserId: bob.id,
-        expectedTaskUpdatedAt: new Date().toISOString(),
+        expectedTaskUpdatedAt: task.updatedAt.toISOString(),
         expectedHandoffVersion: 1,
         idempotencyKey: "unique-key-12345",
       };
 
-      // 首次发起
-      const h1 = await createHandoffRoute(req(handoffPayload, aliceToken), handoffCtx);
-      expect(h1.status).toBe(201);
+      // 两个并发的同键、同 payload 请求只创建一条记录。
+      const [h1, h2] = await Promise.all([
+        createHandoffRoute(req({ ...handoffPayload, fromUserId: bob.id }, aliceToken), handoffCtx),
+        createHandoffRoute(req(handoffPayload, aliceToken), handoffCtx),
+      ]);
+      expect([h1.status, h2.status].sort()).toEqual([200, 201]);
       const h1Data = await h1.json();
+      const h2Data = await h2.json();
       expect(h1Data.state).toBe("offered");
       expect(h1Data.fromUserId).toBe(alice.id);
       expect(h1Data.toUserId).toBe(bob.id);
-
-      // 重复请求（同幂等键同 payload）返回首次创建的记录
-      const h2 = await createHandoffRoute(req(handoffPayload, aliceToken), handoffCtx);
-      expect(h2.status).toBe(200);
-      const h2Data = await h2.json();
       expect(h2Data.id).toBe(h1Data.id);
+
+      const changedVersion = await createHandoffRoute(
+        req({ ...handoffPayload, expectedHandoffVersion: 0 }, aliceToken), handoffCtx,
+      );
+      expect(changedVersion.status).toBe(409);
+      const changedTimestamp = await createHandoffRoute(
+        req({
+          ...handoffPayload,
+          expectedTaskUpdatedAt: new Date(task.updatedAt.getTime() + 1000).toISOString(),
+        }, aliceToken),
+        handoffCtx,
+      );
+      expect(changedTimestamp.status).toBe(409);
 
       // Bob 在收件箱中查到此交接单
       const inboxRes = await listHandoffsRoute(
@@ -230,7 +370,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       const cpRes = await createCheckpointRoute(
         req({
           taskHandoffVersion: 1,
-          taskUpdatedAt: new Date().toISOString(),
+          taskUpdatedAt: task.updatedAt.toISOString(),
           repositoryKeyHash: "sha256:repohash",
           headSha: "c3d4e5f678901234567890123456789012345678",
           source: { provider: "codex-cli", providerVersion: "1.0", captureMode: "context-only" },
@@ -245,7 +385,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
         req({
           checkpointId: cp.id,
           toUserId: bob.id,
-          expectedTaskUpdatedAt: new Date().toISOString(),
+          expectedTaskUpdatedAt: task.updatedAt.toISOString(),
           expectedHandoffVersion: 1,
           idempotencyKey: "key-accept-test",
         }, aliceToken),
@@ -255,27 +395,96 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
 
       // Alice 尝试接收 -> 403
       const failAccept = await resolveHandoffRoute(
-        req({}, aliceToken),
+        req({ expectedHandoffVersion: 1 }, aliceToken),
         { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
       );
       expect(failAccept.status).toBe(403);
 
+      const noVersion = await resolveHandoffRoute(
+        req({}, bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
+      expect(noVersion.status).toBe(400);
+      const malformedAction = await resolveHandoffRoute(
+        rawReq("{", bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
+      expect(malformedAction.status).toBe(400);
+      const wrongVersionType = await resolveHandoffRoute(
+        req({ expectedHandoffVersion: "1" }, bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
+      expect(wrongVersionType.status).toBe(400);
+      const staleRecordVersion = await resolveHandoffRoute(
+        req({ expectedHandoffVersion: 2 }, bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
+      expect(staleRecordVersion.status).toBe(409);
+
       // Bob 正常接收 -> 200 accepted
       const bobAccept = await resolveHandoffRoute(
-        req({}, bobToken),
+        req({ expectedHandoffVersion: 1 }, bobToken),
         { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
       );
       expect(bobAccept.status).toBe(200);
       const acceptedData = await bobAccept.json();
       expect(acceptedData.state).toBe("accepted");
       expect(acceptedData.resolvedAt).toBeDefined();
+      const [taskAfterAccept] = await db.select().from(tasks).where(eq(tasks.id, task.id));
+      expect(taskAfterAccept.assigneeId).toBe(task.assigneeId);
+      expect(taskAfterAccept.status).toBe(task.status);
 
       // 重复接收 -> 409 Conflict
       const duplicateAccept = await resolveHandoffRoute(
-        req({}, bobToken),
+        req({ expectedHandoffVersion: 1 }, bobToken),
         { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
       );
       expect(duplicateAccept.status).toBe(409);
+    });
+
+    it("接收者离开团队后不能再处理收到的交接", async () => {
+      const scene = await testScene();
+      const handoff = await makeOfferedHandoff(scene, "recipient-left-team");
+      await db
+        .delete(teamMembers)
+        .where(and(eq(teamMembers.teamId, scene.team.id), eq(teamMembers.userId, scene.bob.id)));
+
+      const response = await resolveHandoffRoute(
+        req({ expectedHandoffVersion: 1 }, scene.bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("合同更新后拒绝按旧版本接收交接", async () => {
+      const scene = await testScene();
+      const handoff = await makeOfferedHandoff(scene, "contract-changed-before-accept");
+      await updateTask(scene.alice.id, scene.task.id, { handoffBrief: "新版交接要求" });
+
+      const response = await resolveHandoffRoute(
+        req({ expectedHandoffVersion: 1 }, scene.bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body.error).toContain("任务契约已更新");
+    });
+
+    it("accept 与 withdraw 并发时最多一个状态转换成功", async () => {
+      const scene = await testScene();
+      const handoff = await makeOfferedHandoff(scene, "accept-withdraw-race");
+      const params = { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) };
+      const withdrawParams = { params: Promise.resolve({ handoffId: handoff.id, action: "withdraw" }) };
+
+      const [accept, withdraw] = await Promise.all([
+        resolveHandoffRoute(req({ expectedHandoffVersion: 1 }, scene.bobToken), params),
+        resolveHandoffRoute(req({ expectedHandoffVersion: 1 }, scene.aliceToken), withdrawParams),
+      ]);
+      expect([accept.status, withdraw.status].sort((a, b) => a - b)).toEqual([200, 409]);
+
+      const winner = accept.status === 200 ? await accept.json() : await withdraw.json();
+      expect(["accepted", "withdrawn"]).toContain(winner.state);
+      expect(winner.state).toBe(accept.status === 200 ? "accepted" : "withdrawn");
     });
   });
 
@@ -288,7 +497,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       const cpRes = await createCheckpointRoute(
         req({
           taskHandoffVersion: 1,
-          taskUpdatedAt: new Date().toISOString(),
+          taskUpdatedAt: task.updatedAt.toISOString(),
           repositoryKeyHash: "sha256:repohash",
           headSha,
           source: { provider: "codex-cli", providerVersion: "1.0", captureMode: "context-only" },
@@ -303,7 +512,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
         req({
           checkpointId: cp.id,
           toUserId: bob.id,
-          expectedTaskUpdatedAt: new Date().toISOString(),
+          expectedTaskUpdatedAt: task.updatedAt.toISOString(),
           expectedHandoffVersion: 1,
           idempotencyKey: "key-attempt-test",
         }, aliceToken),
@@ -319,7 +528,10 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       expect(earlyAttempt.status).toBe(409);
 
       // Bob 接受交接
-      await resolveHandoffRoute(req({}, bobToken), { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) });
+      await resolveHandoffRoute(
+        req({ expectedHandoffVersion: 1 }, bobToken),
+        { params: Promise.resolve({ handoffId: handoff.id, action: "accept" }) },
+      );
 
       // baseSha 不匹配 headSha -> 409
       const mismatchAttempt = await createAttemptRoute(
@@ -373,7 +585,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       const cpRes = await createCheckpointRoute(
         req({
           taskHandoffVersion: 1,
-          taskUpdatedAt: new Date().toISOString(),
+          taskUpdatedAt: task.updatedAt.toISOString(),
           repositoryKeyHash: "sha256:preflighthash",
           headSha,
           source: { provider: "codex-cli", providerVersion: "1.0", captureMode: "context-only" },
@@ -388,7 +600,7 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
         req({
           checkpointId: cp.id,
           toUserId: bob.id,
-          expectedTaskUpdatedAt: new Date().toISOString(),
+          expectedTaskUpdatedAt: task.updatedAt.toISOString(),
           expectedHandoffVersion: 1,
           idempotencyKey: "key-preflight-test",
         }, aliceToken),
@@ -397,6 +609,14 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       const handoff = await hRes.json();
 
       const preflightCtx = { params: Promise.resolve({ handoffId: handoff.id }) };
+
+      const malformedPreflight = await preflightRoute(rawReq("{", bobToken), preflightCtx);
+      expect(malformedPreflight.status).toBe(400);
+      const invalidPreflight = await preflightRoute(
+        req({ clientDirty: "false" }, bobToken),
+        preflightCtx,
+      );
+      expect(invalidPreflight.status).toBe(400);
 
       // 1. 基线完全匹配，无 dirty -> ready
       const okCheck = await preflightRoute(
@@ -442,6 +662,176 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       expect(shaData.ok).toBe(false);
       expect(shaData.status).toBe("blocked");
       expect(shaData.blockers.some((b: string) => b.includes("基线"))).toBe(true);
+    });
+  });
+
+  describe("B04: 同源并行方案 Attempts 聚合", () => {
+    it("支持聚合任务下的多个并行尝试并隔离陌生人", async () => {
+      const scene = await testScene();
+      const { project, task, aliceToken, bobToken, strangerToken } = scene;
+      const headSha = "1111222233334444555566667777888899990000";
+
+      // 1. 创建 Checkpoint 与 Handoff
+      const cpRes = await createCheckpointRoute(
+        req({
+          taskHandoffVersion: task.handoffVersion,
+          taskUpdatedAt: task.updatedAt.toISOString(),
+          repositoryKeyHash: "sha256:attempts-repo",
+          headSha,
+          source: { provider: "codex-cli", providerVersion: "test", captureMode: "context-only" },
+          handoffSummary: { goal: "测试并行方案", completed: [], remaining: ["多方案比对"], blocker: null, nextAction: "比对" },
+          materials: [],
+        }, aliceToken),
+        { params: Promise.resolve({ projectId: project.id, taskId: task.id }) },
+      );
+      const cp = await cpRes.json();
+
+      const hoRes = await createHandoffRoute(
+        req({
+          checkpointId: cp.id,
+          toUserId: scene.bob.id,
+          expectedTaskUpdatedAt: task.updatedAt.toISOString(),
+          expectedHandoffVersion: task.handoffVersion,
+          idempotencyKey: "11111111-2222-3333-4444-555555555555",
+        }, aliceToken),
+        { params: Promise.resolve({ projectId: project.id, taskId: task.id }) },
+      );
+      const ho = await hoRes.json();
+
+      // 2. Bob 接收交接
+      await resolveHandoffRoute(
+        req({ expectedHandoffVersion: task.handoffVersion }, bobToken),
+        { params: Promise.resolve({ handoffId: ho.id, action: "accept" }) },
+      );
+
+      // 3. Bob 登记主线 Attempt
+      const att1Res = await createAttemptRoute(
+        req({
+          baseSha: headSha,
+          kind: "continuation",
+          branchName: "feat/login-oauth-main",
+          receipt: {
+            sessionId: "sess-1",
+            headSha: "2222333344445555666677778888999900001111",
+            changedPaths: ["src/auth.ts"],
+            tests: [{ commandLabel: "npm test", exitCode: 0, source: "captured" }],
+          },
+        }, bobToken),
+        { params: Promise.resolve({ handoffId: ho.id }) },
+      );
+      expect(att1Res.status).toBe(201);
+
+      // 4. Bob 登记并行尝试 Attempt (kind: parallel)
+      const att2Res = await createAttemptRoute(
+        req({
+          baseSha: headSha,
+          kind: "parallel",
+          branchName: "feat/login-oauth-alt",
+          receipt: {
+            sessionId: "sess-2",
+            headSha: "3333444455556666777788889999000011112222",
+            changedPaths: ["src/auth-alt.ts"],
+            tests: [{ commandLabel: "npm test -- tests/auth-alt.test.ts", exitCode: 1, source: "captured" }],
+          },
+        }, bobToken),
+        { params: Promise.resolve({ handoffId: ho.id }) },
+      );
+      expect(att2Res.status).toBe(201);
+
+      // 5. 查询任务下的 Attempts 聚合列表
+      const listRes = await listTaskAttemptsRoute(
+        req(undefined, bobToken, "GET"),
+        { params: Promise.resolve({ projectId: project.id, taskId: task.id }) },
+      );
+      expect(listRes.status).toBe(200);
+      const listData = await listRes.json();
+      expect(listData.attempts).toHaveLength(2);
+      expect(listData.attempts[0].actorName).toBe("Bob");
+      expect(listData.attempts.map((a: { kind: string }) => a.kind)).toContain("continuation");
+      expect(listData.attempts.map((a: { kind: string }) => a.kind)).toContain("parallel");
+
+      // 6. 陌生人查询拦截 403
+      const strangerRes = await listTaskAttemptsRoute(
+        req(undefined, strangerToken, "GET"),
+        { params: Promise.resolve({ projectId: project.id, taskId: task.id }) },
+      );
+      expect(strangerRes.status).toBe(403);
+    });
+  });
+
+  describe("B05: 有效项目记忆 Project Memories", () => {
+    it("支持沉淀、按分类筛选及更新记忆状态", async () => {
+      const scene = await testScene();
+      const { project, task, aliceToken, bobToken, strangerToken } = scene;
+
+      // 1. Alice (Admin) 创建约束记忆 -> 自动已确认
+      const mem1Res = await createProjectMemoryRoute(
+        req({
+          taskId: task.id,
+          category: "constraint",
+          title: "禁止在数据库存储大体积 transcript",
+          content: "服务端 V1 仅保留元数据与 SHA-256 哈希索引，单项材料硬限制 15MB",
+          codeRefSha: "0123456789012345678901234567890123456789",
+        }, aliceToken),
+        { params: Promise.resolve({ projectId: project.id }) },
+      );
+      expect(mem1Res.status).toBe(201);
+      const mem1 = await mem1Res.json();
+      expect(mem1.confirmedById).toBe(scene.alice.id);
+      expect(mem1.status).toBe("active");
+
+      // 2. Bob (Student) 创建经验总结记忆 -> 等待确认 (confirmedById 为 null)
+      const mem2Res = await createProjectMemoryRoute(
+        req({
+          category: "learned",
+          title: "PostgreSQL TRUNCATE 必须 cascade 到 project_memories",
+          content: "resetDb 必须清空所有业务表，否则偶发红单测",
+        }, bobToken),
+        { params: Promise.resolve({ projectId: project.id }) },
+      );
+      expect(mem2Res.status).toBe(201);
+      const mem2 = await mem2Res.json();
+      expect(mem2.confirmedById).toBeNull();
+      expect(mem2.status).toBe("active");
+
+      // 3. 查询项目的所有记忆
+      const listRes = await listProjectMemoriesRoute(
+        req(undefined, aliceToken, "GET"),
+        { params: Promise.resolve({ projectId: project.id }) },
+      );
+      expect(listRes.status).toBe(200);
+      const listData = await listRes.json();
+      expect(listData.memories).toHaveLength(2);
+
+      // 4. 按分类筛选 (category=constraint)
+      const filterReq = new Request(
+        `http://localhost:3000/api/extension/v1/projects/${project.id}/memories?category=constraint`,
+        { headers: { authorization: `Bearer ${aliceToken}` } },
+      );
+      const filterRes = await listProjectMemoriesRoute(
+        filterReq,
+        { params: Promise.resolve({ projectId: project.id }) },
+      );
+      const filterData = await filterRes.json();
+      expect(filterData.memories).toHaveLength(1);
+      expect(filterData.memories[0].title).toContain("禁止在数据库存储大体积");
+
+      // 5. 更新记忆状态 (PATCH status -> superseded)
+      const patchRes = await updateProjectMemoryRoute(
+        req({ status: "superseded", supersededById: mem2.id }, aliceToken, "PATCH"),
+        { params: Promise.resolve({ projectId: project.id, memoryId: mem1.id }) },
+      );
+      expect(patchRes.status).toBe(200);
+      const patched = await patchRes.json();
+      expect(patched.status).toBe("superseded");
+      expect(patched.supersededById).toBe(mem2.id);
+
+      // 6. 陌生人禁止访问 403
+      const strangerRes = await listProjectMemoriesRoute(
+        req(undefined, strangerToken, "GET"),
+        { params: Promise.resolve({ projectId: project.id }) },
+      );
+      expect(strangerRes.status).toBe(403);
     });
   });
 });

@@ -4,6 +4,15 @@ import { sql } from "drizzle-orm";
 // 表清单在此，新增表务必加入——漏加的失败模式是「跨用例脏数据导致的偶发红」，
 // 而非明确报错，属最贵的调试形态。tests/reset-db.test.ts 有一条守卫断言盯着它。
 export const TRUNCATED_TABLES = [
+  "session_memory_sharing_settings",
+  "session_memory_publications",
+  "session_memory_drafts",
+  "session_memory_extraction_jobs",
+  "session_memory_sessions",
+  "project_memories",
+  "attempt_receipts",
+  "checkpoint_indices",
+  "handoff_records",
   "approval_requests",
   "context_pack_items",
   "context_packs",

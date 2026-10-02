@@ -9,7 +9,7 @@ const initialized = new Map<string, Promise<void>>();
 export type CoordinationLockRecord = {
   schemaVersion: 1;
   token: string;
-  kind: "attempt-update" | "workdir-lease";
+  kind: "attempt-update" | "workdir-lease" | "session-memory-write";
   hostPid: number;
   attemptId?: string;
   workdir?: string;
@@ -235,7 +235,7 @@ function isLockRecord(value: unknown): value is CoordinationLockRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return record.schemaVersion === 1 && typeof record.token === "string" && /^[0-9a-f-]{36}$/i.test(record.token) &&
-    (record.kind === "attempt-update" || record.kind === "workdir-lease") && Number.isSafeInteger(record.hostPid) &&
+    (record.kind === "attempt-update" || record.kind === "workdir-lease" || record.kind === "session-memory-write") && Number.isSafeInteger(record.hostPid) &&
     (record.attemptId === undefined || typeof record.attemptId === "string") &&
     (record.workdir === undefined || typeof record.workdir === "string") &&
     (record.agentPid === undefined || record.agentPid === null || Number.isSafeInteger(record.agentPid));

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapExtensionError } from "@/lib/extension-auth";
+import { authenticateBearer, unauthorized, mapExtensionError, parseExtensionJson } from "@/lib/extension-auth";
 import { createHandoff } from "@/lib/checkpoint";
 
 type Ctx = { params: Promise<{ projectId: string; taskId: string }> };
@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ projectId: string; taskId: string }> };
 const createHandoffSchema = z.object({
   checkpointId: z.string().uuid(),
   toUserId: z.string().uuid(),
-  expectedTaskUpdatedAt: z.string(),
+  expectedTaskUpdatedAt: z.string().datetime(),
   expectedHandoffVersion: z.number().int().nonnegative(),
   idempotencyKey: z.string().min(1).max(256),
 });
@@ -26,7 +26,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "taskId 无效" }, { status: 400 });
     }
 
-    const body = await req.json();
+    const body = await parseExtensionJson(req);
     const input = createHandoffSchema.parse(body);
 
     const { record, isNew } = await createHandoff(actorId, projectId, taskId, input);

@@ -5,6 +5,7 @@ import { CheckpointStore } from "../checkpoints/store";
 import { createSharePackage, findObviousSecrets, SharePackageError } from "../checkpoints/share-package";
 import type { NewCheckpointArtifact } from "../checkpoints/types";
 import { selectBoundWorkspace } from "./checkpoint-support";
+import { ServerCheckpointMappingStore } from "../checkpoints/server-mapping";
 
 export function registerExportCheckpointCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.exportCheckpoint", () => exportCheckpoint(context)));
@@ -25,6 +26,8 @@ async function exportCheckpoint(context: vscode.ExtensionContext): Promise<void>
     if (!chosen) return;
     const manifest = await store.read(selected.binding.serverOrigin, selected.binding.projectId, chosen.id);
     if (!manifest) throw new SharePackageError("检查点已不存在");
+    const sourceServerCheckpointId = new ServerCheckpointMappingStore(context.workspaceState)
+      .get(selected.binding.serverOrigin, selected.binding.projectId, manifest.taskId, manifest.id)?.serverCheckpointId ?? null;
     const chosenArtifacts: NewCheckpointArtifact[] = [];
     if (manifest.artifacts.length) {
       const picks = await vscode.window.showQuickPick(manifest.artifacts.map((artifact) => ({
@@ -56,7 +59,7 @@ async function exportCheckpoint(context: vscode.ExtensionContext): Promise<void>
         );
         if (consent !== "确认包含 transcript") return;
       }
-      const payload = createSharePackage(manifest, withIds);
+      const payload = createSharePackage(manifest, withIds, sourceServerCheckpointId);
       await writeNewPackage(payload.bytes);
       return;
     }
@@ -65,7 +68,7 @@ async function exportCheckpoint(context: vscode.ExtensionContext): Promise<void>
       void vscode.window.showErrorMessage(`交接文本中检测到明显凭据模式：${secretLocations.join("、")}。请修订后新建检查点再导出。`);
       return;
     }
-    const payload = createSharePackage(manifest, []);
+    const payload = createSharePackage(manifest, [], sourceServerCheckpointId);
     await writeNewPackage(payload.bytes);
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "导出检查点失败");

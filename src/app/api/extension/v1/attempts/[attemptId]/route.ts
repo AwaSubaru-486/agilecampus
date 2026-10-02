@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapExtensionError } from "@/lib/extension-auth";
+import { authenticateBearer, unauthorized, mapExtensionError, parseExtensionJson } from "@/lib/extension-auth";
 import { updateAttempt } from "@/lib/checkpoint";
 
 type Ctx = { params: Promise<{ attemptId: string }> };
@@ -29,7 +29,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "attemptId 无效" }, { status: 400 });
     }
 
-    const body = await req.json();
+    const body = await parseExtensionJson(req);
     const input = updateAttemptSchema.parse(body);
 
     const updated = await updateAttempt(actorId, attemptId, input);

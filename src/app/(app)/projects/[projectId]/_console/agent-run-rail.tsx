@@ -24,14 +24,15 @@ function mergeHistory<T extends { id: string }>(latest: T[], loaded: T[]) {
 
 type LoadedPage<T> = {
   taskId: string;
-  anchorId: string;
   items: T[];
   hasMore: boolean;
   nextCursor: string | null;
 };
 
 function isContinuous<T extends { id: string }>(latest: T[], loaded: LoadedPage<T> | null | undefined) {
-  return Boolean(loaded && latest.some((item) => item.id === loaded.anchorId));
+  if (!loaded) return false;
+  const loadedIds = new Set(loaded.items.map((item) => item.id));
+  return latest.some((item) => loadedIds.has(item.id));
 }
 
 export function AgentRunRail({
@@ -85,11 +86,9 @@ export function AgentRunRail({
         }
         setLoadedRuns((previous) => {
           const current = previous?.taskId === task.id && isContinuous(task.runs, previous) ? previous : null;
-          const anchorId = task.runs.at(-1)?.id;
-          if (!current && !anchorId) return null;
+          if (!current && task.runs.length === 0) return null;
           const base = current ?? {
             taskId: task.id,
-            anchorId: anchorId!,
             items: task.runs,
             hasMore: task.hasMoreRuns,
             nextCursor: task.runsNextCursor,
@@ -110,11 +109,9 @@ export function AgentRunRail({
         }
         setLoadedEvents((previous) => {
           const current = previous?.taskId === task.id && isContinuous(task.events, previous) ? previous : null;
-          const anchorId = task.events.at(-1)?.id;
-          if (!current && !anchorId) return null;
+          if (!current && task.events.length === 0) return null;
           const base = current ?? {
             taskId: task.id,
-            anchorId: anchorId!,
             items: task.events,
             hasMore: task.hasMoreEvents,
             nextCursor: task.eventsNextCursor,
