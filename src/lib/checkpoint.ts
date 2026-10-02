@@ -671,3 +671,84 @@ export async function updateAttempt(
 
   return updated;
 }
+
+export type PreflightCheckInput = {
+  clientHeadSha?: string;
+  clientRepoKeyHash?: string;
+  clientDirty?: boolean;
+};
+
+/** B03: 接班核对 (Handover Preflight) 服务端评估 */
+export async function evaluateServerHandoffPreflight(
+  actorId: string,
+  handoffId: string,
+  client?: PreflightCheckInput,
+) {
+  const handoff = await getHandoff(actorId, handoffId);
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.id, handoff.taskId));
+
+  if (!task) throw new NotFoundError("关联任务不存在");
+
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+  const changes: Array<{ field: string; expected: unknown; current: unknown }> = [];
+
+  if (handoff.state === "declined" || handoff.state === "withdrawn" || handoff.state === "superseded") {
+    blockers.push(`交接单状态为 ${handoff.state}，不能接班继续`);
+  }
+
+  if (task.status === "done") {
+    blockers.push("任务已验收完成，不能继续接班");
+  }
+
+  if (task.handoffVersion !== handoff.expectedHandoffVersion) {
+    blockers.push(`任务交接契约已更新（当前 v${task.handoffVersion}，交接预期 v${handoff.expectedHandoffVersion}）`);
+    changes.push({
+      field: "交接契约版本",
+      expected: `v${handoff.expectedHandoffVersion}`,
+      current: `v${task.handoffVersion}`,
+    });
+  }
+
+  if (client?.clientRepoKeyHash && handoff.checkpoint?.repositoryKeyHash) {
+    if (client.clientRepoKeyHash !== handoff.checkpoint.repositoryKeyHash) {
+      blockers.push("客户端仓库哈希与检查点记录的仓库标识不匹配");
+    }
+  }
+
+  if (client?.clientHeadSha && handoff.checkpoint?.headSha) {
+    if (client.clientHeadSha !== handoff.checkpoint.headSha) {
+      blockers.push(`客户端 Git HEAD (${client.clientHeadSha.slice(0, 8)}) 与检查点基线 (${handoff.checkpoint.headSha.slice(0, 8)}) 不一致`);
+    }
+  }
+
+  if (client?.clientDirty) {
+    blockers.push("客户端当前工作区有未提交或未跟踪改动");
+  }
+
+  const isBlocked = blockers.length > 0;
+  const needsConfirm = changes.length > 0 && !isBlocked;
+
+  return {
+    ok: !isBlocked && !needsConfirm,
+    status: (isBlocked ? "blocked" : needsConfirm ? "needs-confirmation" : "ready") as
+      | "blocked"
+      | "needs-confirmation"
+      | "ready",
+    blockers,
+    warnings,
+    changes,
+    contract: {
+      taskId: task.id,
+      taskTitle: task.title,
+      taskStatus: task.status,
+      currentHandoffVersion: task.handoffVersion,
+      expectedHandoffVersion: handoff.expectedHandoffVersion,
+      baseSha: handoff.checkpoint?.headSha ?? null,
+      materialsCount: handoff.checkpoint?.materials?.length ?? 0,
+    },
+  };
+}

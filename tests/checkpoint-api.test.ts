@@ -16,6 +16,8 @@ import { GET as getHandoffRoute } from "@/app/api/extension/v1/handoffs/[handoff
 import { POST as resolveHandoffRoute } from "@/app/api/extension/v1/handoffs/[handoffId]/[action]/route";
 import { POST as createAttemptRoute } from "@/app/api/extension/v1/handoffs/[handoffId]/attempts/route";
 import { PATCH as updateAttemptRoute } from "@/app/api/extension/v1/attempts/[attemptId]/route";
+import { POST as preflightRoute } from "@/app/api/extension/v1/handoffs/[handoffId]/preflight/route";
+
 
 function req(body?: unknown, token?: string, method = "POST") {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -360,6 +362,86 @@ describe("VS Code 扩展接口与检查点共享（B01/B02 API）", () => {
       expect(updatedJson.state).toBe("finished");
       expect(updatedJson.receipt.tests[0].exitCode).toBe(0);
       expect(updatedJson.receipt.changedPaths).toContain("src/auth.ts");
+    });
+  });
+
+  describe("B03: 接班核对 (Handover Preflight)", () => {
+    it("核对基线与契约：基线匹配且未改动时通过，契约变化或 dirty 时拦截", async () => {
+      const { bob, project, task, aliceToken, bobToken } = await testScene();
+      const headSha = "f678901234567890123456789012345678901234";
+
+      const cpRes = await createCheckpointRoute(
+        req({
+          taskHandoffVersion: 1,
+          taskUpdatedAt: new Date().toISOString(),
+          repositoryKeyHash: "sha256:preflighthash",
+          headSha,
+          source: { provider: "codex-cli", providerVersion: "1.0", captureMode: "context-only" },
+          handoffSummary: { goal: "测试 Preflight", completed: [], remaining: [], blocker: null, nextAction: "核对" },
+          materials: [],
+        }, aliceToken),
+        { params: Promise.resolve({ projectId: project.id, taskId: task.id }) },
+      );
+      const cp = await cpRes.json();
+
+      const hRes = await createHandoffRoute(
+        req({
+          checkpointId: cp.id,
+          toUserId: bob.id,
+          expectedTaskUpdatedAt: new Date().toISOString(),
+          expectedHandoffVersion: 1,
+          idempotencyKey: "key-preflight-test",
+        }, aliceToken),
+        { params: Promise.resolve({ projectId: project.id, taskId: task.id }) },
+      );
+      const handoff = await hRes.json();
+
+      const preflightCtx = { params: Promise.resolve({ handoffId: handoff.id }) };
+
+      // 1. 基线完全匹配，无 dirty -> ready
+      const okCheck = await preflightRoute(
+        req({
+          clientHeadSha: headSha,
+          clientRepoKeyHash: "sha256:preflighthash",
+          clientDirty: false,
+        }, bobToken),
+        preflightCtx,
+      );
+      expect(okCheck.status).toBe(200);
+      const okData = await okCheck.json();
+      expect(okData.ok).toBe(true);
+      expect(okData.status).toBe("ready");
+      expect(okData.blockers).toHaveLength(0);
+
+      // 2. 客户端有未提交改动 (dirty) -> blocked
+      const dirtyCheck = await preflightRoute(
+        req({
+          clientHeadSha: headSha,
+          clientRepoKeyHash: "sha256:preflighthash",
+          clientDirty: true,
+        }, bobToken),
+        preflightCtx,
+      );
+      expect(dirtyCheck.status).toBe(200);
+      const dirtyData = await dirtyCheck.json();
+      expect(dirtyData.ok).toBe(false);
+      expect(dirtyData.status).toBe("blocked");
+      expect(dirtyData.blockers.some((b: string) => b.includes("未提交"))).toBe(true);
+
+      // 3. 客户端 Git SHA 不匹配 -> blocked
+      const shaCheck = await preflightRoute(
+        req({
+          clientHeadSha: "0000000000000000000000000000000000000000",
+          clientRepoKeyHash: "sha256:preflighthash",
+          clientDirty: false,
+        }, bobToken),
+        preflightCtx,
+      );
+      expect(shaCheck.status).toBe(200);
+      const shaData = await shaCheck.json();
+      expect(shaData.ok).toBe(false);
+      expect(shaData.status).toBe("blocked");
+      expect(shaData.blockers.some((b: string) => b.includes("基线"))).toBe(true);
     });
   });
 });

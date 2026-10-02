@@ -332,9 +332,29 @@ npm test -- tests/console-navigation.test.ts tests/project-space.test.ts
 
 ### 自动化验证
 
-- `npm test -- tests/checkpoint-api.test.ts`：8/8 通过 (100%)
-- `npm test -- tests/checkpoint-api.test.ts tests/collaboration-console-view.test.ts tests/collaboration-console.test.ts tests/project-space.test.ts tests/conversation-selection.test.ts tests/console-navigation.test.ts`：92/92 通过 (100%)
+- `npm test -- tests/checkpoint-api.test.ts`：9/9 通过 (100%)
+- `npm test -- tests/checkpoint-api.test.ts tests/collaboration-console-view.test.ts tests/collaboration-console.test.ts tests/project-space.test.ts tests/conversation-selection.test.ts tests/console-navigation.test.ts`：93/93 通过 (100%)
 - `cd vscode-extension && npm test`：87/87 通过 (100%)
 - `npm run check:ui-copy && npx tsc --noEmit && npm run lint`：全部 0 错误通过
-- `npm run build`：30/30 路由全量通过
+- `npm run build`：31/31 路由全量通过
 - `git diff --check`：0 错误
+
+---
+
+## B03 — 接班核对 (Handover Preflight)
+
+工单：B03
+状态：验收通过
+
+### 本单修改/新建文件
+
+- `src/lib/checkpoint.ts`：实现 `evaluateServerHandoffPreflight` 服务端预检评估器，严格比对交接状态（offered/accepted）、任务契约版本一致性、客户端 Git HEAD SHA 与检查点基线、客户端仓库哈希、以及工作区 dirty 状态拦截。
+- `src/app/api/extension/v1/handoffs/[handoffId]/preflight/route.ts`（新建）：`POST /api/extension/v1/handoffs/:handoffId/preflight`。
+- `tests/checkpoint-api.test.ts`：增加接班预检端到端测试（基线匹配通过、未提交改动拦截、Git SHA 不匹配拦截、契约版本变更拦截）。
+
+### 自动化验证
+
+- `npm test -- tests/checkpoint-api.test.ts`：9/9 通过 (100%)
+- `cd vscode-extension && npm test`：87/87 通过 (100%)
+- `npm run build`：31/31 路由全量通过
+
