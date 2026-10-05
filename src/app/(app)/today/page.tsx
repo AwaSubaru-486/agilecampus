@@ -2,25 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { loadActionQueue, listMyOpenTasks } from "@/lib/shell";
-import { KIND_ACTION, KIND_LABEL, type ActionKind } from "@/lib/action-queue";
 import { statusLabel } from "@/lib/task-status";
+import { TodayActionRow } from "./today-action-row";
 
 // 今日：跨项目的行动队列。登录后的默认落点，取代旧版的团队卡片页。
 //
 // 旧版问「有哪些项目」，这里问「现在该我做什么」。
 // 队列的排序、去重全在 lib/action-queue.ts 的纯函数里，可单测；
 // 徽章与这里同源，不会再出现「徽章说有 3 件、点进去只看到 2 件」。
-
-const TONE: Record<ActionKind, string> = {
-  assignment_response: "bg-warn-soft text-warn",
-  approval_review: "bg-signal-soft text-signal",
-  decision_review: "bg-signal-soft text-signal",
-  review: "bg-agent-soft text-agent",
-  blocker_invite: "bg-risk-soft text-risk",
-  rejected_work: "bg-risk-soft text-risk",
-  overdue: "bg-risk-soft text-risk",
-  due_soon: "bg-warn-soft text-warn",
-};
 
 export default async function TodayPage({
   searchParams,
@@ -82,29 +71,7 @@ export default async function TodayPage({
             <ul className="divide-y divide-stroke">
               {queue.items.map((a) => (
                 <li key={`${a.kind}-${a.taskId ?? a.blockerId ?? a.decisionId ?? a.approvalId ?? a.title}`}>
-                  <Link
-                    href={
-                      a.approvalId
-                        ? `/projects/${a.projectId}?space=studio&approval=${a.approvalId}`
-                        : a.decisionId
-                        ? `/projects/${a.projectId}?space=record#decisions`
-                        : a.taskId
-                        ? `/projects/${a.projectId}?space=work&task=${a.taskId}`
-                        : `/projects/${a.projectId}?space=live`
-                    }
-                    aria-label={`${KIND_LABEL[a.kind]}：${a.title}，项目：${a.projectName}，操作：${KIND_ACTION[a.kind]}`}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-sunken/60 focus-visible:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal"
-                  >
-                    <span className={`ac-badge ${TONE[a.kind]}`}>{KIND_LABEL[a.kind]}</span>
-                    <span className="text-sm font-medium text-ink">{a.title}</span>
-                    <span className="text-xs text-ink-3">{a.projectName}</span>
-                    {a.context && (
-                      <span className="w-full text-xs text-ink-3 sm:w-auto">{a.context}</span>
-                    )}
-                    <span className="ml-auto shrink-0 text-xs font-medium text-signal">
-                      {KIND_ACTION[a.kind]} →
-                    </span>
-                  </Link>
+                  <TodayActionRow action={a} />
                 </li>
               ))}
             </ul>

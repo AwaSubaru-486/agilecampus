@@ -439,6 +439,7 @@ export async function claimTaskAction(_prev: FormState, formData: FormData): Pro
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
 
@@ -526,6 +527,7 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
 
@@ -560,6 +562,7 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
 
@@ -598,5 +601,6 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
