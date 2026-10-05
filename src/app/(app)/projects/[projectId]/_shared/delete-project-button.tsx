@@ -31,7 +31,6 @@ export function DeleteProjectButton({
         type="button"
         onClick={() => {
           setOpen(true);
-          setConfirmText("");
         }}
         className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-50/60 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
         title="仅团队组长可删除此项目"
