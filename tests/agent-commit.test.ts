@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks, projects } from "@/db/schema";
+import { decisions, tasks, projects } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject, createMilestone } from "@/lib/project";
@@ -66,6 +66,23 @@ describe("commitDraft — create_project", () => {
   });
 });
 
+describe("commitDraft — create_decision", () => {
+  beforeEach(resetDb);
+
+  it("AI 决策草案确认后只落 proposed，不会越过人工确认", async () => {
+    const { student, project } = await scene();
+    const r = await commitDraft(student.id, project.id, "create_decision", {
+      title: "接口协议",
+      question: "首版选哪种协议？",
+      options: [{ label: "REST" }, { label: "GraphQL" }],
+    });
+    expect(r.committed).toBe(1);
+    const rows = await db.select().from(decisions).where(eq(decisions.projectId, project.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("proposed");
+  });
+});
+
 describe("commitDraft — update_tasks 版本校验", () => {
   beforeEach(resetDb);
 
@@ -85,16 +102,18 @@ describe("commitDraft — update_tasks 版本校验", () => {
   it("版本过期（updatedAt 不符）→ 冲突、不落库", async () => {
     const { student, project } = await scene();
     const t = await createTask(student.id, project.id, { title: "甲" });
-    await updateTask(student.id, t.id, { status: "done" });
+    // 先置于 doing，再试图改到 review 但版本已过期。
+    // 目标档位须与现状不同，否则「未落库」与「落库了也还是这个值」无从分辨。
+    await updateTask(student.id, t.id, { status: "doing" });
     const r = await commitDraft(student.id, project.id, "update_tasks", {
       updates: [
-        { taskId: t.id, updatedAt: "2000-01-01T00:00:00.000Z", patch: { status: "doing" } },
+        { taskId: t.id, updatedAt: "2000-01-01T00:00:00.000Z", patch: { status: "review" } },
       ],
     });
     expect(r.committed).toBe(0);
     expect(r.conflicts).toEqual([t.id]);
     const [after] = await listProjectTasks(student.id, project.id);
-    expect(after.status).toBe("done");
+    expect(after.status).toBe("doing");
   });
 });
 

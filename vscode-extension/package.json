@@ -1,0 +1,247 @@
+{
+  "name": "agilecampus-vscode",
+  "displayName": "AgileCampus",
+  "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "agilecampus",
+  "license": "MIT",
+  "engines": {
+    "vscode": ">=1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:agilecampus.projectView",
+    "onStartupFinished",
+    "onCommand:agilecampus.openProject",
+    "onCommand:agilecampus.refresh",
+    "onCommand:agilecampus.connect",
+    "onCommand:agilecampus.disconnect",
+    "onCommand:agilecampus.selectProject",
+    "onCommand:agilecampus.openTask",
+    "onCommand:agilecampus.continueAiWork",
+    "onCommand:agilecampus.reportBlocker",
+    "onCommand:agilecampus.saveCheckpoint",
+    "onCommand:agilecampus.publishCheckpoint",
+    "onCommand:agilecampus.sendHandoff",
+    "onCommand:agilecampus.listCheckpoints",
+    "onCommand:agilecampus.exportCheckpoint",
+    "onCommand:agilecampus.importCheckpoint",
+    "onCommand:agilecampus.prepareHandoff",
+    "onCommand:agilecampus.resumeCheckpoint",
+    "onCommand:agilecampus.listAttempts",
+    "onCommand:agilecampus.forkAttempt",
+    "onCommand:agilecampus.compareAttempts"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "AgileCampus",
+      "properties": {
+        "agileCampus.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "AgileCampus 网页端地址。"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "agilecampus.openProject",
+        "title": "AgileCampus: 打开项目"
+      },
+      {
+        "command": "agilecampus.refresh",
+        "title": "AgileCampus: 刷新"
+      },
+      {
+        "command": "agilecampus.connect",
+        "title": "AgileCampus: 连接项目"
+      },
+      {
+        "command": "agilecampus.disconnect",
+        "title": "AgileCampus: 断开连接"
+      },
+      {
+        "command": "agilecampus.selectProject",
+        "title": "AgileCampus: 切换项目"
+      },
+      {
+        "command": "agilecampus.openTask",
+        "title": "AgileCampus: 打开任务"
+      },
+      {
+        "command": "agilecampus.continueAiWork",
+        "title": "AgileCampus: 在网页中查看 Agent 工作"
+      },
+      {
+        "command": "agilecampus.reportBlocker",
+        "title": "AgileCampus: 报告卡住"
+      },
+      {
+        "command": "agilecampus.saveCheckpoint",
+        "title": "AgileCampus: 保存本地检查点"
+      },
+      {
+        "command": "agilecampus.publishCheckpoint",
+        "title": "AgileCampus: 发布检查点摘要"
+      },
+      {
+        "command": "agilecampus.sendHandoff",
+        "title": "AgileCampus: 交接给成员"
+      },
+      {
+        "command": "agilecampus.listCheckpoints",
+        "title": "AgileCampus: 查看本地检查点"
+      },
+      {
+        "command": "agilecampus.exportCheckpoint",
+        "title": "AgileCampus: 导出检查点交接包"
+      },
+      {
+        "command": "agilecampus.importCheckpoint",
+        "title": "AgileCampus: 导入检查点交接包"
+      },
+      {
+        "command": "agilecampus.prepareHandoff",
+        "title": "AgileCampus: 检查接续条件"
+      },
+      {
+        "command": "agilecampus.resumeCheckpoint",
+        "title": "AgileCampus: 从检查点启动 Agent"
+      },
+      {
+        "command": "agilecampus.listAttempts",
+        "title": "AgileCampus: 查看本地 Agent 尝试"
+      },
+      {
+        "command": "agilecampus.forkAttempt",
+        "title": "AgileCampus: 创建并行尝试 worktree"
+      },
+      {
+        "command": "agilecampus.compareAttempts",
+        "title": "AgileCampus: 比较并行尝试"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agilecampus",
+          "title": "AgileCampus",
+          "icon": "resources/agilecampus.svg"
+        }
+      ]
+    },
+    "views": {
+      "agilecampus": [
+        {
+          "id": "agilecampus.projectView",
+          "name": "项目现场",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "agilecampus.connect",
+          "when": "view == agilecampus.projectView && agileCampus.connected != true",
+          "group": "navigation"
+        },
+        {
+          "command": "agilecampus.selectProject",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation"
+        },
+        {
+          "command": "agilecampus.refresh",
+          "when": "view == agilecampus.projectView",
+          "group": "navigation"
+        },
+        {
+          "command": "agilecampus.saveCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agilecampus.publishCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@2.1"
+        },
+        {
+          "command": "agilecampus.sendHandoff",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@2.2"
+        },
+        {
+          "command": "agilecampus.listCheckpoints",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agilecampus.exportCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@4"
+        },
+        {
+          "command": "agilecampus.importCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@5"
+        },
+        {
+          "command": "agilecampus.prepareHandoff",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@6"
+        },
+        {
+          "command": "agilecampus.resumeCheckpoint",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@7"
+        },
+        {
+          "command": "agilecampus.listAttempts",
+          "when": "view == agilecampus.projectView",
+          "group": "navigation@8"
+        },
+        {
+          "command": "agilecampus.forkAttempt",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation@9"
+        },
+        {
+          "command": "agilecampus.compareAttempts",
+          "when": "view == agilecampus.projectView",
+          "group": "navigation@10"
+        },
+        {
+          "command": "agilecampus.disconnect",
+          "when": "view == agilecampus.projectView && agileCampus.connected == true",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "npm run compile:extension && npm run compile:webview",
+    "compile:extension": "tsc --noEmit -p ./tsconfig.json && node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && esbuild src/extension.ts --bundle --platform=node --target=node20 --external:vscode --outfile=dist/extension.js",
+    "compile:webview": "esbuild webview/src/App.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --jsx=automatic",
+    "check": "npm run compile",
+    "test": "vitest run --configLoader runner"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "simple-git": "4.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/vscode": "^1.95.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.11"
+  }
+}

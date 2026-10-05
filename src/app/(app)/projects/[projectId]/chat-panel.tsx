@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DraftCards, type Draft } from "./draft-cards";
+import { ConversationTree } from "./conversation-tree";
+import { ContextPackBuilder } from "./context-pack-builder";
+import { ApprovalDetail } from "./approval-detail";
+import type { ApprovalListItem } from "@/lib/approval";
+import { Badge, Button } from "@/components/ui";
 
 type Option = { id: string; name: string };
 type Conversation = {
@@ -24,6 +29,13 @@ type Msg = {
   sourceMessageId?: string | null;
   drafts?: Draft[];
 };
+type ContextPack = {
+  id: string;
+  title: string;
+  status: "draft" | "frozen" | "superseded";
+  summary: string | null;
+  frozenAt: string | null;
+};
 
 export function ChatPanel({
   projectId,
@@ -34,6 +46,9 @@ export function ChatPanel({
   members,
   milestones,
   tasks,
+  initialTaskId,
+  initialContextPacks,
+  initialApproval,
 }: {
   projectId: string;
   currentUserId: string;
@@ -43,18 +58,26 @@ export function ChatPanel({
   members: Option[];
   milestones: Option[];
   tasks: Option[];
+  initialTaskId?: string | null;
+  initialContextPacks: ContextPack[];
+  initialApproval: ApprovalListItem | null;
 }) {
+  const initialTask = initialTaskId ? tasks.find((item) => item.id === initialTaskId) ?? null : null;
   const [conversations, setConversations] = useState(initialConversations);
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(Boolean(initialTask));
+  const [newTitle, setNewTitle] = useState(initialTask ? `任务：${initialTask.name}` : "");
   const [newVisibility, setNewVisibility] = useState<"private" | "project">("project");
-  const [newTaskId, setNewTaskId] = useState("");
+  const [newTaskId, setNewTaskId] = useState(initialTask?.id ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [contextPackId, setContextPackId] = useState<string | null>(
+    initialContextPacks.find((pack) => pack.status === "frozen")?.id ?? null,
+  );
+  const [contextPacks, setContextPacks] = useState(initialContextPacks);
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === conversationId) ?? null,
@@ -94,6 +117,7 @@ export function ChatPanel({
             content: message.content,
             authorName: message.authorName,
             sourceMessageId: message.sourceMessageId,
+            drafts: message.drafts,
           })),
       );
     } catch (caught) {
@@ -154,7 +178,12 @@ export function ChatPanel({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, conversationId: conversationId ?? undefined, userText: text }),
+        body: JSON.stringify({
+          projectId,
+          conversationId: conversationId ?? undefined,
+          contextPackId: contextPackId ?? undefined,
+          userText: text,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "对话失败");
@@ -228,121 +257,113 @@ export function ChatPanel({
   }
 
   return (
-    <section id="ai-collaboration" className="ac-card scroll-mt-20 overflow-hidden rounded-3xl">
-      <div className="border-b border-line px-5 py-4">
+    <section id="ai-collaboration" aria-busy={pending || loadingConversation} className="ac-live-panel scroll-mt-20 overflow-hidden">
+      <div className="border-b border-stroke bg-ground/45 px-4 py-3.5 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-primary">CONTEXT LAB</p>
-            <h2 className="mt-1 font-display text-xl font-bold text-ink">AI 上下文实验室</h2>
-            <p className="mt-1 text-xs text-ink-faint">
-              每次讨论都关联项目与任务；从关键回复分叉，不覆盖原来的思路
-            </p>
+            <h2 className="font-display text-lg font-semibold text-ink">AI 协作</h2>
           </div>
-          <button type="button" onClick={() => setCreating((value) => !value)} className="ac-btn px-3 py-2 text-sm">
+          <Button
+            type="button"
+            onClick={() => setCreating((value) => !value)}
+            variant="ink"
+            size="sm"
+          >
             {creating ? "取消" : "+ 新会话"}
-          </button>
+          </Button>
         </div>
         {creating && (
-          <div className="mt-3 grid gap-2 rounded-lg bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
+          <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border border-stroke bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
             <input
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value)}
               placeholder="会话主题，如 用户访谈方案"
-              className="ac-field text-sm"
+              className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             />
-            <select value={newTaskId} onChange={(event) => setNewTaskId(event.target.value)} className="ac-field text-sm">
+            <select
+              value={newTaskId}
+              onChange={(event) => setNewTaskId(event.target.value)}
+              className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+            >
               <option value="">不关联任务</option>
               {tasks.map((task) => <option key={task.id} value={task.id}>{task.name}</option>)}
             </select>
             <select
               value={newVisibility}
               onChange={(event) => setNewVisibility(event.target.value as "private" | "project")}
-              className="ac-field text-sm"
+              className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             >
               <option value="project">项目成员可见</option>
               <option value="private">仅自己可见</option>
             </select>
-            <button type="button" onClick={createSession} disabled={pending} className="ac-btn px-3 text-sm">
+            <Button
+              type="button"
+              onClick={createSession}
+              disabled={pending}
+              size="sm"
+            >
               创建
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
-      <div className="grid min-h-[30rem] md:grid-cols-[16rem_1fr]">
-        <aside className="border-b border-line bg-[#f3f5f9] p-2.5 md:border-b-0 md:border-r">
-          <p className="px-2 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-faint">CONVERSATIONS</p>
-          <div className="max-h-[28rem] space-y-1 overflow-y-auto">
-            {conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => refreshConversation(conversation.id)}
-                className={`w-full rounded-lg px-2.5 py-2 text-left transition ${
-                  conversation.id === conversationId ? "bg-surface shadow-sm ring-1 ring-line" : "hover:bg-surface/70"
-                }`}
-              >
-                <span className="block truncate text-sm font-medium text-ink">
-                  {conversation.title || "未命名会话"}
-                </span>
-                <span className="mt-1 flex flex-wrap gap-1 text-[11px] text-ink-faint">
-                  <span>{conversation.createdById === currentUserId ? "我" : conversation.createdByName}</span>
-                  <span>·</span>
-                  <span>{conversation.visibility === "project" ? "项目共享" : "私人"}</span>
-                  {conversation.parentConversationId && <span>· 分支</span>}
-                </span>
-                {conversation.taskTitle && (
-                  <span className="mt-1 block truncate text-[11px] text-ink-soft">任务：{conversation.taskTitle}</span>
-                )}
-              </button>
-            ))}
-            {conversations.length === 0 && (
-              <p className="px-2 py-6 text-center text-xs text-ink-faint">还没有 AI 会话</p>
-            )}
-          </div>
+      <div className="grid min-h-[26rem] md:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,1fr)_15rem]">
+        <aside className="border-b border-stroke bg-ground/35 p-2.5 md:border-b-0 md:border-r">
+          <p className="ac-section-title px-2 py-1.5">会话列表</p>
+          <ConversationTree
+            conversations={conversations}
+            selectedId={conversationId}
+            currentUserId={currentUserId}
+            onSelect={refreshConversation}
+          />
         </aside>
 
         <div className="flex min-w-0 flex-col">
-          <div className="border-b border-line px-4 py-2.5">
+          <div className="border-b border-stroke bg-panel px-4 py-2.5">
             {activeConversation ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
-                <span className="font-medium text-ink">{activeConversation.title}</span>
-                <span className="rounded-full bg-sunken px-2 py-0.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
+                <span className="font-semibold text-ink">{activeConversation.title}</span>
+                <span className="rounded border border-stroke bg-sunken px-1.5 py-0.5 text-[11px]">
                   {activeConversation.visibility === "project" ? "项目成员可见" : "仅自己可见"}
                 </span>
                 {activeConversation.parentConversationId && (
                   <button
                     type="button"
                     onClick={() => refreshConversation(activeConversation.parentConversationId!)}
-                    className="text-primary hover:underline"
+                    className="rounded text-signal hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-signal"
                   >
                     查看来源会话
                   </button>
                 )}
               </div>
             ) : (
-              <p className="text-xs text-ink-faint">创建会话后开始与 AI 协作</p>
+              <p className="text-xs text-ink-3">创建 Agent 任务后开始协作</p>
             )}
           </div>
 
-          <div className="max-h-[26rem] flex-1 space-y-3 overflow-y-auto p-4">
-            {loadingConversation && <p className="text-center text-sm text-ink-faint">正在加载会话…</p>}
+          {initialApproval && (
+            <ApprovalDetail projectId={projectId} approval={initialApproval} />
+          )}
+
+          <div className="max-h-[24rem] flex-1 space-y-3 overflow-y-auto p-4">
+            {loadingConversation && <p role="status" className="text-center text-sm text-ink-3">正在加载会话…</p>}
             {!loadingConversation && messages.map((message) => (
               <div key={message.id}>
-                <div className={`rounded-2xl p-3.5 text-sm ${message.role === "user" ? "ml-8 bg-sunken" : "mr-8 border border-primary/10 bg-[#f2f5ff]"}`}>
-                  <div className="mb-1 flex items-center gap-2 text-xs text-ink-faint">
-                    <span>{message.role === "user" ? message.authorName || "成员" : "AI 助手"}</span>
-                    {message.sourceMessageId && <span className="rounded bg-canvas/70 px-1.5 py-0.5">继承内容</span>}
+                <div className={`border-b border-stroke/80 px-1 pb-4 text-sm ${message.role === "user" ? "pt-2" : "pt-1"}`}>
+                  <div className="mb-2 flex items-center gap-2 text-xs text-ink-3">
+                    <span className="font-medium text-ink-2">{message.role === "user" ? message.authorName || "成员" : "AI 助手"}</span>
+                  {message.sourceMessageId && <Badge tone="neutral">分支来源</Badge>}
                   </div>
-                  <p className="whitespace-pre-wrap text-ink">{message.content}</p>
+                  <p className="whitespace-pre-wrap leading-6 text-ink">{message.content}</p>
                   {message.role === "assistant" && !message.id.startsWith("pending-") && (
                     <button
                       type="button"
                       onClick={() => forkFrom(message)}
                       disabled={pending}
-                      className="mt-2 text-xs text-primary hover:underline disabled:opacity-50"
+                      className="ac-pressable mt-3 min-h-8 text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-signal disabled:opacity-50"
                     >
-                      从这里创建方案分支
+                      从这里创建方案分支 →
                     </button>
                   )}
                 </div>
@@ -352,28 +373,67 @@ export function ChatPanel({
               </div>
             ))}
             {!loadingConversation && messages.length === 0 && (
-              <div className="py-14 text-center">
-                <p className="text-sm text-ink-soft">向 AI 说明这个会话要解决的问题</p>
-                <p className="mt-1 text-xs text-ink-faint">例如：根据课程截止时间，帮我们拆解用户调研计划</p>
+              <div className="rounded-[var(--radius-control)] border border-stroke bg-sunken/30 p-6">
+                <p className="text-sm font-semibold text-ink">暂无会话消息</p>
+                <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">输入任务目标、约束或当前阻塞，开始与 Agent 协作。</p>
+                <div className="mt-4 grid gap-2 text-xs text-ink-3 sm:grid-cols-3">
+                  <span className="rounded border border-stroke bg-panel px-2 py-1">说明现状</span>
+                  <span className="rounded border border-stroke bg-panel px-2 py-1">提出方案</span>
+                  <span className="rounded border border-stroke bg-panel px-2 py-1">人工确认</span>
+                </div>
               </div>
             )}
           </div>
 
-          {error && <p className="px-4 pb-2 text-sm text-high">{error}</p>}
-          <div className="flex gap-2 border-t border-line p-3">
-            <input
+          {error && <p role="alert" className="px-4 pb-2 text-sm font-medium text-risk">{error}</p>}
+          <div className="flex gap-2 border-t border-stroke p-3">
+              <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && send()}
-              placeholder={conversationId ? "继续这个会话…" : "先创建或直接开始一个会话…"}
-              className="ac-field flex-1 text-sm"
+              placeholder={conversationId ? "补充约束或询问 Agent 进度…" : "先创建一个 Agent 任务…"}
+              className="ac-field flex-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
               disabled={pending}
             />
-            <button type="button" onClick={send} disabled={pending} className="ac-btn px-4 py-2 text-sm">
+            <Button
+              type="button"
+              onClick={send}
+              disabled={pending || !input.trim()}
+              variant="ink"
+            >
               {pending ? "处理中…" : "发送"}
-            </button>
+            </Button>
           </div>
         </div>
+
+        <aside className="hidden border-l border-stroke bg-ground/40 px-3 py-4 xl:block">
+          {initialTask && (
+            <div className="mb-4 border-b border-stroke pb-3">
+              <p className="text-[11px] text-ink-3">关联任务</p>
+              <p className="mt-1 text-sm font-medium leading-5 text-ink">{initialTask.name}</p>
+            </div>
+          )}
+          <ContextPackBuilder
+            projectId={projectId}
+            conversationId={conversationId}
+            taskId={initialTask?.id ?? null}
+            tasks={tasks}
+            milestones={milestones}
+            conversations={conversations.map((conversation) => ({
+              id: conversation.id,
+              name: conversation.title ?? "未命名会话",
+              title: conversation.title,
+            }))}
+            packs={contextPacks}
+            selectedPackId={contextPackId}
+            onSelectPack={setContextPackId}
+            onPacksChange={setContextPacks}
+          />
+          <div className="mt-8 border-t border-stroke pt-3">
+            <p className="text-[11px] font-medium text-ink-3">人工边界</p>
+            <p className="mt-1 text-xs leading-5 text-ink-2">Agent 只给建议；写入、验收和状态变更由成员确认。</p>
+          </div>
+        </aside>
       </div>
     </section>
   );

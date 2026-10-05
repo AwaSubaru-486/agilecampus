@@ -1,158 +1,584 @@
 @import "tailwindcss";
 
-/* AgileCampus UI · 由任务、协作与 AI 上下文组成的轻量团队工作台 */
+/* AgileCampus · shadcn 风格的深色工程控制台
+ *
+ * 视觉方向参考 shadcn/ui dashboard：深色背景、细边框、紧凑间距、
+ * 系统正文、等宽数据字体和固定侧栏。业务语义色保留，但不再用暖灰纸感做品牌。
+ * 旧 token 名保留为别名，页面组件可以逐步迁移而不破坏功能。
+ */
 
 @theme {
-  --color-canvas: #f6f7f9;
-  --color-surface: #ffffff;
-  --color-sunken: #eef1f5;
-  --color-ink: #151b26;
-  --color-ink-soft: #536070;
-  --color-ink-faint: #8c97a6;
-  --color-line: #e5e9ef;
-  --color-line-strong: #d7dde6;
+  /* ---------- 底与面 ---------- */
+  --color-ground: #0b0b0d;
+  --color-panel: #111113;
+  --color-raised: #19191c;
+  --color-sunken: #18181b;
 
-  --color-primary: #315cf5;
-  --color-primary-hover: #2448d8;
-  --color-primary-soft: #eaf0ff;
-  --color-primary-ring: #c9d6ff;
+  /* ---------- 字 ---------- */
+  --color-ink: #fafafa;
+  --color-ink-2: #b8b8c0;
+  --color-ink-3: #898991;
 
-  --color-accent: #ff7657;
-  --color-accent-soft: #fff0eb;
+  /* ---------- 线 ---------- */
+  --color-stroke: #303035;
+  --color-stroke-strong: #4a4a52;
 
-  /* 语义 · 看板列 */
-  --color-todo: #8692a3;
-  --color-doing: #315cf5;
-  --color-done: #168a63;
+  /* ---------- 人机语义色 ---------- */
+  /* 人与 AI 是并列的两类成员。绿色不代表好人，紫色不代表危险 */
+  --color-human: #34d399;
+  --color-human-soft: #052e25;
+  --color-agent: #60a5fa;
+  --color-agent-soft: #172554;
 
-  /* 语义 · 优先级 */
-  --color-high: #d94a55;
-  --color-high-soft: #ffecef;
-  --color-medium: #b67817;
-  --color-medium-soft: #fff5dc;
-  --color-low: #697789;
-  --color-low-soft: #edf0f4;
+  /* ---------- 信号与状态 ---------- */
+  --color-signal: #f4f4f5;
+  --color-signal-hover: #ffffff;
+  --color-signal-soft: #27272a;
+  --color-signal-ring: #52525b;
 
-  /* 字体 */
-  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-display: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-risk: #f87171;
+  --color-risk-soft: #450a0a;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #422006;
+  --color-success: #4ade80;
+  --color-success-soft: #052e16;
 
-  /* 形状 */
-  --radius-card: 1rem;
-  --radius-field: 0.625rem;
+  /* ---------- 形状 ---------- */
+  /* 主面板 12px、抽屉 16px。不再所有元素都用 24px 大圆角 */
+  --radius-control: 0.375rem; /* 控件 6px */
+  --radius-panel: 0.375rem; /* 面板 6px：资料/任务工作面不做软卡片 */
+  --radius-sheet: 0.5rem; /* 抽屉 / 全屏层 8px */
+
+  /* ---------- 尺寸 ---------- */
+  --spacing-workbar: 3.5rem; /* 顶部工作带 56px */
+  --spacing-projectband: 3rem; /* 项目上下文带 48px */
+
+  /* ---------- 交互节奏 ---------- */
+  --motion-instant: 80ms;
+  --motion-fast: 140ms;
+  --motion-panel: 220ms;
+  --motion-spring: linear(0, 0.16 8%, 0.8 38%, 1.02 62%, 1 100%);
+
+  /* ---------- 字体 ---------- */
+  /* 明确采用本机字体：中文优先苹方/微软雅黑，英文回退系统 sans。
+   * 不依赖远程字体，离线构建和课堂演示都能保持同一套字形策略。 */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-display: var(--font-sans);
 }
 
+/* 阴影：只给浮层。普通面板一律不投影，靠边框与留白分层 */
 :root {
-  --shadow-card: 0 1px 2px rgba(21, 27, 38, 0.03), 0 10px 28px -18px rgba(21, 27, 38, 0.22);
-  --shadow-pop: 0 18px 50px -22px rgba(21, 27, 38, 0.32);
+  --shadow-float: 0 16px 40px -16px rgba(0, 0, 0, 0.8);
+  --shadow-pop: 0 24px 60px -24px rgba(0, 0, 0, 0.9);
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   旧 token 别名
+   Commit 2 一次性换底，但不逐文件重写——36 个组件引用的这些名字暂时
+   映射到新值，于是全站立刻换上暖灰纸感的皮。逐个迁移完成后于 Commit 13 删除。
+   ========================================================================== */
+@theme {
+  --color-canvas: var(--color-ground);
+  --color-surface: var(--color-panel);
+  --color-ink-soft: var(--color-ink-2);
+  --color-ink-faint: var(--color-ink-3);
+  --color-line: var(--color-stroke);
+  --color-line-strong: var(--color-stroke-strong);
+
+  --color-primary: var(--color-signal);
+  --color-primary-hover: var(--color-signal-hover);
+  --color-primary-soft: var(--color-signal-soft);
+  --color-primary-ring: var(--color-signal-ring);
+
+  /* 看板四档。既有的 todo/doing/review/done 分别映射到新语义 */
+  --color-todo: var(--color-ink-3);
+  --color-doing: var(--color-signal);
+  --color-review: var(--color-agent);
+  --color-review-soft: var(--color-agent-soft);
+  --color-done: var(--color-human);
+
+  /* 优先级 */
+  --color-high: var(--color-risk);
+  --color-high-soft: var(--color-risk-soft);
+  --color-medium: var(--color-warn);
+  --color-medium-soft: var(--color-warn-soft);
+  --color-low: var(--color-ink-3);
+  --color-low-soft: var(--color-sunken);
+
+  --color-accent: var(--color-warn);
+  --color-accent-soft: var(--color-warn-soft);
+
+  --radius-card: var(--radius-panel);
+  --radius-field: var(--radius-control);
 }
 
 body {
-  background-color: var(--color-canvas);
+  background-color: var(--color-ground);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+html {
+  scroll-padding-top: calc(var(--spacing-workbar) + var(--spacing-projectband));
+}
+
+/* 桌面保留工作台侧栏；窄屏改为抽屉，正文不被侧栏挤窄。 */
+.ac-sidebar-collapse {
+  display: none;
+}
+
+.ac-sidebar-menu {
+  display: grid;
+}
+
+.ac-sidebar-scrim {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .ac-shell-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 16rem;
+    border-right: 1px solid var(--color-stroke);
+    border-bottom: 0;
+  }
+
+  .ac-shell-sidebar-inner {
+    height: 100%;
+    max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 1rem;
+  }
+
+  .ac-shell-switcher {
+    width: 100%;
+    margin-top: 2rem;
+  }
+
+  .ac-shell-primary-nav {
+    margin-left: 0;
+    margin-top: 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .ac-shell-primary-nav > a {
+    min-height: 2.5rem;
+    justify-content: flex-start;
+    border-bottom: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ac-shell-account {
+    width: 100%;
+    margin-top: auto;
+    margin-left: 0;
+  }
+
+  .ac-sidebar-collapse {
+    display: grid;
+  }
+
+  .ac-sidebar-menu {
+    display: none;
+  }
+
+  .ac-shell-main {
+    margin-left: 16rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] {
+    width: 4.5rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-sidebar-inner {
+    padding-inline: 0.75rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-switcher,
+  .ac-shell-sidebar[data-collapsed="true"] .ac-secondary-nav {
+    display: none;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav {
+    margin-top: 2rem;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-primary-nav > a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-account {
+    width: auto;
+    display: flex;
+    justify-content: center;
+  }
+
+  .ac-shell-sidebar[data-collapsed="true"] ~ .ac-shell-main {
+    margin-left: 4.5rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .ac-shell-sidebar-inner {
+    position: relative;
+    z-index: 2;
+  }
+
+  .ac-shell-sidebar:not([data-mobile-open="true"]) .ac-shell-primary-nav,
+  .ac-shell-sidebar:not([data-mobile-open="true"]) .ac-shell-account {
+    display: none;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(18rem, calc(100vw - 2rem));
+    border-right: 1px solid var(--color-stroke);
+    border-bottom: 0;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-sidebar-inner {
+    height: 100%;
+    max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 1rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-switcher {
+    width: 100%;
+    margin-top: 2rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-primary-nav {
+    display: flex;
+    margin-left: 0;
+    margin-top: 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-primary-nav > a {
+    min-height: 2.5rem;
+    justify-content: flex-start;
+    border-bottom: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-secondary-nav {
+    display: block;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-shell-account {
+    display: block;
+    width: 100%;
+    margin-top: auto;
+    margin-left: 0;
+  }
+
+  .ac-shell-sidebar[data-mobile-open="true"] .ac-sidebar-collapse {
+    display: none;
+  }
+
+  .ac-sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    padding: 0;
+    cursor: default;
+    background: rgb(0 0 0 / 0.58);
+  }
+
+  .ac-project-band {
+    top: 0;
+  }
+
+  .ac-project-band-spaces {
+    display: none;
+  }
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.ac-icon-menu {
+  position: relative;
+  display: inline-block;
+  width: 1rem;
+  height: 0.75rem;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+
+.ac-icon-menu::before {
+  position: absolute;
+  top: calc(50% - 0.5px);
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  content: "";
+}
+
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
+}
+
+/* 动效：位移一律克制。prefers-reduced-motion 时全部退化为显隐 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .ac-panel-enter {
+    animation: none !important;
+  }
 }
 
 @layer components {
-  /* 卡片面 */
+  /* 项目现场的签名结构：薄边界、强分区、少卡片。
+   * 用于把“实时协作”与普通资料面板区分开，避免整页变成同样的白卡片。 */
+  .ac-live-panel {
+    overflow: hidden;
+    border: 1px solid var(--color-stroke);
+    border-top: 2px solid var(--color-ink);
+    border-radius: var(--radius-panel);
+    background: var(--color-panel);
+  }
+
+  .ac-eyebrow {
+    color: var(--color-ink-3);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+  }
+
+  .ac-section-title {
+    color: var(--color-ink-3);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
+  /* ---------- 面板 ----------
+   * 无静止阴影。旧版靠「圆角 + 投影 + 纯白」制造卡片感，
+   * 一屏堆七八张就成了卡片墙；改用边框与留白分层。 */
   .ac-card {
-    border-radius: var(--radius-card);
-    border: 1px solid var(--color-line);
-    background-color: var(--color-surface);
-    box-shadow: var(--shadow-card);
+    border-radius: var(--radius-panel);
+    border: 1px solid var(--color-stroke);
+    background-color: var(--color-panel);
   }
 
   .ac-toolbar {
-    border: 1px solid var(--color-line);
-    border-radius: 0.875rem;
-    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-    box-shadow: 0 1px 2px rgba(21, 27, 38, 0.03);
+    border: 1px solid var(--color-stroke);
+    border-radius: var(--radius-panel);
+    background: color-mix(in srgb, var(--color-panel) 90%, transparent);
   }
 
-  /* 表单控件统一 */
+  /* 需要浮起时显式声明——浮层才配得上阴影 */
+  .ac-float {
+    box-shadow: var(--shadow-float);
+  }
+
+  /* ---------- 表单控件 ---------- */
   .ac-field {
     width: 100%;
-    border-radius: var(--radius-field);
-    border: 1px solid var(--color-line-strong);
-    background-color: var(--color-surface);
-    padding: 0.5rem 0.7rem;
+    min-height: 2.25rem; /* 标准控件 36px */
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-stroke-strong);
+    background-color: var(--color-raised);
+    padding: 0.45rem 0.7rem;
     font-size: 0.875rem;
     color: var(--color-ink);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
   }
   .ac-field::placeholder {
-    color: var(--color-ink-faint);
+    color: var(--color-ink-3);
   }
   .ac-field:focus {
     outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary-ring);
+    border-color: var(--color-signal);
+    box-shadow: 0 0 0 3px var(--color-signal-ring);
   }
 
-  /* 主按钮 */
+  /* ---------- 主按钮 ----------
+   * 「一屏最多一个高强调主动作」——故主按钮不做大、不做亮，
+   * 只做「有实底」这一个区别。 */
   .ac-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.375rem;
-    border-radius: var(--radius-field);
-    background-color: var(--color-primary);
-    padding: 0.5rem 1rem;
+    min-height: 2.25rem;
+    min-width: 2.75rem;
+    border-radius: var(--radius-control);
+    border: 1px solid transparent;
+    background-color: var(--color-signal);
+    padding: 0.45rem 0.95rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #fff;
-    box-shadow: 0 1px 2px rgba(28, 22, 12, 0.14);
-    transition: background-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+    color: var(--color-ground);
+    transition: background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
   }
   .ac-btn:hover:not(:disabled) {
-    background-color: var(--color-primary-hover);
-    box-shadow: 0 2px 8px -1px rgba(56, 82, 127, 0.35);
+    background-color: var(--color-signal-hover);
   }
   .ac-btn:active:not(:disabled) {
-    transform: translateY(0.5px);
+    transform: scale(0.985);
   }
   .ac-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
-  /* 次按钮 / 幽灵 */
+  /* ---------- 次按钮 ---------- */
   .ac-btn-ghost {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    border-radius: var(--radius-field);
-    border: 1px solid var(--color-line-strong);
-    background-color: var(--color-surface);
-    padding: 0.4rem 0.85rem;
+    min-height: 2.25rem;
+    min-width: 2.75rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-stroke-strong);
+    background-color: transparent;
+    padding: 0.4rem 0.8rem;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--color-ink-soft);
-    transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+    color: var(--color-ink-2);
+    transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease, background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
   }
   .ac-btn-ghost:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background-color: var(--color-primary-soft);
+    border-color: var(--color-signal);
+    color: var(--color-signal);
+    background-color: var(--color-signal-soft);
+  }
+  .ac-btn-ghost:active:not(:disabled) {
+    transform: scale(0.985);
   }
 
-  /* 标签徽章 */
+  .ac-btn-ink {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-ink);
+    border-radius: var(--radius-control);
+    background: var(--color-ink);
+    padding: 0.5rem 1rem;
+    color: var(--color-ground);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
+  }
+  .ac-btn-ink:hover:not(:disabled) {
+    background: var(--color-ink-2);
+  }
+  .ac-btn-ink:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+
+  .ac-pressable {
+    transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
+  }
+  .ac-pressable:active:not(:disabled) {
+    transform: scale(0.985);
+  }
+
+  .ac-panel-enter {
+    animation: ac-panel-enter var(--motion-panel) var(--motion-spring) both;
+  }
+
+  @keyframes ac-panel-enter {
+    from { opacity: 0; transform: translate3d(16px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  /* ---------- 徽章 ----------
+   * 状态不能只靠颜色——每个徽章旁边必须有短文本，这条靠使用方遵守 */
   .ac-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    border-radius: 999px;
-    padding: 0.1rem 0.55rem;
+    border-radius: 0.375rem; /* 方一点，不再全是胶囊 */
+    padding: 0.05rem 0.4rem;
     font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.01em;
+  }
+
+  /* ---------- 人机标识 ----------
+   * 全站统一：让人一眼分得清这条是人做的还是 AI 做的 */
+  .ac-agent-mark {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--color-agent) 50%, var(--color-stroke));
+    background-color: var(--color-agent-soft);
+    padding: 0 0.3rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: var(--color-agent);
+  }
+
+  /* 线性文字图标：关闭和展开不再依赖 emoji/字体符号，尺寸由控件决定。 */
+  .ac-icon-close,
+  .ac-icon-chevron {
+    display: inline-block;
+    flex: 0 0 auto;
+  }
+  .ac-icon-close {
+    width: 1rem;
+    height: 1rem;
+    position: relative;
+  }
+  .ac-icon-close::before,
+  .ac-icon-close::after {
+    content: "";
+    position: absolute;
+    left: 0.45rem;
+    top: 0.05rem;
+    width: 1px;
+    height: 0.9rem;
+    background: currentColor;
+  }
+  .ac-icon-close::before { transform: rotate(45deg); }
+  .ac-icon-close::after { transform: rotate(-45deg); }
+  .ac-icon-chevron {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    transform: rotate(45deg) translateY(-0.1rem);
   }
 }

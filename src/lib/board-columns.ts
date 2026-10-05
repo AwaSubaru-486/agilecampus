@@ -1,8 +1,10 @@
 import type { FilterableTask, GroupBy } from "./board-filters";
+import { STATUS_LABEL, STATUS_TONE, TASK_STATUSES } from "./task-status";
+import type { TaskStatus } from "@/db/schema";
 
 // 拖拽落列时提交的字段补丁。四字段与 moveTaskAction 的白名单严格对应。
 export type ColumnPatch = {
-  status?: "todo" | "doing" | "done";
+  status?: TaskStatus;
   assigneeId?: string | null;
   priority?: "low" | "medium" | "high";
   milestoneId?: string | null;
@@ -78,18 +80,13 @@ export function deriveColumns(group: GroupBy, ctx: ColumnContext): BoardColumn[]
 
     case "status":
     default:
-      return (
-        [
-          { key: "todo", label: "待办", tone: "text-todo" },
-          { key: "doing", label: "进行中", tone: "text-doing" },
-          { key: "done", label: "已完成", tone: "text-done" },
-        ] as const
-      ).map((c) => ({
-        key: c.key,
-        label: c.label,
-        tone: c.tone,
-        patch: { status: c.key } as ColumnPatch,
-        matches: (t: FilterableTask) => t.status === c.key,
+      // 列随枚举走：加了状态档，看板自动多一列，无需回来补三行字面量
+      return TASK_STATUSES.map((s) => ({
+        key: s,
+        label: STATUS_LABEL[s],
+        tone: STATUS_TONE[s],
+        patch: { status: s },
+        matches: (t: FilterableTask) => t.status === s,
       }));
   }
 }

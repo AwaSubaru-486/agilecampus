@@ -8,6 +8,9 @@ import {
   type ToolTraceEntry,
 } from "./conversation";
 import { getModel } from "./model";
+import { getContextPackForUser } from "@/lib/context-pack";
+import { AppError } from "@/lib/errors";
+import { createApprovalRequests, type PersistedDraft } from "@/lib/approval";
 
 const SYSTEM_PREAMBLE = `你是 AgileCampus（敏捷校园）的项目管理助手，服务高校科研与课程团队。
 你的职责限于项目管理：拆解目标、排期、指派、跟踪进度、答疑项目现状。你不代做研究、编码或写作等实际工作。
@@ -29,6 +32,7 @@ const SYSTEM_PREAMBLE = `你是 AgileCampus（敏捷校园）的项目管理助�
 - 改任务的状态/负责人/截止日/优先级 → 先 list_tasks 取 id 与现状，再 update_tasks
 - 把若干任务归入某里程碑并统一截止日 → plan_sprint
 - 新建项目 → create_project；新建里程碑（阶段节点）→ create_milestone
+- 比较多个实现方案、需要成员作选择 → create_decision（只提出待确认方案，不替人确认）
 
 ## 军规
 1. **一切 id 只能取自快照或工具返回**，禁止臆造，禁止拿人名或标题当 id。取不到就先调读工具。
@@ -47,15 +51,27 @@ export async function runAgentTurn(params: {
   projectId: string;
   userText: string;
   conversationId?: string;
+  contextPackId?: string;
   model?: LanguageModel;
 }) {
-  const { actorId, projectId, userText, conversationId, model } = params;
+  const { actorId, projectId, userText, conversationId, contextPackId, model } = params;
 
   // 权限收敛：显式会话必须属于当前项目且对调用者可见；未指定时兼容旧入口。
   const conversation = await resolveConversation(actorId, projectId, conversationId);
   const storedHistory = await listConversationMessages(actorId, conversation.id);
   const snapshot = await buildProjectSnapshot(actorId, projectId);
   const tools = buildTools(actorId, projectId);
+  const contextPack = contextPackId ? await getContextPackForUser(actorId, contextPackId) : null;
+  if (contextPack && contextPack.pack.status !== "frozen") {
+    throw new AppError("只有冻结后的上下文包可以交给模型");
+  }
+  const frozenContext = contextPack
+    ? contextPack.items
+        .filter((item) => item.included)
+        .map((item) => `### ${item.label}\n${JSON.stringify(item.snapshot)}`)
+        .join("\n")
+    : "";
+  const contextPackTitle = contextPack?.pack.title ?? "";
 
   // 继承最近 40 条人机消息。工具轨迹仍保存在消息记录中供人审计，避免把内部
   // JSON 原样回灌给模型造成噪声。分支会话在创建时已复制边界前的历史，因此
@@ -70,7 +86,7 @@ export async function runAgentTurn(params: {
 
   const result = await generateText({
     model: model ?? getModel(),
-    system: `${SYSTEM_PREAMBLE}\n\n${snapshot}`,
+    system: `${SYSTEM_PREAMBLE}\n\n${snapshot}${frozenContext ? `\n\n## 本次冻结上下文包：${contextPackTitle}\n${frozenContext}` : ""}`,
     tools,
     stopWhen: stepCountIs(5),
     // 设计 §6.4：不自动重试——覆盖 AI SDK 默认 maxRetries=2，失败即如实呈报
@@ -97,7 +113,49 @@ export async function runAgentTurn(params: {
       ),
   );
 
-  const persisted = await persistTurn(conversation.id, userText, result.text, toolTrace, actorId);
+  const persisted = await persistTurn(
+    conversation.id,
+    userText,
+    result.text,
+    toolTrace,
+    actorId,
+    contextPackId,
+  );
+
+  // 决策草案必须能回到提出它的会话。模型不需要猜 UUID：编排层在
+  // 生成草案后补上当前会话与 assistant 消息，既保留人工确认边界，也让
+  // 记录页可以展示来源并在导出时留下可追溯链路。
+  const draftsWithProvenance = drafts.map((draft) => {
+    if (draft.tool !== "create_decision" || !draft.draft || typeof draft.draft !== "object") return draft;
+    const decisionDraft = draft.draft as Record<string, unknown>;
+    return {
+      ...draft,
+      draft: {
+        ...decisionDraft,
+        sourceConversationId: decisionDraft.sourceConversationId ?? conversation.id,
+        sourceMessageId: decisionDraft.sourceMessageId ?? persisted.assistantMessage?.id ?? null,
+      },
+    };
+  });
+
+  // 草案随 assistant message 一起登记为持久化审批请求。这样刷新、换设备或
+  // 另一个成员打开协作页时，仍然能从「协作 → AI 待确认」找回这次建议。
+  // 写入失败不吞掉：若只返回一张没有审批记录的卡片，人工边界会被悄悄削弱。
+  const persistedApprovals = await createApprovalRequests(
+    actorId,
+    projectId,
+    conversation.id,
+    persisted.assistantMessage?.id ?? "",
+    draftsWithProvenance,
+  );
+  const approvalByOrdinal = new Map(
+    persistedApprovals.map((approval) => [approval.ordinal, { id: approval.id, status: approval.status }]),
+  );
+  const draftsWithApprovals: PersistedDraft[] = draftsWithProvenance.map((draft, ordinal) => ({
+    ...draft,
+    approvalId: approvalByOrdinal.get(ordinal)?.id,
+    approvalStatus: approvalByOrdinal.get(ordinal)?.status,
+  }));
 
   return {
     conversationId: conversation.id,
@@ -105,6 +163,6 @@ export async function runAgentTurn(params: {
     assistantMessageId: persisted.assistantMessage?.id,
     text: result.text,
     toolTrace,
-    drafts,
+    drafts: draftsWithApprovals,
   };
 }

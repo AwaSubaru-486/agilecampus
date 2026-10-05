@@ -1,12 +1,13 @@
 {
   "name": "acdemicalandar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:ui-copy": "node scripts/check-ui-copy.mjs",
     "db:push": "drizzle-kit push",
     "db:push:test": "dotenv -e .env.test -- drizzle-kit push",
     "test": "dotenv -e .env.test -- vitest run"

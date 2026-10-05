@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
 import { createTask, listProjectTasks } from "@/lib/task";
+import { TASK_STATUSES } from "@/lib/task-status";
+import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -11,7 +13,7 @@ function parseProjectId(raw: string) {
 }
 
 const filterSchema = z.object({
-  status: z.enum(["todo", "doing", "done"]).optional(),
+  status: z.enum(TASK_STATUSES).optional(),
   assigneeId: z.uuid().optional(),
   dueBefore: z.string().optional(),
 });
@@ -55,6 +57,13 @@ export async function GET(req: Request, ctx: Ctx) {
         assigneeId: t.assigneeId,
         assigneeName: t.assigneeName,
         completionNote: t.completionNote,
+        handoffBrief: t.handoffBrief,
+        doneCriteria: t.doneCriteria,
+        requiredEvidence: t.requiredEvidence,
+        responseDueAt: t.responseDueAt,
+        contextPackId: t.contextPackId,
+        handoffVersion: t.handoffVersion,
+        committedHandoffVersion: t.committedHandoffVersion,
         updatedAt: t.updatedAt,
       })),
     });
@@ -71,6 +80,11 @@ const createSchema = z.object({
   dueDate: z.string().optional(),
   milestoneId: z.uuid().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  handoffBrief: z.string().trim().max(2_000).optional(),
+  doneCriteria: z.array(z.string().trim().min(1)).max(MAX_DONE_CRITERIA).optional(),
+  requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+  responseDueAt: z.iso.datetime().optional(),
+  contextPackId: z.uuid().nullable().optional(),
 });
 
 // CC 写入：在该项目下新建任务（projectId 取自路径）。
@@ -89,7 +103,10 @@ export async function POST(req: Request, ctx: Ctx) {
   }
 
   try {
-    const task = await createTask(userId, projectId, parsed.data);
+    const task = await createTask(userId, projectId, {
+      ...parsed.data,
+      responseDueAt: parsed.data.responseDueAt ? new Date(parsed.data.responseDueAt) : undefined,
+    });
     return NextResponse.json({ id: task.id, title: task.title, status: task.status });
   } catch (e) {
     return mapAgentError(e, "[POST /api/agent/projects/:id/tasks]");
