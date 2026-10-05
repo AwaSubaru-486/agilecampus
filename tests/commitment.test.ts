@@ -187,6 +187,14 @@ describe("reviewTask —— 验收", () => {
     expect(u.status).toBe("done");
   });
 
+  it("组长自承任务在待验收时可自闭环验收", async () => {
+    const { owner, project } = await scene();
+    const t = await createTask(owner.id, project.id, { title: "组长亲自干", assigneeId: owner.id });
+    await submitTask(owner.id, t.id, { completionNote: "组长已交付" });
+    const u = await reviewTask(owner.id, t.id, { decision: "accept" });
+    expect(u.status).toBe("done");
+  });
+
   it("退回 → 回到进行中，返工计数加一，留验收意见", async () => {
     const { owner, t } = await pending();
     const u = await reviewTask(owner.id, t.id, { decision: "reject", note: "样本量不够，补到 100 份" });

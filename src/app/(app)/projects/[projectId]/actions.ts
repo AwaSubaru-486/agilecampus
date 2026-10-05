@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import {
   claimTask,
@@ -15,7 +16,7 @@ import {
   updateTask,
 } from "@/lib/task";
 import { setTaskLabels } from "@/lib/label";
-import { createMilestone } from "@/lib/project";
+import { createMilestone, deleteProject, getProjectForUser } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { createEntry, deleteEntry } from "@/lib/entry";
@@ -59,6 +60,11 @@ export async function createTaskAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const { projectId, ...input } = parsed.data;
+  const access = await getProjectForUser(session.user.id, projectId);
+  if (!access || access.role !== "admin") {
+    return { error: "仅组长 (Leader) 拥有创建任务卡片的权限，组员无法新建任务" };
+  }
+
   try {
     await createTask(session.user.id, projectId, input);
   } catch (e) {
@@ -102,6 +108,76 @@ export async function createMilestoneAction(
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
   return null;
+}
+
+const gradeMilestoneSchema = z.object({
+  projectId: z.uuid(),
+  milestoneId: z.uuid(),
+  milestoneTitle: z.string().trim().min(1),
+  grade: z.string().trim().min(1, "请选择评定等级"),
+  score: z.coerce.number().min(0, "分数不能低于0").max(100, "分数不能超过100"),
+  comment: z.string().trim().min(1, "请填写导师评审评语"),
+});
+
+export async function gradeMilestoneAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = gradeMilestoneSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const access = await getProjectForUser(session.user.id, parsed.data.projectId);
+  if (!access || access.role !== "teacher") {
+    return { error: "只有导师 (Supervisor) 可以进行里程碑评审打分" };
+  }
+
+  try {
+    await createEntry(session.user.id, parsed.data.projectId, {
+      type: "feedback",
+      title: `[导师评审打分] ${parsed.data.milestoneTitle}：评级 ${parsed.data.grade} (${parsed.data.score}分)`,
+      content: parsed.data.comment,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限提交导师评语" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+// ============ 删除项目（仅组长/Admin） ============
+
+const deleteProjectSchema = z.object({
+  projectId: z.uuid(),
+});
+
+export async function deleteProjectAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = deleteProjectSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  try {
+    await deleteProject(session.user.id, parsed.data.projectId);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: e.message || "只有组长可以删除项目" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+
+  revalidatePath("/projects");
+  redirect("/projects");
 }
 
 // 拖拽可改的字段白名单。状态不在拖拽路径里：状态推进必须经过任务动作，
@@ -309,6 +385,11 @@ export async function deleteTaskAction(
   const parsed = deleteTaskSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "参数无效" };
 
+  const access = await getProjectForUser(session.user.id, parsed.data.projectId);
+  if (!access || access.role !== "admin") {
+    return { error: "只有组长 (Leader) 拥有删除任务的权限" };
+  }
+
   try {
     await deleteTask(session.user.id, parsed.data.taskId);
   } catch (e) {
@@ -328,7 +409,7 @@ export async function deleteTaskAction(
 const claimTaskSchema = z.object({
   taskId: z.uuid(),
   projectId: z.uuid(),
-  commitmentNote: z.string().trim().min(1, "请写一句你打算怎么做"),
+  commitmentNote: z.string().trim().optional(),
   estimatedHours: z.coerce.number().positive("预估工时须为正数").max(999).optional(),
 });
 
@@ -337,15 +418,20 @@ export async function claimTaskAction(_prev: FormState, formData: FormData): Pro
   if (!session?.user) return { error: "请先登录" };
 
   const raw = Object.fromEntries(formData);
+  const note = (typeof raw.commitmentNote === "string" && raw.commitmentNote.trim())
+    ? raw.commitmentNote.trim()
+    : "已确认接住并认领任务";
+
   const parsed = claimTaskSchema.safeParse({
     ...raw,
+    commitmentNote: note,
     estimatedHours: raw.estimatedHours || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
     await claimTask(session.user.id, parsed.data.taskId, {
-      commitmentNote: parsed.data.commitmentNote,
+      commitmentNote: parsed.data.commitmentNote || "已确认接住并认领任务",
       estimatedHours: parsed.data.estimatedHours,
     });
   } catch (e) {
@@ -354,6 +440,7 @@ export async function claimTaskAction(_prev: FormState, formData: FormData): Pro
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
 
@@ -430,7 +517,12 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
 
-  const parsed = declineTaskSchema.safeParse(Object.fromEntries(formData));
+  const raw = Object.fromEntries(formData);
+  const reason = (typeof raw.reason === "string" && raw.reason.trim())
+    ? raw.reason.trim()
+    : "暂时无法承接此任务，申请退回重新评估";
+
+  const parsed = declineTaskSchema.safeParse({ ...raw, reason });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
@@ -441,20 +533,29 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
 
 const submitTaskSchema = z.object({
   taskId: z.uuid(),
   projectId: z.uuid(),
-  completionNote: z.string().trim().min(1, "请说明这次交付了什么"),
+  completionNote: z.string().trim().optional(),
 });
 
 export async function submitTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
 
-  const parsed = submitTaskSchema.safeParse(Object.fromEntries(formData));
+  const raw = Object.fromEntries(formData);
+  const note = (typeof raw.completionNote === "string" && raw.completionNote.trim())
+    ? raw.completionNote.trim()
+    : "已完成任务并提交成果物待验收";
+
+  const parsed = submitTaskSchema.safeParse({
+    ...raw,
+    completionNote: note,
+  });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
@@ -481,7 +582,7 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
     }
 
     await submitTask(session.user.id, parsed.data.taskId, {
-      completionNote: parsed.data.completionNote,
+      completionNote: parsed.data.completionNote || "已完成任务并提交成果物待验收",
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以提交" };
@@ -498,13 +599,14 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }
 
 const reviewTaskSchema = z.object({
   taskId: z.uuid(),
   projectId: z.uuid(),
-  decision: z.enum(["accept", "reject"]),
+  decision: z.enum(["accept", "reject"]).default("accept"),
   note: z.string().trim().optional(),
 });
 
@@ -513,7 +615,16 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
   if (!session?.user) return { error: "请先登录" };
 
   const raw = Object.fromEntries(formData);
-  const parsed = reviewTaskSchema.safeParse({ ...raw, note: raw.note || undefined });
+  const decision = raw.decision === "reject" ? "reject" : "accept";
+  const note = (typeof raw.note === "string" && raw.note.trim())
+    ? raw.note.trim()
+    : (decision === "accept" ? "验收通过" : "退回修改，请完善成果物后重新提交");
+
+  const parsed = reviewTaskSchema.safeParse({
+    ...raw,
+    decision,
+    note,
+  });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
@@ -527,5 +638,6 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/today");
   return null;
 }

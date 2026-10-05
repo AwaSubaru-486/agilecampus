@@ -53,10 +53,10 @@ export function ArchiveSection({
         </dl>
       </header>
 
-      {canWrite && (
+      {(canWrite || canGiveFeedback) && (
         <div className="flex flex-wrap gap-2 border-b border-stroke bg-sunken/40 px-4 py-2">
-          <AddButton type="doc" label="＋ 文档" current={adding} set={setAdding} />
-          <AddButton type="deliverable" label="＋ 成果链接" current={adding} set={setAdding} />
+          {canWrite && <AddButton type="doc" label="＋ 文档" current={adding} set={setAdding} />}
+          {canWrite && <AddButton type="deliverable" label="＋ 成果链接" current={adding} set={setAdding} />}
           {canGiveFeedback && (
             <AddButton type="feedback" label="＋ 老师反馈" current={adding} set={setAdding} />
           )}

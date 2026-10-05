@@ -39,6 +39,8 @@ export async function ExecutionConsole({
 
   const canReview = role === "admin" || role === "teacher";
   const canWrite = role === "admin" || role === "student";
+  const canCreateTask = role === "admin";
+  const canDeleteTask = role === "admin";
 
   // 分页加载任务列表与团队成员
   const [tasksResult, teamMembersList, milestones] = await Promise.all([
@@ -131,6 +133,8 @@ export async function ExecutionConsole({
       projectId={projectId}
       actorId={actorId}
       canWrite={canWrite}
+      canCreateTask={canCreateTask}
+      canDeleteTask={canDeleteTask}
       canReview={canReview}
       taskRows={taskRows.map((r) => ({
         id: r.id,

@@ -216,3 +216,19 @@ export async function listMyProjects(actorId: string) {
     return { ...p, taskTotal: total, doneCount };
   });
 }
+
+// 删除项目：仅团队管理员 (组长) 可操作
+export async function deleteProject(actorId: string, projectId: string) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError("项目不存在或无权访问");
+  if (access.role !== "admin") throw new ForbiddenError("只有组长（Admin）可以删除项目");
+
+  const [deleted] = await db
+    .delete(projects)
+    .where(eq(projects.id, projectId))
+    .returning();
+  if (!deleted) throw new AppError("项目不存在");
+
+  return deleted;
+}
+

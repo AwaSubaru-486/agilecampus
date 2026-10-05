@@ -43,6 +43,7 @@ export async function WorkSpace({
 }) {
   const canWrite = role === "admin" || role === "student";
   const canReview = role === "admin" || role === "teacher";
+  const canCreateTask = role === "admin";
 
   // 看板模式：需要完整任务数据
   if (view === "board") {
@@ -79,7 +80,7 @@ export async function WorkSpace({
             >
               ← 返回协同执行
             </Link>
-            {canWrite && (
+            {canCreateTask && (
               <NewTaskForm
                 compact
                 projectId={projectId}
@@ -180,6 +181,15 @@ export async function WorkSpace({
           </Link>
         </div>
       </div>
+
+      {role === "teacher" && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 text-xs text-purple-900 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">🎓 导师评估视图：</span>
+            <span>您当前拥有全局只读与里程碑综合打分权限。日常敏捷卡片受保护以保障学生自主节奏，请在右上角点击【★ 导师评审打分】提交指导评语与评定等级。</span>
+          </div>
+        </div>
+      )}
 
       {/* 执行台：三栏交接工作面 */}
       <ExecutionConsole

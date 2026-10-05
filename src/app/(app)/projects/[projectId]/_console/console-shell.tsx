@@ -165,6 +165,8 @@ export function ConsoleShell({
   projectId,
   actorId,
   canWrite,
+  canCreateTask = false,
+  canDeleteTask = false,
   canReview,
   taskRows,
   hasMore,
@@ -179,6 +181,8 @@ export function ConsoleShell({
   projectId: string;
   actorId: string;
   canWrite: boolean;
+  canCreateTask?: boolean;
+  canDeleteTask?: boolean;
   canReview: boolean;
   taskRows: TaskRowSummary[];
   hasMore: boolean;
@@ -338,7 +342,7 @@ export function ConsoleShell({
             hasMore={hasMore}
             nextCursor={nextCursor}
             selectedTaskId={selectedTaskId}
-            canWrite={canWrite}
+            canWrite={canCreateTask}
             mode={mode}
             onSelectTask={selectTask}
             onNewTask={openNewTask}
@@ -357,6 +361,7 @@ export function ConsoleShell({
             projectId={projectId}
             actorId={actorId}
             canWrite={canWrite}
+            canDelete={canDeleteTask}
             canReview={canReview}
             selectedTask={selectedTask}
             selectedTaskError={selectedTaskError}
@@ -411,7 +416,7 @@ export function ConsoleShell({
           </div>
         </div>
       )}
-      {canWrite && (
+      {canCreateTask && (
         <NewTaskForm
           projectId={projectId}
           members={members}

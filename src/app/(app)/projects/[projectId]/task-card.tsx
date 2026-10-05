@@ -71,6 +71,7 @@ export function TaskCard({
   // 三枚动作各按「我能不能做这件事」判定。做不了的不显示，
   // 比显示了再报错友好——尤其对初次使用的人。
   const isMine = task.assigneeId === currentUserId;
+  const isAdmin = canWrite && canReview;
   const hasCurrentCommitment = Boolean(task.committedAt) &&
     task.committedHandoffVersion === task.handoffVersion;
   const canClaim = canWrite && isInFlight(task.status) &&
@@ -80,8 +81,8 @@ export function TaskCard({
     task.requiredEvidence,
     task.evidenceTypes,
   );
-  // 不能验收自己的活：既不能自证，也不能自判
-  const canReviewThis = canReview && isInReview(task.status) && !isMine;
+  // 组长（admin）可闭环验收所有待验收任务（含自己承接的活）；普通教师只能验收他人交付的活，避免自审自判
+  const canReviewThis = canReview && isInReview(task.status) && (isAdmin || !isMine);
 
   // 「还没接住」——派下去但本人没回话。看板上要看得见，
   // 否则它会伪装成「有人在做了」，一路蒙到 deadline
@@ -229,45 +230,116 @@ export function TaskCard({
       <div className="mt-3 space-y-2 border-t border-line pt-2">
         {/* 主行动区：做不了的动作不显示。这三枚是闭环的入口，
             故常驻可见，不像下面两个次要链接那样要悬停才现身 */}
+        {/* 主行动区：做不了的动作不显示。这三枚是闭环的入口，
+            故常驻可见，不像下面两个次要链接那样要悬停才现身 */}
         {(canClaim || canSubmit || canReviewThis) && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {canClaim && (
-              <Button
-                type="button"
-                onClick={() => setPanel(panel === "claim" ? null : "claim")}
-                variant="ink"
-                size="sm"
-              >
-                {isMine && task.committedAt ? "重新确认承诺" : "我接手"}
-              </Button>
+              <div className="inline-flex items-center gap-1">
+                <QuickActionButton
+                  action={claimTaskAction}
+                  projectId={projectId}
+                  taskId={task.id}
+                  payload={{ commitmentNote: "已确认接住并认领任务" }}
+                  label={isMine && task.committedAt ? "⚡ 重新确认" : "⚡ 接住"}
+                  pendingLabel="接手中…"
+                  variant="ink"
+                  title="一键接住并开始执行任务"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPanel(panel === "claim" ? null : "claim");
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  variant="quiet"
+                  size="sm"
+                  className="px-1.5 text-xs text-ink-faint hover:text-ink"
+                  title="展开填写定制执行计划与预估工时"
+                >
+                  {panel === "claim" ? "收起" : isMine && task.committedAt ? "重新承诺…" : "写承诺…"}
+                </Button>
+              </div>
             )}
             {canSubmit && (
-              <Button
-                type="button"
-                onClick={() => setPanel(panel === "submit" ? null : "submit")}
-                variant="ink"
-                size="sm"
-              >
-                提交成果
-              </Button>
+              <div className="inline-flex items-center gap-1">
+                <QuickActionButton
+                  action={submitTaskAction}
+                  projectId={projectId}
+                  taskId={task.id}
+                  payload={{ completionNote: "已完成任务并提交成果物待验收" }}
+                  label="⚡ 提交待验收"
+                  pendingLabel="提交中…"
+                  variant="ink"
+                  title="一键将任务提交待验收"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPanel(panel === "submit" ? null : "submit");
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  variant="quiet"
+                  size="sm"
+                  className="px-1.5 text-xs text-ink-faint hover:text-ink"
+                  title="展开填写交付说明与成果物去向"
+                >
+                  {panel === "submit" ? "收起" : "写交付说明…"}
+                </Button>
+              </div>
             )}
             {canReviewThis && (
-              <Button
-                type="button"
-                onClick={() => setPanel(panel === "review" ? null : "review")}
-                variant="secondary"
-                size="sm"
-                className="border-agent text-agent hover:bg-agent-soft"
-              >
-                验收
-              </Button>
+              <div className="inline-flex items-center gap-1">
+                <QuickActionButton
+                  action={reviewTaskAction}
+                  projectId={projectId}
+                  taskId={task.id}
+                  payload={{ decision: "accept", note: "验收通过" }}
+                  label="✓ 通过"
+                  pendingLabel="通过中…"
+                  variant="secondary"
+                  className="border-agent text-agent hover:bg-agent-soft font-semibold"
+                  title="一键验收通过此任务"
+                />
+                <QuickActionButton
+                  action={reviewTaskAction}
+                  projectId={projectId}
+                  taskId={task.id}
+                  payload={{ decision: "reject", note: "退回修改，请完善成果物后重新提交" }}
+                  label="↩ 退回"
+                  pendingLabel="退回中…"
+                  variant="quiet"
+                  className="border border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100/70 font-semibold"
+                  title="一键退回此任务到进行中"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPanel(panel === "review" ? null : "review");
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  variant="quiet"
+                  size="sm"
+                  className="px-1.5 text-xs text-ink-faint hover:text-ink"
+                  title="展开填写详细评语或退回修改说明"
+                >
+                  {panel === "review" ? "收起" : "写评语…"}
+                </Button>
+              </div>
             )}
             {/* 「接不住」与「我接手」并列同高：它是正当选项，不是失败按钮。
                 做小做灰，人就又不敢点了——那正是这个功能要治的病 */}
             {canDecline && (
               <Button
                 type="button"
-                onClick={() => setPanel(panel === "decline" ? null : "decline")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPanel(panel === "decline" ? null : "decline");
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
                 variant="secondary"
                 size="sm"
               >
@@ -309,17 +381,16 @@ export function TaskCard({
           action={claimTaskAction}
           projectId={projectId}
           taskId={task.id}
-          submitLabel="认下这件活"
+          submitLabel="确认接住此活"
           onDone={() => setPanel(null)}
           onCancel={() => setPanel(null)}
         >
           <label className="block space-y-1 text-xs text-ink-faint">
-            你打算怎么做？
+            执行承诺与计划（选填）
             <textarea
               name="commitmentNote"
-              required
               rows={2}
-              placeholder="一句话说清路径，事后好对照"
+              placeholder="一句话说清路径（选填，默认：已确认接住并认领任务）"
               className="ac-field text-sm"
             />
           </label>
@@ -366,12 +437,11 @@ export function TaskCard({
           onCancel={() => setPanel(null)}
         >
           <label className="block space-y-1 text-xs text-ink-faint">
-            这次交付了什么？
+            这次交付了什么？（选填）
             <textarea
               name="completionNote"
-              required
               rows={2}
-              placeholder="验收人要凭这句话判断，请写清成果与去向"
+              placeholder="说明交付成果与去向（选填，默认：已完成任务并提交成果物待验收）"
               className="ac-field text-sm"
             />
           </label>
@@ -388,23 +458,23 @@ export function TaskCard({
           onDone={() => setPanel(null)}
           onCancel={() => setPanel(null)}
         >
+          <fieldset className="flex gap-4 text-xs text-ink-soft">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-signal">
+              <input type="radio" name="decision" value="accept" defaultChecked /> ✓ 通过验收
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-rose-700">
+              <input type="radio" name="decision" value="reject" /> ↩ 退回修改
+            </label>
+          </fieldset>
           <label className="block space-y-1 text-xs text-ink-faint">
-            验收意见（退回时必填）
+            验收意见 / 修改要求（选填）
             <textarea
               name="note"
               rows={2}
-              placeholder="退回请写明要改什么，否则成员只知道被否了"
+              placeholder="通过可留空（默认：验收通过）；退回可写明要改什么（默认：退回修改，请完善成果物后重新提交）"
               className="ac-field text-sm"
             />
           </label>
-          <fieldset className="flex gap-3 text-xs text-ink-soft">
-            <label className="flex items-center gap-1">
-              <input type="radio" name="decision" value="accept" defaultChecked /> 通过
-            </label>
-            <label className="flex items-center gap-1">
-              <input type="radio" name="decision" value="reject" /> 退回修改
-            </label>
-          </fieldset>
         </ActionForm>
       )}
 
@@ -421,6 +491,66 @@ export function TaskCard({
         />
       )}
     </div>
+  );
+}
+
+// 一键式快速动作：直接提交预置载荷，立即触发服务端流转与看板刷新
+function QuickActionButton({
+  action,
+  projectId,
+  taskId,
+  payload,
+  label,
+  pendingLabel = "提交中…",
+  variant = "ink",
+  className,
+  title,
+}: {
+  action: (prev: FormState, formData: FormData) => Promise<FormState>;
+  projectId: string;
+  taskId: string;
+  payload: Record<string, string>;
+  label: string;
+  pendingLabel?: string;
+  variant?: "ink" | "secondary" | "quiet";
+  className?: string;
+  title?: string;
+}) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
+    const res = await action(prev, fd);
+    if (!res) {
+      router.refresh();
+    }
+    return res;
+  }, null);
+
+  return (
+    <form
+      action={formAction}
+      className="inline-block"
+      onSubmit={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="taskId" value={taskId} />
+      {Object.entries(payload).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
+      <Button
+        type="submit"
+        disabled={pending}
+        variant={variant}
+        size="sm"
+        className={className}
+        title={title}
+      >
+        {pending ? pendingLabel : label}
+      </Button>
+      {state && "error" in state && (
+        <span className="ml-1 text-[10px] text-high">{state.error}</span>
+      )}
+    </form>
   );
 }
 
@@ -443,14 +573,29 @@ function ActionForm({
   onCancel: () => void;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
-    const res = await action(prev, fd);
-    if (!res) onDone();
-    return res;
+    try {
+      const res = await action(prev, fd);
+      if (!res) {
+        router.refresh();
+        onDone();
+        return null;
+      }
+      return res;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "操作失败，请重试";
+      return { error: msg };
+    }
   }, null);
 
   return (
-    <form action={formAction} className="mt-2 space-y-2 border-t border-line bg-sunken/50 py-2.5">
+    <form
+      action={formAction}
+      className="mt-2 space-y-2 border-t border-line bg-sunken/50 py-2.5"
+      onSubmit={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="taskId" value={taskId} />
       {children}
@@ -460,7 +605,7 @@ function ActionForm({
         </p>
       )}
       <div className="flex items-center gap-2">
-        <Button disabled={pending} size="sm">
+        <Button type="submit" disabled={pending} size="sm">
           {pending ? "提交中…" : submitLabel}
         </Button>
         <Button
@@ -652,7 +797,7 @@ function EditModal({
             <Button type="button" onClick={onClose} variant="secondary">
               取消
             </Button>
-            <Button disabled={updating}>
+            <Button type="submit" disabled={updating}>
               {updating ? "保存中…" : "保存"}
             </Button>
           </div>
