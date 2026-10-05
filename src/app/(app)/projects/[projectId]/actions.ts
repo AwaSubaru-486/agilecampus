@@ -15,7 +15,7 @@ import {
   updateTask,
 } from "@/lib/task";
 import { setTaskLabels } from "@/lib/label";
-import { createMilestone } from "@/lib/project";
+import { createMilestone, getProjectForUser } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { createEntry, deleteEntry } from "@/lib/entry";
@@ -58,6 +58,11 @@ export async function createTaskAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   const { projectId, ...input } = parsed.data;
+  const access = await getProjectForUser(session.user.id, projectId);
+  if (!access || access.role !== "admin") {
+    return { error: "仅组长 (Leader) 拥有创建任务卡片的权限，组员无法新建任务" };
+  }
+
   try {
     await createTask(session.user.id, projectId, input);
   } catch (e) {
@@ -99,6 +104,47 @@ export async function createMilestoneAction(
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return null;
+}
+
+const gradeMilestoneSchema = z.object({
+  projectId: z.uuid(),
+  milestoneId: z.uuid(),
+  milestoneTitle: z.string().trim().min(1),
+  grade: z.string().trim().min(1, "请选择评定等级"),
+  score: z.coerce.number().min(0, "分数不能低于0").max(100, "分数不能超过100"),
+  comment: z.string().trim().min(1, "请填写导师评审评语"),
+});
+
+export async function gradeMilestoneAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+
+  const raw = Object.fromEntries(formData);
+  const parsed = gradeMilestoneSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const access = await getProjectForUser(session.user.id, parsed.data.projectId);
+  if (!access || (access.role !== "teacher" && access.role !== "admin")) {
+    return { error: "只有导师 (Supervisor) 或组长可以进行里程碑评审打分" };
+  }
+
+  try {
+    await createEntry(session.user.id, parsed.data.projectId, {
+      type: "feedback",
+      title: `[导师评审打分] ${parsed.data.milestoneTitle}：评级 ${parsed.data.grade} (${parsed.data.score}分)`,
+      content: parsed.data.comment,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { error: "没有权限提交导师评语" };
+    if (e instanceof AppError) return { error: e.message };
+    throw e;
+  }
+
   revalidatePath(`/projects/${parsed.data.projectId}`);
   return null;
 }
@@ -307,6 +353,11 @@ export async function deleteTaskAction(
 
   const parsed = deleteTaskSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "参数无效" };
+
+  const access = await getProjectForUser(session.user.id, parsed.data.projectId);
+  if (!access || access.role !== "admin") {
+    return { error: "只有组长 (Leader) 拥有删除任务的权限" };
+  }
 
   try {
     await deleteTask(session.user.id, parsed.data.taskId);

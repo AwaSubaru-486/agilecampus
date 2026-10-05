@@ -223,7 +223,7 @@ export function TaskCard({
                 variant="ink"
                 size="sm"
               >
-                我接手
+                接住 / 我接手
               </Button>
             )}
             {canSubmit && (
@@ -244,7 +244,7 @@ export function TaskCard({
                 size="sm"
                 className="border-agent text-agent hover:bg-agent-soft"
               >
-                验收
+                验收 / 通过
               </Button>
             )}
             {/* 「接不住」与「我接手」并列同高：它是正当选项，不是失败按钮。
@@ -427,9 +427,13 @@ function ActionForm({
   onCancel: () => void;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
     const res = await action(prev, fd);
-    if (!res) onDone();
+    if (!res) {
+      router.refresh();
+      onDone();
+    }
     return res;
   }, null);
 

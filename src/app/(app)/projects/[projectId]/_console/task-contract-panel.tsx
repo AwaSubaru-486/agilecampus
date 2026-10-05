@@ -13,11 +13,13 @@
 
 import { useState, useActionState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   claimTaskAction,
   declineTaskAction,
   submitTaskAction,
   reviewTaskAction,
+  deleteTaskAction,
   type FormState,
 } from "../actions";
 import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
@@ -80,6 +82,7 @@ export function TaskContractPanel({
   projectId,
   actorId,
   canWrite,
+  canDelete = false,
   canReview,
   selectedTask,
   selectedTaskError,
@@ -92,6 +95,7 @@ export function TaskContractPanel({
   projectId: string;
   actorId?: string;
   canWrite: boolean;
+  canDelete?: boolean;
   canReview: boolean;
   selectedTask: SelectedTaskDetail | null;
   selectedTaskError: string | null;
@@ -192,6 +196,10 @@ export function TaskContractPanel({
           >
             {editingHandoff ? "取消编辑" : "编辑交接信息"}
           </button>
+        )}
+        {/* 删除任务（仅组长可用） */}
+        {canDelete && (
+          <DeleteTaskButton projectId={projectId} taskId={task.id} onDeleted={onBack} />
         )}
         {/* 执行记录按钮（<1120px） */}
         <button
@@ -315,18 +323,19 @@ export function TaskContractPanel({
         {/* ── 任务动作面板（W05: 认领、拒绝、交付、验收） ── */}
         {canClaim && (
           <ActionFormBlock
-            title={task.committedAt ? "重新确认交接承诺" : "认领任务"}
+            title={task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"}
             action={claimTaskAction}
             projectId={projectId}
             taskId={task.id}
-            submitLabel={task.committedAt ? "确认新契约并继续" : "确认认领"}
+            submitLabel={task.committedAt ? "确认新契约并继续" : "确认接住 / 认领任务"}
+            successMessage="✅ 任务已成功接住并认领！"
           >
             <textarea
               name="commitmentNote"
               required
               rows={2}
               aria-label="执行计划"
-              placeholder="写一句你的执行承诺或计划（必填）"
+              placeholder="写一句你的执行承诺或计划（必填，例如：今天内完成该模块开发）"
               className="ac-field text-sm"
             />
             <input
@@ -348,6 +357,7 @@ export function TaskContractPanel({
             projectId={projectId}
             taskId={task.id}
             submitLabel="退回并说明原因"
+            successMessage="✅ 已说明原因并退回任务！"
           >
             <textarea
               name="reason"
@@ -367,6 +377,7 @@ export function TaskContractPanel({
             projectId={projectId}
             taskId={task.id}
             submitLabel="提交待验收"
+            successMessage="✅ 成果物已提交待验收！"
           >
             <textarea
               name="completionNote"
@@ -386,6 +397,7 @@ export function TaskContractPanel({
             projectId={projectId}
             taskId={task.id}
             submitLabel="提交验收结果"
+            successMessage="✅ 验收结果已提交并生效！"
           >
             <div className="space-y-2">
               <fieldset className="flex gap-4 text-sm text-ink">
@@ -613,6 +625,7 @@ function ActionFormBlock({
   projectId,
   taskId,
   submitLabel,
+  successMessage = "操作成功已生效！",
   children,
 }: {
   title: string;
@@ -620,9 +633,26 @@ function ActionFormBlock({
   projectId: string;
   taskId: string;
   submitLabel: string;
+  successMessage?: string;
   children: React.ReactNode;
 }) {
-  const [state, formAction, pending] = useActionState<FormState, FormData>(action, null);
+  const router = useRouter();
+  const [success, setSuccess] = useState<string | null>(null);
+  const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
+    setSuccess(null);
+    try {
+      const res = await action(prev, fd);
+      if (!res || !("error" in res)) {
+        setSuccess(successMessage);
+        router.refresh();
+        return null;
+      }
+      return res;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "请求失败";
+      return { error: msg };
+    }
+  }, null);
 
   return (
     <div className="rounded border border-stroke-strong bg-sunken/40 p-3 space-y-2">
@@ -632,8 +662,13 @@ function ActionFormBlock({
         <input type="hidden" name="taskId" value={taskId} />
         {children}
         {state && "error" in state && (
-          <p aria-live="polite" className="text-xs text-risk">
-            {state.error}
+          <p aria-live="polite" className="text-xs font-medium text-risk bg-risk/10 p-2 rounded">
+            ⚠️ {state.error}
+          </p>
+        )}
+        {success && (
+          <p aria-live="polite" className="text-xs font-medium text-success bg-success/10 p-2 rounded flex items-center gap-1.5">
+            <span>✓</span> {success}
           </p>
         )}
         <button
@@ -645,5 +680,71 @@ function ActionFormBlock({
         </button>
       </form>
     </div>
+  );
+}
+
+function DeleteTaskButton({
+  projectId,
+  taskId,
+  onDeleted,
+}: {
+  projectId: string;
+  taskId: string;
+  onDeleted: () => void;
+}) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
+    try {
+      const res = await deleteTaskAction(prev, fd);
+      if (!res) {
+        onDeleted();
+        router.refresh();
+        return null;
+      }
+      return res;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "删除失败";
+      return { error: msg };
+    }
+  }, null);
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="shrink-0 rounded border border-risk/30 px-2.5 py-1 text-xs text-risk hover:bg-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-risk"
+        title="组长专享：删除当前任务"
+      >
+        🗑️ 删除任务
+      </button>
+    );
+  }
+
+  return (
+    <form action={formAction} className="inline-flex items-center gap-1.5 shrink-0">
+      <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="taskId" value={taskId} />
+      <span className="text-xs text-risk font-medium">确认删除？</span>
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded bg-risk px-2 py-0.5 text-xs text-white hover:bg-risk/90 disabled:opacity-50"
+      >
+        {pending ? "删除中…" : "确定"}
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => setConfirming(false)}
+        className="rounded border border-stroke px-2 py-0.5 text-xs text-ink-2 hover:bg-panel-hover"
+      >
+        取消
+      </button>
+      {state && "error" in state && (
+        <span className="text-xs text-risk">{state.error}</span>
+      )}
+    </form>
   );
 }

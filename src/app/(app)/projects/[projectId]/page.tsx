@@ -10,6 +10,7 @@ import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
 import { RecordSpace } from "./_record/record-space";
+import { TeacherEvaluationModal } from "./_shared/teacher-evaluation-modal";
 
 // 项目页：四个互斥模式。
 //
@@ -93,6 +94,19 @@ export default async function ProjectPage({
         }
         backHref="/projects"
         backLabel="所有项目"
+        actions={
+          <TeacherEvaluationModal
+            projectId={projectId}
+            projectName={project.name}
+            role={role}
+            milestones={milestones.map((m) => ({
+              id: m.id,
+              title: m.title,
+              targetDate: m.targetDate,
+              status: m.status,
+            }))}
+          />
+        }
       />
 
       {space === "live" && (
