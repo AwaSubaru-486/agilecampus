@@ -17,6 +17,7 @@ import { deriveColumns, type BoardColumn, type ColumnPatch } from "@/lib/board-c
 import type { GroupBy } from "@/lib/board-filters";
 import type { TaskStatus } from "@/lib/task-status";
 import type { AgentStatus } from "@/db/schema";
+import type { EvidenceType } from "@/lib/handoff";
 import { moveTaskAction } from "./actions";
 import { TaskCard, type Option } from "./task-card";
 
@@ -39,6 +40,10 @@ export type BoardTask = {
   reviewNote: string | null;
   /** 承诺时刻。非空＝本人已接住；空而有人负责＝还在等他回话 */
   committedAt: Date | null;
+  handoffVersion: number;
+  committedHandoffVersion: number | null;
+  requiredEvidence: EvidenceType[] | null;
+  evidenceTypes: string[];
   /** 上一次「接不住」的理由，退回后挂在任务上供派活的人参考 */
   declineReason: string | null;
   // 人机混排：负责人若是 agent，卡片要显示它此刻在干什么

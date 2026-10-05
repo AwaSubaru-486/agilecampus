@@ -1,12 +1,19 @@
 import * as vscode from "vscode";
+import { chmod, copyFile, mkdir } from "node:fs/promises";
+import * as path from "node:path";
 import { AgileCampusApiClient, ApiError, validateServerUrl } from "../agilecampus/api-client";
+import { EntireAdapter } from "../adapters/entire-adapter";
 import { TokenStore } from "../auth/token-store";
 import { BindingStore, type WorkspaceBinding } from "../workspace/binding-store";
 import { getGitWorkspaceSnapshot } from "../workspace/git-workspace";
 import { parseWebviewMessage } from "./webview-message";
 import { projectUrl } from "./project-url";
-import type { HostMessage, ProjectSnapshot, TaskDetail, WebviewMessage } from "../types";
+import type { HostMessage, ProjectSnapshot, SessionMemoryBindingView, SessionMemoryViewState, TaskDetail, WebviewMessage } from "../types";
 import { VisibleRefreshController, type RefreshResult } from "../sync/visible-refresh";
+import { LocalSessionStore } from "../session-memory/local-store";
+import { codexConfigDirectory, hasCodexCaptureHook, installCodexCaptureHook, managedCodexHookScriptName, removeCodexCaptureHook } from "../session-memory/codex-hook-config";
+import { SessionRecordPanel } from "./session-record-panel";
+import { createSessionMemoryViewState } from "../session-memory/view-state";
 
 const emptySnapshot = (state: ProjectSnapshot["state"] = "disconnected", error: string | null = null): ProjectSnapshot => ({
   state, error, updatedAt: null, projectName: "未连接项目", projectId: null,
@@ -21,8 +28,14 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
   private requestGeneration = 0;
   private loadedBindingKey: string | null = null;
   private activeWorkspaceUri: string | null = null;
+  private focusedTaskId: string | null = null;
+  private sessionMemoryGeneration = 0;
+  private hookAlertGeneration = 0;
+  private sessionMemoryPoller?: NodeJS.Timeout;
+  private sessionMemoryPollInFlight = false;
   private readonly tokenStore: TokenStore;
   private readonly bindingStore: BindingStore;
+  private readonly sessionStore: LocalSessionStore;
   private readonly refreshController: VisibleRefreshController;
   private viewDisposables: vscode.Disposable[] = [];
   private lastRefreshBindingKey: string | null = null;
@@ -30,6 +43,7 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
   constructor(private readonly extensionUri: vscode.Uri, private readonly context: vscode.ExtensionContext) {
     this.tokenStore = new TokenStore(context.secrets);
     this.bindingStore = new BindingStore(context.workspaceState);
+    this.sessionStore = new LocalSessionStore(context.globalStorageUri.fsPath);
     this.activeWorkspaceUri = context.globalState.get<string>("agileCampus.activeWorkspaceUri") ?? null;
     this.refreshController = new VisibleRefreshController(() => this.loadSnapshot());
     this.refreshController.setEnabled(Boolean(this.activeBinding()));
@@ -44,25 +58,34 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
       localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "dist")],
     };
     view.webview.html = this.html(view.webview);
+    void this.refreshCodexHookStatus();
+    void this.refreshCodexHookAlerts();
     this.viewDisposables.push(view.webview.onDidReceiveMessage((raw: unknown) => {
       const message = parseWebviewMessage(raw);
       if (message) void this.handleMessage(message);
     }));
     this.viewDisposables.push(view.onDidChangeVisibility(() => {
-      if (this.view === view) this.refreshController.setVisible(view.visible);
+      if (this.view === view) {
+        this.refreshController.setVisible(view.visible);
+        this.setSessionMemoryPolling(view.visible);
+      }
     }));
     this.viewDisposables.push(view.onDidDispose(() => {
       if (this.view !== view) return;
       this.view = undefined;
       this.refreshController.setVisible(false);
+      this.setSessionMemoryPolling(false);
       this.clearViewListeners();
     }));
     this.refreshController.setVisible(view.visible);
+    this.setSessionMemoryPolling(view.visible);
     void this.refresh();
   }
 
   dispose(): void {
     this.refreshController.dispose();
+    this.setSessionMemoryPolling(false);
+    SessionRecordPanel.disposeAll();
     this.clearViewListeners();
     this.view = undefined;
   }
@@ -131,6 +154,8 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
       await this.context.globalState.update("agileCampus.activeWorkspaceUri", this.activeWorkspaceUri);
       await vscode.commands.executeCommand("setContext", "agileCampus.connected", true);
       this.detailCache.clear();
+      this.focusedTaskId = null;
+      this.sessionMemoryGeneration += 1;
       await this.refresh(true);
       void vscode.window.showInformationMessage(`已连接项目「${project.name}」`);
     } catch (error) {
@@ -150,6 +175,8 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
     await this.bindingStore.delete(binding.workspaceUri);
     await this.tokenStore.delete(new URL(binding.serverOrigin).origin, binding.workspaceUri);
     this.requestGeneration += 1;
+    this.focusedTaskId = null;
+    this.sessionMemoryGeneration += 1;
     if (this.activeWorkspaceUri === binding.workspaceUri) {
       this.activeWorkspaceUri = null;
       await this.context.globalState.update("agileCampus.activeWorkspaceUri", undefined);
@@ -196,6 +223,8 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
     const binding = this.activeBinding();
     if (!binding) {
       this.loadedBindingKey = null;
+      this.focusedTaskId = null;
+      this.sessionMemoryGeneration += 1;
       void vscode.commands.executeCommand("setContext", "agileCampus.connected", false);
       this.snapshot = emptySnapshot();
       this.send({ type: "snapshot", snapshot: this.snapshot });
@@ -232,6 +261,12 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
       };
       this.loadedBindingKey = bindingKey;
       this.send({ type: "snapshot", snapshot: this.snapshot });
+      if (this.focusedTaskId && this.snapshot.tasks.some((task) => task.id === this.focusedTaskId)) {
+        void this.refreshSessionMemory(this.focusedTaskId);
+      } else if (this.focusedTaskId) {
+        this.focusedTaskId = null;
+        this.sessionMemoryGeneration += 1;
+      }
       return { ok: true, status: null };
     } catch (error) {
       if (generation !== this.requestGeneration || this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(binding)) {
@@ -267,6 +302,8 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
     const generation = this.requestGeneration;
     const binding = this.activeBinding();
     if (!binding || !this.snapshot.tasks.some((task) => task.id === taskId)) return;
+    this.focusedTaskId = taskId;
+    void this.refreshSessionMemory(taskId);
     const requestedBinding = this.bindingIdentity(binding);
     const cached = this.detailCache.get(taskId);
     if (cached) { this.send({ type: "taskDetail", taskId, detail: cached }); return; }
@@ -299,7 +336,267 @@ export class ProjectViewProvider implements vscode.WebviewViewProvider, vscode.D
       case "openProject": this.openProject(); break;
       case "openTask": await this.openTaskDetail(message.taskId); break;
       case "viewAgentWork": this.openTask(message.taskId, "studio"); break;
+      case "bindSession": await this.bindSession(message.taskId); break;
+      case "enableCodexCapture": await this.enableCodexCapture(message.taskId); break;
+      case "disableCodexCapture": await this.disableCodexCapture(); break;
+      case "dismissHookAlert": await this.dismissHookAlert(message.alertId); break;
+      case "refreshSessionMemory": await this.refreshSessionMemory(message.taskId); break;
+      case "openSessionRecord": this.openSessionRecord(message.taskId, message.sessionKey); break;
+      case "stopSessionCapture": await this.stopSessionCapture(message.taskId, message.sessionKey); break;
     }
+  }
+
+  private sessionContext(taskId: string): { binding: WorkspaceBinding; folder: vscode.WorkspaceFolder; taskTitle: string } | null {
+    const binding = this.activeBinding();
+    const task = this.snapshot.tasks.find((item) => item.id === taskId);
+    const folder = vscode.workspace.workspaceFolders?.find((item) => item.uri.toString() === binding?.workspaceUri);
+    if (!binding || !task || !folder || binding.projectId !== this.snapshot.projectId) return null;
+    return { binding, folder, taskTitle: task.title };
+  }
+
+  private async refreshSessionMemory(taskId: string): Promise<void> {
+    const generation = ++this.sessionMemoryGeneration;
+    const context = this.sessionContext(taskId);
+    if (!context) return;
+    try {
+      const bindings = await this.sessionStore.list(context.folder.uri.fsPath, context.binding.projectId, taskId);
+      const hookConfigured = await this.hasCurrentCodexCaptureHook();
+      this.send({ type: "codexHookStatus", configured: hookConfigured });
+      const sessions = await this.sessionMemoryRows(bindings, hookConfigured);
+      if (generation !== this.sessionMemoryGeneration || this.focusedTaskId !== taskId ||
+          this.bindingIdentity(this.activeBinding()) !== this.bindingIdentity(context.binding)) return;
+      const state: SessionMemoryViewState = createSessionMemoryViewState(taskId, sessions);
+      this.send({ type: "sessionMemoryState", state });
+    } catch (error) {
+      if (generation !== this.sessionMemoryGeneration || this.focusedTaskId !== taskId) return;
+      this.send({ type: "sessionMemoryState", state: { taskId, status: "error", detail: this.errorMessage(error), sessions: [] } });
+    }
+  }
+
+  private async bindSession(taskId: string): Promise<void> {
+    const context = this.sessionContext(taskId);
+    if (!context) { await this.refreshSessionMemory(taskId); return; }
+    if (!vscode.workspace.isTrusted) {
+      await this.sendSessionError(taskId, "请先信任当前 VS Code 工作区，再读取本地 Codex 会话列表。");
+      return;
+    }
+    this.send({ type: "sessionMemoryState", state: { taskId, status: "loading", detail: "正在检查当前工作区的 Codex 会话…", sessions: [] } });
+    const adapter = new EntireAdapter();
+    const result = await adapter.listSessions(context.folder.uri.fsPath);
+    if (result.status !== "ok") {
+      await this.sendSessionError(taskId, result.reason);
+      return;
+    }
+    const existing = await this.sessionStore.list(context.folder.uri.fsPath, context.binding.projectId, taskId);
+    const alreadyBound = new Set(existing.map((item) => item.providerSessionId));
+    const candidates = result.value.filter((session) => !alreadyBound.has(session.sessionId));
+    if (!candidates.length) {
+      const detail = existing.length ? "此任务下的 Codex 会话均已关联或已停止；已停止的原生会话不能重新绑定，请启动新会话。" : "当前工作区没有可关联的 Codex CLI 会话；先在该工作区启动 Codex CLI，再重新检查。";
+      if (existing.length) await this.sendSessionError(taskId, detail);
+      else this.send({ type: "sessionMemoryState", state: { taskId, status: "unbound", detail, sessions: [] } });
+      return;
+    }
+    const selected = await vscode.window.showQuickPick(candidates.map((session) => ({
+      label: `${session.model ?? "Codex"} · ${session.branch ?? "无分支"}`,
+      description: `${session.status} · ${session.turns ?? "?"} 轮 · ${session.startedAt ? new Date(session.startedAt).toLocaleString() : "开始时间未知"}`,
+      session,
+    })), { title: `关联会话到「${context.taskTitle}」`, placeHolder: "只列出当前工作区的 Codex CLI 会话；原生会话 ID 不显示" });
+    if (!selected) { await this.refreshSessionMemory(taskId); return; }
+    const consent = await vscode.window.showWarningMessage(
+      "关联只建立本机任务映射，不会立刻采集对话。启用后，Codex Hook 会把用户输入、工具输入/输出和 Agent 最终答复保存到 VS Code 本机扩展数据目录；不会上传。提示词和工具结果可能含私密信息。",
+      { modal: true }, "仅在本机保存并关联",
+    );
+    if (consent !== "仅在本机保存并关联") { await this.refreshSessionMemory(taskId); return; }
+    try {
+      await this.sessionStore.bind({ provider: "codex", providerSessionId: selected.session.sessionId,
+        workspacePath: context.folder.uri.fsPath, projectId: context.binding.projectId, taskId });
+      await this.refreshSessionMemory(taskId);
+    } catch (error) {
+      await this.sendSessionError(taskId, this.errorMessage(error));
+    }
+  }
+
+  private async enableCodexCapture(taskId: string): Promise<void> {
+    const context = this.sessionContext(taskId);
+    if (!context) { await this.refreshSessionMemory(taskId); return; }
+    if (!vscode.workspace.isTrusted) {
+      await this.sendSessionError(taskId, "请先信任当前 VS Code 工作区，再启用本机记录。");
+      return;
+    }
+    const bindings = await this.sessionStore.list(context.folder.uri.fsPath, context.binding.projectId, taskId);
+    if (!bindings.some((item) => item.provider === "codex" && item.recording)) {
+      this.send({ type: "sessionMemoryState", state: { taskId, status: "unbound", detail: "请先关联一个 Codex 会话。", sessions: [] } });
+      return;
+    }
+    this.send({ type: "sessionMemoryState", state: { taskId, status: "loading", detail: "等待确认本机记录范围…", sessions: [] } });
+    const configDirectory = codexConfigDirectory();
+    const configFile = path.join(configDirectory, "hooks.json");
+    const storageRoot = this.context.globalStorageUri.fsPath;
+    const accepted = await vscode.window.showWarningMessage(
+      `Codex Hook 配置是用户级：启用后，Codex 每次触发这些事件都会调用本机处理器；只有 session ID 匹配已关联会话且工作目录在所选工作区内时才落盘，其他会话不保存。保存内容包括用户输入、工具参数/结果和 Agent 最终答复，可能含敏感信息；不上传。之后还须在 Codex 中运行 /hooks 并审查、信任。\n\n配置：${configFile}\n记录目录：${path.join(storageRoot, "session-memory")}\n\n是否写入 Hook 配置？`,
+      { modal: true }, "写入并打开配置",
+    );
+    if (accepted !== "写入并打开配置") { await this.refreshSessionMemory(taskId); return; }
+    try {
+      const destinationDirectory = path.join(storageRoot, "session-memory");
+      await mkdir(destinationDirectory, { recursive: true, mode: 0o700 });
+      const scriptPath = path.join(destinationDirectory, managedCodexHookScriptName());
+      await copyFile(path.join(this.extensionUri.fsPath, "dist", managedCodexHookScriptName()), scriptPath);
+      await chmod(scriptPath, 0o700);
+      const file = await installCodexCaptureHook({ configDirectory, scriptPath, storageRoot });
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+      await vscode.window.showTextDocument(document, { preview: false });
+      await this.refreshSessionMemory(taskId);
+      void vscode.window.showInformationMessage("配置已打开。请在 Codex 中运行 /hooks，核对 AgileCampus handler 并明确选择信任；确认后，新事件才会写入本机。", "我知道了");
+    } catch (error) {
+      await this.sendSessionError(taskId, this.errorMessage(error));
+    }
+  }
+
+  async disableCodexCapture(): Promise<void> {
+    const configDirectory = codexConfigDirectory();
+    const accepted = await vscode.window.showWarningMessage(
+      "移除 AgileCampus 的 4 个 Codex Hook 处理器后，所有已关联会话都将停止新增本地记录；历史不删除，其他 Hook 不变。之后若要恢复，需要重新启用并在 Codex 中复核信任。",
+      { modal: true }, "禁用 AgileCampus Hook",
+    );
+    if (accepted !== "禁用 AgileCampus Hook") return;
+    try {
+      const result = await removeCodexCaptureHook(configDirectory);
+      this.send({ type: "codexHookStatus", configured: await this.hasCurrentCodexCaptureHook(configDirectory) });
+      if (!result.removed) {
+        void vscode.window.showInformationMessage("未发现 AgileCampus 的 Codex Hook；配置未更改。", "打开配置")
+          .then(async (choice) => {
+            if (choice === "打开配置") {
+              const document = await vscode.workspace.openTextDocument(vscode.Uri.file(result.file));
+              await vscode.window.showTextDocument(document, { preview: false });
+            }
+          });
+        return;
+      }
+      await vscode.window.showInformationMessage("AgileCampus Hook 已从 Codex 配置移除；历史记录保留在本机。", "打开配置")
+        .then(async (choice) => {
+          if (choice === "打开配置") {
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(result.file));
+            await vscode.window.showTextDocument(document, { preview: false });
+          }
+        });
+      if (this.focusedTaskId) await this.refreshSessionMemory(this.focusedTaskId);
+    } catch (error) {
+      if (this.focusedTaskId) await this.sendSessionError(this.focusedTaskId, this.errorMessage(error));
+      else void vscode.window.showErrorMessage(this.errorMessage(error));
+    }
+  }
+
+  private openSessionRecord(taskId: string, sessionKey: string): void {
+    const context = this.sessionContext(taskId);
+    if (!context) return;
+    void this.sessionStore.list(context.folder.uri.fsPath, context.binding.projectId, taskId).then((bindings) => {
+      if (!bindings.some((item) => item.sessionKey === sessionKey)) return;
+      SessionRecordPanel.open(this.extensionUri, this.sessionStore, sessionKey, context.taskTitle);
+    }).catch((error) => {
+      void this.sendSessionError(taskId, this.errorMessage(error));
+    });
+  }
+
+  private async stopSessionCapture(taskId: string, sessionKey: string): Promise<void> {
+    const context = this.sessionContext(taskId);
+    if (!context) return;
+    const bindings = await this.sessionStore.list(context.folder.uri.fsPath, context.binding.projectId, taskId);
+    if (!bindings.some((item) => item.sessionKey === sessionKey && item.recording)) return;
+    const choice = await vscode.window.showWarningMessage(
+      "停止后保留这次会话的本地历史，但同一原生会话不能重新关联；要继续记录时请新建 Codex 会话。",
+      { modal: true }, "停止记录",
+    );
+    if (choice !== "停止记录") return;
+    try {
+      await this.sessionStore.unbind(sessionKey);
+      await this.refreshSessionMemory(taskId);
+    } catch (error) {
+      await this.sendSessionError(taskId, this.errorMessage(error));
+    }
+  }
+
+  private async sessionMemoryRows(bindings: Awaited<ReturnType<LocalSessionStore["list"]>>, hookConfigured: boolean): Promise<SessionMemoryBindingView[]> {
+    const sessions: SessionMemoryBindingView[] = [];
+    for (const binding of bindings) {
+      const summary = await this.sessionStore.summary(binding.sessionKey);
+      sessions.push({
+        sessionKey: summary.sessionKey,
+        provider: summary.provider,
+        recording: summary.recording,
+        eventCount: summary.eventCount,
+        latestSequence: summary.latestSequence,
+        lastSavedAt: summary.lastSavedAt,
+        hasGaps: summary.hasGaps,
+        captureFailures: summary.captureFailures.map(({ occurredAt, detail }) => ({ occurredAt, detail })),
+        hookConfigured: summary.provider === "codex" && hookConfigured,
+      });
+    }
+    return sessions;
+  }
+
+  private async dismissHookAlert(alertId: string): Promise<void> {
+    try {
+      await this.sessionStore.dismissHookAlert(alertId);
+      await this.refreshCodexHookAlerts();
+    } catch (error) {
+      void vscode.window.showErrorMessage(this.errorMessage(error));
+    }
+  }
+
+  private async refreshCodexHookAlerts(): Promise<void> {
+    const generation = ++this.hookAlertGeneration;
+    try {
+      const alerts = await this.sessionStore.listHookAlerts();
+      if (generation !== this.hookAlertGeneration) return;
+      this.send({ type: "codexHookAlerts", alerts, error: null });
+    } catch (error) {
+      if (generation !== this.hookAlertGeneration) return;
+      this.send({ type: "codexHookAlerts", alerts: [], error: this.errorMessage(error) });
+    }
+  }
+
+  private async sendSessionError(taskId: string, detail: string): Promise<void> {
+    const context = this.sessionContext(taskId);
+    let sessions: SessionMemoryBindingView[] = [];
+    if (context) {
+      try {
+        const bindings = await this.sessionStore.list(context.folder.uri.fsPath, context.binding.projectId, taskId);
+        sessions = await this.sessionMemoryRows(bindings, await this.hasCurrentCodexCaptureHook());
+      } catch { /* Preserve the actionable operation error; the next status check can report journal errors. */ }
+    }
+    if (this.focusedTaskId === taskId) this.send({ type: "sessionMemoryState", state: { taskId, status: "error", detail, sessions } });
+  }
+
+  private setSessionMemoryPolling(enabled: boolean): void {
+    if (this.sessionMemoryPoller) clearInterval(this.sessionMemoryPoller);
+    this.sessionMemoryPoller = undefined;
+    if (!enabled) return;
+    this.sessionMemoryPoller = setInterval(() => {
+      void this.refreshCodexHookStatus();
+      void this.refreshCodexHookAlerts();
+      const taskId = this.focusedTaskId;
+      if (!taskId || this.sessionMemoryPollInFlight) return;
+      this.sessionMemoryPollInFlight = true;
+      void this.refreshSessionMemory(taskId).finally(() => { this.sessionMemoryPollInFlight = false; });
+    }, 3000);
+  }
+
+  private async refreshCodexHookStatus(): Promise<void> {
+    try {
+      const configured = await this.hasCurrentCodexCaptureHook();
+      this.send({ type: "codexHookStatus", configured });
+    } catch {
+      this.send({ type: "codexHookStatus", configured: false });
+    }
+  }
+
+  private hasCurrentCodexCaptureHook(configDirectory = codexConfigDirectory()): Promise<boolean> {
+    const storageRoot = this.context.globalStorageUri.fsPath;
+    return hasCodexCaptureHook(configDirectory, {
+      scriptPath: path.join(storageRoot, "session-memory", managedCodexHookScriptName()),
+      storageRoot,
+    });
   }
 
   private activeBinding(): WorkspaceBinding | undefined {

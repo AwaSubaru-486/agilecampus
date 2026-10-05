@@ -1,5 +1,7 @@
 # AgileCampus 敏捷校园
 
+> **下一阶段 Luna 执行入口（2026-10-05）**：[真实采集、记忆草稿与交接准备 N00–N06](docs/superpowers/plans/2026-10-05-session-memory-next-luna-plan.md)。首批只做 N00–N02，完成后停下来验收。此前 H00–H02 的代码验收已通过；真实 Extension Host + Codex Hook 采集、AI 提炼、私有材料发布和异机接班仍待验证与施工。
+
 > **最新 Luna 施工入口：自动会话记忆与一键发布（2026-10-02）**：[M00–M08 完整工单](docs/superpowers/plans/2026-10-02-session-memory-publish-luna-plan.md)。M00 能力盘点完成；M01 契约、数据库基础表、项目授权记录和受权限控制的会话/版本索引 API 已通过定向测试；M02 本地绑定与追加式事件存储基础正在施工。当前尚无 Hook/扩展命令接线、真实会话采集、发布登记、AI 提炼、远端 transcript 读取、网页会话页或 A→B 真实接班。分工以 [AGENTS.md](AGENTS.md) 顶部为准，阶段证据见 [施工记录](docs/reviews/session-memory-publish/progress.md)。
 
 > **当前网页重构 / Luna 执行入口（2026-10-02）**：[人–Agent 交接主线施工工单](docs/superpowers/plans/2026-10-02-handoff-first-web-luna-workorders.md)。先做 W00–W03：将任务、交接资料与真实执行记录挂到同一页面，桌面/窄屏验收后暂停。当前仅制定工单，页面尚未按此重构；不要将下面的扩展专项当作本轮起点。
@@ -57,6 +59,7 @@
 
 ## 设计文档
 
+- 会话记忆与 Agent 接续的项目说明及小组分工：[`docs/design/session-memory-team-brief.md`](docs/design/session-memory-team-brief.md)
 - 原创性审计（与原版的逐项差异）：[`docs/design/originality-audit.md`](docs/design/originality-audit.md)
 - 产品语言（术语、路由、骨架）：[`docs/design/product-language.md`](docs/design/product-language.md)
 - 施工计划：[`docs/superpowers/plans/`](docs/superpowers/plans/)

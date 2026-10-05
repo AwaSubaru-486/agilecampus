@@ -44,6 +44,27 @@ export type ProjectSnapshot = {
   tasks: TaskSummary[];
 };
 
+export type SessionMemoryStatus = "unbound" | "loading" | "linked" | "waiting" | "recorded" | "partial" | "stopped" | "error";
+
+export type SessionMemoryBindingView = {
+  sessionKey: string;
+  provider: "codex" | "claude";
+  recording: boolean;
+  eventCount: number;
+  latestSequence: number;
+  lastSavedAt: string | null;
+  hookConfigured: boolean;
+  hasGaps?: boolean;
+  captureFailures?: Array<{ occurredAt: string; detail: string }>;
+};
+
+export type SessionMemoryViewState = {
+  taskId: string;
+  status: SessionMemoryStatus;
+  detail: string | null;
+  sessions: SessionMemoryBindingView[];
+};
+
 export type WebviewMessage =
   | { type: "refresh" }
   | { type: "connect" }
@@ -51,9 +72,19 @@ export type WebviewMessage =
   | { type: "selectProject" }
   | { type: "openProject" }
   | { type: "openTask"; taskId: string }
-  | { type: "viewAgentWork"; taskId: string };
+  | { type: "viewAgentWork"; taskId: string }
+  | { type: "bindSession"; taskId: string }
+  | { type: "enableCodexCapture"; taskId: string }
+  | { type: "disableCodexCapture" }
+  | { type: "dismissHookAlert"; alertId: string }
+  | { type: "refreshSessionMemory"; taskId: string }
+  | { type: "openSessionRecord"; taskId: string; sessionKey: string }
+  | { type: "stopSessionCapture"; taskId: string; sessionKey: string };
 
 export type HostMessage =
   | { type: "snapshot"; snapshot: ProjectSnapshot }
+  | { type: "codexHookStatus"; configured: boolean }
+  | { type: "codexHookAlerts"; alerts: Array<{ id: string; occurredAt: string; detail: string }>; error: string | null }
   | { type: "taskDetail"; taskId: string; detail: TaskDetail }
-  | { type: "taskDetailError"; taskId: string; error: string };
+  | { type: "taskDetailError"; taskId: string; error: string }
+  | { type: "sessionMemoryState"; state: SessionMemoryViewState };

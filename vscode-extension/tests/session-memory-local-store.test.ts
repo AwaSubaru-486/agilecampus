@@ -56,6 +56,29 @@ describe("local session memory store", () => {
     expect((await store.readEvents(binding.sessionKey)).map(({ sequence, text }) => [sequence, text])).toEqual([[1, "run tests"], [2, "run tests"]]);
   });
 
+  it("reads the newest 50 events first and pages backward without loading the whole journal", async () => {
+    const { store, binding } = await fixture();
+    for (let index = 1; index <= 57; index += 1) {
+      await store.append(binding.sessionKey, { kind: "assistant", text: `event ${index}`, sourceRef: `event:${index}` });
+    }
+    const latest = await store.readEventsPage(binding.sessionKey);
+    expect(latest.events.map((event) => event.sequence)).toEqual(Array.from({ length: 50 }, (_, index) => index + 8));
+    expect(latest).toMatchObject({ total: 57, hasOlder: true, nextBeforeSequence: 8 });
+    const older = await store.readEventsPage(binding.sessionKey, { beforeSequence: latest.nextBeforeSequence ?? undefined });
+    expect(older.events.map((event) => event.sequence)).toEqual(Array.from({ length: 7 }, (_, index) => index + 1));
+    expect(older).toMatchObject({ total: 57, hasOlder: false, nextBeforeSequence: null });
+  });
+
+  it("fails closed when a paginated read finds a missing event in the journal", async () => {
+    const { root, store, binding } = await fixture();
+    for (let index = 1; index <= 3; index += 1) {
+      await store.append(binding.sessionKey, { kind: "assistant", text: `event ${index}`, sourceRef: `page-gap:${index}` });
+    }
+    const missing = path.join(root, "extension-storage", "session-memory", "sessions", binding.sessionKey, "events", "000000000002.json");
+    await rm(missing);
+    await expect(store.readEventsPage(binding.sessionKey)).rejects.toThrow("缺口");
+  });
+
   it("refuses a retry whose source reference was reused for different content", async () => {
     const { store, binding } = await fixture();
     await store.append(binding.sessionKey, { kind: "user", text: "original", sourceRef: "event-1" });

@@ -37,7 +37,7 @@ function memoryState() {
 
 function createProvider() {
   const context = {
-    globalState: memoryState(), workspaceState: memoryState(), secrets: {}, subscriptions: [],
+    globalState: memoryState(), workspaceState: memoryState(), secrets: {}, subscriptions: [], globalStorageUri: { fsPath: "/test/global-storage" },
   };
   const provider = new ProjectViewProvider({} as never, context as never);
   const subject = provider as unknown as TestProvider;

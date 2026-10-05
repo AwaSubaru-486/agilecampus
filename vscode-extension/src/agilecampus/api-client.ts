@@ -1,4 +1,5 @@
 import type { ProjectSummary, TaskDetail, TaskSummary } from "../types";
+import type { PreparedExtractionInputV1 } from "../memory/types";
 
 export type CheckpointIndexPayload = {
   idempotencyKey?: string;
@@ -186,6 +187,16 @@ export class AgileCampusApiClient {
     return { id: actor.id, displayName: actor.displayName };
   }
 
+  async extractSessionMemory(input: PreparedExtractionInputV1): Promise<unknown> {
+    const data = asRecord(await this.request<unknown>(
+      `api/extension/v1/projects/${encodeURIComponent(input.scope.projectId)}/session-memory/extract`,
+      { method: "POST", body: JSON.stringify(input), headers: { "Content-Type": "application/json" } },
+      120_000,
+    ), "记忆提炼接口返回格式无效");
+    if (!("candidate" in data)) throw new ApiError("记忆提炼接口未返回候选内容", null);
+    return data.candidate;
+  }
+
   async listProjectHandoffMembers(projectId: string): Promise<ProjectHandoffMember[]> {
     const data = asRecord(
       await this.request<unknown>(`api/extension/v1/projects/${encodeURIComponent(projectId)}/members`),
@@ -254,11 +265,11 @@ export class AgileCampusApiClient {
     return new URL(path.replace(/^\/+/, ""), this.baseUrl).toString();
   }
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}, timeoutMs = this.timeoutMs): Promise<T> {
     const token = await this.token();
     if (!token || !token.startsWith("ac_")) throw new ApiError("请连接 AgileCampus Personal API Token", 401);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetcher(new URL(path, this.baseUrl), {
         ...init,

@@ -19,6 +19,7 @@ import { isAwaitingResponse, isCompleted, isInFlight, isInReview } from "@/lib/t
 import type { BoardTask } from "./board";
 import type { CardDensity } from "./board";
 import { Badge, Button } from "@/components/ui";
+import { RequiredEvidenceFields, missingRequiredEvidenceTypes } from "./_shared/required-evidence-fields";
 
 // 负责人下拉的每一项。kind 决定卡面上是否给它挂「AI」标识——
 // 人机混排的界面里，一眼分得清谁是谁是基本要求。
@@ -70,8 +71,15 @@ export function TaskCard({
   // 三枚动作各按「我能不能做这件事」判定。做不了的不显示，
   // 比显示了再报错友好——尤其对初次使用的人。
   const isMine = task.assigneeId === currentUserId;
-  const canClaim = canWrite && isInFlight(task.status) && !task.assigneeId;
-  const canSubmit = isMine && isInFlight(task.status);
+  const hasCurrentCommitment = Boolean(task.committedAt) &&
+    task.committedHandoffVersion === task.handoffVersion;
+  const canClaim = canWrite && isInFlight(task.status) &&
+    (!task.assigneeId || (isMine && !hasCurrentCommitment));
+  const canSubmit = isMine && isInFlight(task.status) && hasCurrentCommitment;
+  const missingEvidenceTypes = missingRequiredEvidenceTypes(
+    task.requiredEvidence,
+    task.evidenceTypes,
+  );
   // 不能验收自己的活：既不能自证，也不能自判
   const canReviewThis = canReview && isInReview(task.status) && !isMine;
 
@@ -209,6 +217,13 @@ export function TaskCard({
             退回意见：{task.reviewNote}
           </p>
         )}
+        {isInReview(task.status) && !canReviewThis && (
+          <p className="mt-1.5 border border-line bg-sunken px-2 py-1 text-xs text-ink-soft">
+            {isMine
+              ? "已提交，需由其他组长或教师验收"
+              : "待组长或教师验收"}
+          </p>
+        )}
       </div>
 
       <div className="mt-3 space-y-2 border-t border-line pt-2">
@@ -223,7 +238,7 @@ export function TaskCard({
                 variant="ink"
                 size="sm"
               >
-                我接手
+                {isMine && task.committedAt ? "重新确认承诺" : "我接手"}
               </Button>
             )}
             {canSubmit && (
@@ -360,6 +375,7 @@ export function TaskCard({
               className="ac-field text-sm"
             />
           </label>
+          <RequiredEvidenceFields types={missingEvidenceTypes} />
         </ActionForm>
       )}
 

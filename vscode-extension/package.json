@@ -34,7 +34,10 @@
     "onCommand:agilecampus.resumeCheckpoint",
     "onCommand:agilecampus.listAttempts",
     "onCommand:agilecampus.forkAttempt",
-    "onCommand:agilecampus.compareAttempts"
+    "onCommand:agilecampus.compareAttempts",
+    "onCommand:agilecampus.extractSessionMemory",
+    "onCommand:agilecampus.reviewSessionMemory",
+    "onCommand:agilecampus.importMemoryHandoff"
   ],
   "contributes": {
     "configuration": {
@@ -55,6 +58,10 @@
       {
         "command": "agilecampus.refresh",
         "title": "AgileCampus: 刷新"
+      },
+      {
+        "command": "agilecampus.disableCodexCapture",
+        "title": "AgileCampus: 禁用本机 Codex Hook"
       },
       {
         "command": "agilecampus.connect",
@@ -123,6 +130,18 @@
       {
         "command": "agilecampus.compareAttempts",
         "title": "AgileCampus: 比较并行尝试"
+      },
+      {
+        "command": "agilecampus.extractSessionMemory",
+        "title": "AgileCampus: 提炼本机会话记忆"
+      },
+      {
+        "command": "agilecampus.reviewSessionMemory",
+        "title": "AgileCampus: 审核或导出会话记忆"
+      },
+      {
+        "command": "agilecampus.importMemoryHandoff",
+        "title": "AgileCampus: 导入并核对接班记忆"
       }
     ],
     "viewsContainers": {
@@ -148,85 +167,20 @@
         {
           "command": "agilecampus.connect",
           "when": "view == agilecampus.projectView && agileCampus.connected != true",
-          "group": "navigation"
-        },
-        {
-          "command": "agilecampus.selectProject",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "agilecampus.refresh",
           "when": "view == agilecampus.projectView",
-          "group": "navigation"
-        },
-        {
-          "command": "agilecampus.saveCheckpoint",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
           "group": "navigation@2"
-        },
-        {
-          "command": "agilecampus.publishCheckpoint",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@2.1"
-        },
-        {
-          "command": "agilecampus.sendHandoff",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@2.2"
-        },
-        {
-          "command": "agilecampus.listCheckpoints",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@3"
-        },
-        {
-          "command": "agilecampus.exportCheckpoint",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@4"
-        },
-        {
-          "command": "agilecampus.importCheckpoint",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@5"
-        },
-        {
-          "command": "agilecampus.prepareHandoff",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@6"
-        },
-        {
-          "command": "agilecampus.resumeCheckpoint",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@7"
-        },
-        {
-          "command": "agilecampus.listAttempts",
-          "when": "view == agilecampus.projectView",
-          "group": "navigation@8"
-        },
-        {
-          "command": "agilecampus.forkAttempt",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation@9"
-        },
-        {
-          "command": "agilecampus.compareAttempts",
-          "when": "view == agilecampus.projectView",
-          "group": "navigation@10"
-        },
-        {
-          "command": "agilecampus.disconnect",
-          "when": "view == agilecampus.projectView && agileCampus.connected == true",
-          "group": "navigation"
         }
       ]
     }
   },
   "scripts": {
     "compile": "npm run compile:extension && npm run compile:webview",
-    "compile:extension": "tsc --noEmit -p ./tsconfig.json && node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && esbuild src/extension.ts --bundle --platform=node --target=node20 --external:vscode --outfile=dist/extension.js",
-    "compile:webview": "esbuild webview/src/App.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --jsx=automatic",
+    "compile:extension": "tsc --noEmit -p ./tsconfig.json && node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && esbuild src/extension.ts --bundle --platform=node --target=node20 --external:vscode --outfile=dist/extension.js && esbuild src/session-memory/codex-hook-cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/agilecampus-codex-session-hook.cjs",
+    "compile:webview": "esbuild webview/src/App.tsx --bundle --outfile=dist/webview.js --format=iife --platform=browser --jsx=automatic && esbuild webview/src/record-view.ts --bundle --outfile=dist/record-view.js --format=iife --platform=browser",
     "check": "npm run compile",
     "test": "vitest run --configLoader runner"
   },

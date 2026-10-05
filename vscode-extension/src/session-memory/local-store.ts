@@ -23,13 +23,38 @@ export type LocalSessionBinding = {
 export type NewLocalEvent = Pick<NormalizedEventV1, "kind" | "text" | "sourceRef"> &
   Partial<Pick<NormalizedEventV1, "timestamp" | "toolCallId" | "command" | "exitCode" | "paths">>;
 
+export type LocalSessionEventPage = {
+  events: NormalizedEventV1[];
+  total: number;
+  hasOlder: boolean;
+  nextBeforeSequence: number | null;
+};
+
+export type LocalSessionSummary = Omit<LocalSessionBinding, "providerSessionId"> & {
+  eventCount: number;
+  latestSequence: number;
+  lastSavedAt: string | null;
+  hasGaps: boolean;
+  captureFailures: LocalCaptureFailure[];
+};
+
+export type LocalCaptureFailure = { occurredAt: string; detail: string; sourceRef?: string | null };
+export type LocalHookAlert = { id: string; occurredAt: string; detail: string };
+export type FrozenLocalCapture = {
+  binding: LocalSessionBinding;
+  events: NormalizedEventV1[];
+  failures: LocalCaptureFailure[];
+  capturedAt: string;
+};
+
 type BindingIndex = { schemaVersion: 1; bindings: LocalSessionBinding[] };
-type EventCursor = { schemaVersion: 1; sessionKey: string; nextSequence: number };
+type EventCursor = { schemaVersion: 1; sessionKey: string; nextSequence: number; hasGaps: boolean };
 type SourceRefIndex = { schemaVersion: 1; sessionKey: string; sourceRef: string; sequence: number };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_TEXT_LENGTH = 256 * 1024;
 const MAX_SOURCE_REF_LENGTH = 2048;
+const MAX_FROZEN_CAPTURE_BYTES = 10 * 1024 * 1024;
 
 export class LocalSessionStoreError extends Error {
   constructor(message: string) { super(message); this.name = "LocalSessionStoreError"; }
@@ -98,6 +123,128 @@ export class LocalSessionStore {
       (projectId === undefined || item.projectId === projectId) && (taskId === undefined || item.taskId === taskId));
   }
 
+  async findActiveBinding(provider: SessionProvider, providerSessionId: string, workingDirectory: string): Promise<LocalSessionBinding | null> {
+    if (!providerSessionId || providerSessionId.length > 512) return null;
+    const cwd = await canonicalWorkspace(workingDirectory);
+    const index = await this.readBindings();
+    return index.bindings.find((item) => item.recording && item.provider === provider &&
+      item.providerSessionId === providerSessionId && isWithinWorkspace(item.workspacePath, cwd)) ?? null;
+  }
+
+  async summary(sessionKey: string): Promise<LocalSessionSummary> {
+    if (!UUID.test(sessionKey)) throw new LocalSessionStoreError("会话标识无效");
+    return this.withLock(async () => {
+      const index = await this.readBindings();
+      const binding = index.bindings.find((item) => item.sessionKey === sessionKey);
+      if (!binding) throw new LocalSessionStoreError("找不到本地会话绑定");
+      const cursor = await this.readCursor(sessionKey);
+      const eventCount = cursor.nextSequence - 1;
+      await this.assertContiguousEventFiles(sessionKey, eventCount);
+      let lastSavedAt: string | null = null;
+      if (eventCount > 0) {
+        try { lastSavedAt = (await stat(this.eventPath(sessionKey, eventCount))).mtime.toISOString(); }
+        catch { throw new LocalSessionStoreError("最新本地记录无法读取；为避免误报，已停止显示记录状态"); }
+      }
+      const { providerSessionId: _localOnlyId, ...publicBinding } = binding;
+      return {
+        ...publicBinding,
+        eventCount,
+        latestSequence: eventCount,
+        lastSavedAt,
+        hasGaps: cursor.hasGaps,
+        captureFailures: await this.readCaptureFailures(sessionKey),
+      };
+    });
+  }
+
+  /** Persist each failed source separately so recovery of one event cannot hide another missing event. */
+  async recordCaptureFailure(sessionKey: string, detail: string, sourceRef?: string): Promise<void> {
+    if (!UUID.test(sessionKey)) throw new LocalSessionStoreError("会话标识无效");
+    const normalized = typeof detail === "string" && detail.trim()
+      ? detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1200)
+      : "本机事件写入失败";
+    const id = sourceRef ? createHash("sha256").update(sourceRef).digest("hex") : randomUUID();
+    const file = this.captureFailurePath(sessionKey, id);
+    await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
+    const temporary = `${file}.tmp-${randomUUID()}`;
+    try {
+      await writeFile(temporary, JSON.stringify({ schemaVersion: 1, sessionKey, occurredAt: this.now().toISOString(), detail: normalized, sourceRef: sourceRef ?? null }), { flag: "wx", mode: 0o600 });
+      await rename(temporary, file);
+    } catch (error) {
+      await rm(temporary, { force: true }).catch(() => undefined);
+      throw new LocalSessionStoreError(error instanceof Error ? error.message : "无法保存 Hook 失败状态");
+    }
+  }
+
+  async clearCaptureFailure(sessionKey: string, recoveredSourceRef: string): Promise<void> {
+    if (!UUID.test(sessionKey) || !recoveredSourceRef) return;
+    const file = this.captureFailurePath(sessionKey, createHash("sha256").update(recoveredSourceRef).digest("hex"));
+    try {
+      const failure = await this.readCaptureFailureFile(file, sessionKey);
+      if (failure?.sourceRef === recoveredSourceRef) await unlink(file);
+    } catch (error) {
+      if (isMissing(error)) return;
+      throw new LocalSessionStoreError("无法清除已恢复的本机会话采集错误状态");
+    }
+    // Read and clear the pre-upgrade single-failure marker, if present.
+    const legacy = this.legacyCaptureFailurePath(sessionKey);
+    try {
+      const failure = await this.readCaptureFailureFile(legacy, sessionKey);
+      if (failure?.sourceRef === recoveredSourceRef) await unlink(legacy);
+    } catch (error) {
+      if (!isMissing(error)) throw new LocalSessionStoreError("无法清除已恢复的本机会话采集错误状态");
+    }
+  }
+
+  async recordHookAlert(detail: string): Promise<LocalHookAlert> {
+    const alert: LocalHookAlert = {
+      id: randomUUID(), occurredAt: this.now().toISOString(),
+      detail: detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1200) || "Codex Hook 无法记录输入",
+    };
+    const file = this.hookAlertPath(alert.id);
+    await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
+    const temporary = `${file}.tmp-${randomUUID()}`;
+    try {
+      await writeFile(temporary, JSON.stringify({ schemaVersion: 1, ...alert }), { flag: "wx", mode: 0o600 });
+      await rename(temporary, file);
+      return alert;
+    } catch (error) {
+      await rm(temporary, { force: true }).catch(() => undefined);
+      throw new LocalSessionStoreError(error instanceof Error ? error.message : "无法保存本机 Hook 故障提示");
+    }
+  }
+
+  async listHookAlerts(): Promise<LocalHookAlert[]> {
+    const directory = this.hookAlertsPath();
+    let entries;
+    try { entries = await readdir(directory, { withFileTypes: true }); }
+    catch (error) { if (isMissing(error)) return []; throw new LocalSessionStoreError("无法读取本机 Hook 故障提示"); }
+    const alerts: LocalHookAlert[] = [];
+    for (const entry of entries) {
+      if (!/^[0-9a-f-]{36}\.json$/i.test(entry.name)) continue;
+      if (!entry.isFile() || entry.isSymbolicLink()) throw new LocalSessionStoreError("本机 Hook 故障提示文件无效");
+      const parsed: unknown = JSON.parse(await readFile(path.join(directory, entry.name), "utf8"));
+      if (!parsed || typeof parsed !== "object" || (parsed as { schemaVersion?: unknown }).schemaVersion !== 1 ||
+          typeof (parsed as { id?: unknown }).id !== "string" || `${(parsed as { id: string }).id}.json` !== entry.name ||
+          typeof (parsed as { occurredAt?: unknown }).occurredAt !== "string" || !Number.isFinite(Date.parse((parsed as { occurredAt: string }).occurredAt)) ||
+          typeof (parsed as { detail?: unknown }).detail !== "string" || (parsed as { detail: string }).detail.length > 1200) {
+        throw new LocalSessionStoreError("本机 Hook 故障提示数据无效");
+      }
+      alerts.push({ id: (parsed as { id: string }).id, occurredAt: (parsed as { occurredAt: string }).occurredAt, detail: (parsed as { detail: string }).detail });
+    }
+    return alerts.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+  }
+
+  async dismissHookAlert(id: string): Promise<void> {
+    if (!UUID.test(id)) throw new LocalSessionStoreError("Hook 故障提示标识无效");
+    const file = this.hookAlertPath(id);
+    try {
+      const metadata = await lstat(file);
+      if (!metadata.isFile() || metadata.isSymbolicLink()) throw new LocalSessionStoreError("Hook 故障提示文件无效");
+      await unlink(file);
+    } catch (error) { if (!isMissing(error)) throw error; }
+  }
+
   async unbind(sessionKey: string): Promise<void> {
     if (!UUID.test(sessionKey)) throw new LocalSessionStoreError("会话标识无效");
     await this.withLock(async () => {
@@ -144,7 +291,7 @@ export class LocalSessionStore {
         id: randomUUID(),
         sessionKey,
         sequence: cursor.nextSequence,
-        timestamp: input.timestamp === undefined ? this.now().toISOString() : input.timestamp,
+        timestamp: input.timestamp === undefined ? null : input.timestamp,
         kind: input.kind,
         text: input.text,
         ...(input.toolCallId !== undefined ? { toolCallId: input.toolCallId } : {}),
@@ -157,6 +304,7 @@ export class LocalSessionStore {
       await this.writeJsonAtomic(this.sourceRefPath(sessionKey, input.sourceRef), {
         schemaVersion: 1, sessionKey, sourceRef: input.sourceRef, sequence: event.sequence,
       } satisfies SourceRefIndex);
+      if (event.kind === "gap") cursor.hasGaps = true;
       cursor.nextSequence += 1;
       await this.writeJsonAtomic(this.cursorPath(sessionKey), cursor);
       return { event, duplicate: false };
@@ -172,6 +320,65 @@ export class LocalSessionStore {
       const events = await this.readEventsFromDisk(sessionKey);
       if (events.length !== cursor.nextSequence - 1) throw new LocalSessionStoreError("会话记录与采集游标不一致；记录可能有缺口");
       return events;
+    });
+  }
+
+  /** Freeze one contiguous event prefix and its failure markers under the journal lock. */
+  async freezeCapture(sessionKey: string): Promise<FrozenLocalCapture> {
+    if (!UUID.test(sessionKey)) throw new LocalSessionStoreError("会话标识无效");
+    return this.withLock(async () => {
+      const index = await this.readBindings();
+      const binding = index.bindings.find((item) => item.sessionKey === sessionKey);
+      if (!binding) throw new LocalSessionStoreError("找不到本地会话绑定");
+      const cursor = await this.readCursor(sessionKey);
+      const count = cursor.nextSequence - 1;
+      if (count < 1) throw new LocalSessionStoreError("EMPTY_CAPTURE");
+      if (count > SESSION_MEMORY_MAX_EVENTS) throw new LocalSessionStoreError("会话记录超过冻结上限");
+      await this.assertContiguousEventFiles(sessionKey, count);
+      const entries = await readdir(this.eventsPath(sessionKey), { withFileTypes: true });
+      let byteCount = 0;
+      for (const entry of entries) {
+        if (!/^\d{12}\.json$/.test(entry.name)) continue;
+        if (!entry.isFile() || entry.isSymbolicLink()) throw new LocalSessionStoreError("会话事件文件不是普通文件");
+        const metadata = await lstat(path.join(this.eventsPath(sessionKey), entry.name));
+        byteCount += metadata.size;
+        if (byteCount > MAX_FROZEN_CAPTURE_BYTES) throw new LocalSessionStoreError("SNAPSHOT_TOO_LARGE");
+      }
+      const events = await this.readEventsFromDisk(sessionKey);
+      if (events.length !== count || events.some((event, position) => event.sequence !== position + 1 || event.sessionKey !== sessionKey)) {
+        throw new LocalSessionStoreError("会话事件序号或范围无效");
+      }
+      return {
+        binding: { ...binding },
+        events,
+        failures: await this.readCaptureFailures(sessionKey),
+        capturedAt: this.now().toISOString(),
+      };
+    });
+  }
+
+  async readEventsPage(sessionKey: string, options: { beforeSequence?: number; limit?: number } = {}): Promise<LocalSessionEventPage> {
+    if (!UUID.test(sessionKey)) throw new LocalSessionStoreError("会话标识无效");
+    const limit = options.limit ?? 50;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new LocalSessionStoreError("每页记录数必须在 1 到 100 之间");
+    if (options.beforeSequence !== undefined && (!Number.isSafeInteger(options.beforeSequence) || options.beforeSequence < 1)) {
+      throw new LocalSessionStoreError("记录分页位置无效");
+    }
+    return this.withLock(async () => {
+      const index = await this.readBindings();
+      if (!index.bindings.some((item) => item.sessionKey === sessionKey)) throw new LocalSessionStoreError("找不到本地会话绑定");
+      const cursor = await this.readCursor(sessionKey);
+      const total = cursor.nextSequence - 1;
+      await this.assertContiguousEventFiles(sessionKey, total);
+      const before = Math.min(options.beforeSequence ?? total + 1, total + 1);
+      const first = Math.max(1, before - limit);
+      const events: NormalizedEventV1[] = [];
+      for (let sequence = first; sequence < before; sequence += 1) {
+        const event = await this.readEventAt(sessionKey, sequence);
+        if (!event) throw new LocalSessionStoreError("会话记录与采集游标不一致；记录可能有缺口");
+        events.push(event);
+      }
+      return { events, total, hasOlder: first > 1, nextBeforeSequence: first > 1 ? first : null };
     });
   }
 
@@ -220,6 +427,20 @@ export class LocalSessionStore {
     }
   }
 
+  private async assertContiguousEventFiles(sessionKey: string, expectedCount: number): Promise<void> {
+    try {
+      const entries = await readdir(this.eventsPath(sessionKey), { withFileTypes: true });
+      const files = entries.filter((entry) => /^\d{12}\.json$/.test(entry.name)).sort((a, b) => a.name.localeCompare(b.name));
+      if (files.length !== expectedCount || files.some((entry, index) => !entry.isFile() || entry.isSymbolicLink() || entry.name !== eventFilename(index + 1))) {
+        throw new Error("journal gap");
+      }
+    } catch (error) {
+      if (isMissing(error)) throw new LocalSessionStoreError("本地会话事件目录缺失；不能将其解释为空会话");
+      if (error instanceof LocalSessionStoreError) throw error;
+      throw new LocalSessionStoreError("会话记录序号存在缺口；为避免展示不完整历史，已停止读取");
+    }
+  }
+
   private async readCursor(sessionKey: string): Promise<EventCursor> {
     try {
       const parsed: unknown = JSON.parse(await readFile(this.cursorPath(sessionKey), "utf8"));
@@ -247,7 +468,7 @@ export class LocalSessionStore {
 
   private async rebuildCursor(sessionKey: string): Promise<EventCursor> {
     const events = await this.readEventsFromDisk(sessionKey);
-    const recovered: EventCursor = { schemaVersion: 1, sessionKey, nextSequence: events.length + 1 };
+    const recovered: EventCursor = { schemaVersion: 1, sessionKey, nextSequence: events.length + 1, hasGaps: events.some((event) => event.kind === "gap") };
     const validIndexNames = new Set<string>();
     for (const event of events) {
       const sourceRefPath = this.sourceRefPath(sessionKey, event.sourceRef);
@@ -275,6 +496,47 @@ export class LocalSessionStore {
     } catch (error) {
       if (isMissing(error)) return 0;
       throw new LocalSessionStoreError("无法读取本地事件幂等索引");
+    }
+  }
+
+  private async readCaptureFailures(sessionKey: string): Promise<LocalCaptureFailure[]> {
+    const failures: LocalCaptureFailure[] = [];
+    const directory = this.captureFailuresPath(sessionKey);
+    try {
+      const entries = await readdir(directory, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!/^[0-9a-f-]{36,64}\.json$/i.test(entry.name)) continue;
+        if (!entry.isFile() || entry.isSymbolicLink()) throw new Error("invalid capture failure file");
+        const failure = await this.readCaptureFailureFile(path.join(directory, entry.name), sessionKey);
+        if (failure) failures.push(failure);
+      }
+    } catch (error) { if (!isMissing(error)) throw new LocalSessionStoreError("本机会话采集故障状态损坏；为避免误报，已停止显示状态"); }
+    const legacy = await this.readCaptureFailureFile(this.legacyCaptureFailurePath(sessionKey), sessionKey);
+    if (legacy) failures.push(legacy);
+    return failures.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+  }
+
+  private async readCaptureFailureFile(file: string, sessionKey: string): Promise<LocalCaptureFailure | null> {
+    try {
+      const metadata = await lstat(file);
+      if (!metadata.isFile() || metadata.isSymbolicLink()) throw new Error("invalid failure status file");
+      const parsed: unknown = JSON.parse(await readFile(file, "utf8"));
+      if (!parsed || typeof parsed !== "object" || (parsed as { schemaVersion?: unknown }).schemaVersion !== 1 ||
+          (parsed as { sessionKey?: unknown }).sessionKey !== sessionKey || typeof (parsed as { occurredAt?: unknown }).occurredAt !== "string" ||
+          !Number.isFinite(Date.parse((parsed as { occurredAt: string }).occurredAt)) || typeof (parsed as { detail?: unknown }).detail !== "string" ||
+          (parsed as { detail: string }).detail.length > 1200 ||
+          ((parsed as { sourceRef?: unknown }).sourceRef !== undefined && (parsed as { sourceRef?: unknown }).sourceRef !== null &&
+            (typeof (parsed as { sourceRef?: unknown }).sourceRef !== "string" || (parsed as { sourceRef: string }).sourceRef.length > MAX_SOURCE_REF_LENGTH))) {
+        throw new Error("invalid failure status");
+      }
+      return {
+        occurredAt: (parsed as { occurredAt: string }).occurredAt,
+        detail: (parsed as { detail: string }).detail,
+        sourceRef: typeof (parsed as { sourceRef?: unknown }).sourceRef === "string" ? (parsed as { sourceRef: string }).sourceRef : null,
+      };
+    } catch (error) {
+      if (isMissing(error)) return null;
+      throw new LocalSessionStoreError("本机会话采集故障状态损坏；为避免误报，已停止显示状态");
     }
   }
 
@@ -368,6 +630,11 @@ export class LocalSessionStore {
   private sourceRefsPath(sessionKey: string): string { return path.join(this.storageRoot, "session-memory", "sessions", sessionKey, "source-refs"); }
   private sourceRefPath(sessionKey: string, sourceRef: string): string { return path.join(this.sourceRefsPath(sessionKey), `${sourceRefKey(sourceRef)}.json`); }
   private cursorPath(sessionKey: string): string { return path.join(this.storageRoot, "session-memory", "sessions", sessionKey, "cursor.json"); }
+  private captureFailuresPath(sessionKey: string): string { return path.join(this.storageRoot, "session-memory", "sessions", sessionKey, "capture-failures"); }
+  private captureFailurePath(sessionKey: string, id: string): string { return path.join(this.captureFailuresPath(sessionKey), `${id}.json`); }
+  private legacyCaptureFailurePath(sessionKey: string): string { return path.join(this.storageRoot, "session-memory", "sessions", sessionKey, "capture-failure.json"); }
+  private hookAlertsPath(): string { return path.join(this.storageRoot, "session-memory", "hook-alerts"); }
+  private hookAlertPath(id: string): string { return path.join(this.hookAlertsPath(), `${id}.json`); }
 }
 
 function isBindingIndex(value: unknown): value is BindingIndex {
@@ -383,7 +650,7 @@ function isEventCursor(value: unknown, sessionKey: string): value is EventCursor
   if (!value || typeof value !== "object") return false;
   const candidate = value as EventCursor;
   return candidate.schemaVersion === 1 && candidate.sessionKey === sessionKey && Number.isSafeInteger(candidate.nextSequence) &&
-    candidate.nextSequence >= 1;
+    candidate.nextSequence >= 1 && typeof candidate.hasGaps === "boolean";
 }
 
 function isSourceRefIndex(value: unknown, sessionKey: string): value is SourceRefIndex {
@@ -407,6 +674,11 @@ async function canonicalWorkspace(workspacePath: string): Promise<string> {
     if (!(await stat(canonical)).isDirectory()) throw new Error("not a directory");
     return canonical;
   } catch { throw new LocalSessionStoreError("无法确认会话所属工作区；只允许绑定已打开的本地目录"); }
+}
+
+function isWithinWorkspace(workspacePath: string, candidatePath: string): boolean {
+  const relative = path.relative(workspacePath, candidatePath);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
 }
 
 function isMissing(error: unknown): boolean { return hasCode(error, "ENOENT"); }

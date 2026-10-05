@@ -19,6 +19,7 @@ import { createMilestone } from "@/lib/project";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { createEntry, deleteEntry } from "@/lib/entry";
+import { createEvidenceItem, EVIDENCE_LABEL, missingRequiredEvidence } from "@/lib/evidence";
 import { EVIDENCE_TYPES, type EvidenceType } from "@/lib/handoff";
 
 export type FormState = { error: string } | null;
@@ -457,12 +458,43 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
+    // 把必需材料随交付表单一并落库。之前页面只收完成说明，
+    // 但 submitTask 会拒绝缺少契约证据的任务，成员因此没有可完成的路径。
+    const missingBeforeSubmit = await missingRequiredEvidence(session.user.id, parsed.data.taskId);
+    const evidenceValues = new Map<EvidenceType, string>();
+    for (const type of missingBeforeSubmit) {
+      const value = String(formData.get(`evidence_${type}`) ?? "").trim();
+      if (!value) {
+        const labels = missingBeforeSubmit.map((missingType) => EVIDENCE_LABEL[missingType]);
+        return { error: `请补充必需交付材料：${labels.join("、")}` };
+      }
+      if (value.length > 8_000) return { error: `${EVIDENCE_LABEL[type]}最多 8000 个字` };
+      evidenceValues.set(type, value);
+    }
+
+    for (const [type, value] of evidenceValues) {
+      await createEvidenceItem(session.user.id, parsed.data.taskId, {
+        type,
+        label: EVIDENCE_LABEL[type],
+        value,
+      });
+    }
+
     await submitTask(session.user.id, parsed.data.taskId, {
       completionNote: parsed.data.completionNote,
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以提交" };
-    if (e instanceof AppError) return { error: e.message };
+    if (e instanceof AppError) {
+      const missing = e.message.match(/^还缺少必需证据：(.*)$/);
+      if (missing) {
+        const labels = missing[1]
+          .split("、")
+          .map((type) => EVIDENCE_LABEL[type as EvidenceType] ?? type);
+        return { error: `请补充必需交付材料：${labels.join("、")}` };
+      }
+      return { error: e.message };
+    }
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);

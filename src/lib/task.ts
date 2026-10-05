@@ -5,6 +5,7 @@ import {
   labels,
   milestones,
   contextPacks,
+  evidenceItems,
   taskDependencies,
   taskLabels,
   tasks,
@@ -24,7 +25,7 @@ import {
   notifyTaskSubmitted,
 } from "./notify";
 import { DEFAULT_STATUS, assertTransition, isCompleted } from "./task-status";
-import { normalizeHandoffFields, type HandoffFields } from "./handoff";
+import { normalizeHandoffFields, parseRequiredEvidence, type HandoffFields } from "./handoff";
 import { missingRequiredEvidence } from "./evidence";
 import { describe, recordEvent } from "./activity";
 import type { ActivityType } from "@/db/schema";
@@ -457,8 +458,29 @@ export async function listProjectTasks(actorId: string, projectId: string) {
     .where(eq(tasks.projectId, projectId))
     .orderBy(tasks.sortOrder);
 
-  const byTask = await labelsByTask(rows.map((r) => r.id));
-  return rows.map((r) => ({ ...r, labels: byTask.get(r.id) ?? [] }));
+  const taskIds = rows.map((r) => r.id);
+  const [byTask, evidenceRows] = await Promise.all([
+    labelsByTask(taskIds),
+    taskIds.length > 0
+      ? db
+          .select({ taskId: evidenceItems.taskId, type: evidenceItems.type })
+          .from(evidenceItems)
+          .where(inArray(evidenceItems.taskId, taskIds))
+      : Promise.resolve([]),
+  ]);
+  const evidenceTypesByTask = new Map<string, string[]>();
+  for (const item of evidenceRows) {
+    if (!item.taskId) continue;
+    const types = evidenceTypesByTask.get(item.taskId) ?? [];
+    types.push(item.type);
+    evidenceTypesByTask.set(item.taskId, types);
+  }
+  return rows.map((r) => ({
+    ...r,
+    requiredEvidence: parseRequiredEvidence(r.requiredEvidence),
+    evidenceTypes: evidenceTypesByTask.get(r.id) ?? [],
+    labels: byTask.get(r.id) ?? [],
+  }));
 }
 
 // 列某任务之下的子任务（直接子级，不递归）

@@ -8,13 +8,14 @@ import { EVIDENCE_TYPES } from "@/lib/handoff";
 
 export { EVIDENCE_TYPES };
 export type { EvidenceType };
+type RequiredEvidenceType = (typeof EVIDENCE_TYPES)[number];
 
 export const EVIDENCE_LABEL: Record<EvidenceType, string> = {
   link: "链接",
-  file: "文件",
+  file: "交付文件",
   text: "文字说明",
   test: "测试结果",
-  demo: "演示",
+  demo: "演示材料",
   entry: "项目档案",
   message: "协作消息",
   run: "Agent 运行",
@@ -92,11 +93,11 @@ export async function listTaskEvidence(actorId: string, taskId: string) {
     .orderBy(desc(evidenceItems.createdAt));
 }
 
-export async function missingRequiredEvidence(actorId: string, taskId: string): Promise<EvidenceType[]> {
+export async function missingRequiredEvidence(actorId: string, taskId: string): Promise<RequiredEvidenceType[]> {
   const { task } = await taskContext(actorId, taskId);
   const required = Array.isArray(task.requiredEvidence)
-    ? task.requiredEvidence.filter((item): item is EvidenceType =>
-        typeof item === "string" && EVIDENCE_TYPES.includes(item as (typeof EVIDENCE_TYPES)[number]),
+    ? task.requiredEvidence.filter((item): item is RequiredEvidenceType =>
+        typeof item === "string" && EVIDENCE_TYPES.includes(item as RequiredEvidenceType),
       )
     : [];
   if (required.length === 0) return [];

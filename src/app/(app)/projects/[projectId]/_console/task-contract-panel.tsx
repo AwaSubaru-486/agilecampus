@@ -24,6 +24,7 @@ import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
+import { RequiredEvidenceFields, missingRequiredEvidenceTypes } from "../_shared/required-evidence-fields";
 import type { ConsoleLayout, MemberSummary, SelectedTaskDetail } from "./console-shell";
 import type { EvidenceType } from "@/lib/handoff";
 
@@ -153,6 +154,10 @@ export function TaskContractPanel({
   );
   const canDecline = isMine && awaiting;
   const canSubmit = isMine && isInFlight(task.status) && Boolean(task.committedAt) && versionMatch;
+  const missingEvidenceTypes = missingRequiredEvidenceTypes(
+    task.requiredEvidence,
+    task.evidence.map((item) => item.type),
+  );
   const canReviewThis = canReview && isInReview(task.status) && !isMine;
 
   return (
@@ -203,6 +208,14 @@ export function TaskContractPanel({
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">
+        {isInReview(task.status) && !canReviewThis && (
+          <p role="status" className="border border-stroke bg-sunken px-3 py-2 text-sm text-ink-soft">
+            {isMine
+              ? "已提交，不能验收自己提交的任务；请由其他组长或教师处理。"
+              : "当前账号无验收权限；请由组长或教师处理。"}
+          </p>
+        )}
+
         {/* 内联交接契约编辑器（W04） */}
         {editingHandoff && (
           <HandoffEditor
@@ -376,6 +389,7 @@ export function TaskContractPanel({
               placeholder="说明交付了什么成果、产出物位置或测试说明（必填）"
               className="ac-field text-sm"
             />
+            <RequiredEvidenceFields types={missingEvidenceTypes} />
           </ActionFormBlock>
         )}
 

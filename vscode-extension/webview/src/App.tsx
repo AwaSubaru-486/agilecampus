@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { HostMessage, ProjectSnapshot, TaskDetail, WebviewMessage } from "../../src/types";
+import type { HostMessage, ProjectSnapshot, SessionMemoryViewState, TaskDetail, WebviewMessage } from "../../src/types";
 import "./styles.css";
 
 declare function acquireVsCodeApi(): { postMessage(message: WebviewMessage): void };
@@ -13,19 +13,33 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const selectedTaskRef = useRef<string | null>(null);
   const [details, setDetails] = useState<Record<string, TaskDetail | { error: string }>>({});
+  const [sessionMemory, setSessionMemory] = useState<SessionMemoryViewState | null>(null);
+  const [hookAlerts, setHookAlerts] = useState<Array<{ id: string; occurredAt: string; detail: string }>>([]);
+  const [hookAlertError, setHookAlertError] = useState<string | null>(null);
+  const [codexHookConfigured, setCodexHookConfigured] = useState(false);
 
   useEffect(() => {
     const listener = (event: MessageEvent<HostMessage>) => {
       const message = event.data;
+      if (message.type === "codexHookStatus") setCodexHookConfigured(message.configured);
+      if (message.type === "codexHookAlerts") {
+        setHookAlerts(message.alerts);
+        setHookAlertError(message.error);
+      }
       if (message.type === "snapshot") {
         setSnapshot(message.snapshot);
-        setDetails({});
         setSelectedTaskId((current) => message.snapshot.tasks.some((task) => task.id === current) ? current : null);
-        if (!message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) selectedTaskRef.current = null;
+          if (!message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) {
+          selectedTaskRef.current = null;
+          setSessionMemory(null);
+        }
         if (message.snapshot.state === "ready" && selectedTaskRef.current && message.snapshot.tasks.some((task) => task.id === selectedTaskRef.current)) {
           const taskId = selectedTaskRef.current;
           api.postMessage({ type: "openTask", taskId });
         }
+      }
+      if (message.type === "sessionMemoryState" && selectedTaskRef.current === message.state.taskId) {
+        setSessionMemory(message.state);
       }
       if (message.type === "taskDetail" && selectedTaskRef.current === message.taskId) {
         setDetails((current) => ({ ...current, [message.taskId]: message.detail }));
@@ -42,7 +56,8 @@ function App() {
   const selectTask = (taskId: string) => {
     selectedTaskRef.current = taskId;
     setSelectedTaskId(taskId);
-    if (!details[taskId]) api.postMessage({ type: "openTask", taskId });
+    setSessionMemory(null);
+    api.postMessage({ type: "openTask", taskId });
   };
   const selected = selectedTaskId ? details[selectedTaskId] : undefined;
   const selectedDetail = selected && !("error" in selected) ? selected : null;
@@ -53,6 +68,12 @@ function App() {
         <div><small>AGILECAMPUS / 项目</small><h1>{snapshot?.projectName ?? "项目工作台"}</h1></div>
         <button className="icon-button" title="刷新项目任务" aria-label="刷新" onClick={() => api.postMessage({ type: "refresh" })}>↻</button>
       </header>
+
+      {hookAlertError ? <p className="session-error" role="alert">无法读取本机 Hook 故障提示：{hookAlertError}</p> : null}
+      {hookAlerts.map((alert) => <div className="session-error" role="alert" key={alert.id}>
+        <span>Codex Hook 未保存一条超出 8 MiB 限制的输入（{new Date(alert.occurredAt).toLocaleString()}）：{alert.detail}</span>
+        <button className="text-button" onClick={() => api.postMessage({ type: "dismissHookAlert", alertId: alert.id })}>标记已处理</button>
+      </div>)}
 
       {snapshot?.state === "disconnected" ? (
         <section className="connection-state">
@@ -92,6 +113,40 @@ function App() {
           </div> : snapshot.state === "ready" ? <p className="muted">此项目暂无任务。</p> : null}
         </section>
 
+        <section className="session-section" aria-label="会话记录">
+          <div className="session-heading">
+            <strong>会话记录</strong>
+            <div className="session-actions">
+              <button className="text-button" disabled={!selectedTaskId || sessionMemory?.status === "loading"}
+                onClick={() => selectedTaskId && api.postMessage({ type: "bindSession", taskId: selectedTaskId })}>
+                {sessionMemory?.status === "loading" ? "处理中…" : sessionMemory?.sessions.length ? "关联另一会话" : "关联会话"}
+              </button>
+              {selectedTaskId ? <button className="text-button" aria-label="刷新会话记录状态" onClick={() => api.postMessage({ type: "refreshSessionMemory", taskId: selectedTaskId })}>检查</button> : null}
+              {codexHookConfigured ? <button className="text-button" onClick={() => api.postMessage({ type: "disableCodexCapture" })}>禁用本机 Hook</button> : null}
+            </div>
+          </div>
+          {!selectedTaskId ? <p className="muted">先从上方任务列表选择任务。</p> : null}
+          {selectedTaskId && (!sessionMemory || sessionMemory.taskId !== selectedTaskId) ? <p className="muted">正在读取本机记录状态…</p> : null}
+          {sessionMemory?.taskId === selectedTaskId ? <>
+            {sessionMemory.detail ? <p className={sessionMemory.status === "error" || sessionMemory.status === "partial" ? "session-error" : "muted"} role={sessionMemory.status === "error" ? "alert" : "status"}>{sessionMemory.detail}</p> : null}
+            {sessionMemory.sessions.length ? <div className="session-list">
+              {sessionMemory.sessions.map((session) => <div className="session-row" key={session.sessionKey}>
+                <div className="session-meta">
+                  <div className="session-row-main"><strong>{session.provider === "codex" ? "Codex" : "Claude Code"}</strong><span>{sessionStatusLabel(session.recording, session.hookConfigured, session.eventCount, Boolean(session.hasGaps), session.captureFailures ?? [])}</span></div>
+                  <span>{session.eventCount} 条本机事件{session.lastSavedAt ? ` · 最近落盘 ${new Date(session.lastSavedAt).toLocaleString()}` : ""}</span>
+                  {session.captureFailures?.map((failure, index) => <span className="session-error" key={`${failure.occurredAt}-${index}`}>采集失败 {new Date(failure.occurredAt).toLocaleString()}：{failure.detail}</span>)}
+                  {!session.captureFailures?.length && session.hasGaps ? <span className="session-error">存在记录缺口，查看记录中的“记录缺口”事件。</span> : null}
+                </div>
+                <div className="session-actions">
+                  <button className="text-button" onClick={() => api.postMessage({ type: "openSessionRecord", taskId: selectedTaskId!, sessionKey: session.sessionKey })}>查看记录</button>
+                  {session.recording && !session.hookConfigured ? <button className="text-button" onClick={() => api.postMessage({ type: "enableCodexCapture", taskId: selectedTaskId! })}>启用本机记录</button> : null}
+                  {session.recording ? <button className="text-button" onClick={() => api.postMessage({ type: "stopSessionCapture", taskId: selectedTaskId!, sessionKey: session.sessionKey })}>停止记录</button> : null}
+                </div>
+              </div>)}
+            </div> : null}
+          </> : null}
+        </section>
+
         {selectedTaskId ? <section className="task-detail">
           {selected && "error" in selected ? <div className="error-state" role="alert">{selected.error}<button className="text-button" onClick={() => { setDetails((current) => { const next = { ...current }; delete next[selectedTaskId]; return next; }); api.postMessage({ type: "openTask", taskId: selectedTaskId }); }}>重试</button></div> : null}
           {selectedDetail ? <>
@@ -121,6 +176,14 @@ function App() {
       </footer>
     </main>
   );
+}
+
+function sessionStatusLabel(recording: boolean, hookConfigured: boolean, eventCount: number, hasGaps: boolean, captureFailures: Array<{ occurredAt: string; detail: string }>): string {
+  if (captureFailures.length || hasGaps) return "部分记录 · 需检查";
+  if (!recording) return "已停止 · 历史保留";
+  if (!hookConfigured) return "已关联 · 记录未启用";
+  if (eventCount === 0) return "Hook 已配置 · 等待新记录";
+  return "已有 Hook 事件落盘";
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

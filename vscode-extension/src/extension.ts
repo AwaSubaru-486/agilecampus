@@ -13,12 +13,15 @@ import { registerResumeCheckpointCommand } from "./commands/resume-checkpoint";
 import { registerForkAttemptCommand } from "./commands/fork-attempt";
 import { registerCompareAttemptsCommand } from "./commands/compare-attempts";
 import { ProjectViewProvider } from "./views/project-view-provider";
+import { registerSessionMemoryCommands } from "./commands/session-memory";
+import { registerImportMemoryHandoffCommand } from "./commands/import-memory-handoff";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ProjectViewProvider(context.extensionUri, context);
   context.subscriptions.push(provider);
   context.subscriptions.push(vscode.window.registerWebviewViewProvider(ProjectViewProvider.viewType, provider));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.refresh", () => provider.refresh()));
+  context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disableCodexCapture", () => provider.disableCodexCapture()));
   registerOpenWebCommand(context, provider);
   registerContinueAiCommand(context, provider);
   registerReportBlockerCommand(context, provider);
@@ -32,6 +35,8 @@ export function activate(context: vscode.ExtensionContext): void {
   registerResumeCheckpointCommand(context);
   registerForkAttemptCommand(context);
   registerCompareAttemptsCommand(context);
+  registerSessionMemoryCommands(context);
+  registerImportMemoryHandoffCommand(context);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.connect", () => provider.connect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disconnect", () => provider.disconnect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.selectProject", () => provider.selectProject()));

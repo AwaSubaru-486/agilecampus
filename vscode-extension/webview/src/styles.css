@@ -2,6 +2,7 @@
 body { margin: 0; padding: 12px; color: var(--vscode-foreground); background: var(--vscode-sideBar-background); font-size: 13px; }
 button { border: 1px solid var(--vscode-button-border, transparent); border-radius: 3px; color: var(--vscode-button-foreground); background: var(--vscode-button-background); padding: 6px 9px; cursor: pointer; font: inherit; }
 button:hover { background: var(--vscode-button-hoverBackground); }
+button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }
 .title-row, .context, footer, .section-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 small, .section-title { color: var(--vscode-descriptionForeground); font-size: 11px; }
 h1 { margin: 6px 0 0; font-size: 16px; font-weight: 600; }
@@ -27,3 +28,28 @@ dd ul { margin: 0; padding-left: 16px; }
 .icon-button { font-size: 16px; }
 .text-button { border-color: transparent; padding-left: 0; padding-right: 0; text-align: left; }
 footer { margin-top: 20px; justify-content: flex-start; flex-wrap: wrap; border-top: 1px solid var(--vscode-panel-border); padding-top: 10px; }
+.session-section { padding: 10px 0; border-bottom: 1px solid var(--vscode-panel-border); }
+.session-heading, .session-row, .session-row-main, .record-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.session-heading { margin-bottom: 8px; }
+.session-heading strong { font-size: 12px; font-weight: 600; }
+.session-list { display: grid; gap: 8px; }
+.session-row { align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--vscode-panel-border); }
+.session-row-main { align-items: flex-start; justify-content: flex-start; flex-wrap: wrap; }
+.session-meta { display: grid; gap: 4px; color: var(--vscode-descriptionForeground); font-size: 11px; line-height: 1.4; }
+.session-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.session-section button:disabled { opacity: .55; cursor: default; }
+.record-body { padding: 14px 18px 24px; max-width: 980px; margin: 0 auto; }
+.record-toolbar { position: sticky; top: 0; z-index: 1; padding: 10px 0; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
+.record-toolbar > div { display: grid; gap: 4px; }
+.record-toolbar strong { font-size: 14px; }
+.record-toolbar span { color: var(--vscode-descriptionForeground); font-size: 12px; }
+.record-event { padding: 12px 0; border-bottom: 1px solid var(--vscode-panel-border); }
+.record-event > header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px; font-size: 11px; }
+.record-event > header span, .record-event time { color: var(--vscode-descriptionForeground); }
+.record-event time { margin-left: auto; }
+.record-event pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.5; }
+.record-event details > summary { cursor: pointer; color: var(--vscode-descriptionForeground); font-size: 12px; }
+.record-event details pre { margin-top: 8px; font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; }
+.record-error { color: var(--vscode-errorForeground); }
+body.record-body #record-list { max-width: 860px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
