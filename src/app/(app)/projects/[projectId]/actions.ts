@@ -516,7 +516,12 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
 
-  const parsed = declineTaskSchema.safeParse(Object.fromEntries(formData));
+  const raw = Object.fromEntries(formData);
+  const reason = (typeof raw.reason === "string" && raw.reason.trim())
+    ? raw.reason.trim()
+    : "暂时无法承接此任务，申请退回重新评估";
+
+  const parsed = declineTaskSchema.safeParse({ ...raw, reason });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
@@ -581,7 +586,7 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
   const decision = raw.decision === "reject" ? "reject" : "accept";
   const note = (typeof raw.note === "string" && raw.note.trim())
     ? raw.note.trim()
-    : (decision === "accept" ? "验收通过" : undefined);
+    : (decision === "accept" ? "验收通过" : "退回修改，请完善成果物后重新提交");
 
   const parsed = reviewTaskSchema.safeParse({
     ...raw,

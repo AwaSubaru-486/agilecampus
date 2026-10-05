@@ -33,20 +33,21 @@ export function TodayActionRow({ action: a }: { action: RawAction }) {
     ? `/projects/${a.projectId}?space=work&task=${a.taskId}`
     : `/projects/${a.projectId}?space=live`;
 
-  // 待验收：支持一键快速通过
+  // 待验收：支持一键快速通过与退回
   const [reviewState, runReview, reviewing] = useActionState<FormState, FormData>(
     async (prev, fd) => {
       setSuccessMsg(null);
       try {
+        const isReject = fd.get("decision") === "reject";
         const res = await reviewTaskAction(prev, fd);
         if (!res || !("error" in res)) {
-          setSuccessMsg("✓ 已通过验收");
+          setSuccessMsg(isReject ? "↩ 已退回修改" : "✓ 已通过验收");
           router.refresh();
           return null;
         }
         return res;
       } catch (e: unknown) {
-        return { error: e instanceof Error ? e.message : "验收失败" };
+        return { error: e instanceof Error ? e.message : "操作失败" };
       }
     },
     null,
@@ -103,7 +104,7 @@ export function TodayActionRow({ action: a }: { action: RawAction }) {
           <span className="text-xs text-risk">{claimState.error}</span>
         )}
 
-        {/* 待验收模式：提供快速一键「通过」按钮与「退回/详情」入口 */}
+        {/* 待验收模式：提供快速一键「通过」与「退回」按钮及详情入口 */}
         {a.kind === "review" && a.taskId ? (
           <div className="flex items-center gap-2">
             <form
@@ -124,12 +125,30 @@ export function TodayActionRow({ action: a }: { action: RawAction }) {
                 {reviewing ? "通过中…" : "✓ 通过"}
               </button>
             </form>
+            <form
+              action={runReview}
+              className="inline-block"
+              onSubmit={(e) => e.stopPropagation()}
+            >
+              <input type="hidden" name="projectId" value={a.projectId} />
+              <input type="hidden" name="taskId" value={a.taskId} />
+              <input type="hidden" name="decision" value="reject" />
+              <input type="hidden" name="note" value="退回修改，请完善成果物后重新提交" />
+              <button
+                type="submit"
+                disabled={reviewing}
+                className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 shadow-sm hover:bg-rose-100 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
+                title="一键退回此任务到进行中"
+              >
+                {reviewing ? "退回中…" : "↩ 退回"}
+              </button>
+            </form>
             <Link
               href={href}
               className="text-xs text-ink-3 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal px-1"
-              title="前往任务现场退回修改或填写评语"
+              title="前往任务现场查看详情"
             >
-              退回 / 详情 →
+              详情 →
             </Link>
           </div>
         ) : a.kind === "assignment_response" && a.taskId ? (

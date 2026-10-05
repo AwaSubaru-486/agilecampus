@@ -752,11 +752,11 @@ export async function reviewTask(
 ) {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
-  await requireTaskReview(actorId, task.projectId);
+  const access = await requireTaskReview(actorId, task.projectId);
   if (task.status !== "review") throw new AppError("该任务不在待验收状态");
-  // 不能验收自己交付的活。教师若恰好也是这份任务的负责人，就该由别人来判——
-  // 否则「验收」二字形同虚设，学生自证与教师自证并无分别。
-  if (task.assigneeId === actorId) throw new AppError("不能验收自己交付的任务");
+  // 教师若恰好也是这份任务的负责人，就该由组长来判，不能自审自判。
+  // 但组长（admin）作为项目推进总负责人，在自承任务交付后有权闭环验收。
+  if (access.role !== "admin" && task.assigneeId === actorId) throw new AppError("不能验收自己交付的任务");
 
   const accepted = input.decision === "accept";
   // 退回必填理由：没写理由的退回，成员只知道被否了，不知道改什么

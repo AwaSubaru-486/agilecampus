@@ -157,7 +157,8 @@ export function TaskContractPanel({
   );
   const canDecline = isMine && awaiting;
   const canSubmit = isMine && isInFlight(task.status) && Boolean(task.committedAt) && versionMatch;
-  const canReviewThis = canReview && isInReview(task.status) && !isMine;
+  const isAdmin = canWrite && canReview;
+  const canReviewThis = canReview && isInReview(task.status) && (isAdmin || !isMine);
 
   return (
     <div className="flex flex-col gap-0">

@@ -119,7 +119,7 @@ export function TaskDrawer({
     ? "claim"
     : isMine && isInFlight(task.status)
       ? "submit"
-      : canReview && isInReview(task.status) && !isMine
+      : canReview && isInReview(task.status) && ((canWrite && canReview) || !isMine)
         ? "review"
         : null;
 

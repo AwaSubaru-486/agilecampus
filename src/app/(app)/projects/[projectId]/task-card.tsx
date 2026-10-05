@@ -70,10 +70,11 @@ export function TaskCard({
   // 三枚动作各按「我能不能做这件事」判定。做不了的不显示，
   // 比显示了再报错友好——尤其对初次使用的人。
   const isMine = task.assigneeId === currentUserId;
+  const isAdmin = canWrite && canReview;
   const canClaim = canWrite && isInFlight(task.status) && (!task.assigneeId || (isMine && !task.committedAt));
   const canSubmit = isMine && isInFlight(task.status);
-  // 不能验收自己的活：既不能自证，也不能自判
-  const canReviewThis = canReview && isInReview(task.status) && !isMine;
+  // 组长（admin）可闭环验收所有待验收任务（含自己承接的活）；普通教师只能验收他人交付的活，避免自审自判
+  const canReviewThis = canReview && isInReview(task.status) && (isAdmin || !isMine);
 
   // 「还没接住」——派下去但本人没回话。看板上要看得见，
   // 否则它会伪装成「有人在做了」，一路蒙到 deadline
@@ -287,6 +288,17 @@ export function TaskCard({
                   className="border-agent text-agent hover:bg-agent-soft font-semibold"
                   title="一键验收通过此任务"
                 />
+                <QuickActionButton
+                  action={reviewTaskAction}
+                  projectId={projectId}
+                  taskId={task.id}
+                  payload={{ decision: "reject", note: "退回修改，请完善成果物后重新提交" }}
+                  label="↩ 退回"
+                  pendingLabel="退回中…"
+                  variant="quiet"
+                  className="border border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100/70 font-semibold"
+                  title="一键退回此任务到进行中"
+                />
                 <Button
                   type="button"
                   onClick={(e) => {
@@ -297,9 +309,9 @@ export function TaskCard({
                   variant="quiet"
                   size="sm"
                   className="px-1.5 text-xs text-ink-faint hover:text-ink"
-                  title="展开填写详细评语或退回修改"
+                  title="展开填写详细评语或退回修改说明"
                 >
-                  {panel === "review" ? "收起" : "退回/评语…"}
+                  {panel === "review" ? "收起" : "写评语…"}
                 </Button>
               </div>
             )}
@@ -430,20 +442,20 @@ export function TaskCard({
           onDone={() => setPanel(null)}
           onCancel={() => setPanel(null)}
         >
-          <fieldset className="flex gap-3 text-xs text-ink-soft">
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input type="radio" name="decision" value="accept" defaultChecked /> 通过验收
+          <fieldset className="flex gap-4 text-xs text-ink-soft">
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-signal">
+              <input type="radio" name="decision" value="accept" defaultChecked /> ✓ 通过验收
             </label>
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input type="radio" name="decision" value="reject" /> 退回修改
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-rose-700">
+              <input type="radio" name="decision" value="reject" /> ↩ 退回修改
             </label>
           </fieldset>
           <label className="block space-y-1 text-xs text-ink-faint">
-            验收意见（退回时必填，通过时可选）
+            验收意见 / 修改要求（选填）
             <textarea
               name="note"
               rows={2}
-              placeholder="退回请写明要改什么，通过可留空（默认：验收通过）"
+              placeholder="通过可留空（默认：验收通过）；退回可写明要改什么（默认：退回修改，请完善成果物后重新提交）"
               className="ac-field text-sm"
             />
           </label>
