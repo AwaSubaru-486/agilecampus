@@ -168,14 +168,13 @@ export async function WorkSpace({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-semibold text-ink">协同执行</h2>
         <div className="flex items-center gap-2">
-          {canWrite && (
-            <Link
-              href={`/projects/${projectId}?space=work&view=board`}
-              className="ac-btn-ghost min-h-8 px-2.5 text-xs"
-            >
-              看板视图
-            </Link>
-          )}
+          <Link
+            href={`/projects/${projectId}?space=work&view=board`}
+            className="ac-btn-ghost min-h-8 px-2.5 text-xs"
+          >
+            看板视图
+          </Link>
+          <Link href={`/projects/${projectId}/task-tree`} className="ac-btn-ghost min-h-8 px-2.5 text-xs">任务树</Link>
           <Link href={`/projects/${projectId}/timeline`} className="ac-btn-ghost min-h-8 px-2.5 text-xs">
             时间线
           </Link>

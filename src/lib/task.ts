@@ -7,6 +7,7 @@ import {
   contextPacks,
   evidenceItems,
   taskDependencies,
+  taskStages,
   taskLabels,
   tasks,
   users,
@@ -138,6 +139,8 @@ export async function createTask(
     requiredEvidence?: HandoffFields["requiredEvidence"];
     responseDueAt?: Date;
     contextPackId?: string | null;
+    stageId?: string;
+    sourceBriefId?: string;
   },
   opts?: { tx?: DbTx },
 ) {
@@ -174,6 +177,8 @@ export async function createTask(
       requiredEvidence: handoff.requiredEvidence,
       responseDueAt: handoff.responseDueAt,
       contextPackId: handoff.contextPackId,
+      stageId: input.stageId,
+      sourceBriefId: input.sourceBriefId,
       priority: input.priority ?? "medium",
       status: input.status ?? DEFAULT_STATUS,
       sortOrder: Date.now(),
@@ -409,7 +414,7 @@ export async function listTaskRefs(projectId: string) {
       assigneeId: tasks.assigneeId,
     })
     .from(tasks)
-    .where(eq(tasks.projectId, projectId));
+    .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false)));
 }
 
 export async function listProjectTasks(actorId: string, projectId: string) {
@@ -433,6 +438,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       sortOrder: tasks.sortOrder,
       milestoneId: tasks.milestoneId,
       parentTaskId: tasks.parentTaskId,
+      isTaskGroup: tasks.isTaskGroup,
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,
@@ -455,7 +461,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
-    .where(eq(tasks.projectId, projectId))
+    .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false)))
     .orderBy(tasks.sortOrder);
 
   const taskIds = rows.map((r) => r.id);
@@ -616,6 +622,10 @@ export async function claimTask(
 ) {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
+  if (task.stageId) {
+    const [stage] = await db.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
+    if (!stage || stage.status !== "active") throw new AppError("当前阶段尚未解锁，不能认领此任务");
+  }
   await requireProjectAccess(actorId, task.projectId);
   if (task.assigneeId && task.assigneeId !== actorId)
     throw new AppError("该任务已有负责人，请先请对方移交");
@@ -719,6 +729,10 @@ export async function submitTask(
 ) {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
+  if (task.stageId) {
+    const [stage] = await db.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
+    if (!stage || stage.status !== "active") throw new AppError("当前阶段尚未解锁，不能提交此任务");
+  }
   await requireTaskExecution(actorId, task);
   if (task.status === "review") throw new AppError("该任务已在待验收中");
   if (task.status === "done") throw new AppError("该任务已通过验收，如需改动请先重开");

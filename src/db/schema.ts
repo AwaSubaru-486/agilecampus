@@ -119,6 +119,69 @@ export const milestones = pgTable(
   (t) => [index("milestones_project_idx").on(t.projectId)],
 );
 
+export const taskStageStatusEnum = pgEnum("task_stage_status", [
+  "locked",
+  "active",
+  "integrating",
+  "completed",
+]);
+export const taskTreeDraftStatusEnum = pgEnum("task_tree_draft_status", [
+  "pending",
+  "published",
+  "rejected",
+]);
+
+// 项目说明按次保存。后续说明继续生长同一棵任务树，不覆盖历史输入。
+export const projectBriefs = pgTable(
+  "project_briefs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("project_briefs_project_idx").on(t.projectId, t.createdAt)],
+);
+
+export const taskStages = pgTable(
+  "task_stages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    sourceBriefId: uuid("source_brief_id").references(() => projectBriefs.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    position: integer("position").notNull(),
+    status: taskStageStatusEnum("status").notNull().default("locked"),
+    integrationBranch: text("integration_branch"),
+    integrationNote: text("integration_note"),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("task_stages_project_position_unique").on(t.projectId, t.position),
+    index("task_stages_project_idx").on(t.projectId, t.position),
+  ],
+);
+
+export const taskTreeDrafts = pgTable(
+  "task_tree_drafts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    briefId: uuid("brief_id").notNull().references(() => projectBriefs.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").notNull(),
+    status: taskTreeDraftStatusEnum("status").notNull().default("pending"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedById: uuid("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (t) => [index("task_tree_drafts_project_idx").on(t.projectId, t.createdAt)],
+);
+
 // 里程碑上的高光时刻——这块「功勋墙」是自动长出来的，一格不用人填。
 //
 // 由来：里程碑原本是人工设的检查点，谁去填、什么时候填，全凭自觉。
@@ -172,6 +235,9 @@ export const tasks = pgTable(
     milestoneId: uuid("milestone_id").references(() => milestones.id, {
       onDelete: "set null",
     }),
+    stageId: uuid("stage_id").references(() => taskStages.id, { onDelete: "set null" }),
+    sourceBriefId: uuid("source_brief_id").references(() => projectBriefs.id, { onDelete: "set null" }),
+    isTaskGroup: boolean("is_task_group").notNull().default(false),
     // 子任务层级：自引用，空＝顶层任务。父任务删则子任务随之（cascade）。
     // 自引用外键须显式标注 AnyPgColumn，否则 TS 推断成环。
     parentTaskId: uuid("parent_task_id").references((): AnyPgColumn => tasks.id, {
@@ -237,7 +303,41 @@ export const tasks = pgTable(
     index("tasks_project_idx").on(t.projectId),
     index("tasks_assignee_idx").on(t.assigneeId),
     index("tasks_parent_idx").on(t.parentTaskId),
+    index("tasks_stage_idx").on(t.stageId),
   ],
+);
+
+export const stageIntegrations = pgTable(
+  "stage_integrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    stageId: uuid("stage_id").notNull().references(() => taskStages.id, { onDelete: "cascade" }),
+    branchName: text("branch_name").notNull(),
+    headSha: text("head_sha"),
+    testSummary: text("test_summary"),
+    submittedById: uuid("submitted_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    decision: text("decision").notNull().default("pending"),
+    reviewNote: text("review_note"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at"),
+  },
+  (t) => [index("stage_integrations_stage_idx").on(t.stageId, t.createdAt)],
+);
+
+export const taskDeliveries = pgTable(
+  "task_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+    branchName: text("branch_name").notNull(),
+    headSha: text("head_sha"),
+    pullRequestUrl: text("pull_request_url"),
+    testSummary: text("test_summary"),
+    submittedById: uuid("submitted_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("task_deliveries_task_idx").on(t.taskId, t.createdAt)],
 );
 
 export const messageRoleEnum = pgEnum("message_role", ["user", "assistant", "tool"]);

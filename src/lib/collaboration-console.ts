@@ -67,7 +67,7 @@ export async function listConsoleTasks(actorId: string, projectId: string, optio
     assigneeKind: users.kind, dueDate: tasks.dueDate, committedAt: tasks.committedAt,
     committedHandoffVersion: tasks.committedHandoffVersion, handoffVersion: tasks.handoffVersion,
   }).from(tasks).leftJoin(users, eq(tasks.assigneeId, users.id))
-    .where(and(eq(tasks.projectId, projectId), after ? gt(tasks.id, after) : undefined))
+    .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false), after ? gt(tasks.id, after) : undefined))
     .orderBy(asc(tasks.id)).limit(limit + 1);
   const result = page(rows, limit, scope);
   if (!result.items.length) return { ...result, items: [], canReview: access.role === "admin" || access.role === "teacher" };
