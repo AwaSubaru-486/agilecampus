@@ -1,0 +1,14 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "agent": "Codex",
+  "model": "gpt-5.6-luna",
+  "status": "ended",
+  "branch": "main",
+  "worktree_path": "/tmp/agilecampus-entire-fixture",
+  "last_prompt": "PRIVATE_SESSION_INFO_PROMPT_MUST_NOT_ESCAPE",
+  "started_at": "2026-10-01T06:19:09Z",
+  "ended_at": "2026-10-01T06:19:24Z",
+  "turns": 1,
+  "last_checkpoint_id": "01H00000000000000000000001",
+  "files_touched": ["checkpoint_probe.py"]
+}

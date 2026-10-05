@@ -67,17 +67,18 @@ export function FilterBar({
     (filters.overdue ? 1 : 0);
 
   return (
-    <details className="ac-toolbar group text-sm">
+    <details className="ac-toolbar group rounded-none text-sm">
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-3 py-2.5">
         <span className="flex items-center gap-2 text-xs font-medium text-ink-soft">
-          <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-sunken text-primary">⌁</span>
+          <span className="font-mono text-ink-3">⌁</span>
           筛选与视图
           {activeCount > 0 && <span className="ac-badge bg-primary text-white">{activeCount}</span>}
         </span>
-        <span className="flex items-center gap-2" onClick={(event) => event.preventDefault()}>
-          <span className="text-[11px] text-ink-faint">{visible} / {total} 项</span>
+        <span className="flex items-center gap-2">
+          <span className="text-[11px] text-ink-faint">显示 {visible} 项，共 {total} 项</span>
           <select
             value={filters.group}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
             onChange={(e) => push({ ...filters, group: e.target.value as GroupBy })}
             className="ac-field w-auto py-1 text-xs"
@@ -87,7 +88,7 @@ export function FilterBar({
               <option key={g} value={g}>按{GROUP_LABEL[g]}分组</option>
             ))}
           </select>
-          <span className="text-ink-faint transition-transform group-open:rotate-180">⌄</span>
+          <span aria-hidden className="ac-icon-chevron text-ink-faint transition-transform group-open:rotate-180" />
         </span>
       </summary>
 

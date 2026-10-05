@@ -7,6 +7,7 @@ import {
   type FilterableTask,
 } from "@/lib/board-filters";
 import { deriveColumns } from "@/lib/board-columns";
+import { TASK_STATUSES } from "@/lib/task-status";
 
 const A = "11111111-1111-1111-1111-111111111111";
 const B = "22222222-2222-2222-2222-222222222222";
@@ -134,9 +135,10 @@ describe("deriveColumns", () => {
     milestones: [{ id: M, name: "一期" }],
   };
 
-  it("按状态分组：三列，patch 改 status", () => {
+  it("按状态分组：每档一列，patch 改 status", () => {
     const cols = deriveColumns("status", ctx);
-    expect(cols.map((c) => c.key)).toEqual(["todo", "doing", "done"]);
+    // 由枚举派生而非写死：日后加档不必再回来改这条断言
+    expect(cols.map((c) => c.key)).toEqual([...TASK_STATUSES]);
     expect(cols[1].patch).toEqual({ status: "doing" });
     expect(cols[1].matches(task({ status: "doing" }))).toBe(true);
     expect(cols[1].matches(task({ status: "todo" }))).toBe(false);

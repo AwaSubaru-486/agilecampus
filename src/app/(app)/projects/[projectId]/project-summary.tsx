@@ -1,3 +1,6 @@
+import { isActive, isCompleted, isInFlight } from "@/lib/task-status";
+import { today } from "@/lib/today";
+
 type SummaryTask = {
   id: string;
   title: string;
@@ -32,20 +35,22 @@ export function ProjectSummary({
   currentUserId: string;
   tasks: SummaryTask[];
 }) {
-  const today = new Date().toLocaleDateString("sv-SE");
-  const soonDate = new Date(`${today}T00:00:00`);
+  const day = today();
+  const soonDate = new Date(`${day}T00:00:00`);
   soonDate.setDate(soonDate.getDate() + 7);
   const inSevenDays = soonDate.toLocaleDateString("sv-SE");
-  const done = tasks.filter((task) => task.status === "done").length;
-  const active = tasks.length - done;
-  const mine = tasks.filter((task) => task.status !== "done" && task.assigneeId === currentUserId);
+  // 进度分子只认已验收：待验收的活交出去了但没判过，算它完成会让进度虚高
+  const done = tasks.filter((task) => isCompleted(task.status)).length;
+  // 在办＝人还攥在手里的活，不含待验收（那已交到验收人手上）
+  const active = tasks.filter((task) => isInFlight(task.status)).length;
+  const mine = tasks.filter((task) => isInFlight(task.status) && task.assigneeId === currentUserId);
   const dueSoon = tasks.filter(
-    (task) => task.status !== "done" && task.dueDate && task.dueDate >= today && task.dueDate <= inSevenDays,
+    (task) => isActive(task.status) && task.dueDate && task.dueDate >= day && task.dueDate <= inSevenDays,
   );
   const overdue = tasks.filter(
-    (task) => task.status !== "done" && task.dueDate && task.dueDate < today,
+    (task) => isActive(task.status) && task.dueDate && task.dueDate < day,
   );
-  const unassigned = tasks.filter((task) => task.status !== "done" && !task.assigneeId);
+  const unassigned = tasks.filter((task) => isInFlight(task.status) && !task.assigneeId);
   const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
 
   return (
@@ -53,8 +58,6 @@ export function ProjectSummary({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div className="ac-card p-5 sm:p-7">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-            <span className="text-primary">PROJECT WORKSPACE</span>
-            <span className="text-line-strong">/</span>
             <span className="text-ink-faint">{STATUS_LABEL[status] ?? status}</span>
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold text-ink sm:text-4xl">{name}</h1>
@@ -63,15 +66,17 @@ export function ProjectSummary({
             <a href="#board" className="ac-btn">打开看板</a>
             <a href="#ai-collaboration" className="ac-btn-ghost">AI 协作</a>
             <a href={`/projects/${projectId}/timeline`} className="ac-btn-ghost">时间线</a>
+            <a href={`/projects/${projectId}/activity`} className="ac-btn-ghost">活动流</a>
+            <a href={`/projects/${projectId}/retrospective`} className="ac-btn-ghost">复盘</a>
           </nav>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl bg-ink p-5 text-white shadow-card">
+        <div className="relative overflow-hidden rounded-lg bg-ink p-5 text-white shadow-card">
           <div className="absolute -right-10 -top-10 size-32 rounded-full border-[24px] border-white/[0.04]" />
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-white/45">PROGRESS</p>
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-white/45">完成度</p>
           <p className="mt-5 font-display text-5xl font-bold tracking-[-0.06em]">{progress}<span className="ml-1 text-xl text-white/45">%</span></p>
           <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10" aria-label={`项目完成度 ${progress}%`}>
-            <div className="h-full rounded-full bg-[#7CF2C3] transition-all" style={{ width: `${progress}%` }} />
+            <div className="h-full rounded-full bg-[#7CF2C3] transition-[width] duration-200 ease-out" style={{ width: `${progress}%` }} />
           </div>
           <div className="mt-4 flex items-end justify-between">
             <p className="text-xs text-white/55">{done}/{tasks.length} 项已完成</p>

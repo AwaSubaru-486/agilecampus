@@ -1,0 +1,43 @@
+{
+  "runId": "20261002-161059",
+  "startedAtLocal": "2026-10-02 16:10 Asia/Shanghai",
+  "status": "in_progress",
+  "source": {
+    "head": "c1b53cf7717ced0036af70c37c81680ea95b2722",
+    "branch": "feat/risk-aware-closure",
+    "dirtyPaths": [
+      "src/app/(app)/projects/[projectId]/_console/agent-run-rail.tsx"
+    ],
+    "agentRunRailPatchSha256": "5f445bb21e1f16b6799471a5811293dd2f8b5856b9d2bf1a8e5141988c8ef11c"
+  },
+  "environment": {
+    "node": "v26.8.1",
+    "npm": "11.19.0",
+    "git": "2.50.1",
+    "vscode": "1.122.0",
+    "codexCli": "0.153.4",
+    "entireCli": "0.11.3",
+    "platformOrigin": "http://localhost:3100",
+    "simulationDatabase": "ac_sim_20261002161059",
+    "testDatabase": "ac_test_20261002161059",
+    "databaseCluster": "isolated temporary PostgreSQL on port 55432",
+    "deepseekKeyAvailable": false,
+    "githubLogin": "AwaSubaru-486"
+  },
+  "simulation": {
+    "teamId": "7e995504-7cd6-4758-a9e8-8873a9e55d42",
+    "projectId": "91029e16-98fb-47a9-883a-0ca406f7a7cc",
+    "githubRepository": "https://github.com/AwaSubaru-486/agilecampus-sim-20261002-161059",
+    "initialCommit": "dbe8b41",
+    "browserContext": "one in-app browser profile; test accounts were switched by signing out",
+    "tempRootAlias": "<private-temp-run-root>"
+  },
+  "currentCounts": {
+    "pass": 16,
+    "fail": 0,
+    "blocked": 9,
+    "notRun": 1,
+    "partial": 3,
+    "expectedFail": 1
+  }
+}

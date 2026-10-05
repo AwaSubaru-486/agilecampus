@@ -4,6 +4,7 @@ import { labels, taskLabels, tasks, type LabelColor } from "@/db/schema";
 import { AppError, ForbiddenError, isUniqueViolation } from "./errors";
 import { getTeamMembership, requireTeamRole } from "./team";
 import { requireTaskWrite } from "./task";
+import { describe, recordEvent } from "./activity";
 
 const LABEL_NAME_MAX = 20;
 
@@ -115,5 +116,29 @@ export async function setTaskLabels(actorId: string, taskId: string, labelIds: s
     if (unique.length > 0) {
       await tx.insert(taskLabels).values(unique.map((labelId) => ({ taskId, labelId })));
     }
+
+    // 摘要里冻结标签名，日后标签改名或删除都不影响历史措辞
+    const [taskRow] = await tx
+      .select({ title: tasks.title })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    const names =
+      unique.length > 0
+        ? (
+            await tx
+              .select({ name: labels.name })
+              .from(labels)
+              .where(inArray(labels.id, unique))
+          ).map((r) => r.name)
+        : [];
+
+    await recordEvent(tx, {
+      projectId: task.projectId,
+      actorId,
+      type: "task_labeled",
+      taskId,
+      summary: describe.taskLabeled(taskRow?.title ?? "", names),
+      payload: { labelIds: unique, labelNames: names },
+    });
   });
 }

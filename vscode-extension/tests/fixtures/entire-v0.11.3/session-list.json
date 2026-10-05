@@ -1,0 +1,27 @@
+[
+  {
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "agent": "Codex",
+    "model": "gpt-5.6-luna",
+    "status": "ended",
+    "branch": "main",
+    "worktree_path": "/tmp/agilecampus-entire-fixture",
+    "started_at": "2026-10-01T06:19:09Z",
+    "ended_at": "2026-10-01T06:19:24Z",
+    "turns": 1,
+    "last_checkpoint_id": "01H00000000000000000000001",
+    "last_prompt": "PRIVATE_PROMPT_SHOULD_NOT_BE_RETURNED",
+    "files_touched": ["checkpoint_probe.py"]
+  },
+  {
+    "session_id": "00000000-0000-4000-8000-000000000002",
+    "agent": "Codex",
+    "model": "gpt-5.6-luna",
+    "status": "ended",
+    "branch": "other-project",
+    "worktree_path": "/tmp/agilecampus-other-fixture",
+    "turns": 99,
+    "last_prompt": "DO_NOT_INCLUDE_OTHER_WORKSPACE_SESSION",
+    "files_touched": ["secret-project-file.ts"]
+  }
+]

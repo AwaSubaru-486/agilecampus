@@ -2,7 +2,9 @@ import { tool } from "ai";
 import { z } from "zod";
 import { listMyProjects, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
+import { TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
 import type { TaskStatus } from "@/db/schema";
+import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
 
 // 读工具纯函数：权限经底层 lib（listProjectMilestones/listProjectTasks 内部各调 getProjectForUser）
 export async function queryProgress(actorId: string, projectId: string) {
@@ -10,7 +12,8 @@ export async function queryProgress(actorId: string, projectId: string) {
     listProjectMilestones(actorId, projectId),
     listProjectTasks(actorId, projectId),
   ]);
-  const byStatus: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+  // 显式标注 Record<TaskStatus, number> 与 emptyByStatus 并用：前者保编译期穷尽检查，后者保键随枚举走
+  const byStatus: Record<TaskStatus, number> = emptyByStatus();
   for (const t of ts) byStatus[t.status]++;
   return {
     taskTotal: ts.length,
@@ -41,6 +44,13 @@ export async function listTasksFiltered(
     priority: t.priority,
     dueDate: t.dueDate,
     assigneeName: t.assigneeName,
+    handoffBrief: t.handoffBrief,
+    doneCriteria: t.doneCriteria,
+    requiredEvidence: t.requiredEvidence,
+    responseDueAt: t.responseDueAt,
+    contextPackId: t.contextPackId,
+    handoffVersion: t.handoffVersion,
+    committedHandoffVersion: t.committedHandoffVersion,
   }));
 }
 
@@ -80,7 +90,7 @@ export function buildTools(actorId: string, projectId: string) {
       description:
         "按状态、负责人、截止日筛选该项目任务，返回含 taskId。改任务前必先用它取回 id。",
       inputSchema: z.object({
-        status: z.enum(["todo", "doing", "done"]).optional(),
+        status: z.enum(TASK_STATUSES).optional(),
         assigneeId: z.string().optional().describe("负责人用户 id"),
         dueBefore: z.string().optional().describe("截止日不晚于此日期（YYYY-MM-DD）"),
       }),
@@ -118,24 +128,34 @@ export function buildTools(actorId: string, projectId: string) {
             dueDate: z.string().optional(),
             milestoneId: z.string().optional(),
             priority: z.enum(["low", "medium", "high"]).optional(),
+            handoffBrief: z.string().optional(),
+            doneCriteria: z.array(z.string()).max(MAX_DONE_CRITERIA).optional(),
+            requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+            responseDueAt: z.string().optional().describe("响应期限 ISO 时间"),
+            contextPackId: z.string().optional(),
           }),
         ),
       }),
       execute: async (input) => draftEnvelope("decompose_tasks", input),
     }),
     update_tasks: tool({
-      description: "拟批量任务变更草案（状态/负责人/截止日/里程碑/优先级/标题）。仅产草案，需人工确认。",
+      description: "拟批量任务变更草案（状态/负责人/截止日/里程碑/优先级/标题/交接契约）。仅产草案，需人工确认。",
       inputSchema: z.object({
         updates: z.array(
           z.object({
             taskId: z.string(),
             patch: z.object({
               title: z.string().optional(),
-              status: z.enum(["todo", "doing", "done"]).optional(),
+              status: z.enum(TASK_STATUSES).optional(),
               assigneeId: z.string().optional(),
               dueDate: z.string().optional(),
               milestoneId: z.string().optional(),
               priority: z.enum(["low", "medium", "high"]).optional(),
+              handoffBrief: z.string().optional(),
+              doneCriteria: z.array(z.string()).max(MAX_DONE_CRITERIA).optional(),
+              requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).optional(),
+              responseDueAt: z.string().optional().describe("响应期限 ISO 时间"),
+              contextPackId: z.string().optional(),
             }),
           }),
         ),
@@ -169,6 +189,33 @@ export function buildTools(actorId: string, projectId: string) {
       }),
       execute: async (input) => draftEnvelope("create_milestone", input),
     }),
+    create_decision: tool({
+      description:
+        "把方案比较结果整理成待确认的决策草案。AI 只能提出 proposed，必须由人选择方案并填写理由后才能接受。",
+      inputSchema: z.object({
+        title: z.string().min(1),
+        question: z.string().min(1),
+        taskId: z.string().uuid().nullable().optional(),
+        milestoneId: z.string().uuid().nullable().optional(),
+        options: z
+          .array(
+            z.object({
+              label: z.string().min(1),
+              description: z.string().optional(),
+              benefits: z.array(z.string()).optional(),
+              risks: z.array(z.string()).optional(),
+              evidenceRefs: z
+                .array(z.object({ type: z.enum(["message", "entry", "task", "context_item"]), id: z.uuid() }))
+                .optional(),
+            }),
+          )
+          .min(1)
+          .max(8),
+        sourceConversationId: z.string().uuid().nullable().optional(),
+        sourceMessageId: z.string().uuid().nullable().optional(),
+      }),
+      execute: async (input) => draftEnvelope("create_decision", input),
+    }),
   };
 }
 
@@ -178,6 +225,7 @@ export const WRITE_TOOL_NAMES = [
   "update_tasks",
   "plan_sprint",
   "create_milestone",
+  "create_decision",
 ] as const;
 
 export type WriteToolName = (typeof WRITE_TOOL_NAMES)[number];

@@ -7,6 +7,7 @@ import { AppError, ForbiddenError } from "@/lib/errors";
 const schema = z.object({
   projectId: z.uuid(),
   conversationId: z.uuid().optional(),
+  contextPackId: z.uuid().optional(),
   userText: z.string().trim().min(1, "请输入内容"),
 });
 
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
       actorId: session.user.id,
       projectId: parsed.data.projectId,
       conversationId: parsed.data.conversationId,
+      contextPackId: parsed.data.contextPackId,
       userText: parsed.data.userText,
     });
     return NextResponse.json({
