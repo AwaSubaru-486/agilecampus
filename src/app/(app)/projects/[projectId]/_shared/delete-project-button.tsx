@@ -11,7 +11,6 @@ export function DeleteProjectButton({
   projectName: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
 
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     async (prev, fd) => {

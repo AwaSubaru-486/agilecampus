@@ -79,7 +79,7 @@ function RBACDemoContent() {
               <div>
                 <h2 className="text-base font-bold text-ink">敏捷项目里程碑打分与综合评定</h2>
                 <p className="text-xs text-ink-soft">
-                  此页面受 <code className="text-primary font-mono">&lt;RouteGuard requiredRole="teacher"&gt;</code> 守卫保护
+                  此页面受 <code className="text-primary font-mono">&lt;RouteGuard requiredRole=&quot;teacher&quot;&gt;</code> 守卫保护
                 </p>
               </div>
               <button

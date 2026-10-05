@@ -22,11 +22,6 @@ export function TeacherEvaluationModal({
   role: "admin" | "teacher" | "student";
   milestones: MilestoneSummary[];
 }) {
-  // 严格角色隔离：仅导师 (Teacher / Supervisor) 可见并操作导师评审打分，组长与组员绝不展示
-  if (role !== "teacher") {
-    return null;
-  }
-
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>(
@@ -61,6 +56,11 @@ export function TeacherEvaluationModal({
     },
     null,
   );
+
+  // 严格角色隔离：仅导师 (Teacher / Supervisor) 可见并操作导师评审打分，组长与组员绝不展示
+  if (role !== "teacher") {
+    return null;
+  }
 
   const handleExportReport = () => {
     const reportContent = `# ${projectName} - 敏捷项目导师质量评估报告
