@@ -247,18 +247,32 @@ export function TaskCard({
               </div>
             )}
             {canSubmit && (
-              <Button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPanel(panel === "submit" ? null : "submit");
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                variant="ink"
-                size="sm"
-              >
-                提交成果
-              </Button>
+              <div className="inline-flex items-center gap-1">
+                <QuickActionButton
+                  action={submitTaskAction}
+                  projectId={projectId}
+                  taskId={task.id}
+                  payload={{ completionNote: "已完成任务并提交成果物待验收" }}
+                  label="⚡ 提交待验收"
+                  pendingLabel="提交中…"
+                  variant="ink"
+                  title="一键将任务提交待验收"
+                />
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPanel(panel === "submit" ? null : "submit");
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  variant="quiet"
+                  size="sm"
+                  className="px-1.5 text-xs text-ink-faint hover:text-ink"
+                  title="展开填写交付说明与成果物去向"
+                >
+                  {panel === "submit" ? "收起" : "写交付说明…"}
+                </Button>
+              </div>
             )}
             {canReviewThis && (
               <div className="inline-flex items-center gap-1">
@@ -533,16 +547,27 @@ function ActionForm({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
-    const res = await action(prev, fd);
-    if (!res) {
-      router.refresh();
-      onDone();
+    try {
+      const res = await action(prev, fd);
+      if (!res) {
+        router.refresh();
+        onDone();
+        return null;
+      }
+      return res;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "操作失败，请重试";
+      return { error: msg };
     }
-    return res;
   }, null);
 
   return (
-    <form action={formAction} className="mt-2 space-y-2 border-t border-line bg-sunken/50 py-2.5">
+    <form
+      action={formAction}
+      className="mt-2 space-y-2 border-t border-line bg-sunken/50 py-2.5"
+      onSubmit={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="taskId" value={taskId} />
       {children}
@@ -552,7 +577,7 @@ function ActionForm({
         </p>
       )}
       <div className="flex items-center gap-2">
-        <Button disabled={pending} size="sm">
+        <Button type="submit" disabled={pending} size="sm">
           {pending ? "提交中…" : submitLabel}
         </Button>
         <Button
@@ -744,7 +769,7 @@ function EditModal({
             <Button type="button" onClick={onClose} variant="secondary">
               取消
             </Button>
-            <Button disabled={updating}>
+            <Button type="submit" disabled={updating}>
               {updating ? "保存中…" : "保存"}
             </Button>
           </div>
