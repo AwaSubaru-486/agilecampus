@@ -321,33 +321,35 @@ export function TaskContractPanel({
         </Section>
 
         {/* ── 任务动作面板（W05: 认领、拒绝、交付、验收） ── */}
+        {/* ── 任务动作面板（W05: 认领、拒绝、交付、验收） ── */}
         {canClaim && (
-          <ActionFormBlock
-            title={task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"}
-            action={claimTaskAction}
-            projectId={projectId}
-            taskId={task.id}
-            submitLabel={task.committedAt ? "确认新契约并继续" : "确认接住 / 认领任务"}
-            successMessage="✅ 任务已成功接住并认领！"
-          >
-            <textarea
-              name="commitmentNote"
-              required
-              rows={2}
-              aria-label="执行计划"
-              placeholder="写一句你的执行承诺或计划（必填，例如：今天内完成该模块开发）"
-              className="ac-field text-sm"
-            />
-            <input
-              type="number"
-              name="estimatedHours"
-              step="0.5"
-              min="0.5"
-              max="999"
-              placeholder="预估工时（小时，可选）"
-              className="ac-field text-xs"
-            />
-          </ActionFormBlock>
+          <div className="space-y-2">
+            <ActionFormBlock
+              title={task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"}
+              action={claimTaskAction}
+              projectId={projectId}
+              taskId={task.id}
+              submitLabel={task.committedAt ? "⚡ 确认新契约并接住" : "⚡ 确认接住 / 认领任务"}
+              successMessage="✅ 任务已成功接住并认领！"
+            >
+              <textarea
+                name="commitmentNote"
+                rows={2}
+                aria-label="执行计划"
+                placeholder="写一句你的执行承诺或计划（选填，默认：已确认接住并认领任务）"
+                className="ac-field text-sm"
+              />
+              <input
+                type="number"
+                name="estimatedHours"
+                step="0.5"
+                min="0.5"
+                max="999"
+                placeholder="预估工时（小时，可选）"
+                className="ac-field text-xs"
+              />
+            </ActionFormBlock>
+          </div>
         )}
 
         {canDecline && (
@@ -381,42 +383,43 @@ export function TaskContractPanel({
           >
             <textarea
               name="completionNote"
-              required
               rows={2}
               aria-label="交付说明"
-              placeholder="说明交付了什么成果、产出物位置或测试说明（必填）"
+              placeholder="说明交付成果与测试说明（选填，默认：已完成任务并提交成果物待验收）"
               className="ac-field text-sm"
             />
           </ActionFormBlock>
         )}
 
         {canReviewThis && (
-          <ActionFormBlock
-            title="验收任务"
-            action={reviewTaskAction}
-            projectId={projectId}
-            taskId={task.id}
-            submitLabel="提交验收结果"
-            successMessage="✅ 验收结果已提交并生效！"
-          >
-            <div className="space-y-2">
-              <fieldset className="flex gap-4 text-sm text-ink">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="radio" name="decision" value="accept" defaultChecked /> 通过验收
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="radio" name="decision" value="reject" /> 退回修改
-                </label>
-              </fieldset>
-              <textarea
-                name="note"
-                rows={2}
-                aria-label="验收意见"
-                placeholder="验收意见（退回时必填，通过时可选）"
-                className="ac-field text-sm"
-              />
-            </div>
-          </ActionFormBlock>
+          <div className="space-y-2">
+            <ActionFormBlock
+              title="验收任务"
+              action={reviewTaskAction}
+              projectId={projectId}
+              taskId={task.id}
+              submitLabel="提交验收结果"
+              successMessage="✅ 验收结果已提交并生效！"
+            >
+              <div className="space-y-2">
+                <fieldset className="flex gap-4 text-sm text-ink">
+                  <label className="flex items-center gap-1.5 cursor-pointer font-medium text-signal">
+                    <input type="radio" name="decision" value="accept" defaultChecked /> ✓ 通过验收
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="decision" value="reject" /> 退回修改
+                  </label>
+                </fieldset>
+                <textarea
+                  name="note"
+                  rows={2}
+                  aria-label="验收意见"
+                  placeholder="验收意见（退回时必填，通过时选填，默认：验收通过）"
+                  className="ac-field text-sm"
+                />
+              </div>
+            </ActionFormBlock>
+          </div>
         )}
 
         {/* 交付证据（W05） */}

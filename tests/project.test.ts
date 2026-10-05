@@ -3,6 +3,7 @@ import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import {
   createProject,
+  deleteProject,
   listTeamProjects,
   getProjectForUser,
   createMilestone,
@@ -126,3 +127,28 @@ describe("milestones", () => {
     ).rejects.toThrow("没有权限");
   });
 });
+
+describe("deleteProject", () => {
+  beforeEach(resetDb);
+
+  it("admin 可成功删除项目", async () => {
+    const { owner, team } = await scene();
+    const p = await createProject(owner.id, team.id, { name: "准备删除的项目" });
+    const deleted = await deleteProject(owner.id, p.id);
+    expect(deleted.id).toBe(p.id);
+    expect(await getProjectForUser(owner.id, p.id)).toBeNull();
+  });
+
+  it("student 删除项目被拒（仅 admin）", async () => {
+    const { owner, team, student } = await scene();
+    const p = await createProject(owner.id, team.id, { name: "学生试图删除" });
+    await expect(deleteProject(student.id, p.id)).rejects.toThrow("只有组长（Admin）可以删除项目");
+  });
+
+  it("非成员删除项目被拒", async () => {
+    const { owner, team, outsider } = await scene();
+    const p = await createProject(owner.id, team.id, { name: "局外人试图删除" });
+    await expect(deleteProject(outsider.id, p.id)).rejects.toThrow();
+  });
+});
+

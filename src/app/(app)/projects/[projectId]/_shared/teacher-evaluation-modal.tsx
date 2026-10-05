@@ -22,6 +22,11 @@ export function TeacherEvaluationModal({
   role: "admin" | "teacher" | "student";
   milestones: MilestoneSummary[];
 }) {
+  // 严格角色隔离：仅导师 (Teacher / Supervisor) 可见并操作导师评审打分，组长与组员绝不展示
+  if (role !== "teacher") {
+    return null;
+  }
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>(
@@ -32,9 +37,8 @@ export function TeacherEvaluationModal({
   const [comment, setComment] = useState("");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const isTeacher = role === "teacher";
-  const isAdmin = role === "admin";
-  const canGrade = isTeacher || isAdmin;
+  const isTeacher = true;
+  const canGrade = true;
 
   const currentMilestone = milestones.find((m) => m.id === selectedMilestoneId) || milestones[0];
 
@@ -83,29 +87,15 @@ AgileCampus 敏捷校园团队协同平台
 
   return (
     <>
-      {/* 顶部触发按钮与身份标识 */}
+      {/* 顶部触发按钮：仅导师可见 */}
       <div className="flex items-center gap-2">
-        {isTeacher ? (
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-          >
-            <span>★ 导师评审打分</span>
-          </button>
-        ) : isAdmin ? (
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 transition-colors"
-          >
-            <span>★ 里程碑评审 (导师视角)</span>
-          </button>
-        ) : (
-          <span className="rounded bg-sunken px-2 py-0.5 text-xs text-ink-3">
-            组员视角 (只读评估)
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+        >
+          <span>★ 导师评审打分</span>
+        </button>
       </div>
 
       {/* 评审打分弹窗 */}

@@ -216,10 +216,9 @@ export function TaskDrawer({
               fields={
                 <textarea
                   name="commitmentNote"
-                  required
                   rows={2}
                   aria-label="执行计划"
-                  placeholder="执行计划（必填）"
+                  placeholder="执行承诺与计划（选填，默认：已确认接住并认领任务）"
                   className="ac-field text-sm"
                 />
               }
@@ -246,10 +245,9 @@ export function TaskDrawer({
               fields={
                 <textarea
                   name="completionNote"
-                  required
                   rows={2}
                   aria-label="交付说明"
-                  placeholder="交付说明（必填）"
+                  placeholder="交付说明（选填，默认：已完成任务并提交成果物待验收）"
                   className="ac-field text-sm"
                 />
               }
