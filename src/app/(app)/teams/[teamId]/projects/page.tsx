@@ -28,15 +28,22 @@ export default async function ProjectsPage({
       <ul className="space-y-2">
         {projects.map((p) => (
           <li key={p.id} className="ac-card p-4">
-            <Link href={`/projects/${p.id}?space=work`} className="font-medium text-primary hover:underline">
-              {p.name}
-            </Link>
-            <span className="ml-2 text-xs text-ink-soft">{p.status}</span>
-            {(p.startDate || p.endDate) && (
-              <span className="ml-2 text-xs text-ink-faint">
-                {p.startDate ?? "?"} ~ {p.endDate ?? "?"}
-              </span>
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Link href={`/projects/${p.id}?space=work`} className="font-medium text-primary hover:underline">
+                  {p.name}
+                </Link>
+                <span className="ml-2 text-xs text-ink-soft">{p.status}</span>
+                {(p.startDate || p.endDate) && (
+                  <span className="ml-2 text-xs text-ink-faint">
+                    {p.startDate ?? "?"} ~ {p.endDate ?? "?"}
+                  </span>
+                )}
+              </div>
+              <Link href={`/projects/${p.id}/task-tree`} className="ac-btn-ghost min-h-8 px-3 text-xs">
+                任务树
+              </Link>
+            </div>
             {p.description && (
               <p className="mt-1 text-sm text-ink-soft">{p.description}</p>
             )}

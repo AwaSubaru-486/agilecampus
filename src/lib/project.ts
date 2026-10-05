@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   milestones,
@@ -111,7 +111,7 @@ export async function getProjectDetail(actorId: string, projectId: string) {
     db
       .select({ status: tasks.status, count: sql<number>`count(*)::int` })
       .from(tasks)
-      .where(eq(tasks.projectId, projectId))
+      .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false)))
       .groupBy(tasks.status),
   ]);
 
