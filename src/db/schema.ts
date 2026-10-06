@@ -20,6 +20,7 @@ import { sql } from "drizzle-orm";
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
 import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 import { ENTRY_TYPES } from "@/lib/entry-labels";
+import type { TutorialProgress } from "@/lib/tutorials/catalog";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
 export type TeamRole = (typeof teamRoleEnum.enumValues)[number];
@@ -47,6 +48,7 @@ export const users = pgTable("users", {
   feishuOpenId: text("feishu_open_id").unique(),
   feishuName: text("feishu_name"),
   feishuBoundAt: timestamp("feishu_bound_at"),
+  tutorialProgress: jsonb("tutorial_progress").$type<TutorialProgress>().notNull().default({ status: "new", completed: [], active: null }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
