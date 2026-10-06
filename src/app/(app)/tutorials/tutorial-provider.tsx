@@ -132,7 +132,6 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   useEffect(() => {
     if (!stepRoute || !stepTarget) return;
     let located: HTMLElement | null = null;
-    let revealed = false;
     const started = Date.now();
     const measure = () => {
       setViewport((current) => current.width === window.innerWidth && current.height === window.innerHeight ? current : { width: window.innerWidth, height: window.innerHeight });
@@ -146,8 +145,10 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       }
       const elements = [...document.querySelectorAll<HTMLElement>(stepTarget)];
       const element = elements.find((item) => item.getBoundingClientRect().width > 0 && item.getBoundingClientRect().height > 0);
-      if (stepTarget.includes("nav-") && !revealed && !fulfilled) {
-        revealed = true; window.dispatchEvent(new Event("agilecampus:tutorial-navigation"));
+      // Route changes close the mobile drawer asynchronously. Keep requesting
+      // it while the target is hidden, rather than losing a one-shot event.
+      if (stepTarget.includes("nav-") && !element && !fulfilled) {
+        window.dispatchEvent(new Event("agilecampus:tutorial-navigation"));
       }
       if (!element) {
         if (!fulfilled && Date.now() - started > 5000) setMissing(true);
