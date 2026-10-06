@@ -12,6 +12,7 @@ import { StudioSpace } from "./_studio/studio-space";
 import { RecordSpace } from "./_record/record-space";
 import { TeacherEvaluationModal } from "./_shared/teacher-evaluation-modal";
 import { DeleteProjectButton } from "./_shared/delete-project-button";
+import { RoleWorkspace } from "./_shared/role-workspace";
 
 // 项目页：四个互斥模式。
 //
@@ -84,6 +85,7 @@ export default async function ProjectPage({
 
   return (
     <div className="space-y-4">
+      <RoleWorkspace role={role} projectId={projectId} />
       <ProjectBand
         projectName={project.name}
         latestMilestone={

@@ -47,7 +47,7 @@ export function AccountMenu({ name }: { name: string }) {
       {open && (
         <div
           role="menu"
-          className="ac-card ac-float ac-panel-enter absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden p-1 shadow-float"
+          className="ac-card ac-float ac-panel-enter absolute right-0 bottom-full z-50 mb-2 w-56 overflow-hidden p-1 shadow-float"
         >
           <p className="truncate px-2.5 py-2 text-sm font-medium text-ink">{name}</p>
           <div className="border-t border-stroke pt-1">

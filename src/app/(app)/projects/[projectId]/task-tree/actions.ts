@@ -11,6 +11,7 @@ import {
   reviewStageIntegration,
   submitStageIntegration,
   submitTaskDelivery,
+  updateTaskTreeDraft,
 } from "@/lib/task-tree";
 
 export type TreeActionState = { error?: string; success?: string } | null;
@@ -54,6 +55,20 @@ export async function generateTreeAction(_state: TreeActionState, formData: Form
     revalidatePath(`/projects/${projectId}/task-tree`);
     return { success: "草案已生成，请确认后发布" };
   } catch (error) {
+    return { error: message(error) };
+  }
+}
+
+export async function saveDraftAction(_state: TreeActionState, formData: FormData): Promise<TreeActionState> {
+  const draftId = String(formData.get("draftId") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  if (!z.uuid().safeParse(draftId).success || !z.uuid().safeParse(projectId).success) return { error: "参数无效" };
+  try {
+    const saved = await updateTaskTreeDraft(await actor(), draftId, JSON.parse(String(formData.get("payload") ?? "")));
+    revalidatePath(`/projects/${saved.projectId}/task-tree`);
+    return { success: "草案已保存，可以确认发布" };
+  } catch (error) {
+    if (error instanceof SyntaxError) return { error: "草案格式无效" };
     return { error: message(error) };
   }
 }
