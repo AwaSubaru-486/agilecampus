@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { createProject } from "@/lib/project";
-import { claimTask } from "@/lib/task";
+import { claimTask, createTask, submitTask } from "@/lib/task";
 import {
   generateTaskTreeDraft,
   getTaskTree,
@@ -12,6 +12,7 @@ import {
   reviewStageIntegration,
   submitStageIntegration,
   submitTaskDelivery,
+  updateTaskTreeDraft,
 } from "@/lib/task-tree";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createUser } from "@/lib/user";
@@ -24,7 +25,7 @@ async function scene() {
   await joinTeam(teacher.id, team.inviteCode);
   await updateMemberRole(owner.id, team.id, teacher.id, "teacher");
   const project = await createProject(owner.id, team.id, { name: "持续迭代项目" });
-  return { owner, teacher, project };
+  return { owner, teacher, project, team };
 }
 
 function treeModel(ownerId: string) {
@@ -72,5 +73,56 @@ describe("AI 任务树与阶段门禁", () => {
 
     tree = await getTaskTree(owner.id, project.id);
     expect(tree.stages.map((stage) => stage.status)).toEqual(["completed", "active"]);
+  });
+
+  it("导师不能通过底层函数认领、提交或登记交付，即使任务被指派给导师", async () => {
+    const { owner, teacher, project } = await scene();
+    const task = await createTask(owner.id, project.id, { title: "导师不能执行", assigneeId: teacher.id });
+    await expect(claimTask(teacher.id, task.id, { commitmentNote: "认领" })).rejects.toThrow("没有权限");
+    await expect(submitTask(teacher.id, task.id, { completionNote: "提交" })).rejects.toThrow("不能执行任务");
+    const generated = await generateTaskTreeDraft(owner.id, project.id, "搭建基础并交付验收材料。", treeModel(owner.id));
+    await publishTaskTreeDraft(owner.id, generated.draft.id);
+    const tree = await getTaskTree(owner.id, project.id);
+    const stageTask = tree.tasks.find((item) => item.stageId === tree.stages[0].id)!;
+    await db.update(tasks).set({ assigneeId: teacher.id }).where(eq(tasks.id, stageTask.id));
+    await expect(submitTaskDelivery(teacher.id, stageTask.id, { branchName: "teacher/work" })).rejects.toThrow("不能登记");
+  });
+
+  it("草案修改校验权限、成员和层级；发布使用保存后的内容，不能再次修改", async () => {
+    const { owner, teacher, project } = await scene();
+    const generated = await generateTaskTreeDraft(owner.id, project.id, "先搭好项目基础，然后进行完整联调测试。", treeModel(owner.id));
+    const edited = structuredClone(generated.draft.payload);
+    edited.stages[0].tasks[0].title = "人工修订后的任务";
+    await expect(updateTaskTreeDraft(teacher.id, generated.draft.id, edited)).rejects.toThrow("只有项目负责人");
+    const outsider = await createUser({ email: "outside@tree.test", password: "password123", name: "非成员" });
+    const invalidMember = structuredClone(edited);
+    invalidMember.stages[0].tasks[0].assigneeId = outsider.id;
+    await expect(updateTaskTreeDraft(owner.id, generated.draft.id, invalidMember)).rejects.toThrow("负责人不是团队成员");
+    invalidMember.stages[0].tasks[0].assigneeId = teacher.id;
+    await expect(updateTaskTreeDraft(owner.id, generated.draft.id, invalidMember)).rejects.toThrow("或为导师");
+    const invalidParent = structuredClone(edited);
+    invalidParent.stages[0].tasks[0].parentKey = "missing";
+    await expect(updateTaskTreeDraft(owner.id, generated.draft.id, invalidParent)).rejects.toThrow("父任务必须先出现");
+    await updateTaskTreeDraft(owner.id, generated.draft.id, edited);
+    expect((await getTaskTree(owner.id, project.id)).tasks).toHaveLength(0);
+    await publishTaskTreeDraft(owner.id, generated.draft.id);
+    expect((await getTaskTree(owner.id, project.id)).tasks.some((task) => task.title === "人工修订后的任务")).toBe(true);
+    await expect(updateTaskTreeDraft(owner.id, generated.draft.id, edited)).rejects.toThrow("已经处理");
+  });
+
+  it("普通组员不能发起阶段集成，新增需求追加阶段而不覆盖已有任务", async () => {
+    const { owner, project, team } = await scene();
+    const member = await createUser({ email: "member@tree.test", password: "password123", name: "组员" });
+    await joinTeam(member.id, team.inviteCode);
+    const generated = await generateTaskTreeDraft(owner.id, project.id, "先搭好项目基础，然后进行完整联调测试。", treeModel(owner.id));
+    await publishTaskTreeDraft(owner.id, generated.draft.id);
+    const before = await getTaskTree(owner.id, project.id);
+    await expect(submitStageIntegration(member.id, before.stages[0].id, { branchName: "integration/member" })).rejects.toThrow("只有项目负责人");
+    const next = await generateTaskTreeDraft(owner.id, project.id, "补充下一轮需求并保留原有成果。", treeModel(owner.id));
+    await publishTaskTreeDraft(owner.id, next.draft.id);
+    const after = await getTaskTree(owner.id, project.id);
+    expect(after.stages.map((stage) => stage.position)).toEqual([1, 2, 3, 4]);
+    expect(after.stages.map((stage) => stage.status)).toEqual(["active", "locked", "locked", "locked"]);
+    for (const original of before.tasks) expect(after.tasks.some((task) => task.id === original.id)).toBe(true);
   });
 });

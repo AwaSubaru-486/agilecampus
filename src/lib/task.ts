@@ -55,6 +55,7 @@ export async function requireTaskExecution(
   task: { projectId: string; assigneeId: string | null },
 ) {
   const access = await requireProjectAccess(actorId, task.projectId);
+  if (access.role === "teacher") throw new ForbiddenError("导师负责验收，不能执行任务");
   if (access.role === "admin") return access;
   if (task.assigneeId !== actorId) throw new ForbiddenError("只有任务负责人本人可以执行此操作");
   return access;
@@ -626,7 +627,7 @@ export async function claimTask(
     const [stage] = await db.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
     if (!stage || stage.status !== "active") throw new AppError("当前阶段尚未解锁，不能认领此任务");
   }
-  await requireProjectAccess(actorId, task.projectId);
+  await requireTaskReport(actorId, task.projectId);
   if (task.assigneeId && task.assigneeId !== actorId)
     throw new AppError("该任务已有负责人，请先请对方移交");
 

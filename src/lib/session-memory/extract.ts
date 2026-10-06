@@ -39,7 +39,11 @@ export const preparedExtractionRequestSchema = z.object({
   if (input.capturedEventIds.length !== input.events.length || input.capturedEventIds.some((id, index) => id !== ids[index])) {
     context.addIssue({ code: "custom", path: ["capturedEventIds"], message: "事件范围与正文不一致" });
   }
-  if (input.fromSequence > input.toSequence || input.events[0]?.sequence! < input.fromSequence || input.events.at(-1)?.sequence! > input.toSequence) {
+  const firstSequence = input.events[0]?.sequence;
+  const lastSequence = input.events.at(-1)?.sequence;
+  if (input.fromSequence > input.toSequence ||
+      (firstSequence !== undefined && firstSequence < input.fromSequence) ||
+      (lastSequence !== undefined && lastSequence > input.toSequence)) {
     context.addIssue({ code: "custom", path: ["events"], message: "事件序号超出快照范围" });
   }
   if (input.events.some((event, index) => index > 0 && event.sequence <= input.events[index - 1].sequence)) {

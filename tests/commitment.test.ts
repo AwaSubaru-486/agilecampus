@@ -103,15 +103,14 @@ describe("submitTask —— 提交成果", () => {
     const t = await createTask(owner.id, project.id, { title: "甲", assigneeId: student.id });
     await expect(
       submitTask(teacher.id, t.id, { completionNote: "我替他交" }),
-    ).rejects.toThrow("只有任务负责人本人");
+    ).rejects.toThrow("不能执行任务");
   });
 
-  // 教师若恰好也是这份任务的负责人，交活没问题——但验收得由别人来判
-  it("教师可交自己认领的活", async () => {
+  // 导师专注评审：误指派也不能获得执行权限。
+  it("教师被指派后仍不能提交任务", async () => {
     const { owner, teacher, project } = await scene();
     const t = await createTask(owner.id, project.id, { title: "甲", assigneeId: teacher.id });
-    const u = await submitTask(teacher.id, t.id, { completionNote: "我做完了" });
-    expect(u.status).toBe("review");
+    await expect(submitTask(teacher.id, t.id, { completionNote: "我做完了" })).rejects.toThrow("不能执行任务");
   });
 
   it("交付说明不可为空", async () => {
@@ -178,7 +177,7 @@ describe("reviewTask —— 验收", () => {
   it("不能验收自己交付的任务", async () => {
     const { owner, teacher, project } = await scene();
     const t = await createTask(owner.id, project.id, { title: "甲", assigneeId: teacher.id });
-    await submitTask(teacher.id, t.id, { completionNote: "我做完了" });
+    await submitTask(owner.id, t.id, { completionNote: "组长代提交" });
     await expect(reviewTask(teacher.id, t.id, { decision: "accept" })).rejects.toThrow(
       "不能验收自己交付的任务",
     );

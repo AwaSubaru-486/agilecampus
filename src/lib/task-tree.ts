@@ -79,7 +79,7 @@ export async function generateTaskTreeDraft(
     listTeamMembers(access.project.teamId),
     db.select({ id: tasks.id, title: tasks.title, status: tasks.status }).from(tasks).where(eq(tasks.projectId, projectId)),
   ]);
-  const roster = members.map((member) => ({ id: member.id, name: member.name, role: member.role }));
+  const roster = members.filter((member) => member.role !== "teacher").map((member) => ({ id: member.id, name: member.name, role: member.role }));
   const { text } = await generateText({
     model: model ?? getModel(),
     maxRetries: 0,
@@ -132,9 +132,9 @@ export async function publishTaskTreeDraft(actorId: string, draftId: string) {
   validateDraftGraph(payload);
 
   const members = await listTeamMembers(access.project.teamId);
-  const memberIds = new Set(members.map((member) => member.id));
+  const memberIds = new Set(members.filter((member) => member.role !== "teacher").map((member) => member.id));
   for (const stage of payload.stages) for (const task of stage.tasks) {
-    if (task.assigneeId && !memberIds.has(task.assigneeId)) throw new AppError(`任务“${task.title}”的负责人已不在团队中`);
+    if (task.assigneeId && !memberIds.has(task.assigneeId)) throw new AppError(`任务“${task.title}”的负责人已不在团队中或为导师，请重新分配`);
   }
 
   return db.transaction(async (tx) => {
@@ -197,6 +197,23 @@ export async function rejectTaskTreeDraft(actorId: string, draftId: string) {
   await db.update(taskTreeDrafts).set({ status: "rejected", resolvedById: actorId, resolvedAt: new Date() }).where(and(eq(taskTreeDrafts.id, draftId), eq(taskTreeDrafts.status, "pending")));
 }
 
+export async function updateTaskTreeDraft(actorId: string, draftId: string, input: unknown) {
+  const [draft] = await db.select().from(taskTreeDrafts).where(eq(taskTreeDrafts.id, draftId));
+  if (!draft) throw new AppError("任务树草案不存在");
+  const access = await requireTreeAdmin(actorId, draft.projectId);
+  const payload = taskTreePayloadSchema.parse(input);
+  validateDraftGraph(payload);
+  const members = await listTeamMembers(access.project.teamId);
+  const memberIds = new Set(members.filter((member) => member.role !== "teacher").map((member) => member.id));
+  for (const stage of payload.stages) for (const task of stage.tasks) {
+    if (task.assigneeId && !memberIds.has(task.assigneeId)) throw new AppError("负责人不是团队成员或为导师，请重新分配");
+  }
+  const [saved] = await db.update(taskTreeDrafts).set({ payload })
+    .where(and(eq(taskTreeDrafts.id, draftId), eq(taskTreeDrafts.status, "pending"))).returning();
+  if (!saved) throw new AppError("该草案已经处理，请刷新页面");
+  return saved;
+}
+
 export async function getTaskTree(actorId: string, projectId: string) {
   await requireProject(actorId, projectId);
   const [stages, rows, drafts, integrations, deliveries] = await Promise.all([
@@ -218,6 +235,8 @@ export async function submitTaskDelivery(actorId: string, taskId: string, input:
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task || !task.stageId) throw new AppError("任务不属于任务树阶段");
   const access = await requireProject(actorId, task.projectId);
+  if (access.role === "teacher") throw new ForbiddenError("导师不能登记执行成果");
+  if (task.isTaskGroup) throw new AppError("请在执行任务上登记交付分支");
   if (access.role !== "admin" && task.assigneeId !== actorId) throw new ForbiddenError("只有任务负责人可以登记交付分支");
   const [stage] = await db.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
   if (!stage || stage.status !== "active") throw new AppError("当前阶段不能登记交付分支");
@@ -235,8 +254,7 @@ export async function submitTaskDelivery(actorId: string, taskId: string, input:
 export async function submitStageIntegration(actorId: string, stageId: string, input: { branchName: string; headSha?: string; testSummary?: string }) {
   const [stage] = await db.select().from(taskStages).where(eq(taskStages.id, stageId));
   if (!stage) throw new AppError("执行阶段不存在");
-  const access = await requireProject(actorId, stage.projectId);
-  if (access.role === "teacher") throw new ForbiddenError();
+  await requireTreeAdmin(actorId, stage.projectId);
   if (stage.status !== "active") throw new AppError("该阶段当前不能提交集成审核");
   const stageTasks = await db.select({ id: tasks.id, parentTaskId: tasks.parentTaskId, status: tasks.status }).from(tasks).where(eq(tasks.stageId, stageId));
   const parentIds = new Set(stageTasks.flatMap((task) => task.parentTaskId ? [task.parentTaskId] : []));
