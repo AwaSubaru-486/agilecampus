@@ -73,7 +73,7 @@ export function TaskList({
   }
 
   return (
-    <div className="flex flex-col">
+    <div data-tour="console-task-list" data-tour-empty={displayRows.length === 0 ? "true" : undefined} className="flex flex-col">
       {/* 列表头 */}
       <div className="flex items-center justify-between border-b border-stroke px-3 py-2">
         <span className="text-xs font-medium text-ink-2">
@@ -132,6 +132,7 @@ export function TaskList({
           <div key={group}>
             <button
               type="button"
+              data-tour={isDone ? "console-completed-toggle" : undefined}
               className="flex w-full items-center gap-1.5 border-b border-stroke px-3 py-1.5 text-left text-xs font-medium text-ink-2 hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal"
               onClick={isDone ? () => setDoneExpanded((v) => !v) : undefined}
               aria-expanded={isDone ? expanded : undefined}

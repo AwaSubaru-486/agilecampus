@@ -34,7 +34,7 @@ export function buildTutorialCourses(project: TutorialProject | null): TutorialC
       step("draft", "确认后再发布", "这块区域会展示生成的草案，支持修改负责人、优先级和完成标准。已有草案可直接修订，没有草案时先认识发布流程。", `${base}/task-tree`, "task-drafts"),
     ] },
     { id: "execution", title: "认领与提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
-      step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以认领、报告执行情况或提交成果。", work, "console-task", "click"),
+      step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以认领、报告执行情况或提交成果。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),
       step("contract", "查看交接与交付", "在高亮执行台里找到负责人、完成条件和证据要求；提交成果会进入待验收，由人审核。", work, "execution-console"),
       step("delivery", "登记交付材料", "任务树中的执行任务可登记分支、提交和 PR。点击任务可回到执行台；锁定阶段要等前一阶段通过。", `${base}/task-tree`, "stage-tasks"),
     ] },

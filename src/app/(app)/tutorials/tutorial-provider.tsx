@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { buildTutorialCourses, type CourseId, type TutorialCourse, type TutorialProgress, type TutorialProject } from "@/lib/tutorials/catalog";
 import type { TutorialCommand } from "@/lib/tutorials/progress";
 import { saveTutorialProgress } from "./actions";
+import { findTutorialTarget } from "@/lib/tutorials/target";
 
 type TutorialContextValue = {
   projects: TutorialProject[]; project: TutorialProject | null; courses: TutorialCourse[];
@@ -41,6 +42,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const [mounted, setMounted] = useState(false);
   const [measuredRect, setRect] = useState<Rect | null>(null);
   const [locatedKey, setLocatedKey] = useState("");
+  const [emptyTaskKey, setEmptyTaskKey] = useState("");
   const [viewport, setViewport] = useState({ width: 1280, height: 800 });
   const [missing, setMissing] = useState(false);
   const [actionDone, setFulfilled] = useState(false);
@@ -60,6 +62,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const stepAction = step?.action;
   const rect = locatedKey === stepKey ? measuredRect : null;
   const fulfilled = actionKey === stepKey && actionDone;
+  const emptyTaskList = Boolean(stepKey && emptyTaskKey === stepKey);
 
   async function persist(command: TutorialCommand) {
     if (busy.current) return null;
@@ -101,7 +104,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     }
   }
   async function advance(back = false) {
-    if (!course || !active || (!back && (!rect || step?.action !== "explore" && !fulfilled))) return;
+    if (!course || !active || (!back && (!rect || step?.action !== "explore" && !fulfilled && !emptyTaskList))) return;
     if (!back && active.step === course.steps.length - 1) {
       if (await persist({ type: "complete", courseId: course.id })) {
         setRunning(false); setFinished(course.title); router.push("/tutorials");
@@ -143,8 +146,9 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         if (!fulfilled && Date.now() - started > 8000) setMissing(true);
         return;
       }
-      const elements = [...document.querySelectorAll<HTMLElement>(stepTarget)];
-      const element = elements.find((item) => item.getBoundingClientRect().width > 0 && item.getBoundingClientRect().height > 0);
+      const resolved = findTutorialTarget(document, stepTarget);
+      const element = resolved.element;
+      setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
       // Route changes close the mobile drawer asynchronously. Keep requesting
       // it while the target is hidden, rather than losing a one-shot event.
       if (stepTarget.includes("nav-") && !element && !fulfilled) {
@@ -280,14 +284,14 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           </div>
           <p className="mt-3 text-xs text-ink-3">步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}</p>
           <h2 id="tutorial-step-title" className="mt-1 text-lg font-semibold text-ink">{step?.title ?? "先选择可用的项目"}</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : missing ? "此页暂时没有对应入口，可能尚未创建任务或阶段。先在项目中完成准备，再返回本课继续。" : step?.instruction}</p>
+          <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "当前任务列表为空。任务发布后会出现在这里，点击任务即可查看交接要求与提交入口。现在可以继续认识执行流程，无需先创建任务。" : missing ? "此页暂时没有对应入口，可能尚未创建任务或阶段。先在项目中完成准备，再返回本课继续。" : step?.instruction}</p>
           <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
-            {fulfilled ? "✓ 操作完成！可以进入下一步。" : missing ? "需要先完成准备" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "试着操作亮起的区域，再继续"}
+            {fulfilled ? "✓ 操作完成！可以进入下一步。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "需要先完成准备" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "试着操作亮起的区域，再继续"}
           </p>
           {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-2 bg-panel pt-2">
             <button className="ac-btn-ghost" disabled={pending || !active?.step} onClick={() => void advance(true)}>上一步</button>
-            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); }}>重新定位</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
+            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); }}>重新定位</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
           </div>
         </div>
       </div>, document.body)}
