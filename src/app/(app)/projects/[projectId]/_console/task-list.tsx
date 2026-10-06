@@ -178,7 +178,7 @@ function TaskRow({
   return (
     <button
       type="button"
-      onClick={onSelect}
+      data-tour="console-task" onClick={onSelect}
       className={[
         "flex w-full min-h-11 flex-col items-start gap-0.5 border-b border-stroke px-3 py-2 text-left transition-colors",
         "hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal",

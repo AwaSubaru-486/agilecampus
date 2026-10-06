@@ -89,7 +89,7 @@ export function BriefForm({ projectId }: { projectId: string }) {
       <label className="block text-xs text-ink-soft">
         项目说明
         <textarea
-          name="content"
+          data-tour="task-brief" name="content"
           required
           minLength={10}
           maxLength={20000}
@@ -100,7 +100,7 @@ export function BriefForm({ projectId }: { projectId: string }) {
       </label>
       <div className="flex items-center justify-between gap-3">
         <Result state={state} />
-        <button type="submit" disabled={pending} className="ac-btn">
+        <button data-tour="task-generate" type="submit" disabled={pending} className="ac-btn">
           {pending ? "正在生成..." : "AI 生成任务树草案"}
         </button>
       </div>

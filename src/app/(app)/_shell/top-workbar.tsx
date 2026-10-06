@@ -66,6 +66,16 @@ export function TopWorkbar({
     return () => window.cancelAnimationFrame(frame);
   }, [pathname, searchParams]);
 
+  useEffect(() => {
+    function revealNavigation(event: Event) {
+      const open = (event as CustomEvent<boolean>).detail !== false;
+      if (open) setCollapsed(false);
+      setMobileOpen(open);
+    }
+    window.addEventListener("agilecampus:tutorial-navigation", revealNavigation);
+    return () => window.removeEventListener("agilecampus:tutorial-navigation", revealNavigation);
+  }, []);
+
   function spaceHref(space: (typeof PROJECT_SPACES)[number]) {
     if (!navigationProject) return "/projects";
     return buildSpaceHref({
@@ -147,6 +157,7 @@ export function TopWorkbar({
                 <Fragment key={item.href}>
                   <Link
                     href={item.href}
+                    data-tour={`nav-${item.href.slice(1)}`}
                     title={item.hint}
                     aria-current={isActive ? "page" : undefined}
                     className={`ac-pressable relative flex min-h-9 shrink-0 items-center whitespace-nowrap border-b-2 px-1.5 py-1.5 text-xs transition-colors rounded-t-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:px-2.5 sm:text-sm md:min-h-10 md:justify-start md:border-b-0 md:px-3 md:py-2 md:text-sm ${
@@ -188,6 +199,7 @@ export function TopWorkbar({
                             {SPACE_LABEL.work}
                           </SecondaryLink>
                           <SecondaryLink
+                            tour="nav-studio"
                             href={spaceHref("studio")}
                             active={Boolean(projectId) && currentSpace === "studio"}
                             title={SPACE_HINT.studio}
@@ -195,6 +207,7 @@ export function TopWorkbar({
                             {SPACE_LABEL.studio}
                           </SecondaryLink>
                           <SecondaryLink
+                            tour="nav-record"
                             href={spaceHref("record")}
                             active={Boolean(projectId) && currentSpace === "record"}
                             title={SPACE_HINT.record}
@@ -248,18 +261,21 @@ function SecondaryLink({
   href,
   active = false,
   suffix,
+  tour,
   title,
   children,
 }: {
   href: string;
   active?: boolean;
   suffix?: string;
+  tour?: string;
   title?: string;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
+      data-tour={tour}
       title={title}
       aria-current={active ? "page" : undefined}
       className={`ac-pressable flex min-h-8 items-center justify-between px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 ${

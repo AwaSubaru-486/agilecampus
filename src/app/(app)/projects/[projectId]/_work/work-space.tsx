@@ -64,7 +64,7 @@ export async function WorkSpace({
     const projectMilestones_ = projectMilestones;
 
     return (
-      <section className="space-y-3">
+      <section data-tour="task-board" className="space-y-3">
         {/* 看板工具栏 */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stroke pb-3">
           <div className="flex items-baseline gap-2">
@@ -163,7 +163,7 @@ export async function WorkSpace({
   };
 
   return (
-    <section className="flex flex-col gap-3">
+    <section data-tour="execution-console" className="flex flex-col gap-3">
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-semibold text-ink">协同执行</h2>

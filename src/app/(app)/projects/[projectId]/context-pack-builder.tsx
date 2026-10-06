@@ -126,7 +126,7 @@ export function ContextPackBuilder({
   }
 
   return (
-    <div className="space-y-4" aria-busy={loading}>
+    <div data-tour="context-builder" className="space-y-4" aria-busy={loading}>
       <div>
         <p className="text-[11px] font-medium tracking-[0.08em] text-ink-3">上下文包</p>
         <p className="mt-1 text-xs leading-5 text-ink-2">选择 AI 可读取的项目资料。</p>
@@ -134,7 +134,7 @@ export function ContextPackBuilder({
 
       <div className="border-b border-stroke pb-3">
         <label className="text-[11px] font-medium text-ink-3" htmlFor="context-pack-title">新建快照</label>
-        <input id="context-pack-title" value={title} onChange={(event) => setTitle(event.target.value)} className="ac-field mt-1 text-xs" />
+        <input data-tour="context-title" id="context-pack-title" value={title} onChange={(event) => setTitle(event.target.value)} className="ac-field mt-1 text-xs" />
       </div>
 
       <fieldset className="space-y-1.5">

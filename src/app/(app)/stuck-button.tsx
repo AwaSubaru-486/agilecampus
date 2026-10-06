@@ -33,6 +33,12 @@ export function StuckButton({ projects }: { projects: Project[] }) {
   const [helpers, setHelpers] = useState<Helper[]>([]);
   const [loadingHint, setLoadingHint] = useState(false);
 
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener("agilecampus:tutorial-close-panels", close);
+    return () => window.removeEventListener("agilecampus:tutorial-close-panels", close);
+  }, []);
+
   const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
     const res = await raiseBlockerAction(prev, fd);
     if (!res) {
@@ -139,7 +145,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
     <>
       <button
         type="button"
-        onClick={toggleOpen}
+        data-tour="help-button" onClick={toggleOpen}
         aria-expanded={open}
         aria-label={open ? "关闭求助" : "发起求助"}
         className={`ac-pressable fixed bottom-4 right-4 z-30 flex items-center gap-2 border-b-2 border-ink bg-ground/95 px-2 py-2 text-sm font-medium text-ink backdrop-blur-sm ${open ? "border-warn" : ""}`}
@@ -158,7 +164,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                data-tour="help-close" onClick={() => setOpen(false)}
                 className="ac-pressable min-h-9 px-1 text-xs text-ink-3 hover:text-ink"
               >
                 先不发

@@ -17,7 +17,7 @@ export default async function HealthPage() {
   const calm = rows.length - needAttention.length;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 py-2 sm:py-4">
+    <main data-tour="health" className="mx-auto max-w-6xl space-y-8 py-2 sm:py-4">
       <header className="flex flex-col justify-between gap-5 border-b border-line pb-7 sm:flex-row sm:items-end">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">项目健康度</h1>

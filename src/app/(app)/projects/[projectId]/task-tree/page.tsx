@@ -102,7 +102,7 @@ export default async function TaskTreePage({
         </div>
       </header>
       <section
-        aria-label="项目阶段进度"
+        data-tour="stage-progress" aria-label="项目阶段进度"
         className="grid gap-px overflow-hidden border border-stroke bg-stroke sm:grid-cols-3"
       >
         <div className="bg-panel p-4">
@@ -144,7 +144,7 @@ export default async function TaskTreePage({
         </div>
       </section>
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="min-w-0 space-y-5">
+        <div data-tour="stage-tasks" className="min-w-0 space-y-5">
           {!!tree.stages.length && (
             <nav
               aria-label="阶段导航"
@@ -153,7 +153,7 @@ export default async function TaskTreePage({
               {tree.stages.map((stage, index) => (
                 <a
                   key={stage.id}
-                  href={`#stage-${stage.id}`}
+                  data-tour="stage-link" href={`#stage-${stage.id}`}
                   className="shrink-0 border border-stroke px-3 py-2 text-xs text-ink-soft"
                 >
                   {index + 1}. {stage.title} · {stageLabels[stage.status]}
@@ -409,15 +409,15 @@ export default async function TaskTreePage({
             <h2 className="text-sm font-semibold text-ink">本轮协作</h2>
             <ol className="mt-3 space-y-4 text-xs leading-5 text-ink-soft">
               <li>
-                <strong className="block text-ink">01 · 组长规划</strong>
+                <strong className="block text-ink">01 组长规划</strong>
                 确认需求、任务与负责人。
               </li>
               <li>
-                <strong className="block text-ink">02 · 组员交付</strong>
+                <strong className="block text-ink">02 组员交付</strong>
                 认领执行、提交成果与分支。
               </li>
               <li>
-                <strong className="block text-ink">03 · 人工验收</strong>
+                <strong className="block text-ink">03 人工验收</strong>
                 组长或导师验收任务；阶段集成由非提交者审核。
               </li>
             </ol>
@@ -451,6 +451,8 @@ export default async function TaskTreePage({
           <BriefForm projectId={projectId} />
         </section>
       )}
+      <div data-tour="task-drafts" className="space-y-4">
+      {tree.drafts.length === 0 && canManage && <p className="border border-dashed border-stroke p-5 text-sm text-ink-soft">暂无待确认草案。生成后可在这里修订分工与完成标准，保存后确认发布。</p>}
       {tree.drafts.map((draft) => (
         <section
           key={draft.id}
@@ -498,6 +500,7 @@ export default async function TaskTreePage({
           )}
         </section>
       ))}
+      </div>
     </div>
   );
 }

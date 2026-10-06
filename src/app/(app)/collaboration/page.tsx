@@ -25,7 +25,7 @@ export default async function CollaborationPage() {
 
   if (teamIds.length === 0) {
     return (
-      <div className="mx-auto max-w-[80rem]">
+      <div data-tour="collaboration" className="mx-auto max-w-[80rem]">
         <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
         <p className="ac-card mt-4 p-8 text-center text-sm text-ink-2">
           你还没有加入任何团队。
@@ -69,7 +69,7 @@ export default async function CollaborationPage() {
   const needingHelp = openBlockerRows.filter((b) => b.raisedById !== session.user.id);
 
   return (
-    <div className="mx-auto max-w-[80rem] space-y-5">
+    <div data-tour="collaboration" className="mx-auto max-w-[80rem] space-y-5">
       <header>
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>

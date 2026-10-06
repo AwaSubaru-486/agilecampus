@@ -33,7 +33,7 @@ export default async function LibraryPage({
 
   if (teamIds.length === 0) {
     return (
-      <div className="mx-auto max-w-[70rem]">
+      <div data-tour="library" className="mx-auto max-w-[70rem]">
         <LibraryHeader total={0} deliverableCount={0} docCount={0} activeType="all" />
         <div className="grid border-b border-stroke py-12 lg:grid-cols-[12rem_minmax(0,1fr)]">
           <p className="text-xs text-ink-3">当前范围</p>
@@ -73,7 +73,7 @@ export default async function LibraryPage({
         : rows;
 
   return (
-    <div className="mx-auto max-w-[74rem] space-y-2">
+    <div data-tour="library" className="mx-auto max-w-[74rem] space-y-2">
       <LibraryHeader
         total={rows.length}
         deliverableCount={deliverables.length}

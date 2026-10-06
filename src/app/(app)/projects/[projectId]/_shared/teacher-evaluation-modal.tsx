@@ -91,7 +91,7 @@ AgileCampus 敏捷校园团队协同平台
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          data-tour="teacher-evaluation" onClick={() => setOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
         >
           <span>★ 导师评审打分</span>
@@ -121,7 +121,7 @@ AgileCampus 敏捷校园团队协同平台
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                data-tour="evaluation-close" aria-label="关闭导师评审" onClick={() => setOpen(false)}
                 className="rounded p-1 text-ink-3 hover:bg-sunken hover:text-ink text-sm"
               >
                 ✕

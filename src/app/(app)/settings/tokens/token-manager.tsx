@@ -20,7 +20,7 @@ export function TokenManager({ tokens }: { tokens: TokenRow[] }) {
   const error = state && "error" in state ? state.error : null;
 
   return (
-    <div className="space-y-6">
+    <div data-tour="token-manager" className="space-y-6">
       {/* 生成新令牌 */}
       <form action={formAction} className="ac-card space-y-3 p-5">
         <div className="flex items-center justify-between">
@@ -29,7 +29,7 @@ export function TokenManager({ tokens }: { tokens: TokenRow[] }) {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
-            name="name"
+            data-tour="token-name" name="name"
             placeholder="令牌名称，如「我的 MacBook」"
             className="ac-field sm:flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             maxLength={64}

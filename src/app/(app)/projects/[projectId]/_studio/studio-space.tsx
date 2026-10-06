@@ -99,7 +99,7 @@ export async function StudioSpace({
       });
 
     return (
-      <div className="space-y-3">
+      <div data-tour="ai-workspace" className="space-y-3">
         <div className="flex items-center justify-between border-b border-stroke pb-2">
           <div className="flex items-center gap-2">
             <Link
@@ -157,12 +157,13 @@ export async function StudioSpace({
       };
 
   return (
-    <section className="flex flex-col gap-3">
+    <section data-tour="ai-workspace" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-semibold text-ink">Agent 协作</h2>
         <div className="flex items-center gap-2">
           <Link
             href={`/projects/${projectId}?space=studio&view=chat`}
+            data-tour="project-chat"
             className="ac-btn-ghost min-h-8 px-2.5 text-xs"
           >
             项目会话

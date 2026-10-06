@@ -40,7 +40,7 @@ export async function RecordSpace({
   const feedbacks = entries.filter((e) => e.type === "feedback").length;
 
   return (
-    <div className="space-y-6">
+    <div data-tour="project-records" className="space-y-6">
       <section className="rounded-[var(--radius-panel)] border border-stroke bg-panel p-4 sm:p-5">
         <h2 className="font-display text-xl font-bold text-ink">项目成果与证据</h2>
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-2">

@@ -47,7 +47,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ teamId:
   const isAdmin = me.role === "admin";
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 py-8">
+    <main data-tour="team-agents" className="mx-auto max-w-3xl space-y-6 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="mt-1 font-display text-2xl font-semibold text-ink">

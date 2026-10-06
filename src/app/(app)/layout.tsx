@@ -1,3 +1,8 @@
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { teamMembers } from "@/db/schema";
+import { getTutorialProgress } from "@/lib/tutorials/progress";
+import { TutorialProvider } from "./tutorials/tutorial-provider";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { listMyProjects } from "@/lib/project";
@@ -15,9 +20,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const [myProjects, pendingCount] = await Promise.all([
+  const [myProjects, pendingCount, memberships, tutorialProgress] = await Promise.all([
     listMyProjects(session.user.id),
     countMyPendingActions(session.user.id),
+    db.select({ teamId: teamMembers.teamId, role: teamMembers.role }).from(teamMembers).where(eq(teamMembers.userId, session.user.id)),
+    getTutorialProgress(session.user.id),
   ]);
 
   // 只把有权访问的项目交给切换器。过滤在服务端做完，
@@ -29,6 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }));
 
   return (
+    <TutorialProvider initialProgress={tutorialProgress} projects={myProjects.flatMap((project) => {
+      const membership = memberships.find((item) => item.teamId === project.teamId);
+      return membership ? [{ id: project.id, name: project.name, teamId: project.teamId, role: membership.role }] : [];
+    })}>
     <div className="min-h-screen">
       <a
         href="#main-content"
@@ -47,5 +58,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <StuckButton projects={switcherProjects.map((p) => ({ id: p.id, name: p.name }))} />
     </div>
+    </TutorialProvider>
   );
 }

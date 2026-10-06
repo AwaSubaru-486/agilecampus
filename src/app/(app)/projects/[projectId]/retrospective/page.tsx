@@ -34,7 +34,7 @@ export default async function RetrospectivePage({
   const hasData = span.totalEvents > 0;
 
   return (
-    <div className="mx-auto max-w-[82rem] space-y-6 py-1 sm:py-3">
+    <div data-tour="retrospective" className="mx-auto max-w-[82rem] space-y-6 py-1 sm:py-3">
       <header className="ac-card p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
           <Link href={`/projects/${projectId}`} className="text-ink-faint hover:text-primary">

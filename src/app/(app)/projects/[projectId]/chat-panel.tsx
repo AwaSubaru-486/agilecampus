@@ -266,6 +266,7 @@ export function ChatPanel({
           <Button
             type="button"
             onClick={() => setCreating((value) => !value)}
+            data-tour="conversation-toggle"
             variant="ink"
             size="sm"
           >
@@ -273,9 +274,10 @@ export function ChatPanel({
           </Button>
         </div>
         {creating && (
-          <div className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border border-stroke bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
+          <div data-tour="conversation-form" className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border border-stroke bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
             <input
               value={newTitle}
+              data-tour="conversation-title"
               onChange={(event) => setNewTitle(event.target.value)}
               placeholder="会话主题，如 用户访谈方案"
               className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
@@ -406,7 +408,7 @@ export function ChatPanel({
           </div>
         </div>
 
-        <aside className="hidden border-l border-stroke bg-ground/40 px-3 py-4 xl:block">
+        <aside className="border-t border-stroke bg-ground/40 px-3 py-4 md:col-span-2 xl:col-span-1 xl:border-l xl:border-t-0">
           {initialTask && (
             <div className="mb-4 border-b border-stroke pb-3">
               <p className="text-[11px] text-ink-3">关联任务</p>

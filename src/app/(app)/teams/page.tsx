@@ -22,7 +22,7 @@ export default async function TeamsPage() {
     .where(eq(teamMembers.userId, session.user.id));
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 py-8">
+    <main data-tour="teams" className="mx-auto max-w-2xl space-y-8 py-8">
       <h1 className="font-display text-2xl font-semibold text-ink">我的团队</h1>
       {myTeams.length === 0 ? (
         <div className="ac-card p-8 text-center text-sm text-ink-soft">

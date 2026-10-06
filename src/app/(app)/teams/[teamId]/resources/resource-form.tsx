@@ -19,7 +19,7 @@ export function ResourceForm({ teamId }: { teamId: string }) {
   const endRef = useRef<HTMLInputElement>(null);
 
   return (
-    <form action={formAction} className="ac-card space-y-4 p-5">
+    <form data-tour="resource-form" action={formAction} className="ac-card space-y-4 p-5">
       <input type="hidden" name="teamId" value={teamId} />
       <div className="flex items-center justify-between">
         <h2 className="font-display text-base font-semibold text-ink">登记资源占用</h2>
@@ -29,7 +29,7 @@ export function ResourceForm({ teamId }: { teamId: string }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1">
           <span className="text-xs font-medium text-ink-soft">资源名称</span>
-          <input name="resourceName" placeholder="如 GPU-01 / 服务器A / 示波器" className="ac-field" />
+          <input data-tour="resource-name" name="resourceName" placeholder="如 GPU-01 / 服务器A / 示波器" className="ac-field" />
         </label>
         <label className="space-y-1">
           <span className="text-xs font-medium text-ink-soft">用途（选填）</span>

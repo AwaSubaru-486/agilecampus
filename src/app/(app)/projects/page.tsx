@@ -13,7 +13,7 @@ export default async function AllProjectsPage() {
   const overallProgress = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 py-2 sm:py-4">
+    <main data-tour="projects" className="mx-auto max-w-6xl space-y-6 py-2 sm:py-4">
       <header className="flex flex-col justify-between gap-5 border-b border-stroke pb-5 sm:flex-row sm:items-end">
         <div>
           <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">项目</h1>

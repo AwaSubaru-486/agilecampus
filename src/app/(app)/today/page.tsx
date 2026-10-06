@@ -37,7 +37,7 @@ export default async function TodayPage({
       </header>
 
       {/* 需要你现在决定 */}
-      <section id="decisions" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
+      <section id="decisions" data-tour="today-queue" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke bg-ground/50 px-4 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-ink">待处理</h2>

@@ -1,4 +1,4 @@
-// 一级导航。三项，桌面横向排在顶部工作带里。
+// 一级导航。桌面固定在侧栏，窄屏放入导航抽屉；教程常驻方便复习。
 //
 // 术语与顺序由 docs/design/product-language.md §4 冻结，改这里之前先改那份文档。
 //
@@ -18,6 +18,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "今日", hint: "跨项目的行动队列" },
   { href: "/projects", label: "项目", hint: "项目脉搏与最近访问" },
   { href: "/collaboration", label: "协作中心", hint: "求助、AI 确认与团队状态" },
+  { href: "/tutorials", label: "新手教程", hint: "互动学习与功能教程目录" },
 ] as const;
 
 /** 当前路径命中哪一项。用前缀匹配，使子路由也能点亮父项。 */

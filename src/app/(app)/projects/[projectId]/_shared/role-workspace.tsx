@@ -37,7 +37,7 @@ export function RoleWorkspace({
       aria-label="我的项目职责"
     >
       <div className="min-w-0">
-        <p className="mb-1 text-xs text-signal">当前角色 · {current.name}</p>
+        <p className="mb-1 text-xs text-signal">当前角色：{current.name}</p>
         <h2 className="font-display text-base font-semibold text-ink">
           {current.title}
         </h2>

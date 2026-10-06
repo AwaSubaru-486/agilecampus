@@ -71,7 +71,7 @@ export default async function TimelinePage({
   const todayMs = todayStart.getTime();
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 py-8">
+    <main data-tour="timeline" className="mx-auto max-w-5xl space-y-6 py-8">
       <header className="space-y-1">
         <Link href={`/projects/${projectId}`} className="text-xs text-ink-soft hover:text-primary">
           ← 返回项目
