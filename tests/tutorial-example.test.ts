@@ -1,56 +1,20 @@
-import { describe, it, expect } from "vitest";
-import {
-  applyExampleStep,
-  EMPTY_EXAMPLE,
-  EXAMPLE_FIELDS,
-  EXAMPLE_FLOW,
-} from "@/lib/tutorials/example-flow";
-describe("教学示例状态", () => {
-  it("拒绝缺失输入、非法阶段以及越过准备", () => {
-    expect(() => applyExampleStep(EMPTY_EXAMPLE, 0, {}, "now")).toThrow(
-      "团队名称",
-    );
-    expect(() =>
-      applyExampleStep(
-        EMPTY_EXAMPLE,
-        0,
-        { team: 23 } as unknown as Record<string, string>,
-        "now",
-      ),
-    ).toThrow("团队名称");
-    expect(() => applyExampleStep(EMPTY_EXAMPLE, 14, {}, "now")).toThrow(
-      "无效",
-    );
-    expect(() => applyExampleStep(EMPTY_EXAMPLE, 5, {}, "now")).toThrow(
-      "上一项",
-    );
+import { describe,it,expect } from "vitest";
+import { buildWelcomeSteps, EMPTY_JOURNEY } from "@/lib/tutorials/example-flow";
+describe("原页面项目教程路线",()=>{
+  it("从原有团队表单开始，所有项目步骤绑定同一个新建项目，没有独立练习页",()=>{
+    const steps=buildWelcomeSteps({version:3,teamId:"demo-team",projectId:"demo-project",taskId:"first-task"});
+    expect(steps).toHaveLength(18);expect(steps[0].route).toBe("/teams");
+    expect(steps[1].route).toBe("/teams/demo-team/members");expect(steps[2].route).toBe("/teams/demo-team/projects");
+    expect(steps.every(step=>!step.route.startsWith("/tutorials/example"))).toBe(true);
+    expect(steps.slice(3,14).every(step=>step.route.startsWith("/projects/demo-project"))).toBe(true);
+    expect(steps[8].route).toBe("/projects/demo-project/task-tree");expect(steps[8].target).toBe('[data-tour="tutorial-stage-task"]');
+    expect(steps[9].completion).toBe("data-tour-claimed");expect(steps[10].completion).toBe("data-tour-submitted");
+    expect(steps[10].route).toBe("/projects/demo-project?space=work&task=first-task");
+    expect(steps[11].action).toBe("explore");expect(steps[12].action).toBe("explore");
   });
-  it("全流程累积成果，重复提交幂等且忽略未允许字段", () => {
-    let state = EMPTY_EXAMPLE;
-    for (let phase = 0; phase < EXAMPLE_FLOW.length; phase++) {
-      state = applyExampleStep(
-        state,
-        phase,
-        {
-          ...Object.fromEntries(
-            EXAMPLE_FIELDS[phase].map((field) => [
-              field.key,
-              field.placeholder,
-            ]),
-          ),
-          role: "admin",
-          actorId: "someone",
-        },
-        "now",
-      );
-      expect(applyExampleStep(state, phase, {}, "later")).toBe(state);
-    }
-    expect(state.phase).toBe(14);
-    expect(state.events).toHaveLength(14);
-    expect(state.values.evidence).toBeTruthy();
-    expect(state.values.improvement).toBeTruthy();
-    expect(state.values.role).toBeUndefined();
-    expect(state.values.actorId).toBeUndefined();
-    expect(EMPTY_EXAMPLE.phase).toBe(0);
+  it("初次启动无需已存在的项目与角色，第一步在原创建表单等待实际操作",()=>{
+    const first=buildWelcomeSteps(EMPTY_JOURNEY)[0];
+    expect(first.target).toBe('[data-tour="team-create"]');expect(first.action).toBe("result");
+    expect(first.route).toBe("/teams");expect(new Set(buildWelcomeSteps(EMPTY_JOURNEY).map(step=>step.id)).size).toBe(18);
   });
 });

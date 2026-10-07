@@ -1,8 +1,9 @@
-import { EXAMPLE_FLOW, type ExampleState } from "./example-flow";
+import { buildWelcomeSteps, EMPTY_JOURNEY, type TutorialJourney } from "./example-flow";
 export type TutorialRole = "admin" | "student" | "teacher";
 export type TutorialProject = { id: string; name: string; teamId: string; role: TutorialRole };
 export type TutorialProgress = {
-  example?: ExampleState;
+  journey?: TutorialJourney;
+  example?: {version:1;phase:number;values:Record<string,string>;events:{phase:number;title:string;at:string}[]};
   status: "new" | "dismissed" | "started" | "completed";
   completed: string[];
   active: { courseId: string; step: number; projectId: string | null; paused?: boolean; journeyVersion?: number } | null;
@@ -12,14 +13,14 @@ export const COURSE_IDS = ["welcome", "teams", "planning", "execution", "review"
 export type CourseId = (typeof COURSE_IDS)[number];
 export type TutorialStep = {
   id: string; title: string; instruction: string; route: string;
-  target: string; action: "click" | "input" | "explore" | "result";
+  target: string; completion?: string; action: "click" | "input" | "explore" | "result";
 };
 export type TutorialCourse = {
   id: CourseId; title: string; description: string; category: string;
   needsProject?: boolean; roles?: TutorialRole[]; steps: TutorialStep[];
 };
 
-export function buildTutorialCourses(project: TutorialProject | null): TutorialCourse[] {
+export function buildTutorialCourses(project: TutorialProject | null, journey: TutorialJourney = EMPTY_JOURNEY): TutorialCourse[] {
   const base = project ? `/projects/${project.id}` : "/projects";
   const team = project ? `/teams/${project.teamId}` : "/teams";
   const work = `${base}?space=work`;
@@ -95,11 +96,8 @@ export function buildTutorialCourses(project: TutorialProject | null): TutorialC
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id: "welcome", title: "做完一个示例项目", category: "推荐起点", description: "从创建项目到任务生成、分工、交付、审核和下一轮迭代。",
-    steps: [
-      ...EXAMPLE_FLOW.map(([id,title,instruction],phase) => step(id,title,instruction,`/tutorials/example?phase=${phase}`,`example-${phase}`,"result")),
-      step("records","回看这一轮协作","你已经创建项目、完成任务并通过集成。查看留下的证据、讨论和过程记录；以后可以按功能单独复习。","/tutorials/example?phase=14","example-records"),
-    ],
+    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"创建团队与项目，在原有页面生成、修订、发布和提交任务，再认识验收与迭代。",
+    steps:buildWelcomeSteps(journey),
   };
   return [welcome, ...courses];
 }

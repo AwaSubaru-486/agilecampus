@@ -33,7 +33,8 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     ? initialProgress.active.projectId ?? ""
     : pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? projects[0]?.id ?? "");
   const project = projects.find((item) => item.id === projectId) ?? null;
-  const courses = useMemo(() => buildTutorialCourses(project), [project]);
+  const courses = useMemo(() => buildTutorialCourses(project, progress.journey), [project, progress.journey]);
+  useEffect(() => { const frame = requestAnimationFrame(() => setProgress(initialProgress)); return () => cancelAnimationFrame(frame); }, [initialProgress]);
   const [running, setRunning] = useState(Boolean(initialProgress.active && !initialProgress.active.paused));
   const [prompt, setPrompt] = useState(initialProgress.status === "new");
   const [finished, setFinished] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const active = progress.active;
   const course = courses.find((item) => item.id === active?.courseId);
   const allowed = course && (!course.needsProject || project) && (!course.roles || project && course.roles.includes(project.role))
-    && (!active?.projectId || active.projectId === project?.id) && (active?.step ?? 0) < course.steps.length;
+    && (course.id === "welcome" || !active?.projectId || active.projectId === project?.id) && (active?.step ?? 0) < course.steps.length;
   const step = running && allowed && course ? course.steps[active?.step ?? 0] : null;
   const stepKey = step ? `${course?.id}:${active?.step}:${projectId}` : "";
   const stepRoute = step?.route;
@@ -82,16 +83,16 @@ export function TutorialProvider({ children, projects, initialProgress }: {
 
   async function start(id: CourseId, resume = false) {
     const saved = resume && progress.active?.courseId === id ? progress.active : null;
-    const selectedProject = id === "welcome" ? null : saved ? projects.find((item) => item.id === saved.projectId) ?? null : project;
+    const selectedProject = id === "welcome" ? projects.find(item => item.id === (saved?.projectId ?? progress.journey?.projectId)) ?? null : saved ? projects.find((item) => item.id === saved.projectId) ?? null : project;
     if (saved?.projectId && !selectedProject) {
       setError("上次练习的项目已不可访问。请选择当前项目，重新开始课程。"); return;
     }
-    const selected = buildTutorialCourses(selectedProject).find((item) => item.id === id);
+    const selected = buildTutorialCourses(selectedProject, progress.journey).find((item) => item.id === id);
     if (!selected || selected.needsProject && !selectedProject || selected.roles && (!selectedProject || !selected.roles.includes(selectedProject.role))) {
       setError("此课程需要可访问的项目和对应角色。请选择项目后重新开始。"); return;
     }
     const index = saved ? Math.min(saved.step, selected.steps.length - 1) : 0;
-    if (await persist(id === "welcome" && !resume ? {type:"restart-example"} : { type: "save", courseId: id, step: index, projectId: selectedProject?.id ?? null })) {
+    if (await persist(id === "welcome" && !resume ? {type:"restart-example"} : { type: "save", courseId: id, step: index, projectId: id === "welcome" ? progress.journey?.projectId ?? null : selectedProject?.id ?? null })) {
       if (id !== "welcome") setProjectId(selectedProject?.id ?? "");
       readyKey.current = "";
       setLocatedKey(""); setFulfilled(false); setMissing(false);
@@ -109,10 +110,11 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     if (!course || !active || (!back && (!rect || step?.action !== "explore" && !fulfilled && !emptyTaskList))) return;
     if (!back && active.step === course.steps.length - 1) {
       if (await persist({ type: "complete", courseId: course.id })) {
+        if (course.id === "welcome" && progress.journey?.projectId) setProjectId(progress.journey.projectId);
         setRunning(false); setFinished(course.title); router.push("/tutorials");
       }
     } else {
-      await persist({ type: "save", courseId: course.id, step: Math.max(0, active.step + (back ? -1 : 1)), projectId: course.id === "welcome" ? null : project?.id ?? null });
+      await persist({ type: "save", courseId: course.id, step: Math.max(0, active.step + (back ? -1 : 1)), projectId: course.id === "welcome" ? progress.journey?.projectId ?? null : project?.id ?? null });
     }
   }
 
@@ -151,7 +153,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       }
       const resolved = findTutorialTarget(document, stepTarget);
       const element = resolved.element;
-      if (stepAction === "result" && element?.dataset.tourComplete === "true") {
+      if (stepAction === "result" && (element?.getAttribute(step?.completion ?? "data-tour-complete") === "true" || course?.id === "welcome" && ((active?.step === 0 && progress.journey?.teamId) || (active?.step === 2 && progress.journey?.projectId)))) {
         setActionKey(stepKey); setFulfilled(true);
       }
       setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
@@ -187,7 +189,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     window.addEventListener("scroll", measure, true);
     measure();
     return () => { clearInterval(interval); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, globalNavigation]);
+  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, globalNavigation, progress.journey, active?.step, course?.id, step?.completion]);
 
   useEffect(() => {
     if (!stepTarget || !stepAction) return;
@@ -260,8 +262,8 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         <div ref={card} role="dialog" aria-modal="true" aria-labelledby="tutorial-dialog-title" className="w-full max-w-lg rounded-2xl border border-stroke bg-panel p-6 shadow-2xl sm:p-8">
           <span className="text-xs font-semibold tracking-widest text-signal">AGILECAMPUS，互动教程</span>
           <h2 id="tutorial-dialog-title" className="mt-3 text-2xl font-semibold text-ink">{finished ? `完成了：${finished}` : "一起做一个示例项目？"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "已经掌握这段流程。以后可以从侧栏“新手教程”单独练习任何功能。" : "从校园活动报名页开始，亲手创建项目、生成任务、执行与验收，再规划下一轮。每次完成操作后解锁下一步，可以随时暂停。"}</p>
-          {!finished && <p className="mt-3 rounded-lg bg-sunken p-3 text-xs leading-5 text-ink-3">无需已有团队或模型配置。教学模板与角色演练会明确标识，正式账号权限不受影响。</p>}
+          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "已经掌握这段流程。以后可以从侧栏“新手教程”单独练习任何功能。" : "从校园活动报名页开始，亲手创建项目、生成并发布任务、认领与提交成果，再认识验收和迭代入口。每次完成操作后解锁下一步，可以随时暂停。"}</p>
+          {!finished && <p className="mt-3 rounded-lg bg-sunken p-3 text-xs leading-5 text-ink-3">引导会在现有页面创建实际的练习团队、项目与任务。新建教学项目的任务生成使用示例模板。验收与集成保留真实角色权限。</p>}
           {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             {finished ? <button className="ac-btn" onClick={() => { setFinished(null); router.push("/tutorials"); }}>查看教程目录</button> : <>
@@ -292,7 +294,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           <h2 id="tutorial-step-title" className="mt-1 text-lg font-semibold text-ink">{step?.title ?? "先选择可用的项目"}</h2>
           <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "当前任务列表为空。任务发布后会出现在这里，点击任务即可查看交接要求与提交入口。现在可以继续认识执行流程，无需先创建任务。" : missing ? "此页暂时没有对应入口，可能尚未创建任务或阶段。先在项目中完成准备，再返回本课继续。" : step?.instruction}</p>
           <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
-            {fulfilled ? "✓ 操作完成！可以进入下一步。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "需要先完成准备" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.action === "result" ? "请完成亮起区域的操作，保存成功后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "试着操作亮起的区域，再继续"}
+            {fulfilled ? "✓ 操作完成！可以进入下一步。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "入口暂未就绪，可重新定位或暂停后继续" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.action === "result" ? "请完成亮起区域的操作，保存成功后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "试着操作亮起的区域，再继续"}
           </p>
           {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-2 bg-panel pt-2">

@@ -15,6 +15,7 @@ import { AppError, ForbiddenError } from "./errors";
 import { getModel } from "./agent/model";
 import { describe, recordEvent } from "./activity";
 import { getProjectForUser } from "./project";
+import { getTutorialProgress } from "./tutorials/progress";
 import { listTeamMembers } from "./team";
 
 const draftTaskSchema = z.object({
@@ -93,6 +94,27 @@ export async function generateTaskTreeDraft(
   const payload = taskTreePayloadSchema.parse(parseModelJson(text));
   validateDraftGraph(payload);
 
+  return persistTaskTreeDraft(actorId,projectId,briefText,payload);
+}
+
+/** Same draft/publish pipeline, with an explicitly labelled template for the learner's newly created project. */
+export async function generateTutorialTaskTreeDraft(actorId:string,projectId:string,content:string) {
+  await requireTreeAdmin(actorId,projectId);
+  const progress=await getTutorialProgress(actorId);
+  if(progress.journey?.projectId!==projectId) throw new ForbiddenError();
+  const briefText=content.trim();
+  if(briefText.length<10 || briefText.length>20000) throw new AppError("项目说明需填写 10 至 20000 个字");
+  const payload=taskTreePayloadSchema.parse({
+    summary:"教学模板：先完成报名表单，再增加成功回执。请按你的目标修订任务、负责人和标准。",
+    stages:[
+      {title:"第 1 轮：报名表单",tasks:[{key:"signup",parentKey:null,title:"实现报名表单与必填校验",description:`教学练习任务，需求：${briefText.slice(0,1500)}`,assigneeId:actorId,priority:"medium",doneCriteria:["缺少姓名或联系方式时显示字段提示","完整信息可以提交报名"]}]},
+      {title:"第 2 轮：报名成功回执",tasks:[{key:"receipt",parentKey:null,title:"增加报名成功回执",description:"第一轮集成通过后，为同学展示报名状态。",assigneeId:actorId,priority:"medium",doneCriteria:["报名成功后可以看到状态回执"]}]},
+    ],
+  });
+  validateDraftGraph(payload);
+  return persistTaskTreeDraft(actorId,projectId,briefText,payload);
+}
+async function persistTaskTreeDraft(actorId:string,projectId:string,briefText:string,payload:TaskTreePayload) {
   return db.transaction(async (tx) => {
     const [brief] = await tx.insert(projectBriefs).values({
       projectId,

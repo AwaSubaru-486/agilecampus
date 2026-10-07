@@ -45,7 +45,7 @@ export default function TutorialsPage() {
       <header className="ac-page-header flex flex-wrap items-end justify-between gap-6">
         <div>
           <h1>新手教程</h1>
-          <p>做完一个示例项目，熟悉协作流程；也可以单独学习某项功能。</p>
+          <p>在原有页面创建示例项目，跟着高亮一步步熟悉功能。</p>
         </div>
         {projects.length > 0 && (
           <label className="text-xs text-ink-3">
@@ -92,11 +92,10 @@ export default function TutorialsPage() {
             {courses[0].steps.length} 个互动步骤
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-ink">
-            亲手做完一个校园活动报名页
+            从零开始一个校园活动报名项目
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">
-            创建团队与项目 → 生成并发布任务 → 组员执行 → 导师验收 → 阶段集成 →
-            下一轮迭代。示例独立保存，教学 AI 使用模板，无需配置模型。
+            从“我的团队”开始，使用原有表单创建项目，再在规划页生成与发布任务，到执行台认领、提交，认识验收和迭代。全程留在原有页面。
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
@@ -104,17 +103,12 @@ export default function TutorialsPage() {
               disabled={pending}
               onClick={() => void start("welcome")}
             >
-              {progress.example ? "重新创建示例项目 →" : "创建示例项目并开始 →"}
+              {progress.journey?.teamId ? "重新创建示例项目 →" : "创建示例项目并开始 →"}
             </button>
-            {progress.example && (
+            {progress.journey?.teamId && (
               <p className="w-full text-xs text-ink-3">
-                重新创建会清空这次教学示例的记录；继续上次教程会保留已有操作。
+                重新开始会创建另一份练习团队和项目，已有练习记录会保留。继续上次教程可接着完成。
               </p>
-            )}
-            {progress.example?.phase === 14 && (
-              <Link href="/tutorials/example?phase=14" className="ac-btn-ghost">
-                查看示例成果 →
-              </Link>
             )}
             {progress.active && (
               <button

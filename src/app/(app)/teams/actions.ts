@@ -4,9 +4,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { createTeam, joinTeam } from "@/lib/team";
+import { recordTutorialCreation } from "@/lib/tutorials/progress";
 import { AppError } from "@/lib/errors";
 
-export type FormState = { error: string } | null;
+export type FormState = { error?: string; createdId?: string } | null;
 
 const nameSchema = z.string().trim().min(1, "请填写团队名称");
 const inviteCodeSchema = z.string().trim().min(1, "请填写邀请码");
@@ -21,9 +22,11 @@ export async function createTeamAction(
   const parsed = nameSchema.safeParse(formData.get("name") ?? "");
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  await createTeam(session.user.id, parsed.data);
+  const team = await createTeam(session.user.id, parsed.data);
+  await recordTutorialCreation(session.user.id,"team",team.id);
   revalidatePath("/teams");
-  return null;
+  revalidatePath("/", "layout");
+  return {createdId:team.id};
 }
 
 export async function joinTeamAction(

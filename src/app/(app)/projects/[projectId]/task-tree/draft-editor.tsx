@@ -51,7 +51,7 @@ export function DraftEditor({
   }
 
   return (
-    <div className="space-y-4">
+    <div data-tour="tutorial-draft-editor" className="space-y-4">
       <form action={action} className="space-y-4">
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="draftId" value={draftId} />
@@ -65,7 +65,7 @@ export function DraftEditor({
               maxLength={1000}
               value={value.summary}
               onChange={(e) => setValue({ ...value, summary: e.target.value })}
-              className="ac-input mt-1 w-full"
+              className="ac-field mt-1 w-full"
               rows={2}
             />
           </label>
@@ -79,7 +79,7 @@ export function DraftEditor({
                   aria-label={`阶段 ${si + 1} 名称`}
                   required
                   maxLength={120}
-                  className="ac-input w-full"
+                  className="ac-field w-full"
                   value={stage.title}
                   onChange={(e) =>
                     setValue({
@@ -101,7 +101,7 @@ export function DraftEditor({
                       <input
                         required
                         maxLength={160}
-                        className="ac-input mt-1 w-full"
+                        className="ac-field mt-1 w-full"
                         value={task.title}
                         onChange={(e) =>
                           changeTask(si, ti, { title: e.target.value })
@@ -111,7 +111,7 @@ export function DraftEditor({
                     <label className="text-xs text-ink-soft">
                       负责人
                       <select
-                        className="ac-input mt-1 w-full"
+                        className="ac-field mt-1 w-full"
                         value={task.assigneeId ?? ""}
                         onChange={(e) =>
                           changeTask(si, ti, {
@@ -130,7 +130,7 @@ export function DraftEditor({
                     <label className="text-xs text-ink-soft">
                       优先级
                       <select
-                        className="ac-input mt-1 w-full"
+                        className="ac-field mt-1 w-full"
                         value={task.priority}
                         onChange={(e) =>
                           changeTask(si, ti, {
@@ -146,7 +146,7 @@ export function DraftEditor({
                     <label className="text-xs text-ink-soft">
                       执行说明
                       <textarea
-                        className="ac-input mt-1 w-full"
+                        className="ac-field mt-1 w-full"
                         maxLength={2000}
                         rows={3}
                         value={task.description}
@@ -158,7 +158,7 @@ export function DraftEditor({
                     <label className="text-xs text-ink-soft">
                       完成标准（每行一项）
                       <textarea
-                        className="ac-input mt-1 w-full"
+                        className="ac-field mt-1 w-full"
                         required
                         rows={3}
                         value={task.doneCriteria.join("\n")}

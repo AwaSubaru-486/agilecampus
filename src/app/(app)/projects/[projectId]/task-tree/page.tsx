@@ -12,6 +12,7 @@ import {
   IntegrationReviewForm,
   IntegrationSubmitForm,
 } from "./task-tree-forms";
+import { getTutorialProgress } from "@/lib/tutorials/progress";
 import { DraftEditor } from "./draft-editor";
 
 const stageLabels = {
@@ -45,6 +46,8 @@ export default async function TaskTreePage({
     getTaskTree(session.user.id, projectId),
     listTeamMembers(access.project.teamId),
   ]);
+  const tutorialProgress = await getTutorialProgress(session.user.id);
+  const isTutorial = tutorialProgress.journey?.projectId === projectId;
   const canManage = access.role === "admin";
   const canReview = canManage || access.role === "teacher";
   const actorId = session.user.id;
@@ -238,6 +241,7 @@ export default async function TaskTreePage({
                         )}
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <Link
+                            data-tour="tutorial-stage-task"
                             href={`/projects/${projectId}?space=work&task=${task.id}`}
                             className="text-sm font-semibold text-ink hover:text-signal"
                           >
@@ -385,10 +389,10 @@ export default async function TaskTreePage({
       {canManage && (
         <details id="planning" open={query.plan === "1" || !tree.stages.length} className="ac-disclosure scroll-mt-28">
           <summary><span className="text-base font-semibold text-ink">规划下一轮任务</span><span className="mt-1 block text-xs font-normal text-ink-3">说明目标 → 生成草案 → 调整分工 → 确认发布</span></summary>
-          <div className="ac-disclosure-body"><p className="mb-5 text-sm text-ink-3">填写目标、交付要求或需求变化。已有任务会保留，新阶段追加在后。</p><BriefForm projectId={projectId}/></div>
+          <div className="ac-disclosure-body"><p className="mb-5 text-sm text-ink-3">填写目标、交付要求或需求变化。已有任务会保留，新阶段追加在后。</p><BriefForm projectId={projectId} tutorial={isTutorial} generated={tree.drafts.length > 0 || tree.stages.length > 0}/></div>
         </details>
       )}
-      <div data-tour="task-drafts" className="space-y-4">
+      <div data-tour="task-drafts" data-tour-complete={tree.stages.length > 0 ? "true" : "false"} className="space-y-4">
       {tree.drafts.length === 0 && canManage && <p className="border border-dashed border-stroke p-5 text-sm text-ink-soft">暂无待确认草案。生成后可在这里修订分工与完成标准，保存后确认发布。</p>}
       {tree.drafts.map((draft) => (
         <section

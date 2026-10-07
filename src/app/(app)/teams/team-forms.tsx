@@ -15,9 +15,10 @@ export function TeamForms() {
 
   return (
     <div className="grid gap-6 sm:grid-cols-2">
-      <form action={createFormAction} className="ac-card space-y-2 p-4">
+      <form data-tour="team-create" data-tour-complete={createState?.createdId ? "true" : "false"} action={createFormAction} className="ac-card space-y-2 p-4">
         <h2 className="font-medium text-ink">创建团队</h2>
         <input name="name" placeholder="团队名称" className="ac-field" />
+        {createState?.createdId && <p role="status" className="text-xs text-success">团队已创建，可以继续认识成员分工。</p>}
         {createState?.error && <p className="text-sm text-high">{createState.error}</p>}
         <button disabled={creating} className="ac-btn">
           创建

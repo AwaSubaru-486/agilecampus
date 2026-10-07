@@ -40,7 +40,7 @@ export function DeliveryForm({
       <label className="text-xs text-ink-soft">
         任务分支
         <input
-          className="ac-input mt-1 w-full"
+          className="ac-field mt-1 w-full"
           name="branchName"
           required
           placeholder="task/login"
@@ -49,7 +49,7 @@ export function DeliveryForm({
       <label className="text-xs text-ink-soft">
         提交 SHA（可选）
         <input
-          className="ac-input mt-1 w-full"
+          className="ac-field mt-1 w-full"
           name="headSha"
           placeholder="提交标识"
         />
@@ -57,7 +57,7 @@ export function DeliveryForm({
       <label className="text-xs text-ink-soft">
         PR 地址（可选）
         <input
-          className="ac-input mt-1 w-full"
+          className="ac-field mt-1 w-full"
           name="pullRequestUrl"
           type="url"
           placeholder="https://github.com/…"
@@ -66,7 +66,7 @@ export function DeliveryForm({
       <label className="text-xs text-ink-soft">
         测试摘要（可选）
         <input
-          className="ac-input mt-1 w-full"
+          className="ac-field mt-1 w-full"
           name="testSummary"
           placeholder="验证了哪些行为"
         />
@@ -81,11 +81,12 @@ export function DeliveryForm({
   );
 }
 
-export function BriefForm({ projectId }: { projectId: string }) {
+export function BriefForm({ projectId, tutorial = false, generated = false }: { projectId: string; tutorial?: boolean; generated?: boolean }) {
   const [state, action, pending] = useActionState(generateTreeAction, null);
   return (
-    <form action={action} className="space-y-3">
+    <form data-tour="planning-form" data-tour-complete={state?.success || generated ? "true" : "false"} action={action} className="space-y-3">
       <input type="hidden" name="projectId" value={projectId} />
+      {tutorial && <p className="rounded-lg bg-signal-soft p-3 text-xs leading-5 text-signal">教学示例项目：使用固定任务模板演示生成与发布，不调用模型。创建的任务会保存在此项目。</p>}
       <label className="block text-xs text-ink-soft">
         项目说明
         <textarea
@@ -94,14 +95,14 @@ export function BriefForm({ projectId }: { projectId: string }) {
           minLength={10}
           maxLength={20000}
           rows={7}
-          className="ac-input mt-2 w-full resize-y"
+          className="ac-field mt-2 w-full resize-y"
           placeholder="说明项目目标、交付要求、需求变化和补充约束（至少 10 字）"
         />
       </label>
       <div className="flex items-center justify-between gap-3">
         <Result state={state} />
         <button data-tour="task-generate" type="submit" disabled={pending} className="ac-btn">
-          {pending ? "正在生成..." : "AI 生成任务树草案"}
+          {pending ? "正在生成..." : tutorial ? "生成教学示例草案" : "AI 生成任务树草案"}
         </button>
       </div>
     </form>
@@ -167,7 +168,7 @@ export function IntegrationSubmitForm({
       <label className="text-xs text-ink-soft">
         集成分支
         <input
-          className="ac-input mt-1 w-full"
+          className="ac-field mt-1 w-full"
           name="branchName"
           required
           placeholder="integration/stage-1"
@@ -175,12 +176,12 @@ export function IntegrationSubmitForm({
       </label>
       <label className="text-xs text-ink-soft">
         提交 SHA（可选）
-        <input className="ac-input mt-1 w-full" name="headSha" />
+        <input className="ac-field mt-1 w-full" name="headSha" />
       </label>
       <label className="text-xs text-ink-soft md:col-span-2">
         集成测试结果（可选）
         <textarea
-          className="ac-input mt-1 w-full"
+          className="ac-field mt-1 w-full"
           name="testSummary"
           rows={2}
         />
@@ -212,7 +213,7 @@ export function IntegrationReviewForm({
       <input type="hidden" name="integrationId" value={integrationId} />
       <label className="block text-xs text-ink-soft">
         审核意见（退回时必填）
-        <input className="ac-input mt-1 w-full" name="note" />
+        <input className="ac-field mt-1 w-full" name="note" />
       </label>
       <div className="flex items-center justify-end gap-2">
         <Result state={state} />

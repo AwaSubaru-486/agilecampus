@@ -1,211 +1,97 @@
-import { eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, tasks, taskTreeDrafts } from "@/db/schema";
 import { ForbiddenError } from "@/lib/errors";
 import { getProjectForUser } from "@/lib/project";
-import {
-  buildTutorialCourses,
-  COURSE_IDS,
-  INITIAL_TUTORIAL_PROGRESS,
-  type TutorialProgress,
-} from "./catalog";
+import { getTeamMembership } from "@/lib/team";
+import { buildTutorialCourses, COURSE_IDS, INITIAL_TUTORIAL_PROGRESS, type TutorialProgress } from "./catalog";
+import { EMPTY_JOURNEY } from "./example-flow";
 
-import { applyExampleStep, EMPTY_EXAMPLE, EXAMPLE_FLOW } from "./example-flow";
-
-export const tutorialCommandSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("restart-example") }),
-  z.object({ type: z.literal("dismiss") }),
-  z.object({ type: z.literal("pause") }),
-  z.object({
-    type: z.literal("save"),
-    courseId: z.enum(COURSE_IDS),
-    step: z.number().int().min(0).max(200),
-    projectId: z.uuid().nullable(),
-  }),
-  z.object({ type: z.literal("complete"), courseId: z.enum(COURSE_IDS) }),
+export const tutorialCommandSchema = z.discriminatedUnion("type",[
+  z.object({type:z.literal("restart-example")}),
+  z.object({type:z.literal("dismiss")}),z.object({type:z.literal("pause")}),
+  z.object({type:z.literal("save"),courseId:z.enum(COURSE_IDS),step:z.number().int().min(0).max(200),projectId:z.uuid().nullable()}),
+  z.object({type:z.literal("complete"),courseId:z.enum(COURSE_IDS)}),
 ]);
-export type TutorialCommand = z.infer<typeof tutorialCommandSchema>;
-
-export async function getTutorialProgress(
-  actorId: string,
-): Promise<TutorialProgress> {
-  const [user] = await db
-    .select({ progress: users.tutorialProgress })
-    .from(users)
-    .where(eq(users.id, actorId));
-  if (!user) throw new ForbiddenError();
-  return normalizeProgress(user.progress ?? INITIAL_TUTORIAL_PROGRESS);
+export type TutorialCommand=z.infer<typeof tutorialCommandSchema>;
+function normalizeProgress(progress:TutorialProgress):TutorialProgress {
+  if (progress.journey?.version === 3) return progress;
+  return {...progress,completed:progress.completed.filter(id=>id!=="welcome"),status:progress.status==="completed"?"started":progress.status,
+    active:progress.active?.courseId==="welcome"?{courseId:"welcome",step:0,projectId:null,paused:true,journeyVersion:3}:progress.active};
 }
-
-function normalizeProgress(progress: TutorialProgress): TutorialProgress {
-  const current =
-    !progress.example && progress.completed.includes("welcome")
-      ? {
-          ...progress,
-          status:
-            progress.status === "completed"
-              ? ("started" as const)
-              : progress.status,
-          completed: progress.completed.filter((id) => id !== "welcome"),
-        }
-      : progress;
-  if (
-    current.active?.courseId === "welcome" &&
-    current.active.journeyVersion !== 2
-  ) {
-    return {
-      ...current,
-      active: {
-        courseId: "welcome",
-        step: 0,
-        projectId: null,
-        paused: true,
-        journeyVersion: 2,
-      },
-    };
-  }
-  return current;
+export async function getTutorialProgress(actorId:string):Promise<TutorialProgress> {
+  const [user]=await db.select({progress:users.tutorialProgress}).from(users).where(eq(users.id,actorId));
+  if(!user) throw new ForbiddenError();
+  return withJourneyTask(actorId,normalizeProgress(user.progress ?? INITIAL_TUTORIAL_PROGRESS));
 }
-
-export async function updateTutorialProgress(
-  actorId: string,
-  raw: unknown,
-): Promise<TutorialProgress> {
-  const command = tutorialCommandSchema.parse(raw);
-  if (command.type === "save") {
-    const access = command.projectId
-      ? await getProjectForUser(actorId, command.projectId)
-      : null;
-    if (command.projectId && !access) throw new ForbiddenError();
-    const project = access
-      ? {
-          id: access.project.id,
-          name: access.project.name,
-          teamId: access.project.teamId,
-          role: access.role,
-        }
-      : null;
-    const course = buildTutorialCourses(project).find(
-      (item) => item.id === command.courseId,
-    );
-    if (
-      !course ||
-      (course.needsProject && !project) ||
-      (course.roles && (!project || !course.roles.includes(project.role))) ||
-      command.step >= course.steps.length
-    )
-      throw new ForbiddenError();
-  }
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select id from users where id = ${actorId} for update`,
-    );
-    const [user] = await tx
-      .select({ progress: users.tutorialProgress })
-      .from(users)
-      .where(eq(users.id, actorId));
-    if (!user) throw new ForbiddenError();
-    const current = normalizeProgress(
-      user.progress ?? INITIAL_TUTORIAL_PROGRESS,
-    );
-    if (
-      command.type === "save" &&
-      command.courseId === "welcome" &&
-      command.step > (current.example?.phase ?? 0)
-    )
-      throw new Error("请先完成示例操作");
-    if (
-      command.type === "complete" &&
-      command.courseId === "welcome" &&
-      (current.example?.phase ?? 0) < EXAMPLE_FLOW.length
-    )
-      throw new Error("请先完成示例项目");
-    const newlyCompleted: string[] =
-      command.type === "complete" ? [command.courseId] : [];
-    const progress: TutorialProgress =
-      command.type === "restart-example"
-        ? {
-            ...current,
-            status: "started",
-            example: EMPTY_EXAMPLE,
-            completed: current.completed.filter((id) => id !== "welcome"),
-            active: {
-              courseId: "welcome",
-              step: 0,
-              projectId: null,
-              journeyVersion: 2,
-            },
-          }
-        : command.type === "save"
-          ? {
-              ...current,
-              status: "started",
-              active: {
-                courseId: command.courseId,
-                step: command.step,
-                projectId:
-                  command.courseId === "welcome" ? null : command.projectId,
-                ...(command.courseId === "welcome"
-                  ? { journeyVersion: 2 }
-                  : {}),
-              },
-            }
-          : command.type === "complete"
-            ? {
-                ...current,
-                status:
-                  command.courseId === "welcome"
-                    ? "completed"
-                    : current.status === "new"
-                      ? "started"
-                      : current.status,
-                active: null,
-                completed: [
-                  ...new Set([...current.completed, ...newlyCompleted]),
-                ],
-              }
-            : {
-                ...current,
-                status: current.status === "new" ? "dismissed" : current.status,
-                active:
-                  command.type === "pause" && current.active
-                    ? { ...current.active, paused: true }
-                    : null,
-              };
-    await tx
-      .update(users)
-      .set({ tutorialProgress: progress })
-      .where(eq(users.id, actorId));
-    return progress;
-  });
+async function withJourneyTask(actorId:string,progress:TutorialProgress):Promise<TutorialProgress> {
+  const journey=progress.journey;
+  if(!journey?.projectId || !(await getProjectForUser(actorId,journey.projectId))) return progress;
+  const [task]=await db.select({id:tasks.id}).from(tasks).where(and(eq(tasks.projectId,journey.projectId),eq(tasks.assigneeId,actorId))).orderBy(asc(tasks.sortOrder)).limit(1);
+  return {...progress,journey:{...journey,taskId:task?.id ?? null}};
 }
-
-export async function updateTutorialExample(
-  actorId: string,
-  phase: number,
-  values: Record<string, string>,
-) {
-  return db.transaction(async (tx) => {
+async function assertWelcomeReady(actorId:string,current:TutorialProgress,step:number) {
+  const journey=current.journey;
+  if(step>0 && (!journey?.teamId || !(await getTeamMembership(actorId,journey.teamId)))) throw new Error("请先创建示例团队");
+  if(step<=2) return;
+  if(!journey?.projectId) throw new Error("请先创建示例项目");
+  const access=await getProjectForUser(actorId,journey.projectId);
+  if(!access || access.role!=="admin" || access.project.teamId!==journey.teamId) throw new ForbiddenError();
+  const [drafts,projectTasks]=await Promise.all([
+    db.select({id:taskTreeDrafts.id}).from(taskTreeDrafts).where(eq(taskTreeDrafts.projectId,journey.projectId)),
+    db.select({status:tasks.status,committedAt:tasks.committedAt,assigneeId:tasks.assigneeId}).from(tasks).where(eq(tasks.projectId,journey.projectId)),
+  ]);
+  if(step>4 && !drafts.length) throw new Error("请先生成任务草案");
+  if(step>6 && !projectTasks.length) throw new Error("请先确认发布任务");
+  if(step>9 && !projectTasks.some(task=>task.assigneeId===actorId && task.committedAt)) throw new Error("请先接住任务");
+  if(step>10 && !projectTasks.some(task=>task.assigneeId===actorId && ["review","done"].includes(task.status))) throw new Error("请先提交练习成果");
+}
+export async function updateTutorialProgress(actorId:string,raw:unknown):Promise<TutorialProgress> {
+  const command=tutorialCommandSchema.parse(raw);
+  const access=command.type==="save" && command.projectId?await getProjectForUser(actorId,command.projectId):null;
+  if(command.type==="save" && command.projectId && !access) throw new ForbiddenError();
+  const result=await db.transaction(async tx=>{
     await tx.execute(sql`select id from users where id=${actorId} for update`);
-    const [user] = await tx
-      .select({ progress: users.tutorialProgress })
-      .from(users)
-      .where(eq(users.id, actorId));
-    if (!user) throw new ForbiddenError();
-    const current = normalizeProgress(
-      user.progress ?? INITIAL_TUTORIAL_PROGRESS,
-    );
-    const example = applyExampleStep(
-      current.example ?? EMPTY_EXAMPLE,
-      phase,
-      values,
-      new Date().toISOString(),
-    );
-    await tx
-      .update(users)
-      .set({ tutorialProgress: { ...current, example } })
-      .where(eq(users.id, actorId));
-    return example;
+    const [user]=await tx.select({progress:users.tutorialProgress}).from(users).where(eq(users.id,actorId));
+    if(!user) throw new ForbiddenError();
+    const current=normalizeProgress(user.progress ?? INITIAL_TUTORIAL_PROGRESS);
+    if(command.type==="save") {
+      const project=access?{id:access.project.id,name:access.project.name,teamId:access.project.teamId,role:access.role}:null;
+      const course=buildTutorialCourses(project,current.journey).find(course=>course.id===command.courseId);
+      if(!course || course.needsProject && !project || course.roles && (!project || !course.roles.includes(project.role)) || command.step>=course.steps.length) throw new ForbiddenError();
+      if(command.courseId==="welcome") {
+        if(command.projectId && command.projectId!==current.journey?.projectId) throw new ForbiddenError();
+        await assertWelcomeReady(actorId,current,command.step);
+      }
+    }
+    if(command.type==="complete" && command.courseId==="welcome") await assertWelcomeReady(actorId,current,18);
+    const progress:TutorialProgress=command.type==="restart-example"?{
+      ...current,journey:EMPTY_JOURNEY,status:"started",completed:current.completed.filter(id=>id!=="welcome"),active:{courseId:"welcome",step:0,projectId:null,journeyVersion:3},
+    }:command.type==="save"?{
+      ...current,status:"started",active:{courseId:command.courseId,step:command.step,projectId:command.projectId,...command.courseId==="welcome"?{journeyVersion:3}:{}},
+    }:command.type==="complete"?{
+      ...current,status:command.courseId==="welcome"?"completed":current.status==="new"?"started":current.status,active:null,completed:[...new Set([...current.completed,command.courseId])],
+    }:{...current,status:current.status==="new"?"dismissed":current.status,active:command.type==="pause" && current.active?{...current.active,paused:true}:null};
+    await tx.update(users).set({tutorialProgress:progress}).where(eq(users.id,actorId));return progress;
+  });
+  return withJourneyTask(actorId,result);
+}
+// Called only after the existing authenticated creation forms create a resource.
+export async function recordTutorialCreation(actorId:string,kind:"team"|"project",id:string) {
+  const access=kind==="project"?await getProjectForUser(actorId,id):null;
+  const membership=kind==="team"?await getTeamMembership(actorId,id):null;
+  if(kind==="team"?membership?.role!=="admin":!access || access.role!=="admin") throw new ForbiddenError();
+  return db.transaction(async tx=>{
+    await tx.execute(sql`select id from users where id=${actorId} for update`);
+    const [user]=await tx.select({progress:users.tutorialProgress}).from(users).where(eq(users.id,actorId));
+    if(!user) throw new ForbiddenError();
+    const current=normalizeProgress(user.progress);
+    if(current.active?.courseId!=="welcome" || current.active.paused || current.journey?.version!==3) return;
+    const journey=current.journey;
+    if(kind==="team" && current.active.step===0 && !journey.teamId) journey.teamId=id;
+    else if(kind==="project" && current.active.step===2 && !journey.projectId && access?.project.teamId===journey.teamId) journey.projectId=id;
+    else return;
+    await tx.update(users).set({tutorialProgress:{...current,journey,active:{...current.active,projectId:journey.projectId}}}).where(eq(users.id,actorId));
   });
 }

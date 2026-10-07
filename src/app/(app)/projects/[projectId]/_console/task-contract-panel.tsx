@@ -181,7 +181,7 @@ export function TaskContractPanel({
     canReview && isInReview(task.status) && (isAdmin || !isMine);
 
   return (
-    <div className="flex flex-col gap-0">
+    <div data-tour="tutorial-task-detail" data-tour-claimed={task.committedAt ? "true" : "false"} data-tour-submitted={isInReview(task.status) || task.status === "done" ? "true" : "false"} className="flex flex-col gap-0">
       {/* 头部：真实标题，无广告性副标题 */}
       <div className="flex flex-wrap items-start gap-3 border-b border-stroke px-6 py-5">
         {/* 返回按钮（窄屏） */}

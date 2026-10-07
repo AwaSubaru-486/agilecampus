@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { getTutorialProgress } from "@/lib/tutorials/progress";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import {
   generateTaskTreeDraft,
+  generateTutorialTaskTreeDraft,
   publishTaskTreeDraft,
   rejectTaskTreeDraft,
   reviewStageIntegration,
@@ -51,7 +53,10 @@ export async function generateTreeAction(_state: TreeActionState, formData: Form
   const content = String(formData.get("content") ?? "");
   if (!z.uuid().safeParse(projectId).success) return { error: "项目参数无效" };
   try {
-    await generateTaskTreeDraft(await actor(), projectId, content);
+    const actorId=await actor();
+    const progress=await getTutorialProgress(actorId);
+    if(progress.journey?.projectId===projectId) await generateTutorialTaskTreeDraft(actorId,projectId,content);
+    else await generateTaskTreeDraft(actorId, projectId, content);
     revalidatePath(`/projects/${projectId}/task-tree`);
     return { success: "草案已生成，请确认后发布" };
   } catch (error) {

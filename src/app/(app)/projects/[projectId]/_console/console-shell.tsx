@@ -258,12 +258,12 @@ export function ConsoleShell({
 
   // 列表与详情能并排时，默认选中当前页第一个未完成任务。
   useEffect(() => {
-    if (!selectedTaskId && taskRows.length > 0 && layout !== "mobile") {
+    if (!selectedTaskId && taskRows.length > 0 && layout !== "mobile" && panel !== "list") {
       const firstPending = taskRows.find((t) => t.status !== "done") ?? taskRows[0];
       router.replace(buildSelectTaskHref(projectId, firstPending.id, currentParams));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTaskId, taskRows, projectId, layout]);
+  }, [selectedTaskId, taskRows, projectId, layout, panel]);
 
   function selectTask(taskId: string) {
     startTransition(() => {

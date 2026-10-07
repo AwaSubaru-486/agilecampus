@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { createProject } from "@/lib/project";
+import { recordTutorialCreation } from "@/lib/tutorials/progress";
 import { AppError, ForbiddenError } from "@/lib/errors";
 
 const schema = z.object({
@@ -14,7 +15,7 @@ const schema = z.object({
   endDate: z.iso.date("日期格式不正确").optional(),
 });
 
-export type FormState = { error: string } | null;
+export type FormState = { error?: string; createdId?: string } | null;
 
 export async function createProjectAction(
   _prev: FormState,
@@ -32,18 +33,22 @@ export async function createProjectAction(
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
+  let createdId: string;
   try {
-    await createProject(session.user.id, parsed.data.teamId, {
+    const project = await createProject(session.user.id, parsed.data.teamId, {
       name: parsed.data.name,
       description: parsed.data.description,
       startDate: parsed.data.startDate,
       endDate: parsed.data.endDate,
     });
+    createdId=project.id;
+    await recordTutorialCreation(session.user.id,"project",project.id);
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "仅团队管理员可创建项目" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
   revalidatePath(`/teams/${parsed.data.teamId}/projects`);
-  return null;
+  revalidatePath("/", "layout");
+  return {createdId};
 }
