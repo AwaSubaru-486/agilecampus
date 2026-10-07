@@ -1,84 +1,142 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { listMyProjects } from "@/lib/project";
+import { db } from "@/db";
+import { teamMembers } from "@/db/schema";
+import { WorkspaceIcon } from "@/components/workspace-icon";
 
 export default async function AllProjectsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  const projects = await listMyProjects(session.user.id);
-  const activeProjects = projects.filter((project) => project.status !== "archived").length;
-  const totalTasks = projects.reduce((sum, project) => sum + project.taskTotal, 0);
-  const completedTasks = projects.reduce((sum, project) => sum + project.doneCount, 0);
-  const overallProgress = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
+  const [projects, memberships] = await Promise.all([
+    listMyProjects(session.user.id),
+    db
+      .select({ teamId: teamMembers.teamId, role: teamMembers.role })
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, session.user.id)),
+  ]);
+  const active = projects.filter((p) => p.status !== "archived");
+  const archived = projects.filter((p) => p.status === "archived");
   return (
-    <main data-tour="projects" className="mx-auto max-w-6xl space-y-6 py-2 sm:py-4">
-      <header className="flex flex-col justify-between gap-5 border-b border-stroke pb-5 sm:flex-row sm:items-end">
+    <div data-tour="projects" className="mx-auto max-w-6xl">
+      <header className="ac-page-header flex flex-wrap items-end justify-between gap-5">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">项目</h1>
+          <h1>我的项目</h1>
+          <p>选一个项目，继续你和团队正在做的事。</p>
         </div>
-        <div className="flex gap-6 sm:gap-8">
-          <Metric value={activeProjects} label="进行中的项目" />
-          <Metric value={`${overallProgress}%`} label="整体完成率" />
-          <Metric value={totalTasks - completedTasks} label="剩余任务" />
-        </div>
+        <Link href="/teams" className="ac-btn-ghost">
+          创建或加入项目 <span aria-hidden>＋</span>
+        </Link>
       </header>
       {projects.length === 0 ? (
-        <div className="rounded-[var(--radius-panel)] border border-stroke bg-panel p-14 text-center">
-          <p className="font-medium text-ink">这里还没有项目</p>
-          <p className="mt-1 text-sm text-ink-3">先进入团队空间，创建第一个协作项目。</p>
-          <Link href="/teams" className="ac-btn mt-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">前往团队</Link>
-        </div>
+        <section className="ac-focus-card px-6 py-16 text-center">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-signal-soft text-signal">
+            <WorkspaceIcon name="projects" className="size-7" />
+          </div>
+          <h2 className="mt-6 text-xl font-semibold text-ink">
+            从一个团队开始
+          </h2>
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-ink-3">
+            创建自己的团队，或使用同伴的邀请码加入。项目、分工和成果会在这里逐步展开。
+          </p>
+          <Link href="/teams" className="ac-btn mt-7">
+            进入团队，开始协作 →
+          </Link>
+        </section>
       ) : (
-        <ul className="divide-y divide-stroke border-y border-stroke">
-          {projects.map((p) => {
-            const pct = p.taskTotal > 0 ? Math.round((p.doneCount / p.taskTotal) * 100) : 0;
-            return (
-              <li key={p.id} className="group">
-                <Link
-                  href={`/projects/${p.id}?space=work`}
-                  className="grid gap-2 px-3 py-3.5 transition-colors hover:bg-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal sm:grid-cols-[minmax(0,1.5fr)_11rem_minmax(10rem,0.75fr)_4rem_auto] sm:items-center sm:gap-4"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="min-w-0 truncate font-medium text-ink group-hover:text-signal">{p.name}</span>
-                  </div>
-                  <div className="truncate text-xs text-ink-3">
-                    <p className="truncate">{p.teamName}</p>
-                    <p className="mt-0.5 text-[11px]">{p.status === "archived" ? "已归档" : "进行中"}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-ink-3">
-                      <span>{p.taskTotal - p.doneCount} 项待推进</span>
-                      <span className="tabular-nums">{pct}%</span>
-                    </div>
-                    <div className="h-1 overflow-hidden bg-sunken">
-                      <div
-                        className="h-full bg-signal transition-[width] duration-200 ease-out"
-                        style={{ width: `${pct}%` }}
+        <>
+          <div className="mb-4 flex items-center justify-between text-xs text-ink-3">
+            <span>进行中，{active.length}</span>
+            <span>进度以已验收任务为准</span>
+          </div>
+          <ul className="grid gap-5 xl:grid-cols-2">
+            {active.map((p) => {
+              const role = memberships.find((m) => m.teamId === p.teamId)?.role;
+              const percent = p.taskTotal
+                ? Math.round((p.doneCount / p.taskTotal) * 100)
+                : 0;
+              const href =
+                role === "admin" && p.taskTotal === 0
+                  ? "/projects/" + p.id + "/task-tree#planning"
+                  : "/projects/" + p.id + "?space=work&panel=list";
+              return (
+                <li key={p.id}>
+                  <Link href={href} className="ac-project-card group">
+                    <div className="flex items-start gap-4">
+                      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-signal-soft text-base font-semibold text-signal">
+                        {p.name.slice(0, 1)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] text-ink-3">
+                          {p.teamName}，
+                          {role === "admin"
+                            ? "组长"
+                            : role === "teacher"
+                              ? "导师"
+                              : "组员"}
+                        </p>
+                        <h2 className="mt-1.5 text-lg font-semibold leading-7 text-ink group-hover:text-signal">
+                          {p.name}
+                        </h2>
+                      </div>
+                      <WorkspaceIcon
+                        name="arrow"
+                        className="mt-3 size-4 text-ink-3"
                       />
                     </div>
-                  </div>
-                  <span className={`flex items-center gap-1.5 text-xs ${p.status === "archived" ? "text-ink-3" : "text-success"}`}>
-                    <span className="size-1.5 rounded-full bg-current" />
-                    {p.status === "archived" ? "归档" : "运行中"}
-                  </span>
-                  <span aria-hidden className="text-base text-ink-3 transition-transform group-hover:translate-x-0.5">→</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <div className="mt-7 flex items-center justify-between text-xs text-ink-3">
+                      <span>
+                        {p.taskTotal
+                          ? p.doneCount + " / " + p.taskTotal + " 项已验收"
+                          : "还没有任务，从目标与分工开始"}
+                      </span>
+                      <span>{p.taskTotal ? percent + "%" : "等待规划"}</span>
+                    </div>
+                    <div className="mt-3 h-1 overflow-hidden rounded-full bg-sunken">
+                      <div
+                        className="h-full rounded-full bg-signal"
+                        style={{ width: percent + "%" }}
+                      />
+                    </div>
+                    <p className="mt-6 border-t border-stroke pt-4 text-xs font-medium text-signal">
+                      {p.taskTotal === 0
+                        ? role === "admin"
+                          ? "规划第一轮任务"
+                          : "查看项目，等待分工"
+                        : role === "teacher"
+                          ? "查看交付与待审核任务"
+                          : role === "admin"
+                            ? "继续组织任务与交付"
+                            : "查看我的任务"}{" "}
+                      →
+                    </p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {archived.length > 0 && (
+            <details className="ac-disclosure mt-8">
+              <summary>已归档项目，{archived.length}</summary>
+              <ul className="divide-y divide-stroke">
+                {archived.map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      href={"/projects/" + p.id + "?space=record"}
+                      className="flex justify-between p-5 text-sm text-ink-2"
+                    >
+                      <span>{p.name}</span>
+                      <span className="text-xs text-ink-3">查看成果 →</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
       )}
-    </main>
-  );
-}
-
-function Metric({ value, label }: { value: string | number; label: string }) {
-  return (
-    <div>
-      <p className="font-display text-xl font-bold tabular-nums text-ink">{value}</p>
-      <p className="mt-0.5 whitespace-nowrap text-[10px] text-ink-3">{label}</p>
     </div>
   );
 }

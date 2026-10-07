@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { z } from "zod";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -71,14 +70,9 @@ export default async function TimelinePage({
   const todayMs = todayStart.getTime();
 
   return (
-    <main data-tour="timeline" className="mx-auto max-w-5xl space-y-6 py-8">
+    <main data-tour="timeline" className="mx-auto max-w-5xl space-y-6">
       <header className="space-y-1">
-        <Link href={`/projects/${projectId}`} className="text-xs text-ink-soft hover:text-primary">
-          ← 返回项目
-        </Link>
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          {access.project.name}：时间线
-        </h1>
+        <h2 className="text-xl font-semibold text-ink">时间线</h2>
         <p className="text-sm text-ink-soft">
           按起始日和截止日显示任务，竖线表示今天。
         </p>

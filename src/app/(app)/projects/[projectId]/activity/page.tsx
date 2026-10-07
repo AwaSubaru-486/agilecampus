@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { z } from "zod";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -59,13 +58,8 @@ export default async function ActivityPage({
 
   return (
     <div data-tour="activity" className="mx-auto max-w-[82rem] space-y-5 py-1 sm:py-3">
-      <header className="ac-card p-5 sm:p-7">
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-          <Link href={`/projects/${projectId}`} className="text-ink-faint hover:text-primary">
-            ← {access.project.name}
-          </Link>
-        </div>
-        <h1 className="mt-4 font-display text-3xl font-bold text-ink">项目活动流</h1>
+      <header className="space-y-3">
+        <h2 className="text-xl font-semibold text-ink">项目活动流</h2>
         <p className="mt-3 text-xs text-ink-faint">共 {events.length} 条记录</p>
       </header>
 

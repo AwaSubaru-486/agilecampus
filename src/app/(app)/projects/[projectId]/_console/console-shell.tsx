@@ -289,7 +289,7 @@ export function ConsoleShell({
 
   useEffect(() => {
     if (!runRailOpen) {
-      if (layout !== "desktop" && runRailTriggerRef.current?.isConnected) runRailTriggerRef.current.focus();
+      if (runRailTriggerRef.current?.isConnected) runRailTriggerRef.current.focus();
       return;
     }
     const dialog = runRailRef.current;
@@ -325,14 +325,14 @@ export function ConsoleShell({
 
   return (
     <div ref={consoleRef} className="relative flex min-h-0 w-full flex-col">
-      {/* 桌面/平板三栏或双栏容器 */}
+      {/* 任务列表与详情工作面 */}
       <div className="flex min-h-0 flex-1 divide-x divide-stroke overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
 
         {/* ── 左栏：任务列表 ── */}
         <div
           className={[
-            "flex w-full flex-col overflow-y-auto",
-            layout !== "mobile" ? "w-[280px] shrink-0" : "",
+            "flex min-w-0 flex-col overflow-y-auto",
+            layout !== "mobile" ? "w-[280px] shrink-0" : "w-full",
             layout === "mobile" && selectedTaskId && !showListOnNarrow ? "hidden" : "",
           ].join(" ")}
         >
@@ -373,20 +373,10 @@ export function ConsoleShell({
           />
         </div>
 
-        {/* ── 右栏：执行记录（≥1120px 固定显示；<1120px 抽屉） ── */}
-        <div className={layout === "desktop" ? "flex w-[320px] shrink-0 flex-col overflow-y-auto" : "hidden"}>
-          <AgentRunRail
-            projectId={projectId}
-            actorId={actorId}
-            selectedTask={selectedTask}
-            drawerMode={false}
-            mode={mode}
-          />
-        </div>
       </div>
 
-      {/* 执行记录抽屉（<1120px） */}
-      {layout !== "desktop" && (
+      {/* 执行记录按需展开，不常驻占据任务阅读空间 */}
+      {runRailOpen && (
         <div aria-hidden={!runRailOpen} className={`fixed inset-0 z-50 justify-end ${runRailOpen ? "flex" : "hidden"}`}>
             <div
               aria-hidden

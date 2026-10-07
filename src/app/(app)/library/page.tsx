@@ -108,56 +108,12 @@ function LibraryHeader({
   activeType: "all" | "deliverable" | "doc";
 }) {
   return (
-    <header className="grid border-b-2 border-ink lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="py-6 sm:py-9">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">项目资料</h1>
-      </div>
-      <dl className="grid grid-cols-3 border-t border-stroke text-left lg:border-l lg:border-t-0">
-        <Link
-          href="/library"
-          aria-label={`查看全部归档：共 ${total} 项`}
-          aria-current={activeType === "all" ? "true" : undefined}
-          className={`group flex flex-col justify-end border-r border-stroke px-3 py-4 transition-colors hover:bg-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal lg:px-4 lg:py-6 ${
-            activeType === "all" ? "bg-sunken/50" : ""
-          }`}
-        >
-          <dt className="text-xs text-ink-3 group-hover:text-ink">全部</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tabular-nums text-ink">
-            {String(total).padStart(2, "0")}
-          </dd>
-          {activeType === "all" && <span className="mt-2 block h-0.5 w-6 bg-ink" />}
-        </Link>
-
-        <Link
-          href="/library?type=deliverable"
-          aria-label={`只看可交付成果：共 ${deliverableCount} 项`}
-          aria-current={activeType === "deliverable" ? "true" : undefined}
-          className={`group flex flex-col justify-end border-r border-stroke px-3 py-4 transition-colors hover:bg-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal lg:px-4 lg:py-6 ${
-            activeType === "deliverable" ? "bg-sunken/50" : ""
-          }`}
-        >
-          <dt className="text-xs text-ink-3 group-hover:text-ink">成果</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tabular-nums text-human">
-            {String(deliverableCount).padStart(2, "0")}
-          </dd>
-          {activeType === "deliverable" && <span className="mt-2 block h-0.5 w-6 bg-human" />}
-        </Link>
-
-        <Link
-          href="/library?type=doc"
-          aria-label={`只看过程文档：共 ${docCount} 项`}
-          aria-current={activeType === "doc" ? "true" : undefined}
-          className={`group flex flex-col justify-end px-3 py-4 transition-colors hover:bg-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal lg:px-4 lg:py-6 ${
-            activeType === "doc" ? "bg-sunken/50" : ""
-          }`}
-        >
-          <dt className="text-xs text-ink-3 group-hover:text-ink">文档</dt>
-          <dd className="mt-1 font-display text-2xl font-semibold tabular-nums text-ink">
-            {String(docCount).padStart(2, "0")}
-          </dd>
-          {activeType === "doc" && <span className="mt-2 block h-0.5 w-6 bg-ink" />}
-        </Link>
-      </dl>
+    <header className="ac-page-header">
+      <h1>资料库</h1>
+      <p>按成果或过程文档查找项目资料，回到来源项目继续协作。</p>
+      <nav aria-label="资料类型" className="ac-view-switch">
+        {[{type:"all", label:"全部资料", count:total}, {type:"deliverable", label:"交付成果", count:deliverableCount}, {type:"doc", label:"过程文档", count:docCount}].map(item => <Link key={item.type} href={item.type === "all" ? "/library" : `/library?type=${item.type}`} aria-current={activeType === item.type ? "page" : undefined}>{item.label} <span className="ml-2 tabular-nums text-ink-3">{item.count}</span></Link>)}
+      </nav>
     </header>
   );
 }

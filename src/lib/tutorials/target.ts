@@ -6,7 +6,15 @@ function visible(element: HTMLElement) {
 }
 
 export function findTutorialTarget(root: TutorialDocument, selector: string) {
-  const element = [...root.querySelectorAll<HTMLElement>(selector)].find(visible);
+  const candidates = [...root.querySelectorAll<HTMLElement>(selector)];
+  for (const candidate of candidates) {
+    let parent = candidate.parentElement;
+    while (parent) {
+      if (parent.tagName === "DETAILS") (parent as HTMLDetailsElement).open = true;
+      parent = parent.parentElement;
+    }
+  }
+  const element = candidates.find(visible);
   if (element) return { element, emptyTaskList: false };
   if (selector === '[data-tour="console-task"]') {
     // Completed tasks are deliberately collapsed in the normal work area.

@@ -74,12 +74,10 @@ export async function WorkSpace({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href={`/projects/${projectId}?space=work`}
-              className="ac-btn-ghost min-h-8 px-2.5 text-xs"
-            >
-              ← 返回协同执行
-            </Link>
+            <nav aria-label="任务视图" className="ac-view-switch !mt-0">
+              <Link href={`/projects/${projectId}?space=work&panel=list`}>列表</Link>
+              <Link href={`/projects/${projectId}?space=work&view=board`} aria-current="page">看板</Link>
+            </nav>
             {canCreateTask && (
               <NewTaskForm
                 compact
@@ -88,12 +86,13 @@ export async function WorkSpace({
                 milestones={projectMilestones_.map((m) => ({ id: m.id, title: m.title }))}
               />
             )}
-            <Link href={`/projects/${projectId}/timeline`} className="ac-btn-ghost min-h-8 px-2.5 text-xs">
-              时间线
-            </Link>
+
           </div>
         </div>
 
+        <details className="ac-disclosure" open={Boolean(filters.assignee || filters.priority || filters.label || filters.milestone || filters.overdue)}>
+          <summary>筛选与分组</summary>
+          <div className="ac-disclosure-body">
         <FilterBar
           members={members_.map((m) => ({
             id: m.id,
@@ -104,6 +103,8 @@ export async function WorkSpace({
           visible={visibleTasks.length}
           total={projectTasks.length}
         />
+          </div>
+        </details>
 
         <Board
           projectId={projectId}
@@ -166,29 +167,12 @@ export async function WorkSpace({
     <section data-tour="execution-console" className="flex flex-col gap-3">
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold text-ink">协同执行</h2>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/projects/${projectId}?space=work&view=board`}
-            className="ac-btn-ghost min-h-8 px-2.5 text-xs"
-          >
-            看板视图
-          </Link>
-          <Link href={`/projects/${projectId}/task-tree`} className="ac-btn-ghost min-h-8 px-2.5 text-xs">任务树</Link>
-          <Link href={`/projects/${projectId}/timeline`} className="ac-btn-ghost min-h-8 px-2.5 text-xs">
-            时间线
-          </Link>
-        </div>
+        <p className="text-sm text-ink-3">{role === "teacher" ? "选择待验收任务，检查证据后给出反馈。" : "选择一项任务，查看要求、接下工作或提交成果。"}</p>
+        <nav aria-label="任务视图" className="ac-view-switch !mt-0">
+          <Link href={`/projects/${projectId}?space=work&panel=list`} aria-current="page">列表</Link>
+          <Link href={`/projects/${projectId}?space=work&view=board`}>看板</Link>
+        </nav>
       </div>
-
-      {role === "teacher" && (
-        <div className="rounded-xl border border-purple-200 bg-purple-50/80 p-3 text-xs text-purple-900 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">🎓 导师评估视图：</span>
-            <span>您当前拥有全局只读与里程碑综合打分权限。日常敏捷卡片受保护以保障学生自主节奏，请在右上角点击【★ 导师评审打分】提交指导评语与评定等级。</span>
-          </div>
-        </div>
-      )}
 
       {/* 执行台：三栏交接工作面 */}
       <ExecutionConsole

@@ -10,6 +10,14 @@ function root(rows: HTMLElement[], toggle: HTMLElement | null = null, empty: HTM
 }
 
 describe("任务教程入口恢复", () => {
+  it("自动展开嵌套资料区域，让收纳后的教程目标仍可定位", () => {
+    const outer = { tagName: "DETAILS", open: false, parentElement: null };
+    const inner = { tagName: "DETAILS", open: false, parentElement: outer };
+    const target = { parentElement: inner, getBoundingClientRect: () => ({ width: outer.open && inner.open ? 280 : 0, height: 48 }) } as unknown as HTMLElement;
+    expect(findTutorialTarget(root([target]), '[data-tour="context-title"]').element).toBe(target);
+    expect(inner.open).toBe(true);
+    expect(outer.open).toBe(true);
+  });
   it("真实可见任务优先，不将正常任务操作降级为空列表学习", () => {
     const task = element();
     expect(findTutorialTarget(root([element(false), task], null, element()), '[data-tour="console-task"]')).toEqual({ element: task, emptyTaskList: false });

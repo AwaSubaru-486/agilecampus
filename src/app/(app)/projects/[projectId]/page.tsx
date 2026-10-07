@@ -1,18 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { getProjectForUser, listProjectMilestones } from "@/lib/project";
+import { getProjectForUser } from "@/lib/project";
 import { parseFilters } from "@/lib/board-filters";
 import { normalizeConsoleParams, needsRedirect, serializeConsoleParams } from "@/lib/console-navigation";
 import { listTaskRefs } from "@/lib/task";
-import { ProjectBand } from "../../_shell/top-workbar";
 import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
 import { RecordSpace } from "./_record/record-space";
-import { TeacherEvaluationModal } from "./_shared/teacher-evaluation-modal";
-import { DeleteProjectButton } from "./_shared/delete-project-button";
-import { RoleWorkspace } from "./_shared/role-workspace";
 
 // 项目页：四个互斥模式。
 //
@@ -68,9 +64,6 @@ export default async function ProjectPage({
 
   const canWrite = role === "admin" || role === "student";
 
-  // 里程碑：小查询，四个模式都要用（面包带子是全局的）。
-  const milestones = await listProjectMilestones(actorId, projectId);
-  const latestOpen = milestones.find((m) => m.status === "open") ?? null;
 
   // 接力链只在现场模式需要，按需加载。
   const relayTasks = space === "live" ? await listTaskRefs(projectId) : [];
@@ -85,39 +78,6 @@ export default async function ProjectPage({
 
   return (
     <div className="space-y-4">
-      <RoleWorkspace role={role} projectId={projectId} />
-      <ProjectBand
-        projectName={project.name}
-        latestMilestone={
-          latestOpen
-            ? `${latestOpen.title}${latestOpen.targetDate ? `；截止：${latestOpen.targetDate}` : ""}`
-            : milestones.length > 0
-              ? "里程碑已全部达成"
-              : null
-        }
-        backHref="/projects"
-        backLabel="所有项目"
-        actions={
-          <div className="flex items-center gap-2">
-            {role === "teacher" && (
-              <TeacherEvaluationModal
-                projectId={projectId}
-                projectName={project.name}
-                role={role}
-                milestones={milestones.map((m) => ({
-                  id: m.id,
-                  title: m.title,
-                  targetDate: m.targetDate,
-                  status: m.status,
-                }))}
-              />
-            )}
-            {role === "admin" && (
-              <DeleteProjectButton projectId={projectId} projectName={project.name} />
-            )}
-          </div>
-        }
-      />
 
       {space === "live" && (
         <LiveSpace

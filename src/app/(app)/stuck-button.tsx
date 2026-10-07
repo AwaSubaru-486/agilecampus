@@ -16,11 +16,7 @@ type Helper = { userId: string; name: string; score: number; reasons: string[]; 
 
 const PROJECT_PATH = /^\/projects\/([0-9a-f-]{36})/i;
 
-// 全局求助入口。
-//
-// 之所以做成常驻悬浮而非任务卡上的按钮：人卡住时最不想做的事，
-// 就是先翻到那个任务、找到那张卡、再点一个小按钮。
-// 求助的门槛必须低到「无论我在哪一页，都同一个动作」。
+// 在项目执行与协作中心提供求助，跟随当前项目上下文。
 export function StuckButton({ projects }: { projects: Project[] }) {
   const pathname = usePathname();
   const fromPath = pathname.match(PROJECT_PATH)?.[1] ?? null;
@@ -64,6 +60,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null;
       if (
+        (!fromPath && pathname !== "/collaboration") ||
         e.key !== "b" ||
         e.metaKey ||
         e.ctrlKey ||
@@ -77,7 +74,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [fromPath, pathname]);
 
   // 选定项目后取「我的在办任务」，供可选关联。
   // 两个 effect 都只在异步回调里改状态——同步 setState 会触发
@@ -141,6 +138,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
     setLoadingHint(false);
   }
 
+  if (!fromPath && pathname !== "/collaboration") return null;
   return (
     <>
       <button

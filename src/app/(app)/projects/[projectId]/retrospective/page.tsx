@@ -35,14 +35,8 @@ export default async function RetrospectivePage({
 
   return (
     <div data-tour="retrospective" className="mx-auto max-w-[82rem] space-y-6 py-1 sm:py-3">
-      <header className="ac-card p-5 sm:p-7">
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-          <Link href={`/projects/${projectId}`} className="text-ink-faint hover:text-primary">
-            ← {access.project.name}
-          </Link>
-          <span className="text-line-strong">/</span>
-        </div>
-        <h1 className="mt-4 font-display text-3xl font-bold text-ink">项目复盘</h1>
+      <header className="space-y-3">
+        <h2 className="text-xl font-semibold text-ink">项目复盘</h2>
         {hasData && (
           <div className="mt-4 flex flex-wrap gap-5 text-xs text-ink-faint">
             <span>共 {span.totalEvents} 条过程记录</span>

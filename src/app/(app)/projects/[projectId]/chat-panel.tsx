@@ -310,7 +310,7 @@ export function ChatPanel({
         )}
       </div>
 
-      <div className="grid min-h-[26rem] md:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,1fr)_15rem]">
+      <div className="grid min-h-[26rem] md:grid-cols-[14rem_minmax(0,1fr)]">
         <aside className="border-b border-stroke bg-ground/35 p-2.5 md:border-b-0 md:border-r">
           <p className="ac-section-title px-2 py-1.5">会话列表</p>
           <ConversationTree
@@ -408,7 +408,10 @@ export function ChatPanel({
           </div>
         </div>
 
-        <aside className="border-t border-stroke bg-ground/40 px-3 py-4 md:col-span-2 xl:col-span-1 xl:border-l xl:border-t-0">
+        <aside className="border-t border-stroke bg-ground/40 px-4 py-5 md:col-span-2">
+          <details className="ac-disclosure">
+            <summary>为这次讨论准备资料</summary>
+            <div className="ac-disclosure-body !p-4">
           {initialTask && (
             <div className="mb-4 border-b border-stroke pb-3">
               <p className="text-[11px] text-ink-3">关联任务</p>
@@ -435,6 +438,8 @@ export function ChatPanel({
             <p className="text-[11px] font-medium text-ink-3">人工边界</p>
             <p className="mt-1 text-xs leading-5 text-ink-2">Agent 只给建议；写入、验收和状态变更由成员确认。</p>
           </div>
+            </div>
+          </details>
         </aside>
       </div>
     </section>

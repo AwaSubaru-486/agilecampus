@@ -59,6 +59,8 @@ export async function RecordSpace({
         </div>
       </section>
 
+      <details className="ac-disclosure" open={decisions.some(d=>d.status === "proposed")}>
+        <summary>项目决策，{decisions.length} 条记录</summary><div className="ac-disclosure-body">
       <DecisionLedger
         projectId={projectId}
         decisions={decisions.map(
@@ -83,6 +85,8 @@ export async function RecordSpace({
         )}
         canDecide={role === "admin" || role === "teacher" || role === "student"}
       />
+        </div>
+      </details>
 
       <ArchiveSection
         projectId={projectId}

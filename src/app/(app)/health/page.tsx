@@ -18,9 +18,10 @@ export default async function HealthPage() {
 
   return (
     <main data-tour="health" className="mx-auto max-w-6xl space-y-8 py-2 sm:py-4">
-      <header className="flex flex-col justify-between gap-5 border-b border-line pb-7 sm:flex-row sm:items-end">
+      <header className="ac-page-header flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">项目健康度</h1>
+          <h1>项目健康度</h1>
+          <p>先关注需要协调的项目，再进入项目查看原因。</p>
         </div>
         <div className="flex gap-6 sm:gap-8">
           <Metric value={needAttention.length} label="需要关注的项目" />

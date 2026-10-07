@@ -1,4 +1,5 @@
 "use client";
+import { tutorialStepRoute } from "@/lib/tutorials/route";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -60,6 +61,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const stepRoute = step?.route;
   const stepTarget = step?.target;
   const stepAction = step?.action;
+  const globalNavigation = stepTarget === '[data-tour="nav-today"]' || stepTarget === '[data-tour="nav-projects"]';
   const rect = locatedKey === stepKey ? measuredRect : null;
   const fulfilled = actionKey === stepKey && actionDone;
   const emptyTaskList = Boolean(stepKey && emptyTaskKey === stepKey);
@@ -124,12 +126,13 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     if (!stepRoute || !stepTarget) return;
     const frame = requestAnimationFrame(() => {
       setFulfilled(false); setRect(null); setMissing(false);
-      if (!stepTarget.includes("nav-")) window.dispatchEvent(new CustomEvent("agilecampus:tutorial-navigation", { detail: false }));
+      if (!globalNavigation) window.dispatchEvent(new CustomEvent("agilecampus:tutorial-navigation", { detail: false }));
       const current = window.location.pathname + window.location.search + window.location.hash;
-      if (current !== stepRoute) router.push(stepRoute);
+      const destination = tutorialStepRoute(stepRoute, current);
+      if (current !== destination) router.push(destination);
     });
     return () => cancelAnimationFrame(frame);
-  }, [stepKey, stepRoute, stepTarget, router]);
+  }, [stepKey, stepRoute, stepTarget, globalNavigation, router]);
 
   // Track the real element after navigation, scrolling, resize and dynamic UI updates.
   useEffect(() => {
@@ -151,7 +154,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
       // Route changes close the mobile drawer asynchronously. Keep requesting
       // it while the target is hidden, rather than losing a one-shot event.
-      if (stepTarget.includes("nav-") && !element && !fulfilled) {
+      if (globalNavigation && !element && !fulfilled) {
         window.dispatchEvent(new Event("agilecampus:tutorial-navigation"));
       }
       if (!element) {
@@ -181,7 +184,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     window.addEventListener("scroll", measure, true);
     measure();
     return () => { clearInterval(interval); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled]);
+  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, globalNavigation]);
 
   useEffect(() => {
     if (!stepTarget || !stepAction) return;

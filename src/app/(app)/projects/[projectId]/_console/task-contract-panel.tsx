@@ -26,8 +26,15 @@ import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
-import { RequiredEvidenceFields, missingRequiredEvidenceTypes } from "../_shared/required-evidence-fields";
-import type { ConsoleLayout, MemberSummary, SelectedTaskDetail } from "./console-shell";
+import {
+  RequiredEvidenceFields,
+  missingRequiredEvidenceTypes,
+} from "../_shared/required-evidence-fields";
+import type {
+  ConsoleLayout,
+  MemberSummary,
+  SelectedTaskDetail,
+} from "./console-shell";
 import type { EvidenceType } from "@/lib/handoff";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -148,7 +155,10 @@ export function TaskContractPanel({
     task.committedHandoffVersion === task.handoffVersion;
 
   // 动作权限计算
-  const canClaim = canWrite && isInFlight(task.status) && (!task.assigneeId || (isMine && (!task.committedAt || !versionMatch)));
+  const canClaim =
+    canWrite &&
+    isInFlight(task.status) &&
+    (!task.assigneeId || (isMine && (!task.committedAt || !versionMatch)));
   const awaiting = isAwaitingResponse(
     task.status,
     task.assigneeId,
@@ -157,18 +167,23 @@ export function TaskContractPanel({
     task.handoffVersion,
   );
   const canDecline = isMine && awaiting;
-  const canSubmit = isMine && isInFlight(task.status) && Boolean(task.committedAt) && versionMatch;
+  const canSubmit =
+    isMine &&
+    isInFlight(task.status) &&
+    Boolean(task.committedAt) &&
+    versionMatch;
   const missingEvidenceTypes = missingRequiredEvidenceTypes(
     task.requiredEvidence,
     task.evidence.map((item) => item.type),
   );
   const isAdmin = canWrite && canReview;
-  const canReviewThis = canReview && isInReview(task.status) && (isAdmin || !isMine);
+  const canReviewThis =
+    canReview && isInReview(task.status) && (isAdmin || !isMine);
 
   return (
     <div className="flex flex-col gap-0">
       {/* 头部：真实标题，无广告性副标题 */}
-      <div className="flex items-start gap-3 border-b border-stroke px-4 py-3">
+      <div className="flex flex-wrap items-start gap-3 border-b border-stroke px-6 py-5">
         {/* 返回按钮（窄屏） */}
         <button
           onClick={onBack}
@@ -178,7 +193,9 @@ export function TaskContractPanel({
           ←
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold leading-snug text-ink">{task.title}</h2>
+          <h2 className="text-base font-semibold leading-snug text-ink">
+            {task.title}
+          </h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-2">
             <span
               className={`rounded px-1.5 py-0.5 font-medium ${STATUS_CLASSES[task.status] ?? "bg-panel text-ink-2"}`}
@@ -189,36 +206,50 @@ export function TaskContractPanel({
             {task.dueDate && <span>截止：{task.dueDate}</span>}
             {task.responseDueAt && (
               <span className="text-caution">
-                交接截止：{new Date(task.responseDueAt).toLocaleDateString("zh-CN")}
+                交接截止：
+                {new Date(task.responseDueAt).toLocaleDateString("zh-CN")}
               </span>
             )}
           </div>
         </div>
-        {/* 编辑交接契约入口 */}
-        {canWrite && (
-          <button
-            onClick={() => setEditingHandoff(!editingHandoff)}
-            className="shrink-0 rounded border border-stroke px-2.5 py-1 text-xs text-ink-2 hover:bg-panel-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-          >
-            {editingHandoff ? "取消编辑" : "编辑交接信息"}
-          </button>
-        )}
-        {/* 删除任务（仅组长可用） */}
-        {canDelete && (
-          <DeleteTaskButton projectId={projectId} taskId={task.id} onDeleted={onBack} />
-        )}
-        {/* 执行记录按钮（<1120px） */}
-        <button
-          onClick={(event) => onOpenRunRail(event.currentTarget)}
-          className={`shrink-0 rounded border border-stroke px-2 py-1 text-xs text-ink-2 hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal ${layout === "desktop" ? "hidden" : ""}`}
-        >
-          执行记录
-        </button>
+        <details className="ac-context-menu">
+          <summary className="ac-btn-ghost !min-h-8 !text-xs">
+            任务资料与管理 ⌄
+          </summary>
+          <div className="ac-context-menu-panel space-y-3 p-4">
+            {canWrite && (
+              <button
+                onClick={() => setEditingHandoff(!editingHandoff)}
+                className="shrink-0 rounded border border-stroke px-2.5 py-1 text-xs text-ink-2 hover:bg-panel-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+              >
+                {editingHandoff ? "取消编辑" : "编辑交接信息"}
+              </button>
+            )}
+            {/* 删除任务（仅组长可用） */}
+            {canDelete && (
+              <DeleteTaskButton
+                projectId={projectId}
+                taskId={task.id}
+                onDeleted={onBack}
+              />
+            )}
+            {/* 按需查看执行记录 */}
+            <button
+              onClick={(event) => onOpenRunRail(event.currentTarget)}
+              className="ac-btn-ghost !min-h-8 !text-xs"
+            >
+              执行记录
+            </button>
+          </div>
+        </details>
       </div>
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex flex-col gap-5 px-6 py-6">
         {isInReview(task.status) && !canReviewThis && (
-          <p role="status" className="border border-stroke bg-sunken px-3 py-2 text-sm text-ink-soft">
+          <p
+            role="status"
+            className="border border-stroke bg-sunken px-3 py-2 text-sm text-ink-soft"
+          >
             {isMine
               ? "已提交，不能验收自己提交的任务；请由其他组长或教师处理。"
               : "当前账号无验收权限；请由组长或教师处理。"}
@@ -240,20 +271,26 @@ export function TaskContractPanel({
         {/* 任务目标 */}
         <Section label="任务目标">
           {task.description ? (
-            <p className="whitespace-pre-wrap text-sm text-ink">{task.description}</p>
+            <p className="whitespace-pre-wrap text-sm text-ink">
+              {task.description}
+            </p>
           ) : (
             <Empty />
           )}
         </Section>
 
         {/* 交接要求 */}
-        <Section label="交接要求">
-          {task.handoffBrief ? (
-            <p className="whitespace-pre-wrap text-sm text-ink">{task.handoffBrief}</p>
-          ) : (
-            <Empty />
-          )}
-        </Section>
+        {task.handoffBrief && (
+          <Section label="交接要求">
+            {task.handoffBrief ? (
+              <p className="whitespace-pre-wrap text-sm text-ink">
+                {task.handoffBrief}
+              </p>
+            ) : (
+              <Empty />
+            )}
+          </Section>
+        )}
 
         {/* 完成条件 */}
         {task.doneCriteria && task.doneCriteria.length > 0 && (
@@ -273,7 +310,9 @@ export function TaskContractPanel({
         {task.requiredEvidence && task.requiredEvidence.length > 0 && (
           <Section label="交件要求">
             <p className="whitespace-pre-wrap text-sm text-ink">
-              {task.requiredEvidence.map((type) => EVIDENCE_LABELS[type]).join("、")}
+              {task.requiredEvidence
+                .map((type) => EVIDENCE_LABELS[type])
+                .join("、")}
             </p>
           </Section>
         )}
@@ -296,7 +335,8 @@ export function TaskContractPanel({
               </div>
               {task.contextFrozenAt && (
                 <div className="mt-1 text-xs text-ink-3">
-                  冻结于 {new Date(task.contextFrozenAt).toLocaleString("zh-CN")}
+                  冻结于{" "}
+                  {new Date(task.contextFrozenAt).toLocaleString("zh-CN")}
                 </div>
               )}
               {task.contextStale && (
@@ -311,39 +351,66 @@ export function TaskContractPanel({
         </Section>
 
         {/* 认领与接手状态 */}
-        <Section label="认领状态">
-          {task.committedAt ? (
-            <div className="text-sm text-ink">
-              已认领
-              <span className="ml-1 text-xs text-ink-3">
-                （{task.committedHandoffVersion === null ? (
-                  <><span>认领时版本未记录</span><span className="text-caution">，请重新确认交接契约</span></>
-                ) : (
-                  <>
-                    契约版本 v{task.committedHandoffVersion}
-                    {!versionMatch && <span className="text-caution">，交接契约已更新至 v{task.handoffVersion}，需重新确认</span>}
-                  </>
-                )}）
-              </span>
-            </div>
-          ) : (
-            <div className="text-sm text-ink-3">
-              未认领
-              <span className="ml-1 text-xs">（当前契约版本 v{task.handoffVersion}）</span>
-            </div>
-          )}
-        </Section>
+        {task.status !== "review" && task.status !== "done" && (
+          <Section label="认领状态">
+            {task.committedAt ? (
+              <div className="text-sm text-ink">
+                已认领
+                <span className="ml-1 text-xs text-ink-3">
+                  （
+                  {task.committedHandoffVersion === null ? (
+                    <>
+                      <span>认领时版本未记录</span>
+                      <span className="text-caution">，请重新确认交接契约</span>
+                    </>
+                  ) : (
+                    <>
+                      契约版本 v{task.committedHandoffVersion}
+                      {!versionMatch && (
+                        <span className="text-caution">
+                          ，交接契约已更新至 v{task.handoffVersion}，需重新确认
+                        </span>
+                      )}
+                    </>
+                  )}
+                  ）
+                </span>
+              </div>
+            ) : (
+              <div className="text-sm text-ink-3">
+                未认领
+                <span className="ml-1 text-xs">
+                  （当前契约版本 v{task.handoffVersion}）
+                </span>
+              </div>
+            )}
+          </Section>
+        )}
 
-        {/* ── 任务动作面板（W05: 认领、拒绝、交付、验收） ── */}
-        {/* ── 任务动作面板（W05: 认领、拒绝、交付、验收） ── */}
+        {/* 看清要求与证据后，再完成当前阶段的任务动作。 */}
+        {(task.evidence.length > 0 ||
+          isInReview(task.status) ||
+          task.status === "done" ||
+          canSubmit) && (
+          <Section label="交付证据">
+            <EvidenceList evidence={task.evidence} projectId={projectId} />
+          </Section>
+        )}
+
         {canClaim && (
           <div className="space-y-2">
             <ActionFormBlock
-              title={task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"}
+              title={
+                task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"
+              }
               action={claimTaskAction}
               projectId={projectId}
               taskId={task.id}
-              submitLabel={task.committedAt ? "⚡ 确认新契约并接住" : "⚡ 确认接住 / 认领任务"}
+              submitLabel={
+                task.committedAt
+                  ? "⚡ 确认新契约并接住"
+                  : "⚡ 确认接住 / 认领任务"
+              }
               successMessage="✅ 任务已成功接住并认领！"
             >
               <textarea
@@ -367,23 +434,28 @@ export function TaskContractPanel({
         )}
 
         {canDecline && (
-          <ActionFormBlock
-            title="接不住 / 拒绝认领"
-            action={declineTaskAction}
-            projectId={projectId}
-            taskId={task.id}
-            submitLabel="退回并说明原因"
-            successMessage="✅ 已说明原因并退回任务！"
-          >
-            <textarea
-              name="reason"
-              required
-              rows={2}
-              aria-label="退回原因"
-              placeholder="说明为什么接不住或需要协调什么（必填）"
-              className="ac-field text-sm"
-            />
-          </ActionFormBlock>
+          <details className="ac-disclosure">
+            <summary>接不住？说明原因退回</summary>
+            <div className="ac-disclosure-body">
+              <ActionFormBlock
+                title="接不住 / 拒绝认领"
+                action={declineTaskAction}
+                projectId={projectId}
+                taskId={task.id}
+                submitLabel="退回并说明原因"
+                successMessage="✅ 已说明原因并退回任务！"
+              >
+                <textarea
+                  name="reason"
+                  required
+                  rows={2}
+                  aria-label="退回原因"
+                  placeholder="说明为什么接不住或需要协调什么（必填）"
+                  className="ac-field text-sm"
+                />
+              </ActionFormBlock>
+            </div>
+          </details>
         )}
 
         {canSubmit && (
@@ -419,10 +491,17 @@ export function TaskContractPanel({
               <div className="space-y-2">
                 <fieldset className="flex gap-4 text-sm text-ink">
                   <label className="flex items-center gap-1.5 cursor-pointer font-medium text-signal">
-                    <input type="radio" name="decision" value="accept" defaultChecked /> ✓ 通过验收
+                    <input
+                      type="radio"
+                      name="decision"
+                      value="accept"
+                      defaultChecked
+                    />{" "}
+                    ✓ 通过验收
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="decision" value="reject" /> 退回修改
+                    <input type="radio" name="decision" value="reject" />{" "}
+                    退回修改
                   </label>
                 </fieldset>
                 <textarea
@@ -436,11 +515,6 @@ export function TaskContractPanel({
             </ActionFormBlock>
           </div>
         )}
-
-        {/* 交付证据（W05） */}
-        <Section label="交付证据">
-          <EvidenceList evidence={task.evidence} projectId={projectId} />
-        </Section>
 
         {/* 待确认审批 */}
         {task.approvals.filter((a) => a.status === "pending").length > 0 && (
@@ -462,7 +536,9 @@ export function TaskContractPanel({
                         处理
                       </Link>
                     ) : (
-                      <span className="shrink-0 text-xs text-ink-3">等待有权人处理</span>
+                      <span className="shrink-0 text-xs text-ink-3">
+                        等待有权人处理
+                      </span>
                     )}
                   </div>
                 ))}
@@ -499,7 +575,8 @@ export function TaskContractPanel({
                     </div>
                     <span
                       className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${
-                        ATTEMPT_STATE_CLASSES[attempt.state] ?? ATTEMPT_STATE_CLASSES.unknown
+                        ATTEMPT_STATE_CLASSES[attempt.state] ??
+                        ATTEMPT_STATE_CLASSES.unknown
                       }`}
                     >
                       {ATTEMPT_STATE_LABELS[attempt.state] ?? attempt.state}
@@ -508,7 +585,12 @@ export function TaskContractPanel({
 
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-[11px] font-mono">
                     {attempt.branchName && (
-                      <span>分支: <strong className="text-ink-2">{attempt.branchName}</strong></span>
+                      <span>
+                        分支:{" "}
+                        <strong className="text-ink-2">
+                          {attempt.branchName}
+                        </strong>
+                      </span>
                     )}
                     <span>基线: {attempt.baseSha.slice(0, 8)}</span>
                     {attempt.receipt.headSha && (
@@ -516,39 +598,49 @@ export function TaskContractPanel({
                     )}
                   </div>
 
-                  {attempt.receipt.tests && attempt.receipt.tests.length > 0 && (
-                    <div className="mt-1 space-y-1 rounded bg-panel/60 p-1.5 border border-stroke/50">
-                      <div className="text-[10px] font-medium text-ink-3 uppercase">测试验证回执</div>
-                      <div className="space-y-0.5 font-mono text-[11px]">
-                        {attempt.receipt.tests.map((t, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-ink-2">
-                            <span className="truncate">{t.commandLabel}</span>
-                            <span
-                              className={`shrink-0 font-sans font-medium px-1 rounded text-[10px] ${
-                                t.exitCode === 0
-                                  ? "text-success bg-success/10"
-                                  : "text-risk bg-risk/10"
-                              }`}
+                  {attempt.receipt.tests &&
+                    attempt.receipt.tests.length > 0 && (
+                      <div className="mt-1 space-y-1 rounded bg-panel/60 p-1.5 border border-stroke/50">
+                        <div className="text-[10px] font-medium text-ink-3 uppercase">
+                          测试验证回执
+                        </div>
+                        <div className="space-y-0.5 font-mono text-[11px]">
+                          {attempt.receipt.tests.map((t, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between text-ink-2"
                             >
-                              {t.exitCode === 0 ? "通过" : `退出码 ${t.exitCode ?? "异常"}`}
-                            </span>
-                          </div>
-                        ))}
+                              <span className="truncate">{t.commandLabel}</span>
+                              <span
+                                className={`shrink-0 font-sans font-medium px-1 rounded text-[10px] ${
+                                  t.exitCode === 0
+                                    ? "text-success bg-success/10"
+                                    : "text-risk bg-risk/10"
+                                }`}
+                              >
+                                {t.exitCode === 0
+                                  ? "通过"
+                                  : `退出码 ${t.exitCode ?? "异常"}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {attempt.receipt.changedPaths && attempt.receipt.changedPaths.length > 0 && (
-                    <div className="text-[11px] text-ink-3">
-                      变更文件: {attempt.receipt.changedPaths.length} 个
-                    </div>
-                  )}
+                  {attempt.receipt.changedPaths &&
+                    attempt.receipt.changedPaths.length > 0 && (
+                      <div className="text-[11px] text-ink-3">
+                        变更文件: {attempt.receipt.changedPaths.length} 个
+                      </div>
+                    )}
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-xs text-ink-3">
-              暂无并行尝试记录。在 VS Code 插件中接收交接后，即可创建主线或并行分支尝试并回传执行回执。
+              暂无并行尝试记录。在 VS Code
+              插件中接收交接后，即可创建主线或并行分支尝试并回传执行回执。
             </p>
           )}
         </Section>
@@ -567,7 +659,9 @@ export function TaskContractPanel({
                       <span className="rounded bg-signal/15 px-1.5 py-0.5 text-[10px] font-medium text-signal">
                         {MEMORY_CATEGORY_LABELS[mem.category] ?? mem.category}
                       </span>
-                      <strong className="text-ink font-medium">{mem.title}</strong>
+                      <strong className="text-ink font-medium">
+                        {mem.title}
+                      </strong>
                     </div>
                     <span
                       className={`rounded px-1.5 py-0.5 text-[10px] ${
@@ -581,11 +675,15 @@ export function TaskContractPanel({
                       {MEMORY_STATUS_LABELS[mem.status] ?? mem.status}
                     </span>
                   </div>
-                  <p className="text-ink-2 whitespace-pre-wrap leading-relaxed">{mem.content}</p>
+                  <p className="text-ink-2 whitespace-pre-wrap leading-relaxed">
+                    {mem.content}
+                  </p>
                   <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-ink-3 pt-0.5">
                     {mem.creatorName && <span>记录人: {mem.creatorName}</span>}
                     {mem.codeRefSha && (
-                      <span className="font-mono">代码引用: {mem.codeRefSha.slice(0, 8)}</span>
+                      <span className="font-mono">
+                        代码引用: {mem.codeRefSha.slice(0, 8)}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -593,7 +691,8 @@ export function TaskContractPanel({
             </div>
           ) : (
             <p className="text-xs text-ink-3">
-              当前任务暂无关联的有效记忆。可沉淀技术决策、约束限制或废弃方案供团队与后续 Agent 复用。
+              当前任务暂无关联的有效记忆。可沉淀技术决策、约束限制或废弃方案供团队与后续
+              Agent 复用。
             </p>
           )}
         </Section>
@@ -602,32 +701,59 @@ export function TaskContractPanel({
         <details className="group rounded border border-stroke bg-sunken/30 text-xs">
           <summary className="cursor-pointer px-3 py-2 font-medium text-ink-2 hover:text-ink select-none flex items-center justify-between">
             <span>检查点共享与接续契约（VS Code 插件）</span>
-            <span className="text-ink-3 group-open:rotate-180 transition-transform">▼</span>
+            <span className="text-ink-3 group-open:rotate-180 transition-transform">
+              ▼
+            </span>
           </summary>
           <div className="border-t border-stroke px-3 py-2.5 space-y-2 text-ink-2 leading-relaxed">
             <p>
               <strong className="text-ink">共享契约状态：</strong>
-              E09 契约已签署，支持通过 VS Code 插件登记小体积检查点索引、发起点对点交接并执行基线预检（Preflight）。
+              E09 契约已签署，支持通过 VS Code
+              插件登记小体积检查点索引、发起点对点交接并执行基线预检（Preflight）。
             </p>
             <p>
               <strong className="text-ink">接续流转机制：</strong>
-              发起交接 → 接收人运行预检（校验 Git 基线与工作区状态）→ 接收后自动创建 Attempt 执行回执 → 并行尝试结果实时聚合回传。
+              发起交接 → 接收人运行预检（校验 Git 基线与工作区状态）→
+              接收后自动创建 Attempt 执行回执 → 并行尝试结果实时聚合回传。
             </p>
             <p className="text-ink-3">
-              提示：Handoff 接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
+              提示：Handoff
+              接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
             </p>
           </div>
         </details>
-
       </div>
     </div>
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  if (
+    [
+      "交接资料",
+      "会话与分支",
+      "并行接续尝试",
+      "有效项目记忆",
+      "AGENT 运行",
+      "任务活动",
+    ].includes(label)
+  ) {
+    return (
+      <details className="ac-disclosure">
+        <summary>{label}</summary>
+        <div className="ac-disclosure-body">{children}</div>
+      </details>
+    );
+  }
   return (
-    <div className="space-y-1.5">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-ink-2">{label}</h3>
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-ink-3">{label}</h3>
       {children}
     </div>
   );
@@ -656,36 +782,47 @@ function ActionFormBlock({
 }) {
   const router = useRouter();
   const [success, setSuccess] = useState<string | null>(null);
-  const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
-    setSuccess(null);
-    try {
-      const res = await action(prev, fd);
-      if (!res || !("error" in res)) {
-        setSuccess(successMessage);
-        router.refresh();
-        return null;
+  const [state, formAction, pending] = useActionState<FormState, FormData>(
+    async (prev, fd) => {
+      setSuccess(null);
+      try {
+        const res = await action(prev, fd);
+        if (!res || !("error" in res)) {
+          setSuccess(successMessage);
+          router.refresh();
+          return null;
+        }
+        return res;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "请求失败";
+        return { error: msg };
       }
-      return res;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "请求失败";
-      return { error: msg };
-    }
-  }, null);
+    },
+    null,
+  );
 
   return (
     <div className="rounded border border-stroke-strong bg-sunken/40 p-3 space-y-2">
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-ink">{title}</h4>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-ink">
+        {title}
+      </h4>
       <form action={formAction} className="space-y-2">
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="taskId" value={taskId} />
         {children}
         {state && "error" in state && (
-          <p aria-live="polite" className="text-xs font-medium text-risk bg-risk/10 p-2 rounded">
+          <p
+            aria-live="polite"
+            className="text-xs font-medium text-risk bg-risk/10 p-2 rounded"
+          >
             ⚠️ {state.error}
           </p>
         )}
         {success && (
-          <p aria-live="polite" className="text-xs font-medium text-success bg-success/10 p-2 rounded flex items-center gap-1.5">
+          <p
+            aria-live="polite"
+            className="text-xs font-medium text-success bg-success/10 p-2 rounded flex items-center gap-1.5"
+          >
             <span>✓</span> {success}
           </p>
         )}
@@ -712,20 +849,23 @@ function DeleteTaskButton({
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
-  const [state, formAction, pending] = useActionState<FormState, FormData>(async (prev, fd) => {
-    try {
-      const res = await deleteTaskAction(prev, fd);
-      if (!res) {
-        onDeleted();
-        router.refresh();
-        return null;
+  const [state, formAction, pending] = useActionState<FormState, FormData>(
+    async (prev, fd) => {
+      try {
+        const res = await deleteTaskAction(prev, fd);
+        if (!res) {
+          onDeleted();
+          router.refresh();
+          return null;
+        }
+        return res;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "删除失败";
+        return { error: msg };
       }
-      return res;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "删除失败";
-      return { error: msg };
-    }
-  }, null);
+    },
+    null,
+  );
 
   if (!confirming) {
     return (
@@ -741,7 +881,10 @@ function DeleteTaskButton({
   }
 
   return (
-    <form action={formAction} className="inline-flex items-center gap-1.5 shrink-0">
+    <form
+      action={formAction}
+      className="inline-flex items-center gap-1.5 shrink-0"
+    >
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="taskId" value={taskId} />
       <span className="text-xs text-risk font-medium">确认删除？</span>

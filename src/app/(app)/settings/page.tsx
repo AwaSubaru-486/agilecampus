@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -27,9 +28,9 @@ export default async function SettingsPage({
 
   return (
     <main data-tour="settings" className="mx-auto max-w-2xl space-y-8 py-8">
-      <header className="space-y-1">
+      <header className="ac-page-header">
         <h1 className="font-display text-2xl font-semibold text-ink">设置</h1>
-        <p className="text-sm text-ink-2">账号与通知设置。个人访问令牌见「设置 → 令牌」。</p>
+        <p className="text-sm text-ink-2">需要接收通知、连接外部工具时，在这里配置。</p>
       </header>
 
       <FeishuCard
@@ -37,6 +38,7 @@ export default async function SettingsPage({
         boundAtLabel={fmt(row?.feishuBoundAt ?? null)}
         notice={feishu ?? null}
       />
+      <section className="ac-focus-card p-6"><h2 className="text-base font-semibold text-ink">连接你的工作工具</h2><p className="mt-2 text-sm leading-6 text-ink-3">使用个人访问令牌连接 VS Code 或外部 AI 工具。按需创建，并保管好访问权限。</p><Link href="/settings/tokens" className="ac-btn-ghost mt-5">管理访问令牌 →</Link></section>
     </main>
   );
 }

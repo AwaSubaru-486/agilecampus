@@ -54,15 +54,13 @@ export default async function TaskTreePage({
   const current = tree.stages.find(
     (stage) => stage.status === "active" || stage.status === "integrating",
   );
+  const requestedStage = typeof query.stage === "string" ? query.stage : null;
+  const selectedStage = tree.stages.find(stage => stage.id === requestedStage) ?? current ?? tree.stages[0];
+  const shownStages = tree.stages.filter(stage => stage.id === selectedStage?.id);
   const latestDeliveries = new Map<string, (typeof tree.deliveries)[number]>();
   for (const delivery of tree.deliveries)
     if (!latestDeliveries.has(delivery.taskId))
       latestDeliveries.set(delivery.taskId, delivery);
-  const roleName = canManage
-    ? "组长"
-    : access.role === "teacher"
-      ? "导师"
-      : "组员";
   const nextAction = canManage
     ? "补充需求、确认分工，再组织阶段集成。"
     : access.role === "teacher"
@@ -71,35 +69,9 @@ export default async function TaskTreePage({
 
   return (
     <div className="space-y-6">
-      <header className="border-b border-stroke pb-5">
-        <Link
-          href={`/projects/${projectId}?space=work`}
-          className="text-xs text-ink-soft hover:text-signal"
-        >
-          ← {access.project.name}
-        </Link>
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs text-signal">{roleName}工作区</p>
-            <h1 className="mt-1 font-display text-2xl font-semibold text-ink">
-              任务与阶段迭代
-            </h1>
-            <p className="mt-2 text-sm text-ink-soft">{nextAction}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/projects/${projectId}?space=work`}
-              className="ac-btn-ghost"
-            >
-              执行与验收
-            </Link>
-            {canManage && (
-              <a href="#planning" className="ac-btn">
-                ＋ 生成任务草案
-              </a>
-            )}
-          </div>
-        </div>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div><h2 className="text-xl font-semibold text-ink">规划与迭代</h2><p className="mt-2 text-sm text-ink-3">{nextAction}</p></div>
+        {canManage && <Link href={`/projects/${projectId}/task-tree?plan=1#planning`} className="ac-btn">{tree.stages.length ? "规划下一轮 ＋" : "规划第一轮 ＋"}</Link>}
       </header>
       <section
         data-tour="stage-progress" aria-label="项目阶段进度"
@@ -143,7 +115,7 @@ export default async function TaskTreePage({
           </p>
         </div>
       </section>
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="space-y-6">
         <div data-tour="stage-tasks" className="min-w-0 space-y-5">
           {!!tree.stages.length && (
             <nav
@@ -153,8 +125,9 @@ export default async function TaskTreePage({
               {tree.stages.map((stage, index) => (
                 <a
                   key={stage.id}
-                  data-tour="stage-link" href={`#stage-${stage.id}`}
-                  className="shrink-0 border border-stroke px-3 py-2 text-xs text-ink-soft"
+                  data-tour="stage-link" href={`/projects/${projectId}/task-tree?stage=${stage.id}${mine ? "&scope=mine" : ""}#stage-${stage.id}`}
+                  aria-current={stage.id === selectedStage?.id ? "step" : undefined}
+                  className={`shrink-0 rounded-lg border px-4 py-3 text-xs ${stage.id === selectedStage?.id ? "border-signal/30 bg-signal-soft font-semibold text-signal" : "border-stroke bg-panel text-ink-3"}`}
                 >
                   {index + 1}. {stage.title} · {stageLabels[stage.status]}
                 </a>
@@ -200,7 +173,8 @@ export default async function TaskTreePage({
               )}
             </section>
           )}
-          {tree.stages.map((stage, index) => {
+          {shownStages.map((stage) => {
+            const index = tree.stages.findIndex(item => item.id === stage.id);
             const tasks = tree.tasks.filter(
               (task) => task.stageId === stage.id,
             );
@@ -221,7 +195,7 @@ export default async function TaskTreePage({
               <section
                 id={`stage-${stage.id}`}
                 key={stage.id}
-                className="scroll-mt-20 border border-stroke bg-panel"
+                className="ac-focus-card scroll-mt-28"
               >
                 <header className="border-b border-stroke p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -287,6 +261,7 @@ export default async function TaskTreePage({
                           }
                           优先级
                         </p>
+                        <details className="mt-4"><summary className="cursor-pointer text-xs text-signal">完成要求与交付资料</summary>
                         {task.description && (
                           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink-soft">
                             {task.description}
@@ -338,6 +313,7 @@ export default async function TaskTreePage({
                             />
                           </details>
                         )}
+                        </details>
                       </article>
                     );
                   })}
@@ -404,52 +380,13 @@ export default async function TaskTreePage({
             );
           })}
         </div>
-        <aside className="space-y-4 xl:sticky xl:top-20">
-          <section className="border border-stroke bg-panel p-4">
-            <h2 className="text-sm font-semibold text-ink">本轮协作</h2>
-            <ol className="mt-3 space-y-4 text-xs leading-5 text-ink-soft">
-              <li>
-                <strong className="block text-ink">01 组长规划</strong>
-                确认需求、任务与负责人。
-              </li>
-              <li>
-                <strong className="block text-ink">02 组员交付</strong>
-                认领执行、提交成果与分支。
-              </li>
-              <li>
-                <strong className="block text-ink">03 人工验收</strong>
-                组长或导师验收任务；阶段集成由非提交者审核。
-              </li>
-            </ol>
-          </section>
-          <section className="border border-stroke p-4 text-xs leading-5 text-ink-soft">
-            <h2 className="mb-2 font-semibold text-ink">需求变化时</h2>
-            组长提交补充说明，新阶段追加到现有任务之后。已完成任务和审核记录继续保留。
-          </section>
-          <Link
-            href={`/projects/${projectId}?space=record`}
-            className="block text-xs text-signal"
-          >
-            查看成果与评审记录 →
-          </Link>
-        </aside>
+
       </div>
       {canManage && (
-        <section
-          id="planning"
-          className="scroll-mt-20 border border-stroke bg-panel p-5"
-        >
-          <div className="mb-4">
-            <p className="text-xs text-signal">需求 → 草案 → 确认发布</p>
-            <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-              生成下一轮任务
-            </h2>
-            <p className="mt-2 text-sm text-ink-soft">
-              填写项目目标、交付要求或需求变化。生成后可以修改任务、负责人和验收标准。
-            </p>
-          </div>
-          <BriefForm projectId={projectId} />
-        </section>
+        <details id="planning" open={query.plan === "1" || !tree.stages.length} className="ac-disclosure scroll-mt-28">
+          <summary><span className="text-base font-semibold text-ink">规划下一轮任务</span><span className="mt-1 block text-xs font-normal text-ink-3">说明目标 → 生成草案 → 调整分工 → 确认发布</span></summary>
+          <div className="ac-disclosure-body"><p className="mb-5 text-sm text-ink-3">填写目标、交付要求或需求变化。已有任务会保留，新阶段追加在后。</p><BriefForm projectId={projectId}/></div>
+        </details>
       )}
       <div data-tour="task-drafts" className="space-y-4">
       {tree.drafts.length === 0 && canManage && <p className="border border-dashed border-stroke p-5 text-sm text-ink-soft">暂无待确认草案。生成后可在这里修订分工与完成标准，保存后确认发布。</p>}

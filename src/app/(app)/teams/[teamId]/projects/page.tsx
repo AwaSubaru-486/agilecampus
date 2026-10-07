@@ -55,7 +55,7 @@ export default async function ProjectsPage({
           </li>
         )}
       </ul>
-      {isAdmin && <ProjectForm teamId={teamId} />}
+      {isAdmin && <details className="ac-disclosure" open={!projects.length}><summary>创建新的协作项目</summary><div className="ac-disclosure-body"><ProjectForm teamId={teamId} /></div></details>}
     </main>
   );
 }

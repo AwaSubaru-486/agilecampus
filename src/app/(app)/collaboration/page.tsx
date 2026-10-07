@@ -70,11 +70,12 @@ export default async function CollaborationPage() {
 
   return (
     <div data-tour="collaboration" className="mx-auto max-w-[80rem] space-y-5">
-      <header>
+      <header className="ac-page-header">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
-            <div className="mt-1 flex gap-4 text-xs text-ink-3">
+            <p>找到需要搭手的伙伴，查看团队 AI 成员的状态。</p>
+            <div className="mt-4 flex gap-4 text-xs text-ink-3">
               <span>待协助 {needingHelp.length}</span>
               <span>AI 成员 {agentRows.length}</span>
             </div>
@@ -87,6 +88,8 @@ export default async function CollaborationPage() {
           </Link>
         </div>
       </header>
+
+      <div className="flex justify-end"><Link href="/health" className="text-xs text-ink-3 hover:text-signal">查看跨项目风险 →</Link></div>
 
       <section id="help" className="ac-card scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
