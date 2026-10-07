@@ -45,11 +45,11 @@ export default function TutorialsPage() {
       <header className="ac-page-header flex flex-wrap items-end justify-between gap-6">
         <div>
           <h1>新手教程</h1>
-          <p>跟着真实入口动手练习，或只学习眼下需要的功能。</p>
+          <p>做完一个示例项目，熟悉协作流程；也可以单独学习某项功能。</p>
         </div>
         {projects.length > 0 && (
           <label className="text-xs text-ink-3">
-            练习项目，{roleName}
+            功能课程使用的项目，{roleName}
             <select
               aria-label="教程练习项目"
               className="ac-field mt-2 block max-w-full sm:w-64"
@@ -70,11 +70,11 @@ export default function TutorialsPage() {
       </header>
       {!project && (
         <p className="mb-5 rounded-xl bg-signal-soft p-5 text-sm text-ink-2">
-          先学习通用入口。
+          示例项目无需已有团队。想在真实项目中练习功能，可
           <Link href="/teams" className="ml-2 text-signal underline">
             创建或加入团队
           </Link>
-          后，可以继续学习项目功能。
+          。
         </p>
       )}
       {error && (
@@ -88,14 +88,15 @@ export default function TutorialsPage() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-signal">
-            {project ? roleName + "路线" : "基础路线"}，
+            示例项目路线，
             {courses[0].steps.length} 个互动步骤
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-ink">
-            从第一次协作，到一轮完整交付
+            亲手做完一个校园活动报名页
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">
-            亮起一个入口，完成一次实际操作，再进入下一步。随时暂停，下次回来接着学。
+            创建团队与项目 → 生成并发布任务 → 组员执行 → 导师验收 → 阶段集成 →
+            下一轮迭代。示例独立保存，教学 AI 使用模板，无需配置模型。
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
@@ -103,10 +104,18 @@ export default function TutorialsPage() {
               disabled={pending}
               onClick={() => void start("welcome")}
             >
-              {progress.completed.includes("welcome")
-                ? "重走完整教程 →"
-                : "开始完整教程 →"}
+              {progress.example ? "重新创建示例项目 →" : "创建示例项目并开始 →"}
             </button>
+            {progress.example && (
+              <p className="w-full text-xs text-ink-3">
+                重新创建会清空这次教学示例的记录；继续上次教程会保留已有操作。
+              </p>
+            )}
+            {progress.example?.phase === 14 && (
+              <Link href="/tutorials/example?phase=14" className="ac-btn-ghost">
+                查看示例成果 →
+              </Link>
+            )}
             {progress.active && (
               <button
                 className="ac-btn-ghost"

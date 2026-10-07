@@ -1,16 +1,18 @@
+import { EXAMPLE_FLOW, type ExampleState } from "./example-flow";
 export type TutorialRole = "admin" | "student" | "teacher";
 export type TutorialProject = { id: string; name: string; teamId: string; role: TutorialRole };
 export type TutorialProgress = {
+  example?: ExampleState;
   status: "new" | "dismissed" | "started" | "completed";
   completed: string[];
-  active: { courseId: string; step: number; projectId: string | null; paused?: boolean } | null;
+  active: { courseId: string; step: number; projectId: string | null; paused?: boolean; journeyVersion?: number } | null;
 };
 export const INITIAL_TUTORIAL_PROGRESS: TutorialProgress = { status: "new", completed: [], active: null };
 export const COURSE_IDS = ["welcome", "teams", "planning", "execution", "review", "iterations", "ai", "records", "timeline", "risks", "resources", "labels", "agents", "connections", "settings"] as const;
 export type CourseId = (typeof COURSE_IDS)[number];
 export type TutorialStep = {
   id: string; title: string; instruction: string; route: string;
-  target: string; action: "click" | "input" | "explore";
+  target: string; action: "click" | "input" | "explore" | "result";
 };
 export type TutorialCourse = {
   id: CourseId; title: string; description: string; category: string;
@@ -92,16 +94,11 @@ export function buildTutorialCourses(project: TutorialProject | null): TutorialC
     ] },
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
-  const available = courses.filter((course) => (!course.needsProject || project) && (!course.roles || project && course.roles.includes(project.role)));
   const welcome: TutorialCourse = {
-    id: "welcome", title: "新手完整旅程", category: "推荐起点", description: "跟随实际操作，逐步认识当前角色可用的全部功能。",
+    id: "welcome", title: "做完一个示例项目", category: "推荐起点", description: "从创建项目到任务生成、分工、交付、审核和下一轮迭代。",
     steps: [
-      step("today-nav", "先打开今日", "点击高亮的“今日”。这里把分散在各项目的待处理事项放到一起。", "/today", "nav-today", "click"),
-      step("today-queue", "找到你的行动队列", "查看高亮区域中的待处理事项；没有待办时这里会明确显示空状态。", "/today", "today-queue"),
-      step("projects-nav", "打开项目列表", "点击“项目”，查看你有权访问的项目。", "/today", "nav-projects", "click"),
-      step("projects", "找到项目入口", "有项目时点击进入；没有项目时通过“前往团队”创建或加入团队。", "/projects", "projects"),
-      ...available.flatMap((course) => course.steps.map((item) => ({ ...item, id: `${course.id}:${item.id}` }))),
-      step("directory", "以后从这里继续", "这里是教程目录。可以选择项目，重学某一项功能，也能看到已经完成的课程。", "/tutorials", "tutorial-directory"),
+      ...EXAMPLE_FLOW.map(([id,title,instruction],phase) => step(id,title,instruction,`/tutorials/example?phase=${phase}`,`example-${phase}`,"result")),
+      step("records","回看这一轮协作","你已经创建项目、完成任务并通过集成。查看留下的证据、讨论和过程记录；以后可以按功能单独复习。","/tutorials/example?phase=14","example-records"),
     ],
   };
   return [welcome, ...courses];
