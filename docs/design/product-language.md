@@ -186,3 +186,6 @@
 
 完整的页面清单、禁用短语和验收命令见：
 `docs/superpowers/plans/2026-09-29-hard-engineering-copy-and-content-surface.md`。
+
+
+2026-10-09：用户要求侧栏常驻“API 配置”（/settings/api），作为教程起点；保留“账号与连接”账户入口。
