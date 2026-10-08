@@ -21,3 +21,11 @@ export function getModel(): LanguageModel {
   });
   return deepseek(getConfiguredModelName());
 }
+
+
+export async function getModelForUser(actorId: string): Promise<LanguageModel> {
+  const { getPersonalModelConfig } = await import("@/lib/model-config");
+  const config = await getPersonalModelConfig(actorId);
+  if (!config) return getModel();
+  return createOpenAICompatible({ name: "personal", baseURL: config.baseUrl, headers: { Authorization: `Bearer ${config.apiKey}` } })(config.model);
+}

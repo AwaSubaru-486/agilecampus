@@ -12,7 +12,7 @@ import {
   users,
 } from "@/db/schema";
 import { AppError, ForbiddenError } from "./errors";
-import { getModel } from "./agent/model";
+import { getModelForUser } from "./agent/model";
 import { describe, recordEvent } from "./activity";
 import { getProjectForUser } from "./project";
 import { getTutorialProgress } from "./tutorials/progress";
@@ -82,7 +82,7 @@ export async function generateTaskTreeDraft(
   ]);
   const roster = members.filter((member) => member.role !== "teacher").map((member) => ({ id: member.id, name: member.name, role: member.role }));
   const { text } = await generateText({
-    model: model ?? getModel(),
+    model: model ?? await getModelForUser(actorId),
     maxRetries: 0,
     system: `你是敏捷项目任务规划器。把新项目说明转成可人工确认的增量任务树。\n
 只输出严格 JSON，不要 Markdown。结构：

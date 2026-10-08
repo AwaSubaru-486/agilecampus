@@ -135,6 +135,9 @@ export function TopWorkbar({
               )}
             </Link>
           ))}
+          <Link href="/settings/api" data-tour="nav-api" className={"ac-nav-item " + (pathname === "/settings/api" ? "is-active" : "")} aria-current={pathname === "/settings/api" ? "page" : undefined}>
+            <WorkspaceIcon name="settings" /><span className={collapsed ? "sr-only" : ""}>API 配置</span>
+          </Link>
           <div className="ac-navigation-support">
             <p className="ac-nav-label">团队与资料</p>
             <Link

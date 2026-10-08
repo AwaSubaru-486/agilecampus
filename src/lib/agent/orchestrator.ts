@@ -7,7 +7,7 @@ import {
   resolveConversation,
   type ToolTraceEntry,
 } from "./conversation";
-import { getModel } from "./model";
+import { getModelForUser } from "./model";
 import { getContextPackForUser } from "@/lib/context-pack";
 import { AppError } from "@/lib/errors";
 import { createApprovalRequests, type PersistedDraft } from "@/lib/approval";
@@ -85,7 +85,7 @@ export async function runAgentTurn(params: {
     }));
 
   const result = await generateText({
-    model: model ?? getModel(),
+    model: model ?? await getModelForUser(actorId),
     system: `${SYSTEM_PREAMBLE}\n\n${snapshot}${frozenContext ? `\n\n## 本次冻结上下文包：${contextPackTitle}\n${frozenContext}` : ""}`,
     tools,
     stopWhen: stepCountIs(5),

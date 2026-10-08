@@ -103,10 +103,13 @@ describe("AI 任务树与阶段门禁", () => {
     const invalidParent = structuredClone(edited);
     invalidParent.stages[0].tasks[0].parentKey = "missing";
     await expect(updateTaskTreeDraft(owner.id, generated.draft.id, invalidParent)).rejects.toThrow("父任务必须先出现");
+    edited.stages[0].tasks.push({ key: "manual-new", parentKey: null, title: "手工增加的任务", description: "补充验收场景", assigneeId: owner.id, priority: "medium", doneCriteria: ["补充场景通过"] });
     await updateTaskTreeDraft(owner.id, generated.draft.id, edited);
     expect((await getTaskTree(owner.id, project.id)).tasks).toHaveLength(0);
     await publishTaskTreeDraft(owner.id, generated.draft.id);
-    expect((await getTaskTree(owner.id, project.id)).tasks.some((task) => task.title === "人工修订后的任务")).toBe(true);
+    const published = (await getTaskTree(owner.id, project.id)).tasks;
+    expect(published.some(task => task.title === "人工修订后的任务")).toBe(true);
+    expect(published.some(task => task.title === "手工增加的任务" && task.assigneeId === owner.id)).toBe(true);
     await expect(updateTaskTreeDraft(owner.id, generated.draft.id, edited)).rejects.toThrow("已经处理");
   });
 

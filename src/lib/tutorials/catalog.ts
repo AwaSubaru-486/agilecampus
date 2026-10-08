@@ -9,7 +9,7 @@ export type TutorialProgress = {
   active: { courseId: string; step: number; projectId: string | null; paused?: boolean; journeyVersion?: number } | null;
 };
 export const INITIAL_TUTORIAL_PROGRESS: TutorialProgress = { status: "new", completed: [], active: null };
-export const COURSE_IDS = ["welcome", "teams", "planning", "execution", "review", "iterations", "ai", "records", "timeline", "risks", "resources", "labels", "agents", "connections", "settings"] as const;
+export const COURSE_IDS = ["welcome","api-config", "teams", "planning", "execution", "review", "iterations", "ai", "records", "timeline", "risks", "resources", "labels", "agents", "connections", "settings"] as const;
 export type CourseId = (typeof COURSE_IDS)[number];
 export type TutorialStep = {
   id: string; title: string; instruction: string; route: string;
@@ -93,10 +93,11 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("tokens", "认识令牌管理", "这里管理外部程序的访问令牌。生成、复制或撤销均由你按需操作。VS Code 的采集与记忆命令在本地扩展中执行。", "/settings/tokens", "token-manager"),
       ...(project ? [step("checkpoint", "找到网页中的交接资料", "在执行台查看检查点、契约和执行材料。网页教程不会安装扩展或自动恢复外部 Agent。", work, "execution-console")] : []),
     ] },
+    { id: "api-config", title: "配置模型 API", category: "连接与工具", description: "保存个人模型服务地址、模型名称和密钥。", steps: [step("api", "连接模型服务", "填写并保存配置。已有配置可继续；保存不会自动调用模型。", "/settings/api", "api-config", "result")] },
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"创建团队与项目，在原有页面生成、修订、发布和提交任务，再认识验收与迭代。",
+    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"先配置模型 API，再创建团队与项目，在原有页面生成、修订、发布和提交任务，再认识验收与迭代。",
     steps:buildWelcomeSteps(journey),
   };
   return [welcome, ...courses];

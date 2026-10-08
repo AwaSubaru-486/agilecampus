@@ -1,4 +1,4 @@
-import {beforeEach,describe,it,expect} from "vitest";
+import {beforeEach,describe,it,expect,vi} from "vitest";
 import {eq} from "drizzle-orm";
 import {db} from "@/db";
 import {users,tasks} from "@/db/schema";
@@ -14,17 +14,27 @@ const user=(name:string)=>createUser({name,email:`${name}@tutorial.test`,passwor
 const sample={id:"00000000-0000-4000-8000-000000000001",teamId:"00000000-0000-4000-8000-000000000002",name:"项目",role:"admin" as const};
 async function journey(actorId:string){
   await updateTutorialProgress(actorId,{type:"restart-example"});
+  await updateTutorialProgress(actorId,{type:"save",courseId:"welcome",step:1,projectId:null});
   const team=await createTeam(actorId,"教学团队");await recordTutorialCreation(actorId,"team",team.id);
-  await updateTutorialProgress(actorId,{type:"save",courseId:"welcome",step:2,projectId:null});
+  await updateTutorialProgress(actorId,{type:"save",courseId:"welcome",step:3,projectId:null});
   const project=await createProject(actorId,team.id,{name:"教学示例：校园活动报名页"});
   await recordTutorialCreation(actorId,"project",project.id);return{team,project};
 }
 describe("教程课程与账号进度",()=>{
  beforeEach(resetDb);
  it("所有角色可从原页面开始示例，独立功能课程仍按角色过滤",()=>{
-  const leader=buildTutorialCourses(sample)[0];expect(leader.steps).toHaveLength(18);
+  const leader=buildTutorialCourses(sample)[0];expect(leader.steps).toHaveLength(19);
   expect(buildTutorialCourses(null)[0]).toEqual(leader);expect(buildTutorialCourses({...sample,role:"teacher"})[0]).toEqual(leader);
   expect(buildTutorialCourses(sample).find(c=>c.id==="planning")?.roles).toEqual(["admin"]);
+ });
+ it("没有 API 配置不能越过第一步",async()=>{
+  const original=process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
+  try {
+    const a=await user("api-required");
+    await updateTutorialProgress(a.id,{type:"restart-example"});
+    await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:1,projectId:null})).rejects.toThrow("API 配置");
+  } finally { if(original) process.env.DEEPSEEK_API_KEY=original; }
  });
  it("首次提醒、跳过隔离以及不存在的账号",async()=>{
   const a=await user("a"),b=await user("b");expect((await getTutorialProgress(a.id)).status).toBe("new");
@@ -33,9 +43,9 @@ describe("教程课程与账号进度",()=>{
  });
  it("暂停持久化，继续不重建已有团队与项目",async()=>{
   const a=await user("a");const {project}=await journey(a.id);
-  await updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:3,projectId:project.id});await updateTutorialProgress(a.id,{type:"pause"});
+  await updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:4,projectId:project.id});await updateTutorialProgress(a.id,{type:"pause"});
   const paused=await getTutorialProgress(a.id);expect(paused.active?.paused).toBe(true);
-  const resumed=await updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:3,projectId:project.id});expect(resumed.active?.paused).toBeUndefined();expect(resumed.journey).toEqual(paused.journey);
+  const resumed=await updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:4,projectId:project.id});expect(resumed.active?.paused).toBeUndefined();expect(resumed.journey).toEqual(paused.journey);
  });
  it("不同课程并发完成不丢失、重复完成幂等，完整主线不能提前完成",async()=>{
   const a=await user("a");await Promise.all([updateTutorialProgress(a.id,{type:"complete",courseId:"teams"}),updateTutorialProgress(a.id,{type:"complete",courseId:"settings"})]);
@@ -47,7 +57,7 @@ describe("教程课程与账号进度",()=>{
   await joinTeam(t.id,team.inviteCode);await updateMemberRole(a.id,team.id,t.id,"teacher");const project=await createProject(a.id,team.id,{name:"项目"});
   await expect(updateTutorialProgress(a.id,{type:"save",courseId:"fake",step:0,projectId:null})).rejects.toThrow();
   await expect(updateTutorialProgress(a.id,{type:"save",courseId:"settings",step:9,projectId:null})).rejects.toThrow();
-  await expect(updateTutorialProgress(b.id,{type:"save",courseId:"welcome",step:0,projectId:project.id})).rejects.toThrow();
+  await expect(updateTutorialProgress(b.id,{type:"save",courseId:"welcome",step:1,projectId:project.id})).rejects.toThrow();
   for(const courseId of ["planning","execution"]) await expect(updateTutorialProgress(t.id,{type:"save",courseId,step:0,projectId:project.id})).rejects.toThrow();
  });
  it("创建时只绑定当前原表单步骤，其他账号与普通项目不能冒充教学项目",async()=>{
@@ -58,16 +68,16 @@ describe("教程课程与账号进度",()=>{
  });
  it("服务端必须实际创建、生成、发布、认领与提交，不能靠点击下一步伪造结果",async()=>{
   const a=await user("a");await updateTutorialProgress(a.id,{type:"restart-example"});
-  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:1,projectId:null})).rejects.toThrow("创建示例团队");
+  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:2,projectId:null})).rejects.toThrow("创建示例团队");
   const {project}=await journey(a.id);
-  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:5,projectId:project.id})).rejects.toThrow("生成任务");
+  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:6,projectId:project.id})).rejects.toThrow("生成任务");
   const generated=await generateTutorialTaskTreeDraft(a.id,project.id,"制作校园活动报名页，支持必填校验");
-  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:7,projectId:project.id})).rejects.toThrow("发布任务");
+  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:8,projectId:project.id})).rejects.toThrow("发布任务");
   await publishTaskTreeDraft(a.id,generated.draft.id);
   const [task]=await db.select().from(tasks).where(eq(tasks.projectId,project.id)).orderBy(tasks.sortOrder);
   expect((await getTutorialProgress(a.id)).journey?.taskId).toBe(task.id);
-  expect((await updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:9,projectId:project.id})).journey?.taskId).toBe(task.id);
-  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:10,projectId:project.id})).rejects.toThrow("接住任务");
+  expect((await updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:10,projectId:project.id})).journey?.taskId).toBe(task.id);
+  await expect(updateTutorialProgress(a.id,{type:"save",courseId:"welcome",step:11,projectId:project.id})).rejects.toThrow("接住任务");
   await claimTask(a.id,task.id,{commitmentNote:"确认执行校验练习"});
   await expect(updateTutorialProgress(a.id,{type:"complete",courseId:"welcome"})).rejects.toThrow("提交练习");
   await submitTask(a.id,task.id,{completionNote:"练习证据：核对缺少必填字段和正常提交的验收场景"});
@@ -75,8 +85,8 @@ describe("教程课程与账号进度",()=>{
   expect(progress.journey?.projectId).toBe(project.id);expect(progress.status).toBe("completed");
  });
  it("旧独立练习与旧长路线暂停到新版原页面第零步，保留其他课程",async()=>{
-  const a=await user("a");await db.update(users).set({tutorialProgress:{status:"completed",completed:["welcome","teams"],active:{courseId:"welcome",step:10,projectId:null,journeyVersion:2}}}).where(eq(users.id,a.id));
-  const progress=await getTutorialProgress(a.id);expect(progress.completed).toEqual(["teams"]);expect(progress.active).toEqual({courseId:"welcome",step:0,projectId:null,paused:true,journeyVersion:3});
+  const a=await user("a");await db.update(users).set({tutorialProgress:{status:"completed",completed:["welcome","teams"],active:{courseId:"welcome",step:11,projectId:null,journeyVersion:2}}}).where(eq(users.id,a.id));
+  const progress=await getTutorialProgress(a.id);expect(progress.completed).toEqual(["teams"]);expect(progress.active).toEqual({courseId:"welcome",step:0,projectId:null,paused:true,journeyVersion:4});
  });
  it("重新开始只解除路线绑定，原有实际项目和其他功能记录仍保留",async()=>{
   const a=await user("a");const {project}=await journey(a.id);await updateTutorialProgress(a.id,{type:"complete",courseId:"teams"});
@@ -84,3 +94,6 @@ describe("教程课程与账号进度",()=>{
   const {getProjectForUser}=await import("@/lib/project");expect(await getProjectForUser(a.id,project.id)).toBeTruthy();
  });
 });
+
+// Configuration gate uses a test-only site default; no model requests are made.
+vi.stubEnv("DEEPSEEK_API_KEY", "test-only-default-key");

@@ -153,7 +153,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       }
       const resolved = findTutorialTarget(document, stepTarget);
       const element = resolved.element;
-      if (stepAction === "result" && (element?.getAttribute(step?.completion ?? "data-tour-complete") === "true" || course?.id === "welcome" && ((active?.step === 0 && progress.journey?.teamId) || (active?.step === 2 && progress.journey?.projectId)))) {
+      if (stepAction === "result" && (element?.getAttribute(step?.completion ?? "data-tour-complete") === "true" || course?.id === "welcome" && ((step?.id === "team" && progress.journey?.teamId) || (step?.id === "project" && progress.journey?.projectId)))) {
         setActionKey(stepKey); setFulfilled(true);
       }
       setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
@@ -189,7 +189,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     window.addEventListener("scroll", measure, true);
     measure();
     return () => { clearInterval(interval); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, globalNavigation, progress.journey, active?.step, course?.id, step?.completion]);
+  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, globalNavigation, progress.journey, active?.step, course?.id, step?.id, step?.completion]);
 
   useEffect(() => {
     if (!stepTarget || !stepAction) return;
@@ -262,7 +262,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         <div ref={card} role="dialog" aria-modal="true" aria-labelledby="tutorial-dialog-title" className="w-full max-w-lg rounded-2xl border border-stroke bg-panel p-6 shadow-2xl sm:p-8">
           <span className="text-xs font-semibold tracking-widest text-signal">AGILECAMPUS，互动教程</span>
           <h2 id="tutorial-dialog-title" className="mt-3 text-2xl font-semibold text-ink">{finished ? `完成了：${finished}` : "一起做一个示例项目？"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "已经掌握这段流程。以后可以从侧栏“新手教程”单独练习任何功能。" : "从校园活动报名页开始，亲手创建项目、生成并发布任务、认领与提交成果，再认识验收和迭代入口。每次完成操作后解锁下一步，可以随时暂停。"}</p>
+          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "已经掌握这段流程。以后可以从侧栏“新手教程”单独练习任何功能。" : "先配置模型 API，再从校园活动报名页开始，亲手创建项目、生成并发布任务、认领与提交成果，再认识验收和迭代入口。每次完成操作后解锁下一步，可以随时暂停。"}</p>
           {!finished && <p className="mt-3 rounded-lg bg-sunken p-3 text-xs leading-5 text-ink-3">引导会在现有页面创建实际的练习团队、项目与任务。新建教学项目的任务生成使用示例模板。验收与集成保留真实角色权限。</p>}
           {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-6 flex flex-wrap gap-3">

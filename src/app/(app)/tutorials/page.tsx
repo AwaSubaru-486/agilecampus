@@ -95,7 +95,7 @@ export default function TutorialsPage() {
             从零开始一个校园活动报名项目
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">
-            从“我的团队”开始，使用原有表单创建项目，再在规划页生成与发布任务，到执行台认领、提交，认识验收和迭代。全程留在原有页面。
+            先配置模型 API，再从“我的团队”开始，使用原有表单创建项目，再在规划页生成与发布任务，到执行台认领、提交，认识验收和迭代。全程留在原有页面。
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button

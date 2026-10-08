@@ -50,9 +50,18 @@ export function DraftEditor({
     }));
   }
 
+  function addTask(stageIndex: number) {
+    const key = `manual-${crypto.randomUUID()}`;
+    setValue(current => ({ ...current, stages: current.stages.map((stage, index) =>
+      index === stageIndex ? { ...stage, tasks: [...stage.tasks, {
+        key, parentKey: null, title: "", description: "", assigneeId: null,
+        priority: "medium" as const, doneCriteria: [""],
+      }] } : stage) }));
+  }
+
   return (
     <div data-tour="tutorial-draft-editor" className="space-y-4">
-      <form action={action} className="space-y-4">
+      <form action={action} onReset={event => event.preventDefault()} className="space-y-4">
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="draftId" value={draftId} />
         <input type="hidden" name="payload" value={serialized} />
@@ -169,8 +178,13 @@ export function DraftEditor({
                         }
                       />
                     </label>
+                    {task.key.startsWith("manual-") && <button type="button" className="justify-self-start text-xs text-danger" onClick={() => setValue(current => ({...current, stages: current.stages.map((item, index) => index === si ? {...item, tasks: item.tasks.filter(candidate => candidate.key !== task.key)} : item)}))}>移除新增任务 {ti + 1}</button>}
                   </div>
                 ))}
+              </div>
+              <div className="border-t border-stroke px-4 py-3">
+                <button type="button" className="ac-btn-ghost" disabled={stage.tasks.length >= 40 || value.stages.reduce((count, item) => count + item.tasks.length, 0) >= 60} onClick={() => addTask(si)}>新增任务到阶段 {si + 1}</button>
+                <p className="mt-2 text-xs text-ink-3">填写任务名称、负责人和完成标准，保存修改后再确认发布。</p>
               </div>
             </section>
           ))}

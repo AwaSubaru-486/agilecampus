@@ -43,6 +43,7 @@ export const TRUNCATED_TABLES = [
   "projects",
   "team_members",
   "teams",
+  "user_model_configs",
   "users",
 ] as const;
 

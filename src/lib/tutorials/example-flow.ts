@@ -1,7 +1,7 @@
 import type { TutorialStep } from "./catalog";
 
-export type TutorialJourney = {version:3;teamId:string|null;projectId:string|null;taskId?:string|null};
-export const EMPTY_JOURNEY: TutorialJourney = {version:3,teamId:null,projectId:null};
+export type TutorialJourney = {version:4;teamId:string|null;projectId:string|null;taskId?:string|null};
+export const EMPTY_JOURNEY: TutorialJourney = {version:4,teamId:null,projectId:null};
 
 export function buildWelcomeSteps(journey:TutorialJourney):TutorialStep[] {
   const team=journey.teamId ? `/teams/${journey.teamId}` : "/teams";
@@ -10,6 +10,7 @@ export function buildWelcomeSteps(journey:TutorialJourney):TutorialStep[] {
   const work=`${base}?space=work${journey.taskId ? `&task=${journey.taskId}` : ""}`;
   const step=(id:string,title:string,instruction:string,route:string,target:string,action:TutorialStep["action"]="explore",completion?:string):TutorialStep=>({id,title,instruction,route,target:`[data-tour="${target}"]`,action,completion});
   return [
+    step("api","先配置模型 API","在真实配置页填写 API 地址、模型名称和 API Key，然后保存。已有个人或站点默认配置时可以继续；教程不会自动调用模型。","/settings/api","api-config","result"),
     step("team","在我的团队创建示例团队","在原有创建表单填入“新手练习团队”并点击创建。它会保存在你的团队列表；教程不会改动已有团队。","/teams","team-create","result"),
     step("roles","认识真实成员与三种分工","组长规划与分工，组员执行并交付，导师评审与验收。这里是实际成员管理页，可用邀请码邀请同伴；教程不会创建虚假成员或更改角色。",`${team}/members`,"team-members"),
     step("project","在团队项目页创建项目","使用原有创建表单，项目名称建议“教学示例：校园活动报名页”，描述写清报名表单与必填校验的目标。创建后会出现在原项目列表。",`${team}/projects`,"project-create","result"),
