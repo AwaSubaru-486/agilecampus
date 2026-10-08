@@ -79,10 +79,10 @@ export default async function ProjectLayout({
                 <Link href={`/teams/${project.teamId}/resources`}>
                   共享资源
                 </Link>
-                <Link href={`/teams/${project.teamId}/labels`}>团队标签</Link>
-                <Link href={`/teams/${project.teamId}/agents`}>
+                {role === "admin" && <Link href={`/teams/${project.teamId}/labels`}>团队标签</Link>}
+                {role === "admin" && <Link href={`/teams/${project.teamId}/agents`}>
                   AI 成员与连接
-                </Link>
+                </Link>}
                 {role === "admin" && (
                   <div className="mt-2 border-t border-stroke p-3">
                     <DeleteProjectButton
@@ -96,7 +96,7 @@ export default async function ProjectLayout({
           </div>
         </div>
       </header>
-      <ProjectNavigation projectId={projectId} />
+      <ProjectNavigation projectId={projectId} role={role} />
       <div className="ac-project-body">{children}</div>
     </div>
   );

@@ -283,3 +283,16 @@ describe("serializeConsoleParams — idempotency", () => {
     expect(again.space).toBe("work");
   });
 });
+
+
+describe("角色范围与看板分组互不覆盖", () => {
+  it("选中、关闭任务和刷新均保留全部范围及分组", () => {
+    const current = normalizeConsoleParams({ space: "work", scope: "all", group: "priority" });
+    for (const url of [buildSelectTaskHref("project", "task", current), buildClearTaskHref("project", current)]) {
+      const params = new URLSearchParams(url.split("?")[1]);
+      expect(params.get("scope")).toBe("all");
+      expect(params.get("group")).toBe("priority");
+    }
+    expect(normalizeConsoleParams(Object.fromEntries(new URLSearchParams(serializeConsoleParams(current))))).toEqual(current);
+  });
+});

@@ -75,8 +75,8 @@ export function TaskCard({
   const hasCurrentCommitment = Boolean(task.committedAt) &&
     task.committedHandoffVersion === task.handoffVersion;
   const canClaim = canWrite && isInFlight(task.status) &&
-    (!task.assigneeId || (isMine && !hasCurrentCommitment));
-  const canSubmit = isMine && isInFlight(task.status) && hasCurrentCommitment;
+    ((!task.assigneeId && isAdmin) || (isMine && !hasCurrentCommitment));
+  const canSubmit = canWrite && isMine && isInFlight(task.status) && hasCurrentCommitment;
   const missingEvidenceTypes = missingRequiredEvidenceTypes(
     task.requiredEvidence,
     task.evidenceTypes,
@@ -87,7 +87,7 @@ export function TaskCard({
   // 「还没接住」——派下去但本人没回话。看板上要看得见，
   // 否则它会伪装成「有人在做了」，一路蒙到 deadline
   const awaitingResponse = isAwaitingResponse(task.status, task.assigneeId, task.committedAt);
-  const canDecline = isMine && awaitingResponse;
+  const canDecline = canWrite && isMine && awaitingResponse;
 
   // 负责人是不是 agent：查名录里的 kind，卡片不做额外请求
   const assigneeIsAgent = members.some((m) => m.id === task.assigneeId && m.kind === "agent");

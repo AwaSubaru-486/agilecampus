@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { buildSpaceHref } from "@/lib/project-space";
+import type { TeamRole } from "@/db/schema";
+import { isProjectHome, PROJECT_ROLE_WORKSPACE } from "@/lib/project-role-workspace";
 
-export function ProjectNavigation({ projectId }: { projectId: string }) {
+export function ProjectNavigation({ projectId, role }: { projectId: string; role: TeamRole }) {
   const pathname = usePathname();
   const search = useSearchParams();
   const base = `/projects/${projectId}`;
+  const workspace = PROJECT_ROLE_WORKSPACE[role];
   const section =
     pathname.includes("/task-tree") || pathname.includes("/timeline")
       ? "iterations"
@@ -17,7 +20,7 @@ export function ProjectNavigation({ projectId }: { projectId: string }) {
           ? "studio"
           : search.get("space") === "record"
             ? "record"
-            : "work";
+            : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? "home" : "work";
   const spaceLink = (space: "work" | "studio" | "record") =>
     buildSpaceHref({
       projectId,
@@ -25,27 +28,28 @@ export function ProjectNavigation({ projectId }: { projectId: string }) {
       taskId: search.get("task") ?? undefined,
     });
   const tabs = [
+    { id: "home", title: workspace.title, href: base, tour: "nav-home" },
     {
       id: "work",
-      title: "任务执行",
+      title: workspace.work,
       href: spaceLink("work"),
       tour: "nav-work",
     },
     {
       id: "iterations",
-      title: "规划与迭代",
+      title: workspace.iterations,
       href: `${base}/task-tree`,
       tour: "nav-iterations",
     },
     {
       id: "studio",
-      title: "AI 协作",
+      title: workspace.studio,
       href: spaceLink("studio"),
       tour: "nav-studio",
     },
     {
       id: "record",
-      title: "成果与复盘",
+      title: workspace.record,
       href: spaceLink("record"),
       tour: "nav-record",
     },
@@ -56,7 +60,7 @@ export function ProjectNavigation({ projectId }: { projectId: string }) {
         aria-label="项目工作流程"
         className="flex gap-5 overflow-x-auto sm:gap-8"
       >
-        {tabs.map((tab) => (
+        {tabs.filter(tab => tab.title).map((tab) => (
           <Link
             key={tab.id}
             href={tab.href}
@@ -72,15 +76,15 @@ export function ProjectNavigation({ projectId }: { projectId: string }) {
         <nav aria-label="执行视图" className="ac-view-switch">
           <Link
             href={spaceLink("work")}
-            aria-current={search.get("space") !== "live" ? "page" : undefined}
+            aria-current={search.get("scope") !== "all" ? "page" : undefined}
           >
-            任务工作区
+            {role === "teacher" ? "待验收" : role === "student" ? "我的任务" : "团队任务"}
           </Link>
           <Link
-            href={`${base}?space=live`}
-            aria-current={search.get("space") === "live" ? "page" : undefined}
+            href={`${base}?space=work&scope=all&panel=list`}
+            aria-current={search.get("scope") === "all" ? "page" : undefined}
           >
-            进度与风险
+            {role === "teacher" ? "全部任务与历史" : "全部任务"}
           </Link>
         </nav>
       )}

@@ -158,7 +158,7 @@ export function TaskContractPanel({
   const canClaim =
     canWrite &&
     isInFlight(task.status) &&
-    (!task.assigneeId || (isMine && (!task.committedAt || !versionMatch)));
+    ((canReview && !task.assigneeId) || (isMine && (!task.committedAt || !versionMatch)));
   const awaiting = isAwaitingResponse(
     task.status,
     task.assigneeId,
@@ -166,9 +166,9 @@ export function TaskContractPanel({
     task.committedHandoffVersion,
     task.handoffVersion,
   );
-  const canDecline = isMine && awaiting;
+  const canDecline = canWrite && isMine && awaiting;
   const canSubmit =
-    isMine &&
+    canWrite && isMine &&
     isInFlight(task.status) &&
     Boolean(task.committedAt) &&
     versionMatch;

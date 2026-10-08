@@ -56,10 +56,10 @@ async function taskAccess(actorId: string, projectId: string, taskId: string) {
 }
 
 /** Stable ID pagination; action grouping applies within the loaded page, not a global ranking. */
-export async function listConsoleTasks(actorId: string, projectId: string, options: PageOptions = {}) {
+export async function listConsoleTasks(actorId: string, projectId: string, options: PageOptions & { scope?: "mine" | "review" | "all" } = {}) {
   const access = await projectAccess(actorId, projectId);
   const limit = pageSize(options.limit, 50);
-  const scope = `tasks:${projectId}`;
+  const scope = `tasks:${projectId}${options.scope && options.scope !== "all" ? `:${options.scope}:${actorId}` : ""}`;
   const after = cursorId(options.cursor, scope);
   const rows = await db.select({
     id: tasks.id, title: tasks.title, status: tasks.status, priority: tasks.priority,
@@ -67,7 +67,11 @@ export async function listConsoleTasks(actorId: string, projectId: string, optio
     assigneeKind: users.kind, dueDate: tasks.dueDate, committedAt: tasks.committedAt,
     committedHandoffVersion: tasks.committedHandoffVersion, handoffVersion: tasks.handoffVersion,
   }).from(tasks).leftJoin(users, eq(tasks.assigneeId, users.id))
-    .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false), after ? gt(tasks.id, after) : undefined))
+    .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false),
+      options.scope === "mine" ? eq(tasks.assigneeId, actorId) : undefined,
+      options.scope === "review" ? eq(tasks.status, "review") : undefined,
+      options.scope === "review" && access.role !== "admin" ? sql`(${tasks.assigneeId} is null or ${tasks.assigneeId} <> ${actorId})` : undefined,
+      after ? gt(tasks.id, after) : undefined))
     .orderBy(asc(tasks.id)).limit(limit + 1);
   const result = page(rows, limit, scope);
   if (!result.items.length) return { ...result, items: [], canReview: access.role === "admin" || access.role === "teacher" };

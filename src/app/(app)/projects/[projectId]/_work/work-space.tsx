@@ -12,6 +12,7 @@ import { FilterBar } from "../filter-bar";
 import { NewTaskForm } from "../new-task-form";
 import { ExecutionConsole } from "../_console/execution-console";
 import type { NormalizedConsoleParams } from "@/lib/console-navigation";
+import { PROJECT_ROLE_WORKSPACE } from "@/lib/project-role-workspace";
 
 // 工作：任务如何拆分与流转。
 //
@@ -41,6 +42,16 @@ export async function WorkSpace({
   /** W02: 完整规范化参数，传给执行台 */
   normalized?: NormalizedConsoleParams;
 }) {
+  const viewHref = (board: boolean) => {
+    const params = new URLSearchParams({ space: "work" });
+    for (const key of ["scope", "task", "assignee", "priority", "label", "milestone", "overdue", "group"] as const) {
+      const value = normalized?.[key];
+      if (value) params.set(key, value);
+    }
+    params.set(board ? "view" : "panel", board ? "board" : "list");
+    return `/projects/${projectId}?${params.toString()}`;
+  };
+  const heading = normalized?.scope === "all" ? "全部任务" : PROJECT_ROLE_WORKSPACE[role].work;
   const canWrite = role === "admin" || role === "student";
   const canReview = role === "admin" || role === "teacher";
   const canCreateTask = role === "admin";
@@ -59,7 +70,8 @@ export async function WorkSpace({
       ]);
 
     const agentStatusById = Object.fromEntries(projectAgents.map((a) => [a.userId, a.status]));
-    const visibleTasks = applyFilters(projectTasks, filters, today());
+    const scopedTasks = role === "student" && normalized?.scope !== "all" ? projectTasks.filter(task => task.assigneeId === actorId) : role === "teacher" && normalized?.scope !== "all" ? projectTasks.filter(task => task.status === "review" && task.assigneeId !== actorId) : projectTasks;
+    const visibleTasks = applyFilters(scopedTasks, filters, today());
     const members_ = members;
     const projectMilestones_ = projectMilestones;
 
@@ -68,15 +80,15 @@ export async function WorkSpace({
         {/* 看板工具栏 */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stroke pb-3">
           <div className="flex items-baseline gap-2">
-            <h2 className="font-display text-lg font-semibold text-ink">看板</h2>
+            <h2 className="font-display text-lg font-semibold text-ink">{heading}看板</h2>
             <span className="text-xs tabular-nums text-ink-3">
               显示 {visibleTasks.length} 项，共 {projectTasks.length} 项
             </span>
           </div>
           <div className="flex items-center gap-2">
             <nav aria-label="任务视图" className="ac-view-switch !mt-0">
-              <Link href={`/projects/${projectId}?space=work&panel=list`}>列表</Link>
-              <Link href={`/projects/${projectId}?space=work&view=board`} aria-current="page">看板</Link>
+              <Link href={viewHref(false)}>列表</Link>
+              <Link href={viewHref(true)} aria-current="page">看板</Link>
             </nav>
             {canCreateTask && (
               <NewTaskForm
@@ -90,9 +102,6 @@ export async function WorkSpace({
           </div>
         </div>
 
-        <details className="ac-disclosure" open={Boolean(filters.assignee || filters.priority || filters.label || filters.milestone || filters.overdue)}>
-          <summary>筛选与分组</summary>
-          <div className="ac-disclosure-body">
         <FilterBar
           members={members_.map((m) => ({
             id: m.id,
@@ -103,8 +112,6 @@ export async function WorkSpace({
           visible={visibleTasks.length}
           total={projectTasks.length}
         />
-          </div>
-        </details>
 
         <Board
           projectId={projectId}
@@ -167,10 +174,10 @@ export async function WorkSpace({
     <section data-tour="execution-console" className="flex flex-col gap-3">
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-ink-3">{role === "teacher" ? "选择待验收任务，检查证据后给出反馈。" : "选择一项任务，查看要求、接下工作或提交成果。"}</p>
+        <div><h2 className="text-lg font-semibold text-ink">{heading}</h2><p className="mt-1 text-sm text-ink-3">{normalized?.scope === "all" ? "查看全项目任务和历史；操作入口仍遵循你的项目角色。" : role === "teacher" ? "先对照标准检查证据，再通过或填写退回意见。" : role === "student" ? "这里只列出分配给你的任务；打开后确认要求并交付。" : "检查分工、处理交接与验收，推进团队任务。"}</p></div>
         <nav aria-label="任务视图" className="ac-view-switch !mt-0">
-          <Link href={`/projects/${projectId}?space=work&panel=list`} aria-current="page">列表</Link>
-          <Link href={`/projects/${projectId}?space=work&view=board`}>看板</Link>
+          <Link href={viewHref(false)} aria-current="page">列表</Link>
+          <Link href={viewHref(true)}>看板</Link>
         </nav>
       </div>
 

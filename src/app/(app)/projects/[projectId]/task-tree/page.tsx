@@ -51,14 +51,19 @@ export default async function TaskTreePage({
   const canManage = access.role === "admin";
   const canReview = canManage || access.role === "teacher";
   const actorId = session.user.id;
-  const mine = query.scope === "mine";
+  const mine = query.scope === "mine" || access.role === "student" && query.scope !== "all";
   const leaves = tree.tasks.filter((task) => task.stageId && !task.isTaskGroup);
   const complete = leaves.filter((task) => task.status === "done").length;
   const current = tree.stages.find(
     (stage) => stage.status === "active" || stage.status === "integrating",
   );
   const requestedStage = typeof query.stage === "string" ? query.stage : null;
-  const selectedStage = tree.stages.find(stage => stage.id === requestedStage) ?? current ?? tree.stages[0];
+  const pendingIntegration = access.role === "teacher"
+    ? tree.integrations.find(item => item.decision === "pending" && item.submittedById !== actorId)
+    : undefined;
+  const selectedStage = tree.stages.find(stage => stage.id === requestedStage)
+    ?? tree.stages.find(stage => stage.id === pendingIntegration?.stageId)
+    ?? current ?? tree.stages[0];
   const shownStages = tree.stages.filter(stage => stage.id === selectedStage?.id);
   const latestDeliveries = new Map<string, (typeof tree.deliveries)[number]>();
   for (const delivery of tree.deliveries)
@@ -73,7 +78,7 @@ export default async function TaskTreePage({
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div><h2 className="text-xl font-semibold text-ink">规划与迭代</h2><p className="mt-2 text-sm text-ink-3">{nextAction}</p></div>
+        <div><h2 className="text-xl font-semibold text-ink">{canManage ? "规划与集成" : access.role === "teacher" ? "阶段集成审核" : "阶段与我的交付"}</h2><p className="mt-2 text-sm text-ink-3">{nextAction}</p></div>
         {canManage && <Link href={`/projects/${projectId}/task-tree?plan=1#planning`} className="ac-btn">{tree.stages.length ? "规划下一轮 ＋" : "规划第一轮 ＋"}</Link>}
       </header>
       <section
@@ -128,7 +133,7 @@ export default async function TaskTreePage({
               {tree.stages.map((stage, index) => (
                 <a
                   key={stage.id}
-                  data-tour="stage-link" href={`/projects/${projectId}/task-tree?stage=${stage.id}${mine ? "&scope=mine" : ""}#stage-${stage.id}`}
+                  data-tour="stage-link" href={`/projects/${projectId}/task-tree?stage=${stage.id}&scope=${mine ? "mine" : "all"}#stage-${stage.id}`}
                   aria-current={stage.id === selectedStage?.id ? "step" : undefined}
                   className={`shrink-0 rounded-lg border px-4 py-3 text-xs ${stage.id === selectedStage?.id ? "border-signal/30 bg-signal-soft font-semibold text-signal" : "border-stroke bg-panel text-ink-3"}`}
                 >
@@ -144,7 +149,7 @@ export default async function TaskTreePage({
                 <Link
                   aria-current={!mine ? "page" : undefined}
                   className={!mine ? "text-signal" : "text-ink-soft"}
-                  href={`/projects/${projectId}/task-tree`}
+                  href={`/projects/${projectId}/task-tree?scope=all`}
                 >
                   全部任务
                 </Link>

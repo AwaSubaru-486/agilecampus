@@ -9,6 +9,8 @@ import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
 import { RecordSpace } from "./_record/record-space";
+import { ProjectRoleHome } from "./_shared/project-role-home";
+import { isProjectHome } from "@/lib/project-role-workspace";
 
 // 项目页：四个互斥模式。
 //
@@ -48,6 +50,7 @@ export default async function ProjectPage({
 
   const { project, role } = access;
   const actorId = session.user.id;
+  if (isProjectHome(sp)) return <ProjectRoleHome actorId={actorId} projectId={projectId} role={role} />;
 
   // 归一化所有参数：live→work，非法→work，带会话/审批→studio。
   // 数组参数取第一项；规范化结果幂等，不产生重定向循环。

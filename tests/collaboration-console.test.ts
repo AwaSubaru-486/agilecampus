@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { activityEvents, agentRuns, tasks } from "@/db/schema";
+import { activityEvents, agentRuns, tasks, teamMembers } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
@@ -27,6 +27,26 @@ async function scene() {
 
 describe("协同执行台只读投影", () => {
   beforeEach(resetDb);
+
+  it("角色范围在分页前筛选，切换范围不能复用游标；导师排除本人交付", async () => {
+    const { owner, member, team, project } = await scene();
+    const mentor = await createUser({ email: "mentor-scope@test.local", password: "password123", name: "导师" });
+    await joinTeam(mentor.id, team.inviteCode);
+    await db.update(teamMembers).set({ role: "teacher" }).where(eq(teamMembers.userId, mentor.id));
+    await db.insert(tasks).values([
+      ...Array.from({ length: 55 }, (_, i) => ({ projectId: project.id, title: `其他任务 ${i}`, assigneeId: owner.id })),
+      { projectId: project.id, title: "我的执行", assigneeId: member.id },
+      { projectId: project.id, title: "我的待验收", assigneeId: member.id, status: "review" as const },
+      { projectId: project.id, title: "导师本人交付", assigneeId: mentor.id, status: "review" as const },
+    ]);
+    const mine = await listConsoleTasks(member.id, project.id, { scope: "mine", limit: 1 });
+    expect(mine.items).toHaveLength(1); expect(mine.hasMore).toBe(true);
+    expect(mine.items[0].assigneeId).toBe(member.id);
+    const rest = await listConsoleTasks(member.id, project.id, { scope: "mine", cursor: mine.nextCursor!, limit: 1 });
+    expect(rest.items[0].id).not.toBe(mine.items[0].id);
+    await expect(listConsoleTasks(member.id, project.id, { scope: "all", cursor: mine.nextCursor! })).rejects.toThrow();
+    expect((await listConsoleTasks(mentor.id, project.id, { scope: "review" })).items.map(item => item.title)).toEqual(["我的待验收"]);
+  });
 
   it("拒绝非成员，空项目返回真实空页", async () => {
     const { owner, project } = await scene();

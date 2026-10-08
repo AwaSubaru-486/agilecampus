@@ -19,6 +19,7 @@
 import { type ProjectSpace, PROJECT_SPACES } from "./project-space";
 
 export type ConsoleParams = {
+  scope?: string | null;
   space?: string | null;
   task?: string | null;
   conversation?: string | null;
@@ -35,6 +36,7 @@ export type ConsoleParams = {
 };
 
 export type NormalizedConsoleParams = {
+  scope?: string | null;
   space: ProjectSpace;
   task: string | null;
   conversation: string | null;
@@ -91,6 +93,7 @@ export function normalizeConsoleParams(raw: ConsoleParams): NormalizedConsolePar
   }
 
   return {
+    ...(pickFirst(raw.scope) ? { scope: pickFirst(raw.scope) } : {}),
     space: resolvedSpace,
     task,
     conversation,
@@ -131,6 +134,7 @@ export function buildSelectTaskHref(
   const qs = new URLSearchParams();
   qs.set("space", current.space);
   qs.set("task", taskId);
+  if (current.scope) qs.set("scope", current.scope);
   // 保留筛选参数
   if (current.assignee) qs.set("assignee", current.assignee);
   if (current.priority) qs.set("priority", current.priority);
@@ -151,6 +155,7 @@ export function buildClearTaskHref(
 ): string {
   const qs = new URLSearchParams();
   qs.set("space", current.space === "studio" ? "work" : current.space);
+  if (current.scope) qs.set("scope", current.scope);
   if (current.assignee) qs.set("assignee", current.assignee);
   if (current.priority) qs.set("priority", current.priority);
   if (current.label) qs.set("label", current.label);
@@ -180,6 +185,7 @@ export function buildSelectRunHref(
 export function serializeConsoleParams(p: NormalizedConsoleParams): string {
   const qs = new URLSearchParams();
   qs.set("space", p.space);
+  if (p.scope) qs.set("scope", p.scope);
   if (p.task) qs.set("task", p.task);
   if (p.conversation) qs.set("conversation", p.conversation);
   if (p.approval) qs.set("approval", p.approval);

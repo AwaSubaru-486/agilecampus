@@ -43,7 +43,10 @@ export function FilterBar({
 
   // 筛选态写入 URL：可分享、可刷新保持、可后退。scroll:false 免得跳回页首。
   function push(next: BoardFilters) {
-    const qs = serializeFilters(next);
+    const params = new URLSearchParams(searchParams.toString());
+    for (const key of ["assignee", "priority", "label", "milestone", "overdue", "group"]) params.delete(key);
+    new URLSearchParams(serializeFilters(next)).forEach((value, key) => params.set(key, value));
+    const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 

@@ -57,10 +57,7 @@ export default async function AllProjectsPage() {
               const percent = p.taskTotal
                 ? Math.round((p.doneCount / p.taskTotal) * 100)
                 : 0;
-              const href =
-                role === "admin" && p.taskTotal === 0
-                  ? "/projects/" + p.id + "/task-tree#planning"
-                  : "/projects/" + p.id + "?space=work&panel=list";
+              const href = "/projects/" + p.id;
               return (
                 <li key={p.id}>
                   <Link href={href} className="ac-project-card group">

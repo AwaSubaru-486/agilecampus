@@ -130,7 +130,7 @@ function Column({
           </div>
         )}
       </div>
-      {canWrite && column.patch.status && (
+      {canWrite && canReview && column.patch.status && (
         <button
           type="button"
           onClick={() => {
@@ -177,9 +177,9 @@ export function Board({
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  // 列表是项目管理的默认工作面：先让人找到要做的事，再切换到看板做空间规划。
+  // 默认入口是执行台列表；明确切换到看板后，直接显示看板。
   // 这也是 Linear、Plane 等成熟工具常见的入口顺序，移动端不会被横向看板截断。
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("board");
   const [density, setDensity] = useState<CardDensity>("compact");
   const [optimisticTasks, moveOptimistic] = useOptimistic(
     tasks,

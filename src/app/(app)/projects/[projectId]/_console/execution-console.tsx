@@ -20,6 +20,7 @@ import { listTaskAttempts } from "@/lib/checkpoint";
 import { listProjectMemories } from "@/lib/project-memory";
 import { ConsoleShell } from "./console-shell";
 import type { NormalizedConsoleParams } from "@/lib/console-navigation";
+import { projectTaskScope } from "@/lib/project-role-workspace";
 
 export async function ExecutionConsole({
   actorId,
@@ -44,7 +45,7 @@ export async function ExecutionConsole({
 
   // 分页加载任务列表与团队成员
   const [tasksResult, teamMembersList, milestones] = await Promise.all([
-    listConsoleTasks(actorId, projectId, { limit: 50 }),
+    listConsoleTasks(actorId, projectId, { limit: 50, scope: projectTaskScope(access.role, normalized.scope ?? null) }),
     listTeamMembers(access.project.teamId),
     listProjectMilestones(actorId, projectId),
   ]);
