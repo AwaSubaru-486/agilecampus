@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { approvalRequests, blockerInvites, blockers, decisions, projects, tasks, teamMembers, users } from "@/db/schema";
@@ -25,10 +26,7 @@ export type ActionQueue = {
   total: number;
 };
 
-export async function loadActionQueue(
-  userId: string,
-  opts?: { showAll?: boolean },
-): Promise<ActionQueue> {
+const loadActionQueueRows = cache(async (userId: string): Promise<RawAction[]> => {
   const [memberships, actorRows] = await Promise.all([
     db
       .select({ teamId: teamMembers.teamId, role: teamMembers.role })
@@ -36,7 +34,7 @@ export async function loadActionQueue(
       .where(eq(teamMembers.userId, userId)),
     db.select({ kind: users.kind }).from(users).where(eq(users.id, userId)),
   ]);
-  if (memberships.length === 0) return { items: [], omitted: 0, total: 0 };
+  if (memberships.length === 0) return [];
 
   const teamIds = memberships.map((m) => m.teamId);
   const reviewerTeamIds = memberships.filter((m) => m.role !== "student").map((m) => m.teamId);
@@ -287,6 +285,11 @@ export async function loadActionQueue(
     })),
   ];
 
+  return raw;
+});
+
+export async function loadActionQueue(userId: string, opts?: { showAll?: boolean }): Promise<ActionQueue> {
+  const raw = await loadActionQueueRows(userId);
   const { items, omitted } = buildActionQueue(raw, { showAll: opts?.showAll });
   return { items, omitted, total: raw.length };
 }

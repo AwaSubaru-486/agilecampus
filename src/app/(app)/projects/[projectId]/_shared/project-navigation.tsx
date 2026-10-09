@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { buildSpaceHref } from "@/lib/project-space";
 import type { TeamRole } from "@/db/schema";

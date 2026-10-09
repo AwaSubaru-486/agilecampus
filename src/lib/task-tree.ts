@@ -1,3 +1,4 @@
+import { enqueueStageHandoffs } from "./task-notifications";
 import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { generateText, type LanguageModel } from "ai";
 import { z } from "zod";
@@ -322,6 +323,9 @@ export async function reviewStageIntegration(actorId: string, integrationId: str
     const [completed] = await tx.update(taskStages).set({ status: "completed", integrationNote: input.note?.trim() || null, reviewedById: actorId, reviewedAt: new Date(), updatedAt: new Date() }).where(and(eq(taskStages.id, row.stage.id), eq(taskStages.status, "integrating"))).returning({ id: taskStages.id });
     if (!completed) throw new AppError("该阶段状态已变化，请刷新后重试");
     const [next] = await tx.select({ id: taskStages.id }).from(taskStages).where(and(eq(taskStages.projectId, row.stage.projectId), eq(taskStages.status, "locked"))).orderBy(asc(taskStages.position)).limit(1);
-    if (next) await tx.update(taskStages).set({ status: "active", updatedAt: new Date() }).where(eq(taskStages.id, next.id));
+    if (next) {
+      await tx.update(taskStages).set({ status: "active", updatedAt: new Date() }).where(eq(taskStages.id, next.id));
+      await enqueueStageHandoffs(tx, next.id, row.stage.id);
+    }
   });
 }

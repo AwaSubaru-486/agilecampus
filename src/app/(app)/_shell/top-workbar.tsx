@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NAV_ITEMS, activeNavHref } from "./nav-items";
@@ -10,11 +10,11 @@ import { WorkspaceIcon } from "@/components/workspace-icon";
 export function TopWorkbar({
   userName,
   projects,
-  collaborationCount = 0,
+  collaborationBadge,
 }: {
   userName: string;
   projects: SwitcherProject[];
-  collaborationCount?: number;
+  collaborationBadge?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -125,14 +125,7 @@ export function TopWorkbar({
                 }
               />
               <span className={collapsed ? "sr-only" : ""}>{item.label}</span>
-              {item.href === "/collaboration" && collaborationCount > 0 && (
-                <span
-                  aria-label={collaborationCount + " 项待处理"}
-                  className="ac-nav-count"
-                >
-                  {collaborationCount > 9 ? "9+" : collaborationCount}
-                </span>
-              )}
+              {item.href === "/collaboration" && collaborationBadge}
             </Link>
           ))}
           <Link href="/settings/api" data-tour="nav-api" className={"ac-nav-item " + (pathname === "/settings/api" ? "is-active" : "")} aria-current={pathname === "/settings/api" ? "page" : undefined}>

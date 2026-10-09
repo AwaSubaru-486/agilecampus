@@ -3,6 +3,7 @@ import { db } from "@/db";
 import type { DbTx } from "@/db";
 import {
   labels,
+  projects,
   milestones,
   contextPacks,
   evidenceItems,
@@ -15,6 +16,7 @@ import {
   type TaskStatus,
 } from "@/db/schema";
 import { AppError, ForbiddenError } from "./errors";
+import { enqueueTaskHandoffs } from "./task-notifications";
 import { getTeamMembership } from "./team";
 import { isTeamAgent } from "./agent-member";
 import { getProjectForUser } from "./project";
@@ -221,7 +223,20 @@ export async function updateTask(
     contextPackId?: string | null;
   },
   opts?: { tx?: DbTx },
-) {
+): Promise<typeof tasks.$inferSelect> {
+  if (patch.status === "done" && !opts?.tx) {
+    const result = await db.transaction(async tx => {
+      const [row] = await tx.select({ projectId: tasks.projectId }).from(tasks).where(eq(tasks.id, taskId));
+      if (!row) throw new AppError("任务不存在");
+      await tx.select({ id: projects.id }).from(projects).where(eq(projects.id, row.projectId)).for("update");
+      const [previous] = await tx.select().from(tasks).where(eq(tasks.id, taskId));
+      const updated = await updateTask(actorId, taskId, patch, { tx });
+      return { updated, previous };
+    });
+    if (result.previous.status !== "done") void notifyTaskCompleted(result.updated, actorId);
+    if (patch.assigneeId && patch.assigneeId !== result.previous.assigneeId) void notifyTaskAssigned(result.updated);
+    return result.updated;
+  }
   const exec = opts?.tx ?? db;
   const [task] = await exec.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
@@ -342,6 +357,8 @@ export async function updateTask(
   for (const e of events) {
     await recordEvent(exec, { projectId: task.projectId, actorId, taskId: task.id, ...e });
   }
+
+  if (opts?.tx && patch.status === "done" && task.status !== "done") await enqueueTaskHandoffs(opts.tx, updated);
 
   if (!opts?.tx) {
     // 改派：通知新负责人
@@ -799,36 +816,42 @@ export async function reviewTask(
   // 退回必填理由：没写理由的退回，成员只知道被否了，不知道改什么
   if (!accepted && !input.note?.trim()) throw new AppError("退回时请写明需要改什么");
 
-  const [updated] = await db
-    .update(tasks)
-    .set({
-      status: accepted ? "done" : "doing",
-      reviewedAt: sql`now()`,
-      reviewedById: actorId,
-      reviewNote: input.note ?? null,
-      ...(accepted ? {} : { rejectCount: sql`${tasks.rejectCount} + 1` }),
-      updatedAt: sql`now()`,
-    })
-    .where(eq(tasks.id, taskId))
-    .returning();
-  if (!updated) throw new AppError("任务不存在");
+  const updated = await db.transaction(async (tx) => {
+    // Serialize parallel predecessor completions so the last approval sees every dependency.
+    await tx.select({ id: projects.id }).from(projects).where(eq(projects.id, task.projectId)).for("update");
+    const [updated] = await tx
+      .update(tasks)
+      .set({
+        status: accepted ? "done" : "doing",
+        reviewedAt: sql`now()`,
+        reviewedById: actorId,
+        reviewNote: input.note ?? null,
+        ...(accepted ? {} : { rejectCount: sql`${tasks.rejectCount} + 1` }),
+        updatedAt: sql`now()`,
+      })
+      .where(and(eq(tasks.id, taskId), eq(tasks.status, "review")))
+      .returning();
+    if (!updated) throw new AppError("该任务已经验收，请刷新后查看");
 
-  await recordEvent(db, {
-    projectId: task.projectId,
-    actorId,
-    type: accepted ? "task_accepted" : "task_rejected",
-    taskId,
-    summary: accepted
-      ? describe.taskAccepted(updated.title)
-      : describe.taskRejected(updated.title, input.note ?? ""),
-    payload: {
-      title: updated.title,
-      note: input.note ?? null,
-      // 同 submitTask：把交付人冻在这一笔事件里。
-      // 贡献记录的头条数字（被验收通过的任务数）就数它。
-      assigneeId: updated.assigneeId,
-      reviewerId: actorId,
-    },
+    await recordEvent(tx, {
+      projectId: task.projectId,
+      actorId,
+      type: accepted ? "task_accepted" : "task_rejected",
+      taskId,
+      summary: accepted
+        ? describe.taskAccepted(updated.title)
+        : describe.taskRejected(updated.title, input.note ?? ""),
+      payload: {
+        title: updated.title,
+        note: input.note ?? null,
+        // 同 submitTask：把交付人冻在这一笔事件里。
+        // 贡献记录的头条数字（被验收通过的任务数）就数它。
+        assigneeId: updated.assigneeId,
+        reviewerId: actorId,
+      },
+    });
+    if (accepted) await enqueueTaskHandoffs(tx, updated);
+    return updated;
   });
   // 通过时才通知创建者「完成了」——退回走另一张卡片
   if (accepted) void notifyTaskCompleted(updated, actorId);

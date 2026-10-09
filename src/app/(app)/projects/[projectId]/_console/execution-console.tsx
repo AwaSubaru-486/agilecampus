@@ -44,7 +44,7 @@ export async function ExecutionConsole({
   const canDeleteTask = role === "admin";
 
   // 分页加载任务列表与团队成员
-  const [tasksResult, teamMembersList, milestones] = await Promise.all([
+  const listData = Promise.all([
     listConsoleTasks(actorId, projectId, { limit: 50, scope: projectTaskScope(access.role, normalized.scope ?? null) }),
     listTeamMembers(access.project.teamId),
     listProjectMilestones(actorId, projectId),
@@ -87,6 +87,9 @@ export async function ExecutionConsole({
       // 容错处理，不中断主流程
     }
   }
+
+  // Start independent list queries before loading selected task details.
+  const [tasksResult, teamMembersList, milestones] = await listData;
 
   const serializeRunResult = (result: unknown) => {
     if (result == null) return null;

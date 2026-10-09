@@ -1042,3 +1042,19 @@ export const agentRuns = pgTable(
 // ── VS Code Checkpoints, Handoffs, and Attempt Receipts (B01/B02) ──
 export * from "./schema-checkpoint";
 export * from "./schema-session-memory";
+
+// Durable inbox: closing a browser or switching devices must not lose a handoff.
+export const taskHandoffNotifications = pgTable("task_handoff_notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recipientId: uuid("recipient_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  sourceTaskId: uuid("source_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  sourceSubmissionAt: timestamp("source_submission_at").notNull(),
+  sourceTitle: text("source_title").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  dismissedAt: timestamp("dismissed_at"),
+}, t => [
+  index("handoff_inbox_recipient_idx").on(t.recipientId, t.dismissedAt, t.createdAt),
+  uniqueIndex("handoff_inbox_delivery_unique").on(t.recipientId, t.taskId, t.sourceTaskId, t.sourceSubmissionAt),
+]);

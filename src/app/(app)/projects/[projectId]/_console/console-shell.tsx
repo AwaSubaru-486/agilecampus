@@ -196,7 +196,7 @@ export function ConsoleShell({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
+  const [isNavigating, startTransition] = useTransition();
   const consoleRef = useRef<HTMLDivElement>(null);
   const runRailRef = useRef<HTMLDivElement>(null);
   const runRailTriggerRef = useRef<HTMLButtonElement>(null);
@@ -324,7 +324,8 @@ export function ConsoleShell({
   }, [newTaskOpen]);
 
   return (
-    <div ref={consoleRef} className="relative flex min-h-0 w-full flex-col">
+    <div ref={consoleRef} aria-busy={isNavigating} className="relative flex min-h-0 w-full flex-col">
+      {isNavigating && <p role="status" className="mb-3 flex items-center gap-2 text-sm text-signal"><span className="ac-loading-dot" aria-hidden />正在切换任务…</p>}
       {/* 任务列表与详情工作面 */}
       <div className="flex min-h-0 flex-1 divide-x divide-stroke overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
 
@@ -351,6 +352,7 @@ export function ConsoleShell({
 
         {/* ── 中栏：交接工作面 ── */}
         <div
+          inert={isNavigating}
           className={[
             "min-w-0 flex-1 overflow-y-auto",
             // 窄屏：有选中任务且不是列表面板时显示

@@ -6,9 +6,11 @@ import { TutorialProvider } from "./tutorials/tutorial-provider";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { listMyProjects } from "@/lib/project";
-import { countMyPendingActions } from "@/lib/shell";
+import { Suspense } from "react";
+import { PendingActionBadge } from "./_shell/pending-action-badge";
 import { TopWorkbar } from "./_shell/top-workbar";
 import { StuckButton } from "./stuck-button";
+import { TaskNotificationInbox } from "./_shell/task-notification-inbox";
 
 // 应用骨架。Commit 2/13 起由「左侧永久导航」改为「顶部工作带」。
 //
@@ -20,9 +22,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const [myProjects, pendingCount, memberships, tutorialProgress] = await Promise.all([
+  const [myProjects, memberships, tutorialProgress] = await Promise.all([
     listMyProjects(session.user.id),
-    countMyPendingActions(session.user.id),
     db.select({ teamId: teamMembers.teamId, role: teamMembers.role }).from(teamMembers).where(eq(teamMembers.userId, session.user.id)),
     getTutorialProgress(session.user.id),
   ]);
@@ -50,13 +51,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <TopWorkbar
         userName={session.user.name ?? ""}
         projects={switcherProjects}
-        collaborationCount={pendingCount}
+        collaborationBadge={<Suspense fallback={null}><PendingActionBadge userId={session.user.id} /></Suspense>}
       />
       <main id="main-content" tabIndex={-1} className="ac-shell-main">
         {children}
       </main>
 
       <StuckButton projects={switcherProjects.map((p) => ({ id: p.id, name: p.name }))} />
+      <TaskNotificationInbox key={session.user.id} userId={session.user.id} />
     </div>
     </TutorialProvider>
   );

@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { cache } from "react";
 import { db } from "@/db";
 import { activityEvents, agentRuns, blockers, contextPacks, conversations, tasks, users } from "@/db/schema";
 import { getProjectForUser } from "./project";
@@ -47,13 +48,13 @@ async function projectAccess(actorId: string, projectId: string) {
   return access;
 }
 
-async function taskAccess(actorId: string, projectId: string, taskId: string) {
+const taskAccess = cache(async (actorId: string, projectId: string, taskId: string) => {
   await projectAccess(actorId, projectId);
   if (!uuid.safeParse(taskId).success) throw inaccessible();
   const [task] = await db.select({ id: tasks.id }).from(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)));
   if (!task) throw inaccessible();
-}
+});
 
 /** Stable ID pagination; action grouping applies within the loaded page, not a global ranking. */
 export async function listConsoleTasks(actorId: string, projectId: string, options: PageOptions & { scope?: "mine" | "review" | "all" } = {}) {

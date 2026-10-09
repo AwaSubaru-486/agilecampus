@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { cache } from "react";
 import { db } from "@/db";
 import {
   milestones,
@@ -9,7 +10,7 @@ import {
   type ProjectStatus,
 } from "@/db/schema";
 import { AppError, ForbiddenError } from "./errors";
-import { getTeamMembership, requireTeamRole } from "./team";
+import { requireTeamRole } from "./team";
 import { TASK_STATUSES, emptyByStatus } from "./task-status";
 // 写入侧不引 ./project，故可放心反向引用，不成循环
 import { describe, recordEvent } from "./activity";
@@ -129,13 +130,13 @@ export async function getProjectDetail(actorId: string, projectId: string) {
 }
 
 // 页面/任务层的访问收敛点：项目不存在或非团队成员一律 null，不泄露存在性
-export async function getProjectForUser(actorId: string, projectId: string) {
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project) return null;
-  const membership = await getTeamMembership(actorId, project.teamId);
-  if (!membership) return null;
-  return { project, role: membership.role };
-}
+// Only deduplicate within one server render; never share permission results between requests.
+export const getProjectForUser = cache(async (actorId: string, projectId: string) => {
+  const [row] = await db.select({ project: projects, role: teamMembers.role })
+    .from(projects).innerJoin(teamMembers, and(eq(teamMembers.teamId, projects.teamId), eq(teamMembers.userId, actorId)))
+    .where(eq(projects.id, projectId));
+  return row ?? null;
+});
 
 export async function createMilestone(
   actorId: string,
@@ -170,7 +171,7 @@ export async function listProjectMilestones(actorId: string, projectId: string) 
 }
 
 // 跨团队聚合：我所在全部团队的项目 + 团队名 + 任务统计
-export async function listMyProjects(actorId: string) {
+export const listMyProjects = cache(async (actorId: string) => {
   const memberships = await db
     .select({ teamId: teamMembers.teamId })
     .from(teamMembers)
@@ -215,7 +216,7 @@ export async function listMyProjects(actorId: string) {
     const doneCount = mine.find((s) => s.status === "done")?.count ?? 0;
     return { ...p, taskTotal: total, doneCount };
   });
-}
+});
 
 // 删除项目：仅团队管理员 (组长) 可操作
 export async function deleteProject(actorId: string, projectId: string) {
