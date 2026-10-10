@@ -420,7 +420,7 @@ export default async function TaskTreePage({
             </span>
           </div>
           {canManage ? (
-            <DraftEditor
+            <DraftEditor tutorial={isTutorial}
               projectId={projectId}
               draftId={draft.id}
               payload={draft.payload}

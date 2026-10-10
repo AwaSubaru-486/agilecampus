@@ -8,7 +8,7 @@ export function ProjectViewSwitch({ projectId, view }: { projectId: string; view
   const [pending, setPending] = useState(false);
   const pathname = usePathname();
   const search = useSearchParams();
-  return <form method="post" action={`/api/projects/${projectId}/view`} onSubmit={() => setPending(true)} className="flex flex-wrap items-center gap-3">
+  return <form data-tour="project-view-switch" data-tour-member-view={view === "student" ? "true" : undefined} data-tour-teacher-view={view === "teacher" ? "true" : undefined} data-tour-leader-view={view === "admin" ? "true" : undefined} method="post" action={`/api/projects/${projectId}/view`} onSubmit={() => setPending(true)} className="flex flex-wrap items-center gap-3">
     <input type="hidden" name="returnTo" value={`${pathname}${search.size ? `?${search}` : ""}`} />
     <label className="flex items-center gap-2 text-xs text-ink-3">查看视角
       <select className="ac-field" name="view" aria-label="切换项目视角" defaultValue={view} onChange={event => { if (!pending) event.currentTarget.form?.requestSubmit(); }}>

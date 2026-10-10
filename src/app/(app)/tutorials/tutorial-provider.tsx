@@ -8,6 +8,7 @@ import { buildTutorialCourses, type CourseId, type TutorialCourse, type Tutorial
 import type { TutorialCommand } from "@/lib/tutorials/progress";
 import { saveTutorialProgress } from "./actions";
 import { findTutorialTarget } from "@/lib/tutorials/target";
+import { welcomeResumeIndex } from "@/lib/tutorials/example-flow";
 
 type TutorialContextValue = {
   projects: TutorialProject[]; project: TutorialProject | null; courses: TutorialCourse[];
@@ -41,6 +42,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const busy = useRef(false);
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [measuredRect, setRect] = useState<Rect | null>(null);
   const [locatedKey, setLocatedKey] = useState("");
@@ -67,6 +69,14 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const fulfilled = actionKey === stepKey && actionDone;
   const emptyTaskList = Boolean(stepKey && emptyTaskKey === stepKey);
 
+  useEffect(() => {
+    const locate = () => setPortalRoot(document.querySelector<HTMLDialogElement>("dialog[open]") ?? document.body);
+    locate();
+    const observer = new MutationObserver(locate);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["open"] });
+    return () => observer.disconnect();
+  }, []);
+
   async function persist(command: TutorialCommand) {
     if (busy.current) return null;
     busy.current = true; setPending(true); setError("");
@@ -91,7 +101,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     if (!selected || selected.needsProject && !selectedProject || selected.roles && (!selectedProject || !selected.roles.includes(selectedProject.role))) {
       setError("此课程需要可访问的项目和对应角色。请选择项目后重新开始。"); return;
     }
-    const index = saved ? Math.min(saved.step, selected.steps.length - 1) : 0;
+    const index = saved ? id === "welcome" ? welcomeResumeIndex(saved.step) : Math.min(saved.step, selected.steps.length - 1) : 0;
     if (await persist(id === "welcome" && !resume ? {type:"restart-example"} : { type: "save", courseId: id, step: index, projectId: id === "welcome" ? progress.journey?.projectId ?? null : selectedProject?.id ?? null })) {
       if (id !== "welcome") setProjectId(selectedProject?.id ?? "");
       readyKey.current = "";
@@ -195,7 +205,16 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     if (!stepTarget || !stepAction) return;
     const onAction = (event: Event) => {
       const target = event.target instanceof Element ? event.target.closest(stepTarget) : null;
-      if (!target || readyKey.current !== stepKey) return;
+      if (!(target instanceof HTMLElement)) return;
+      // Fast clicks can arrive before the measuring interval, or close their target.
+      // Capture the real target now so a successful action is never lost.
+      if (readyKey.current !== stepKey) {
+        const bounds = target.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        const top = Math.max(8, bounds.top - 6), left = Math.max(8, bounds.left - 6);
+        readyKey.current = stepKey; setLocatedKey(stepKey);
+        setRect({ top, left, width: Math.max(0, Math.min(window.innerWidth - 8, bounds.right + 6) - left), height: Math.max(0, Math.min(window.innerHeight - 8, bounds.bottom + 6) - top) });
+      }
       setActionKey(stepKey);
       if (event.type === "click" && stepAction === "click") setFulfilled(true);
       if ((event.type === "input" || event.type === "change") && stepAction === "input" && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
@@ -299,9 +318,9 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-2 bg-panel pt-2">
             <button className="ac-btn-ghost" disabled={pending || !active?.step} onClick={() => void advance(true)}>上一步</button>
-            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); }}>重新定位</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
+            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { if (course?.id === "welcome" && active && welcomeResumeIndex(active.step) !== active.step) { void persist({ type: "save", courseId: "welcome", step: welcomeResumeIndex(active.step), projectId: progress.journey?.projectId ?? null }); } else { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); } }}>{course?.id === "welcome" && active && welcomeResumeIndex(active.step) !== active.step ? "回到任务树继续练习" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
           </div>
         </div>
-      </div>, document.body)}
+      </div>, portalRoot ?? document.body)}
   </TutorialContext.Provider>;
 }

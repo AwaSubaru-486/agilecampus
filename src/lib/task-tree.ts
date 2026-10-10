@@ -108,7 +108,7 @@ export async function generateTutorialTaskTreeDraft(actorId:string,projectId:str
   const payload=taskTreePayloadSchema.parse({
     summary:"教学模板：先完成报名表单，再增加成功回执。请按你的目标修订任务、负责人和标准。",
     stages:[
-      {title:"第 1 轮：报名表单",tasks:[{key:"signup",parentKey:null,title:"实现报名表单与必填校验",description:`教学练习任务，需求：${briefText.slice(0,1500)}`,assigneeId:actorId,priority:"medium",doneCriteria:["缺少姓名或联系方式时显示字段提示","完整信息可以提交报名"]}]},
+      {title:"第 1 轮：报名表单",tasks:[{key:"signup",parentKey:null,title:"实现报名表单与必填校验",description:`教学练习任务，需求：${briefText.slice(0,1500)}`,assigneeId:actorId,priority:"medium",doneCriteria:["缺少姓名或联系方式时显示字段提示","完整信息可以提交报名"]},{key:"checks",parentKey:null,title:"准备报名验证用例",description:"与表单开发并行，整理成功与失败的报名输入。",assigneeId:actorId,priority:"medium",doneCriteria:["包含缺少姓名、联系方式和完整报名的用例"]},{key:"verify",parentKey:null,title:"验证报名流程",description:"等待表单与验证用例完成后，检查报名结果。",assigneeId:actorId,priority:"medium",doneCriteria:["按用例检查表单并记录结果"]}]},
       {title:"第 2 轮：报名成功回执",tasks:[{key:"receipt",parentKey:null,title:"增加报名成功回执",description:"第一轮集成通过后，为同学展示报名状态。",assigneeId:actorId,priority:"medium",doneCriteria:["报名成功后可以看到状态回执"]}]},
     ],
   });

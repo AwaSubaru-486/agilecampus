@@ -6,13 +6,14 @@ import { emptyDraftPlan, followingTasks, removePlannedTask, validateDraftPlan, t
 import type { DraftTaskSuggestion } from "@/lib/draft-planning-ai";
 import { saveDraftAction, type TreeActionState } from "./actions";
 import { DraftActions } from "./task-tree-forms";
+import { tutorialDemoPlan } from "@/lib/tutorials/demo-plan";
 import { DraftTechTree } from "./draft-tech-tree";
 
 type NewTask = { title: string; description: string; doneCriteria: string[]; afterKeys: string[]; parentKey: string | null };
 const INITIAL_NOTE = "尚未进行 AI 关系分析";
 
-export function DraftEditor({ projectId, draftId, payload, members }: {
-  projectId: string; draftId: string; payload: TaskTreePayload; members: { id: string; name: string }[];
+export function DraftEditor({ projectId, draftId, payload, members, tutorial = false }: {
+  tutorial?: boolean; projectId: string; draftId: string; payload: TaskTreePayload; members: { id: string; name: string }[];
 }) {
   const [value, setValue] = useState(payload);
   const [saved, setSaved] = useState(JSON.stringify(payload));
@@ -20,6 +21,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
   const [savedPlan, setSavedPlan] = useState(JSON.stringify(emptyDraftPlan(payload)));
   const [stageIndex, setStageIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(payload.stages[0]?.tasks[0]?.key ?? null);
+  const [added, setAdded] = useState(false);
   const [newTask, setNewTask] = useState<NewTask | null>(null);
   const [suggestion, setSuggestion] = useState<DraftTaskSuggestion | null>(null);
   const [busy, setBusy] = useState<"plan" | "refine" | null>(null);
@@ -89,6 +91,12 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
           setPlan(cached.plan); setSavedPlan(JSON.stringify(cached.plan)); return;
         }
       } catch { /* Corrupt or stale local annotations are recomputed, never used as task dependencies. */ }
+      const demo = tutorial ? tutorialDemoPlan(payload) : null;
+      if (demo) {
+        setPlan(demo); setSavedPlan(JSON.stringify(demo));
+        try { localStorage.setItem(cacheKey, JSON.stringify({ relationVersion: 2, signature: JSON.stringify(payload), plan: demo })); } catch { /* Teaching can continue without browser storage. */ }
+        return;
+      }
       void analyse();
     });
     return () => { cancelAnimationFrame(frame); alive.current = false; activeControllers.forEach(controller => controller.abort()); };
@@ -141,7 +149,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
     const nextPlan: DraftPlan = { ...plan, source: "manual", reviewNote: "已新增任务，请核对连接或让 AI 重新安排与复核。", stages: plan.stages.map(item => item.stageIndex === stageIndex
       ? { ...item, links: [...item.links, { key, afterKeys: newTask.afterKeys, reason: suggestion ? "新增任务，已查看 AI 建议" : "手动添加，请核对前置条件" }] } : item) };
     validateDraftPlan(nextValue, nextPlan);
-    setValue(nextValue); setPlan(nextPlan); setSelectedKey(key); setNewTask(null); setSuggestion(null); setNotice("任务已加入草案，请保存后再发布。");
+    setAdded(true); setValue(nextValue); setPlan(nextPlan); setSelectedKey(key); setNewTask(null); setSuggestion(null); setNotice("任务已加入草案，请保存后再发布。");
   }
   function remove() {
     if (!removeKey) return;
@@ -156,7 +164,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
   const analysed = plan.reviewNote !== INITIAL_NOTE;
   const taskCount = value.stages.reduce((sum, item) => sum + item.tasks.length, 0);
   const removesAll = (keepFollowing ? 1 : descendants.size + 1) >= taskCount;
-  return <div data-tour="tutorial-draft-editor" className="space-y-4">
+  return <div data-tour="tutorial-draft-editor" data-tour-added={added ? "true" : undefined} data-tour-saved={!dirty && !pending ? "true" : undefined} className="space-y-4">
     <fieldset disabled={disabled} className="space-y-4 min-w-0">
       <legend className="sr-only">编辑任务草案与科技树编排</legend>
       <details className="ac-disclosure"><summary>项目规划说明</summary><label className="block p-4 text-xs text-ink-3">规划说明<textarea className="ac-field mt-2 w-full" rows={2} maxLength={1000} value={value.summary} onChange={event => setValue({ ...value, summary: event.target.value })} /></label></details>
@@ -167,7 +175,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
       <DraftTechTree draftId={draftId} tasks={value.stages.flatMap(item => item.tasks)} plan={{ stageIndex: 0, links: plan.stages.flatMap(item => item.links) }} sections={value.stages.map(item => ({ title: item.title, keys: item.tasks.map(task => task.key) }))} focusStage={stageIndex} selectedKey={selectedKey} members={members} disabled={disabled} analysed={analysed}
         onSelect={key => { setStageIndex(value.stages.findIndex(item => item.tasks.some(task => task.key === key))); setSelectedKey(key); setNewTask(null); setSuggestion(null); }} onAdd={beginAdd}
         onDelete={key => { setStageIndex(value.stages.findIndex(item => item.tasks.some(task => task.key === key))); setRemoveKey(key); setKeepFollowing(true); }} onConnect={connect} />
-      {selected && <section className="ac-tech-inspector"><header className="mb-4 flex items-center justify-between"><h3 className="font-semibold">任务详情</h3><button type="button" className="text-xs text-ink-3" onClick={() => setSelectedKey(null)}>收起</button></header>
+      {selected && <section data-tour="draft-inspector" className="ac-tech-inspector"><header className="mb-4 flex items-center justify-between"><h3 className="font-semibold">任务详情</h3><button type="button" className="text-xs text-ink-3" onClick={() => setSelectedKey(null)}>收起</button></header>
         <div className="grid gap-4 md:grid-cols-2"><label className="text-xs text-ink-3 md:col-span-2">任务名称<input className="ac-field mt-1 w-full" maxLength={160} value={selected.title} onChange={event => changeTask(selected.key, { title: event.target.value })} /></label>
           <label className="text-xs text-ink-3">负责人<select className="ac-field mt-1 w-full" value={selected.assigneeId ?? ""} onChange={event => changeTask(selected.key, { assigneeId: event.target.value || null })}><option value="">待分配</option>{members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
           <label className="text-xs text-ink-3">优先级<select className="ac-field mt-1 w-full" value={selected.priority} onChange={event => changeTask(selected.key, { priority: event.target.value as DraftTask["priority"] })}><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label>
@@ -177,10 +185,10 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
         {!groups.has(selected.key) && <details className="mt-4"><summary className="cursor-pointer text-xs text-signal">前置任务与连接理由</summary><p className="my-3 text-xs leading-6 text-ink-3">{relation?.reason}</p><div className="flex flex-wrap gap-3">{value.stages.slice(0, stageIndex + 1).flatMap(item => item.tasks).filter(task => task.key !== selected.key && !value.stages.flatMap(item => item.tasks).some(item => item.parentKey === task.key)).map(task => <label key={task.key} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={relation?.afterKeys.includes(task.key) ?? false} onChange={event => updatePredecessors(selected.key, event.target.checked ? [...relation?.afterKeys ?? [], task.key] : relation?.afterKeys.filter(key => key !== task.key) ?? [])} />{task.title}</label>)}</div><p className="mt-3 text-xs text-ink-3">无前置是起点；多个前置表示等待它们汇合。可连接本阶段和前面阶段的执行任务。</p></details>}
       </section>}
       {newTask && <section className="ac-tech-inspector"><h3 className="font-semibold">新增任务</h3><p className="mt-2 text-xs text-ink-3">{newTask.parentKey ? `加入分组：${stage.tasks.find(task => task.key === newTask.parentKey)?.title}` : newTask.afterKeys.length ? `接在：${newTask.afterKeys.map(key => stage.tasks.find(task => task.key === key)?.title).join("、")}` : "作为本阶段的并行起点"}</p>
-        <label className="mt-4 block text-xs text-ink-3">小任务名称<input className="ac-field mt-1 w-full" maxLength={160} value={newTask.title} onChange={event => { setNewTask({ ...newTask, title: event.target.value }); setSuggestion(null); }} /></label>
+        <label className="mt-4 block text-xs text-ink-3">小任务名称<input data-tour="draft-new-name" className="ac-field mt-1 w-full" maxLength={160} value={newTask.title} onChange={event => { setNewTask({ ...newTask, title: event.target.value }); setSuggestion(null); }} /></label>
         <button type="button" className="ac-btn mt-3" onClick={() => void refine()}>让 AI 检查位置并完善任务</button>
         {suggestion && <div className="mt-4 rounded-xl border border-signal/30 bg-signal-soft/40 p-4"><p className="text-sm font-semibold">{suggestion.fit === "suitable" ? "AI 判断：适合接在这里" : suggestion.fit === "parallel" ? "AI 判断：建议并行或调整前置" : "AI 判断：不建议这样接入"}</p><p className="mt-2 text-sm leading-6">{suggestion.reason}</p><p className="mt-3 text-xs text-ink-3">建议前置：{suggestion.afterKeys.length ? suggestion.afterKeys.map(key => stage.tasks.find(task => task.key === key)?.title).join("、") : "无需前置，可并行开始"}</p><ul className="mt-3 space-y-1 text-xs">{suggestion.doneCriteria.map((text, index) => <li key={index}>✓ {text}</li>)}</ul><button type="button" className="ac-btn-ghost mt-3" onClick={() => setNewTask({ ...newTask, title: suggestion.title, description: suggestion.description, doneCriteria: suggestion.doneCriteria, afterKeys: suggestion.afterKeys })}>应用建议到新增表单</button></div>}
-        <div className="mt-4 grid gap-4 md:grid-cols-2"><label className="text-xs text-ink-3">执行说明<textarea className="ac-field mt-1 w-full" maxLength={2000} rows={3} value={newTask.description} onChange={event => setNewTask({ ...newTask, description: event.target.value })} /></label><label className="text-xs text-ink-3">验收标准（每行一项）<textarea className="ac-field mt-1 w-full" rows={3} value={newTask.doneCriteria.join("\n")} onChange={event => setNewTask({ ...newTask, doneCriteria: event.target.value.split("\n") })} /></label></div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2"><label className="text-xs text-ink-3">执行说明<textarea className="ac-field mt-1 w-full" maxLength={2000} rows={3} value={newTask.description} onChange={event => setNewTask({ ...newTask, description: event.target.value })} /></label><label className="text-xs text-ink-3">验收标准（每行一项）<textarea data-tour="draft-new-criteria" className="ac-field mt-1 w-full" rows={3} value={newTask.doneCriteria.join("\n")} onChange={event => setNewTask({ ...newTask, doneCriteria: event.target.value.split("\n") })} /></label></div>
         <div className="mt-4 flex gap-3"><button type="button" className="ac-btn" onClick={add}>确认添加任务</button><button type="button" className="ac-btn-ghost" onClick={() => { setNewTask(null); setSuggestion(null); }}>取消</button></div>
       </section>}
     </fieldset>
@@ -194,12 +202,12 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
     </form>
     <p className="text-xs leading-6 text-ink-3">任务资料保存到项目，编排连线保存在当前浏览器。此图用于草案规划；发布后继续沿用现有阶段流程。</p>
     <DraftActions projectId={projectId} draftId={draftId} disabled={dirty || disabled} />
-    {removeKey && <dialog ref={dialog} className="ac-tech-delete-dialog" aria-labelledby={`${id}-delete-title`} onCancel={event => { event.preventDefault(); setRemoveKey(null); }}>
+    {removeKey && <dialog data-tour="draft-delete-dialog" ref={dialog} className="ac-tech-delete-dialog" aria-labelledby={`${id}-delete-title`} onCancel={event => { event.preventDefault(); setRemoveKey(null); }}>
       <h3 id={`${id}-delete-title`} className="text-xl font-semibold">确认删除这个任务？</h3><p className="mt-3 text-sm">{stage.tasks.find(task => task.key === removeKey)?.title}</p>
       {descendants.size > 0 ? <fieldset className="mt-5 space-y-3"><legend className="mb-3 text-sm text-ink-3">它后面关联了 {descendants.size} 个任务（可能跨阶段），请选择处理方式：</legend><label className="flex items-start gap-2 text-sm"><input type="radio" name={`${id}-keep`} checked={keepFollowing} onChange={() => setKeepFollowing(true)} />保留后续任务，接回原来的前置条件</label><label className="flex items-start gap-2 text-sm"><input type="radio" name={`${id}-keep`} checked={!keepFollowing} onChange={() => setKeepFollowing(false)} />一起删除全部后续任务（含汇合任务）</label><p className="text-xs leading-6 text-ink-3">{value.stages.flatMap(item => item.tasks).filter(task => descendants.has(task.key)).map(task => task.title).join("、")}</p></fieldset> : <p className="mt-4 text-sm text-ink-3">没有后续任务，只移除这一项。</p>}
       {stage.tasks.length === descendants.size + 1 && !keepFollowing && value.stages.length > 1 && <p className="mt-3 text-xs text-risk">本阶段将没有任务，因此也会移除这个空阶段。</p>}
       {removesAll && <p className="mt-3 text-sm text-risk">草案至少需要保留一个任务，请先添加其他任务。</p>}
-      <div className="mt-6 flex gap-3"><button type="button" className="ac-btn-ghost" onClick={() => setRemoveKey(null)}>取消</button><button type="button" className="ac-btn" disabled={removesAll} onClick={remove}>确认删除{!keepFollowing && descendants.size ? "及后续任务" : "任务"}</button></div>
+      <div className="mt-6 flex gap-3"><button type="button" data-tour="draft-delete-cancel" className="ac-btn-ghost" onClick={() => setRemoveKey(null)}>取消</button><button type="button" className="ac-btn" disabled={removesAll} onClick={remove}>确认删除{!keepFollowing && descendants.size ? "及后续任务" : "任务"}</button></div>
     </dialog>}
   </div>;
 }

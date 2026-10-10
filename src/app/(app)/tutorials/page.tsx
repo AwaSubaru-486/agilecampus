@@ -95,7 +95,7 @@ export default function TutorialsPage() {
             从零开始一个校园活动报名项目
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">
-            先配置模型 API，再从“我的团队”开始，使用原有表单创建项目，再在规划页生成与发布任务，到执行台认领、提交，认识验收和迭代。全程留在原有页面。
+            先配置模型 API，再创建示例团队和项目。沿着连续任务树练习并行与汇合、增加任务和删除确认，预览三角色界面，再发布、认领与提交成果。全程留在原有页面。
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
@@ -107,7 +107,7 @@ export default function TutorialsPage() {
             </button>
             {progress.journey?.teamId && (
               <p className="w-full text-xs text-ink-3">
-                重新开始会创建另一份练习团队和项目，已有练习记录会保留。继续上次教程可接着完成。
+                重新开始会创建另一份练习团队和项目，已有练习记录会保留。继续上次教程可接着完成。草案编辑练习会从任务树重新定位，已保存的修改保留。
               </p>
             )}
             {progress.active && (

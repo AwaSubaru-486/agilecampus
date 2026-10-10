@@ -9,7 +9,7 @@ export type TutorialProgress = {
   active: { courseId: string; step: number; projectId: string | null; paused?: boolean; journeyVersion?: number } | null;
 };
 export const INITIAL_TUTORIAL_PROGRESS: TutorialProgress = { status: "new", completed: [], active: null };
-export const COURSE_IDS = ["welcome","api-config", "teams", "planning", "execution", "review", "iterations", "ai", "records", "timeline", "risks", "resources", "labels", "agents", "connections", "settings"] as const;
+export const COURSE_IDS = ["welcome","api-config", "teams", "planning", "task-tree", "role-views", "execution", "review", "iterations", "ai", "records", "timeline", "risks", "resources", "labels", "agents", "connections", "settings"] as const;
 export type CourseId = (typeof COURSE_IDS)[number];
 export type TutorialStep = {
   id: string; title: string; instruction: string; route: string;
@@ -31,10 +31,20 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("join", "试着填写邀请码", "在高亮输入框填入邀请码。这里只练习填写，教程不会替你提交加入请求。", "/teams", "team-invite", "input"),
       ...(project ? [step("members", "确认三角色分工", "在成员页找到组长、组员和导师。角色修改入口只对组长开放。", `${team}/members`, "team-members")] : []),
     ] },
-    { id: "planning", title: "AI 一键生成任务", category: "任务流程", needsProject: true, roles: ["admin"], description: "输入需求、生成草案、修订分工，再确认发布。", steps: [
+    { id: "planning", title: "AI 一键生成任务", category: "任务流程", needsProject: true, roles: ["admin"], description: "输入需求、生成连续任务树、增删与编排任务，再确认发布。", steps: [
       step("brief", "写下本轮需求", "在项目说明里输入目标和交付要求，至少 10 个字。先练习填写，不会自动调用模型。", `${base}/task-tree#planning`, "task-brief", "input"),
       step("generate", "找到生成入口", "你准备好后可点击生成。模型配置齐全时会返回草案；教程不会替你调用模型或发布任务。", `${base}/task-tree#planning`, "task-generate"),
-      step("draft", "确认后再发布", "这块区域会展示生成的草案，支持修改负责人、优先级和完成标准。已有草案可直接修订，没有草案时先认识发布流程。", `${base}/task-tree`, "task-drafts"),
+      step("draft", "确认后再发布", "草案以连续任务树展示。点击节点修改分工与验收标准，拖动调整分支；加号新增并可请 AI 完善，减号需二次确认并选择保留后续任务。保存后再发布。", `${base}/task-tree`, "task-drafts"),
+    ] },
+    { id: "task-tree", title: "连续任务树", category: "任务流程", needsProject: true, description: "沿着连线看前后关系、并行任务与阶段分界。", steps: [
+      step("tree", "从左向右读任务树", "连线表示前置关系，同列可以并行，竖虚线分隔阶段。这里沿用草案编排；连线保存在当前浏览器。", `${base}/timeline`, "timeline-tree"),
+      step("node", "选择一个任务", "点击高亮任务，查看执行说明、负责人和验收标准。", `${base}/timeline`, "timeline-node", "click"),
+      step("detail", "从规划进入执行", "详情区可打开已发布任务的执行页面。尚未生成任务时，请先完成任务规划课程。", `${base}/timeline`, "timeline-inspector"),
+    ] },
+    { id: "role-views", title: "组长切换角色视角", category: "任务流程", needsProject: true, roles: ["admin"], description: "依次预览组员和老师的界面，再返回组长。", steps: [
+      { ...step("member", "切换到组员视角", "选择组员（预览），认识执行入口。预览不改变真实角色与权限。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
+      { ...step("teacher", "切换到老师视角", "选择老师（预览），认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
+      { ...step("leader", "返回组长视角", "选择组长，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
     ] },
     { id: "execution", title: "认领与提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
       step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以认领、报告执行情况或提交成果。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),
@@ -69,7 +79,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("archive", "认识项目档案", "高亮区域汇集成果、证据与决策。需要提交材料时使用页面上的实际操作。", `${base}?space=record`, "project-records"),
       step("library", "查看跨项目资料", "资料库汇集可访问的工程资料，便于查找已有上下文。", "/library", "library"),
     ] },
-    { id: "timeline", title: "时间线与里程碑", category: "项目管理", needsProject: true, description: "查看日期、任务依赖和阶段安排。", steps: [step("timeline", "看一次项目时间线", "在高亮时间线中找到任务日期、里程碑和逾期情况。任务日期来自真实项目数据。", `${base}/timeline`, "timeline")] },
+    { id: "timeline", title: "时间线与里程碑", category: "项目管理", needsProject: true, description: "查看日期、任务依赖和阶段安排。", steps: [step("timeline", "看一次项目时间线", "在高亮时间线中找到任务日期、里程碑和逾期情况。任务日期来自真实项目数据。", `${base}/timeline?diagram=schedule`, "timeline")] },
     { id: "risks", title: "风险、求助与协作中心", category: "项目管理", description: "找到风险与求助入口，及时向团队说明阻塞。", steps: [
       step("health", "找到项目风险", "风险页面聚合项目健康情况。没有风险数据时会显示空状态。", "/health", "health"),
       step("help", "打开求助面板", "点击高亮的求助按钮，查看阻塞类型与协助人选择。这里只打开面板，不会自动发送求助。", "/collaboration", "help-button", "click"),
@@ -97,7 +107,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"先配置模型 API，再创建团队与项目，在原有页面生成、修订、发布和提交任务，再认识验收与迭代。",
+    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"先配置模型 API，再创建团队与项目，在原有页面练习连续任务树、任务增删和角色切换，再发布、提交与迭代。",
     steps:buildWelcomeSteps(journey),
   };
   return [welcome, ...courses];

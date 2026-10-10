@@ -7,7 +7,7 @@ import { getProjectForUser } from "@/lib/project";
 import { getTeamMembership } from "@/lib/team";
 import { buildTutorialCourses, COURSE_IDS, INITIAL_TUTORIAL_PROGRESS, type TutorialProgress } from "./catalog";
 import { getModelConfigStatus } from "@/lib/model-config";
-import { EMPTY_JOURNEY } from "./example-flow";
+import { EMPTY_JOURNEY, LEGACY_WELCOME_IDS, welcomeStepIndex, buildWelcomeSteps } from "./example-flow";
 
 export const tutorialCommandSchema = z.discriminatedUnion("type",[
   z.object({type:z.literal("restart-example")}),
@@ -17,9 +17,13 @@ export const tutorialCommandSchema = z.discriminatedUnion("type",[
 ]);
 export type TutorialCommand=z.infer<typeof tutorialCommandSchema>;
 function normalizeProgress(progress:TutorialProgress):TutorialProgress {
-  if (progress.journey?.version === 4) return progress;
-  return {...progress,journey:progress.journey ? {...progress.journey,version:4} : undefined,completed:progress.completed.filter(id=>id!=="welcome"),status:progress.status==="completed"?"started":progress.status,
-    active:progress.active?.courseId==="welcome"?{courseId:"welcome",step:0,projectId:null,paused:true,journeyVersion:4}:progress.active};
+  if (progress.journey?.version === 5) return progress;
+  if (progress.journey?.version === 4) {
+    const oldId = LEGACY_WELCOME_IDS[progress.active?.step ?? 0] ?? "api";
+    return { ...progress, journey: { ...progress.journey, version: 5 }, active: progress.active?.courseId === "welcome" ? { ...progress.active, step: welcomeStepIndex(oldId), paused: true, journeyVersion: 5 } : progress.active };
+  }
+  return {...progress,journey:progress.journey ? {...progress.journey,version:5} : undefined,completed:progress.completed.filter(id=>id!=="welcome"),status:progress.status==="completed"?"started":progress.status,
+    active:progress.active?.courseId==="welcome"?{courseId:"welcome",step:0,projectId:null,paused:true,journeyVersion:5}:progress.active};
 }
 export async function getTutorialProgress(actorId:string):Promise<TutorialProgress> {
   const [user]=await db.select({progress:users.tutorialProgress}).from(users).where(eq(users.id,actorId));
@@ -34,9 +38,9 @@ async function withJourneyTask(actorId:string,progress:TutorialProgress):Promise
 }
 async function assertWelcomeReady(actorId:string,current:TutorialProgress,step:number) {
   const journey=current.journey;
-  if(step>0 && !(await getModelConfigStatus(actorId)).ready) throw new Error("请先保存 API 配置");
-  if(step>1 && (!journey?.teamId || !(await getTeamMembership(actorId,journey.teamId)))) throw new Error("请先创建示例团队");
-  if(step<=3) return;
+  if(step>welcomeStepIndex("api") && !(await getModelConfigStatus(actorId)).ready) throw new Error("请先保存 API 配置");
+  if(step>welcomeStepIndex("team") && (!journey?.teamId || !(await getTeamMembership(actorId,journey.teamId)))) throw new Error("请先创建示例团队");
+  if(step<=welcomeStepIndex("project")) return;
   if(!journey?.projectId) throw new Error("请先创建示例项目");
   const access=await getProjectForUser(actorId,journey.projectId);
   if(!access || access.role!=="admin" || access.project.teamId!==journey.teamId) throw new ForbiddenError();
@@ -44,10 +48,10 @@ async function assertWelcomeReady(actorId:string,current:TutorialProgress,step:n
     db.select({id:taskTreeDrafts.id}).from(taskTreeDrafts).where(eq(taskTreeDrafts.projectId,journey.projectId)),
     db.select({status:tasks.status,committedAt:tasks.committedAt,assigneeId:tasks.assigneeId}).from(tasks).where(eq(tasks.projectId,journey.projectId)),
   ]);
-  if(step>5 && !drafts.length) throw new Error("请先生成任务草案");
-  if(step>7 && !projectTasks.length) throw new Error("请先确认发布任务");
-  if(step>10 && !projectTasks.some(task=>task.assigneeId===actorId && task.committedAt)) throw new Error("请先接住任务");
-  if(step>11 && !projectTasks.some(task=>task.assigneeId===actorId && ["review","done"].includes(task.status))) throw new Error("请先提交练习成果");
+  if(step>welcomeStepIndex("generate") && !drafts.length) throw new Error("请先生成任务草案");
+  if(step>welcomeStepIndex("publish") && !projectTasks.length) throw new Error("请先确认发布任务");
+  if(step>welcomeStepIndex("claim") && !projectTasks.some(task=>task.assigneeId===actorId && task.committedAt)) throw new Error("请先接住任务");
+  if(step>welcomeStepIndex("submit") && !projectTasks.some(task=>task.assigneeId===actorId && ["review","done"].includes(task.status))) throw new Error("请先提交练习成果");
 }
 export async function updateTutorialProgress(actorId:string,raw:unknown):Promise<TutorialProgress> {
   const command=tutorialCommandSchema.parse(raw);
@@ -67,11 +71,11 @@ export async function updateTutorialProgress(actorId:string,raw:unknown):Promise
         await assertWelcomeReady(actorId,current,command.step);
       }
     }
-    if(command.type==="complete" && command.courseId==="welcome") await assertWelcomeReady(actorId,current,19);
+    if(command.type==="complete" && command.courseId==="welcome") await assertWelcomeReady(actorId,current,buildWelcomeSteps(EMPTY_JOURNEY).length);
     const progress:TutorialProgress=command.type==="restart-example"?{
-      ...current,journey:EMPTY_JOURNEY,status:"started",completed:current.completed.filter(id=>id!=="welcome"),active:{courseId:"welcome",step:0,projectId:null,journeyVersion:4},
+      ...current,journey:{...EMPTY_JOURNEY},status:"started",completed:current.completed.filter(id=>id!=="welcome"),active:{courseId:"welcome",step:0,projectId:null,journeyVersion:5},
     }:command.type==="save"?{
-      ...current,status:"started",active:{courseId:command.courseId,step:command.step,projectId:command.projectId,...command.courseId==="welcome"?{journeyVersion:4}:{}},
+      ...current,status:"started",active:{courseId:command.courseId,step:command.step,projectId:command.projectId,...command.courseId==="welcome"?{journeyVersion:5}:{}},
     }:command.type==="complete"?{
       ...current,status:command.courseId==="welcome"?"completed":current.status==="new"?"started":current.status,active:null,completed:[...new Set([...current.completed,command.courseId])],
     }:{...current,status:current.status==="new"?"dismissed":current.status,active:command.type==="pause" && current.active?{...current.active,paused:true}:null};
@@ -89,10 +93,10 @@ export async function recordTutorialCreation(actorId:string,kind:"team"|"project
     const [user]=await tx.select({progress:users.tutorialProgress}).from(users).where(eq(users.id,actorId));
     if(!user) throw new ForbiddenError();
     const current=normalizeProgress(user.progress);
-    if(current.active?.courseId!=="welcome" || current.active.paused || current.journey?.version!==4) return;
+    if(current.active?.courseId!=="welcome" || current.active.paused || current.journey?.version!==5) return;
     const journey=current.journey;
-    if(kind==="team" && current.active.step===1 && !journey.teamId) journey.teamId=id;
-    else if(kind==="project" && current.active.step===3 && !journey.projectId && access?.project.teamId===journey.teamId) journey.projectId=id;
+    if(kind==="team" && current.active.step===welcomeStepIndex("team") && !journey.teamId) journey.teamId=id;
+    else if(kind==="project" && current.active.step===welcomeStepIndex("project") && !journey.projectId && access?.project.teamId===journey.teamId) journey.projectId=id;
     else return;
     await tx.update(users).set({tutorialProgress:{...current,journey,active:{...current.active,projectId:journey.projectId}}}).where(eq(users.id,actorId));
   });

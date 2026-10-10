@@ -27,13 +27,13 @@ function TaskNode({ task, point, group, selected, owner, zoom, ...props }: {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id: task.key, disabled: props.disabled || props.readOnly || group });
   return <article ref={setNodeRef} className={`ac-tech-node ${selected ? "is-selected" : ""} ${group ? "is-group" : ""} ${isDragging ? "is-dragging" : ""}`}
     style={{ left: point.x, top: point.y, transform: transform ? `translate3d(${transform.x / zoom}px,${transform.y / zoom}px,0)` : undefined }}>
-    {!props.readOnly && <button type="button" className="ac-tech-minus" aria-label={`删除任务：${task.title || "未命名"}`} disabled={props.disabled} onClick={props.onDelete}>−</button>}
+    {!props.readOnly && <button type="button" data-tour={selected ? "draft-delete-selected" : undefined} className="ac-tech-minus" aria-label={`删除任务：${task.title || "未命名"}`} disabled={props.disabled} onClick={props.onDelete}>−</button>}
     <div className="ac-tech-node-head"><span>{group ? "任务分组" : "执行任务"}</span>
       {!group && !props.readOnly && <button ref={setActivatorNodeRef} type="button" {...attributes} {...listeners} className="ac-tech-handle" disabled={props.disabled} aria-label={`拖动任务：${task.title || "未命名"}`}>⠿</button>}
     </div>
-    <button type="button" className="ac-tech-node-title" disabled={props.disabled && !props.readOnly} aria-label={`${props.readOnly ? "查看" : "编辑"}任务：${task.title || "未命名"}`} onClick={props.onSelect}>{task.title || "给新任务起个名字"}</button>
+    <button type="button" data-tour={props.readOnly ? "timeline-node" : "draft-node"} className="ac-tech-node-title" disabled={props.disabled && !props.readOnly} aria-label={`${props.readOnly ? "查看" : "编辑"}任务：${task.title || "未命名"}`} onClick={props.onSelect}>{task.title || "给新任务起个名字"}</button>
     <div className="ac-tech-node-foot"><span>{owner}</span><span>{task.doneCriteria.filter(text => text.trim()).length} 项验收标准</span></div>
-    {!props.readOnly && <button type="button" className="ac-tech-plus" disabled={props.disabled} aria-label={`在任务后新增：${task.title || "未命名"}`} onClick={props.onAdd}>＋</button>}
+    {!props.readOnly && <button type="button" data-tour={selected ? "draft-add-selected" : undefined} className="ac-tech-plus" disabled={props.disabled} aria-label={`在任务后新增：${task.title || "未命名"}`} onClick={props.onAdd}>＋</button>}
     {props.dragging && !isDragging && !group && <div className="ac-tech-targets">
       <DropTarget id={`after:${task.key}`} disabled={props.disabled}>接在此任务后</DropTarget>
       <DropTarget id={`parallel:${task.key}`} disabled={props.disabled}>与此任务并行</DropTarget>
@@ -64,7 +64,7 @@ export function DraftTechTree(props: TreeProps) {
       props.onConnect(String(event.active.id), id.slice(separator + 1), id.startsWith("parallel:"));
     }
   }
-  return <div className="ac-tech-tree">
+  return <div data-tour={props.readOnly ? "timeline-tree" : "draft-tree"} className="ac-tech-tree">
     <div className="ac-tech-toolbar"><p>{props.analysed ? "从左向右推进，同一列可并行。" : "关系尚未确认，当前仅展示任务。"}{props.readOnly ? "点击任务查看详情。" : "点击任务编辑；拖动 ⠿ 调整分支。"}</p>
       <div className="flex items-center gap-2"><button type="button" className="ac-btn-ghost" aria-label="缩小任务树" onClick={() => setZoom(value => Math.max(.6, value - .1))}>−</button><span className="text-xs tabular-nums">{Math.round(zoom * 100)}%</span><button type="button" className="ac-btn-ghost" aria-label="放大任务树" onClick={() => setZoom(value => Math.min(1.3, value + .1))}>＋</button></div>
     </div>
