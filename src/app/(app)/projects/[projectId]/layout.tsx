@@ -83,16 +83,10 @@ export default async function ProjectLayout({
                 {role === "admin" && <Link href={`/teams/${project.teamId}/agents`}>
                   AI 成员与连接
                 </Link>}
-                {role === "admin" && (
-                  <div className="mt-2 border-t border-stroke p-3">
-                    <DeleteProjectButton
-                      projectId={projectId}
-                      projectName={project.name}
-                    />
-                  </div>
-                )}
+
               </div>
             </details>
+            {role === "admin" && <DeleteProjectButton projectId={projectId} projectName={project.name} />}
           </div>
         </div>
       </header>

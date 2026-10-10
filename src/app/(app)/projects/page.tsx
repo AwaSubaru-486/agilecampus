@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { listMyProjects } from "@/lib/project";
 import { db } from "@/db";
 import { teamMembers } from "@/db/schema";
+import { DeleteProjectButton } from "./[projectId]/_shared/delete-project-button";
 import { WorkspaceIcon } from "@/components/workspace-icon";
 
 export default async function AllProjectsPage() {
@@ -59,7 +60,7 @@ export default async function AllProjectsPage() {
                 : 0;
               const href = "/projects/" + p.id;
               return (
-                <li key={p.id}>
+                <li key={p.id} className="relative">
                   <Link href={href} className="ac-project-card group">
                     <div className="flex items-start gap-4">
                       <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-signal-soft text-base font-semibold text-signal">
@@ -97,7 +98,7 @@ export default async function AllProjectsPage() {
                         style={{ width: percent + "%" }}
                       />
                     </div>
-                    <p className="mt-6 border-t border-stroke pt-4 text-xs font-medium text-signal">
+                    <p className="mt-6 border-t border-stroke pt-4 pr-28 text-xs font-medium text-signal">
                       {p.taskTotal === 0
                         ? role === "admin"
                           ? "规划第一轮任务"
@@ -110,6 +111,7 @@ export default async function AllProjectsPage() {
                       →
                     </p>
                   </Link>
+                  {role === "admin" && <div className="absolute bottom-5 right-5"><DeleteProjectButton projectId={p.id} projectName={p.name} /></div>}
                 </li>
               );
             })}
@@ -119,14 +121,15 @@ export default async function AllProjectsPage() {
               <summary>已归档项目，{archived.length}</summary>
               <ul className="divide-y divide-stroke">
                 {archived.map((p) => (
-                  <li key={p.id}>
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 pr-5">
                     <Link
                       href={"/projects/" + p.id + "?space=record"}
-                      className="flex justify-between p-5 text-sm text-ink-2"
+                      className="flex flex-1 items-center justify-between gap-4 p-5 text-sm text-ink-2"
                     >
                       <span>{p.name}</span>
                       <span className="text-xs text-ink-3">查看成果 →</span>
                     </Link>
+                    {memberships.find(m => m.teamId === p.teamId)?.role === "admin" && <DeleteProjectButton projectId={p.id} projectName={p.name} />}
                   </li>
                 ))}
               </ul>

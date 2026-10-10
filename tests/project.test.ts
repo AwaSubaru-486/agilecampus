@@ -10,6 +10,10 @@ import {
   listProjectMilestones,
 } from "@/lib/project";
 import { resetDb } from "./helpers";
+import { db } from "@/db";
+import { eq } from "drizzle-orm";
+import { projects, tasks, projectBriefs, taskTreeDrafts, users, teams, teamMembers } from "@/db/schema";
+import { createTask } from "@/lib/task";
 
 async function makeUser(email: string) {
   return createUser({ email, password: "password123", name: email.split("@")[0] });
@@ -137,6 +141,25 @@ describe("deleteProject", () => {
     const deleted = await deleteProject(owner.id, p.id);
     expect(deleted.id).toBe(p.id);
     expect(await getProjectForUser(owner.id, p.id)).toBeNull();
+  });
+
+  it("删除已有任务与草案的项目时清理项目资料，保留团队、账号和其他项目", async () => {
+    const { owner, team } = await scene();
+    const p = await createProject(owner.id, team.id, { name: "有资料的项目" });
+    const other = await createProject(owner.id, team.id, { name: "保留项目" });
+    await createTask(owner.id, p.id, { title: "待删除任务" });
+    await createMilestone(owner.id, p.id, { title: "待删除里程碑" });
+    const [brief] = await db.insert(projectBriefs).values({ projectId: p.id, createdById: owner.id, content: "用于验证删除清理" }).returning();
+    await db.insert(taskTreeDrafts).values({ projectId: p.id, briefId: brief.id, createdById: owner.id, payload: {} });
+    await deleteProject(owner.id, p.id);
+    expect(await db.select().from(tasks).where(eq(tasks.projectId, p.id))).toHaveLength(0);
+    expect(await db.select().from(projectBriefs).where(eq(projectBriefs.projectId, p.id))).toHaveLength(0);
+    expect(await db.select().from(taskTreeDrafts).where(eq(taskTreeDrafts.projectId, p.id))).toHaveLength(0);
+    expect(await listProjectMilestones(owner.id, other.id)).toEqual([]);
+    expect(await db.select().from(projects).where(eq(projects.id, other.id))).toHaveLength(1);
+    expect(await db.select().from(teams).where(eq(teams.id, team.id))).toHaveLength(1);
+    expect(await db.select().from(users).where(eq(users.id, owner.id))).toHaveLength(1);
+    expect(await db.select().from(teamMembers).where(eq(teamMembers.teamId, team.id))).toHaveLength(2);
   });
 
   it("student 删除项目被拒（仅 admin）", async () => {

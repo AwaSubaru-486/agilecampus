@@ -556,3 +556,6 @@ html {
 .ac-shell-switcher > div { min-width:0; max-width:100%; }
 
 .ac-context-menu-panel > button { display:block; width:100%; text-align:left; }
+
+.ac-project-delete-dialog { width:min(480px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; margin:auto; padding:28px; border:1px solid var(--color-stroke); border-radius:16px; background:var(--color-panel); box-shadow:0 24px 80px #0003; }
+.ac-project-delete-dialog::backdrop { background:#102c32a0; backdrop-filter:blur(3px); }

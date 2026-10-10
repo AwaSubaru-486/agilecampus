@@ -176,7 +176,7 @@ export async function deleteProjectAction(
     throw e;
   }
 
-  revalidatePath("/projects");
+  revalidatePath("/", "layout");
   redirect("/projects");
 }
 
