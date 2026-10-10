@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, useDraggable, useDroppable, pointerWithin, closestCenter, type DragEndEvent } from "@dnd-kit/core";
-import { taskLevels, type DraftTask, type StagePlan } from "@/lib/draft-planning";
+import { type DraftTask, type StagePlan } from "@/lib/draft-planning";
+import { directPlanningLinks, layoutTechTree, type TreeSection } from "@/lib/tech-tree-layout";
 
 type Point = { x: number; y: number };
 type TreeProps = {
   draftId: string; tasks: DraftTask[]; plan: StagePlan; selectedKey: string | null; analysed: boolean;
   members: { id: string; name: string }[]; disabled: boolean; readOnly?: boolean;
+  sections?: TreeSection[];
+  focusStage?: number;
   onSelect: (key: string) => void; onAdd: (key: string) => void; onDelete: (key: string) => void;
   onConnect: (key: string, target: string | null, parallel: boolean) => void;
 };
@@ -41,20 +44,16 @@ function TaskNode({ task, point, group, selected, owner, zoom, ...props }: {
 export function DraftTechTree(props: TreeProps) {
   const [dragging, setDragging] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const viewport = useRef<HTMLDivElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor));
   const groups = new Set(props.tasks.flatMap(task => task.parentKey ? [task.parentKey] : []));
-  const levels = taskLevels(props.plan);
-  const rows = new Map<number, number>();
-  const positions = new Map<string, Point>();
   const orderedTasks = props.plan.links.map(link => props.tasks.find(task => task.key === link.key)!).filter(Boolean);
-  for (const task of orderedTasks) {
-    const column = groups.has(task.key) ? 0 : (levels.get(task.key) ?? 0) + (groups.size ? 1 : 0);
-    const row = rows.get(column) ?? 0;
-    positions.set(task.key, { x: 46 + column * 330, y: 70 + row * 172 });
-    rows.set(column, row + 1);
-  }
-  const width = Math.max(670, 46 + (Math.max(0, ...rows.keys()) + 1) * 330);
-  const height = Math.max(340, 96 + Math.max(1, ...rows.values()) * 172);
+  const { positions, bands, width, height } = layoutTechTree(props.tasks, props.plan, props.sections ?? [{ title: "任务编排", keys: props.tasks.map(task => task.key) }]);
+  const drawingPlan = directPlanningLinks(props.plan);
+  const focusLeft = props.focusStage === undefined ? undefined : bands[props.focusStage]?.left;
+  useEffect(() => {
+    if (focusLeft !== undefined) viewport.current?.scrollTo({ left: Math.max(0, focusLeft * zoom), behavior: "smooth" });
+  }, [focusLeft, zoom]);
   function end(event: DragEndEvent) {
     setDragging(false);
     if (!event.over) return;
@@ -73,12 +72,13 @@ export function DraftTechTree(props: TreeProps) {
       collisionDetection={args => args.pointerCoordinates ? pointerWithin(args) : closestCenter(args)}
       onDragStart={() => setDragging(true)} onDragCancel={() => setDragging(false)} onDragEnd={end}>
       {dragging && <div className="ac-tech-start-target"><DropTarget id="start" disabled={props.disabled}>移到起点，不依赖其他任务</DropTarget></div>}
-      <div className="ac-tech-viewport" tabIndex={0} aria-label="可滚动的任务编排树">
+      <div ref={viewport} className="ac-tech-viewport" tabIndex={0} aria-label="可滚动的任务编排树">
         <div style={{ width: width * zoom, height: height * zoom }}>
           <div className="ac-tech-canvas" style={{ width, height, transform: `scale(${zoom})` }}>
-            {[...rows.keys()].map(column => <span key={column} className="ac-tech-column" style={{ left: 46 + column * 330 }}>{groups.size && column === 0 ? "分组" : props.analysed ? `步骤 ${column + (groups.size ? 0 : 1)}` : "等待关系分析"}</span>)}
+            {bands.map((band, index) => <div key={index} className="ac-tech-stage-band" style={{ left: band.left + 20, width: band.right - band.left - 40 }}><span>{props.sections ? `阶段 ${index + 1}` : "任务编排"}</span><strong>{band.title}</strong></div>)}
             <svg width={width} height={height} className="ac-tech-lines" aria-hidden="true">
-              {props.plan.links.flatMap(link => link.afterKeys.map(before => {
+              {bands.slice(1).map(band => <line key={band.left} className="ac-tech-stage-divider" x1={band.left + 7} x2={band.left + 7} y1={18} y2={height - 18} />)}
+              {drawingPlan.links.flatMap(link => link.afterKeys.map(before => {
                 const start = positions.get(before), finish = positions.get(link.key);
                 if (!start || !finish) return null;
                 const mid = (start.x + 252 + finish.x) / 2;

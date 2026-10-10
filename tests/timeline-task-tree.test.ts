@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapTimelinePlan } from "@/lib/timeline-task-tree";
+import { mapTimelinePlan, mapWholeTimelinePlan } from "@/lib/timeline-task-tree";
 import { emptyDraftPlan } from "@/lib/draft-planning";
 import type { TaskTreePayload } from "@/lib/task-tree";
 
@@ -20,5 +20,13 @@ describe("时间线草案关系映射", () => {
   it("本地旧关系包含循环或缺失标记时拒绝恢复", () => {
     expect(mapTimelinePlan(payload, original, links.slice(1))).toBeNull();
     expect(mapTimelinePlan(payload, original, links.map((link, index) => index === 0 ? { ...link, afterKeys: ["draft-3"] } : link))).toBeNull();
+  });
+  it("发布后保留跨阶段编排，不因真实任务 ID 改变而丢失连接", () => {
+    const source = { summary: "两轮交付", stages: [original, { title: "交付", tasks: [{ ...original.tasks[0], key: "release", title: "发布" }] }] };
+    const actual = { ...source, stages: [payload.stages[0], { ...source.stages[1], tasks: [{ ...source.stages[1].tasks[0], key: "published-release" }] }] };
+    const plan = emptyDraftPlan(source); plan.stages[0].links = links; plan.stages[1].links[0].afterKeys = ["draft-3"];
+    expect(mapWholeTimelinePlan(actual, source, plan)?.stages[1].links[0].afterKeys).toEqual(["task-3"]);
+    actual.stages[1].tasks[0].title = "改名";
+    expect(mapWholeTimelinePlan(actual, source, plan)).toBeNull();
   });
 });

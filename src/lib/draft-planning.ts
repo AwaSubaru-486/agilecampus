@@ -14,17 +14,21 @@ export function emptyDraftPlan(payload: TaskTreePayload): DraftPlan {
 export function validateDraftPlan(payload: TaskTreePayload, plan: DraftPlan) {
   if (plan.stages.length !== payload.stages.length) throw new Error("阶段关系不完整，请重新分析");
   const seenStages = new Set<number>();
+  const allTasks = payload.stages.flatMap((stage, stageIndex) => stage.tasks.map(task => ({ ...task, stageIndex })));
+  const taskStages = new Map(allTasks.map(task => [task.key, task.stageIndex]));
+  if (taskStages.size !== allTasks.length) throw new Error("任务标记不能跨阶段重复");
+  const groups = new Set(allTasks.flatMap(task => task.parentKey ? [task.parentKey] : []));
   for (const item of plan.stages) {
     if (seenStages.has(item.stageIndex)) throw new Error("阶段关系重复");
     seenStages.add(item.stageIndex);
     const stage = payload.stages[item.stageIndex];
     if (!stage) throw new Error("关系引用了不存在的阶段");
     const keys = new Set(stage.tasks.map(task => task.key));
-    const groups = new Set(stage.tasks.flatMap(task => task.parentKey ? [task.parentKey] : []));
     const byKey = new Map(item.links.map(link => [link.key, link]));
     if (byKey.size !== item.links.length || byKey.size !== keys.size) throw new Error("每个任务都需要一份关系标记");
     for (const link of item.links) {
-      if (!keys.has(link.key) || link.afterKeys.some(key => !keys.has(key))) throw new Error("关系引用了不存在的任务");
+      if (!keys.has(link.key) || link.afterKeys.some(key => !taskStages.has(key))) throw new Error("关系引用了不存在的任务");
+      if (link.afterKeys.some(key => taskStages.get(key)! > item.stageIndex)) throw new Error("前置任务不能来自后面的阶段");
       if (new Set(link.afterKeys).size !== link.afterKeys.length) throw new Error("前置任务不能重复");
       if (groups.has(link.key) && link.afterKeys.length || link.afterKeys.some(key => groups.has(key))) throw new Error("任务分组不能作为执行前置条件");
     }
@@ -72,20 +76,21 @@ export function followingTasks(tasks: DraftTask[], stage: StagePlan, key: string
 export function removePlannedTask(payload: TaskTreePayload, plan: DraftPlan, stageIndex: number, key: string, keepFollowing: boolean) {
   const stage = payload.stages[stageIndex];
   const stagePlan = plan.stages.find(item => item.stageIndex === stageIndex)!;
-  const removed = new Set([key, ...(!keepFollowing ? followingTasks(stage.tasks, stagePlan, key) : [])]);
+  const removed = new Set([key, ...(!keepFollowing ? followingTasks(payload.stages.flatMap(item => item.tasks), { stageIndex: 0, links: plan.stages.flatMap(item => item.links) }, key) : [])]);
   const task = stage.tasks.find(item => item.key === key)!;
   const upstream = stagePlan.links.find(link => link.key === key)?.afterKeys ?? [];
-  const remaining = stage.tasks.filter(item => !removed.has(item.key)).map(item => ({ ...item,
-    parentKey: item.parentKey === key ? task.parentKey : item.parentKey,
-  }));
-  if (!remaining.length && payload.stages.length === 1) throw new Error("草案至少需要保留一个任务");
-  const stages = payload.stages.flatMap((item, index) => index !== stageIndex ? [item] : remaining.length ? [{ ...item, tasks: remaining }] : []);
-  const plans = plan.stages.filter(item => remaining.length || item.stageIndex !== stageIndex).map(item => {
-    const links = item.stageIndex !== stageIndex ? item.links : item.links.filter(link => !removed.has(link.key)).map(link => ({ ...link,
+  const stages: TaskTreePayload["stages"] = [];
+  const plans: StagePlan[] = [];
+  payload.stages.forEach((item, index) => {
+    const remaining = item.tasks.filter(task => !removed.has(task.key)).map(item => ({ ...item, parentKey: item.parentKey === key ? task.parentKey : item.parentKey }));
+    if (!remaining.length) return;
+    const links = plan.stages.find(item => item.stageIndex === index)!.links.filter(link => !removed.has(link.key)).map(link => ({ ...link,
       afterKeys: [...new Set(link.afterKeys.flatMap(before => before === key && keepFollowing ? upstream : [before]))].filter(before => !removed.has(before)),
     }));
-    return { stageIndex: !remaining.length && item.stageIndex > stageIndex ? item.stageIndex - 1 : item.stageIndex, links };
+    plans.push({ stageIndex: stages.length, links });
+    stages.push({ ...item, tasks: remaining });
   });
+  if (!stages.length) throw new Error("草案至少需要保留一个任务");
   const nextPayload = { ...payload, stages };
   const nextPlan = { ...plan, source: "manual" as const, reviewNote: "已删除任务并调整后续连接，可让 AI 重新安排与复核。", stages: plans };
   validateDraftPlan(nextPayload, nextPlan);

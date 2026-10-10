@@ -73,7 +73,7 @@ export default async function TimelinePage({
     if (!rows.length) continue;
     const keys = new Set(rows.map(task => task.id));
     const payload: TaskTreePayload = { summary: stage.title, stages: [{ title: stage.title, tasks: rows.map(task => ({ key: task.id, parentKey: task.parentTaskId && keys.has(task.parentTaskId) ? task.parentTaskId : null, title: task.title, description: task.description ?? "", assigneeId: task.id, priority: task.priority, doneCriteria: Array.isArray(task.doneCriteria) ? task.doneCriteria.filter((value): value is string => typeof value === "string") : [] })) }] };
-    const links = emptyDraftPlan(payload).stages[0].links.map(link => ({ ...link, afterKeys: dependencies.filter(edge => edge.successorId === link.key && keys.has(edge.predecessorId)).map(edge => edge.predecessorId), reason: "项目中设置的任务后续关系" }));
+    const links = emptyDraftPlan(payload).stages[0].links.map(link => ({ ...link, afterKeys: dependencies.filter(edge => edge.successorId === link.key && tree.tasks.some(task => task.id === edge.predecessorId)).map(edge => edge.predecessorId), reason: "项目中设置的任务后续关系" }));
     const draft = publishedDrafts.find(item => item.briefId === stage.sourceBriefId);
     const draftStageIndex = tree.stages.filter(item => item.sourceBriefId === stage.sourceBriefId).findIndex(item => item.id === stage.id);
     groups.push({ id: stage.id, title: stage.title, payload, pending: false, links, draftId: draft?.id, draftStageIndex, details: rows.map(task => ({ key: task.id, taskId: task.id, status: statusLabel(task.status), owner: task.assigneeName ?? "待分配" })) });
@@ -114,7 +114,7 @@ export default async function TimelinePage({
       </header>
 
       <nav aria-label="时间线显示方式" className="ac-view-switch"><Link href={`/projects/${projectId}/timeline`} aria-current={!showDates ? "page" : undefined}>任务树</Link><Link href={`/projects/${projectId}/timeline?diagram=schedule`} aria-current={showDates ? "page" : undefined}>日期排期</Link></nav>
-      {!showDates ? <TimelineTaskTrees projectId={projectId} groups={groups} drafts={[...publishedDrafts, ...pendingDrafts].map(draft => ({ id: draft.id, payload: draft.payload }))} /> : <>
+      {!showDates ? <TimelineTaskTrees projectId={projectId} projectName={access.project.name} canAnalyse={role === "admin"} groups={groups} drafts={[...publishedDrafts, ...pendingDrafts].map(draft => ({ id: draft.id, payload: draft.payload }))} /> : <>
       {scheduled.length === 0 ? (
         <div className="ac-card p-8 text-center text-sm text-ink-soft">
           暂无已排期任务。为任务填写起始日或截止日。

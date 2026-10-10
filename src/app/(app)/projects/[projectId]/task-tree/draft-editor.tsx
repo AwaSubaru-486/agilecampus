@@ -43,7 +43,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
     const result = dirtyPayload ? await saveDraftAction(previous, data) : { success: "编排关系已保存到此浏览器" };
     if (result?.success) {
       setSaved(String(data.get("payload"))); setSavedPlan(JSON.stringify(plan));
-      try { localStorage.setItem(cacheKey, JSON.stringify({ signature: String(data.get("payload")), plan })); }
+      try { localStorage.setItem(cacheKey, JSON.stringify({ relationVersion: 2, signature: String(data.get("payload")), plan })); }
       catch { setNotice("任务资料已保存；浏览器无法保存编排关系，请勿关闭此页面。"); }
     }
     return result;
@@ -70,7 +70,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
       setPlan(result.plan);
       if (!dirtyPayload) {
         setSavedPlan(JSON.stringify(result.plan));
-        localStorage.setItem(cacheKey, JSON.stringify({ signature: serialized, plan: result.plan }));
+        localStorage.setItem(cacheKey, JSON.stringify({ relationVersion: 2, signature: serialized, plan: result.plan }));
       }
       setNotice("AI 已完成关系安排和第二轮复核。请检查连线理由，再确认发布。");
     } catch (error) { if (alive.current) setNotice(error instanceof Error && error.name === "AbortError" ? "已停止分析，可以继续手动编排。" : error instanceof Error ? error.message : "AI 关系分析未完成，可以手动编排。"); }
@@ -83,8 +83,8 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
       if (autoStarted.current) return;
       autoStarted.current = true;
       try {
-        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { signature: string; plan: DraftPlan } | null;
-        if (cached?.signature === JSON.stringify(payload)) {
+        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { relationVersion?: number; signature: string; plan: DraftPlan } | null;
+        if (cached?.relationVersion === 2 && cached.signature === JSON.stringify(payload)) {
           validateDraftPlan(payload, cached.plan);
           setPlan(cached.plan); setSavedPlan(JSON.stringify(cached.plan)); return;
         }
@@ -102,19 +102,22 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
       ? { ...item, tasks: item.tasks.map(task => task.key === key ? { ...task, ...patch } : task) } : item) }));
   }
   function connect(key: string, target: string | null, parallel: boolean) {
-    const afterKeys = target ? parallel ? stagePlan.links.find(link => link.key === target)?.afterKeys ?? [] : [target] : [];
+    const afterKeys = target ? parallel ? plan.stages.flatMap(item => item.links).find(link => link.key === target)?.afterKeys ?? [] : [target] : [];
     updatePredecessors(key, afterKeys);
   }
   function updatePredecessors(key: string, afterKeys: string[]) {
     const next: DraftPlan = { ...plan, source: "manual", reviewNote: "已手动调整编排，可让 AI 重新安排与复核。",
-      stages: plan.stages.map(item => item.stageIndex === stageIndex ? { ...item, links: item.links.map(link => link.key === key
-        ? { ...link, afterKeys, reason: "手动调整的先后关系" } : link) } : item) };
+      stages: plan.stages.map(item => ({ ...item, links: item.links.map(link => link.key === key
+        ? { ...link, afterKeys, reason: "手动调整的先后关系" } : link) })) };
     try { validateDraftPlan(value, next); setPlan(next); setNotice("任务分支已调整，请保存编排。"); }
     catch (error) { setNotice(error instanceof Error ? error.message : "任务连接不正确"); }
   }
   function beginAdd(key: string | null) {
+    const index = key ? value.stages.findIndex(item => item.tasks.some(task => task.key === key)) : stageIndex;
+    if (index >= 0) setStageIndex(index);
+    const groupKeys = new Set(value.stages.flatMap(item => item.tasks.flatMap(task => task.parentKey ? [task.parentKey] : [])));
     setSuggestion(null); setNotice(""); setSelectedKey(null);
-    setNewTask({ title: "", description: "", doneCriteria: [""], afterKeys: key && !groups.has(key) ? [key] : [], parentKey: key && groups.has(key) ? key : null });
+    setNewTask({ title: "", description: "", doneCriteria: [""], afterKeys: key && !groupKeys.has(key) ? [key] : [], parentKey: key && groupKeys.has(key) ? key : null });
   }
   async function refine() {
     if (!newTask?.title.trim() || busy) { setNotice("先为新任务填写名称，再请 AI 检查。"); return; }
@@ -148,9 +151,11 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
       setSelectedKey(null); setRemoveKey(null); setNotice(keepFollowing ? "任务已移除，后续任务保留并接回原来的前置条件。请保存。" : "任务及其后续任务已从草案移除，请保存。");
     } catch (error) { setNotice(error instanceof Error ? error.message : "无法删除任务"); }
   }
-  const descendants = removeKey ? followingTasks(stage.tasks, stagePlan, removeKey) : new Set<string>();
+  const descendants = removeKey ? followingTasks(value.stages.flatMap(item => item.tasks), { stageIndex: 0, links: plan.stages.flatMap(item => item.links) }, removeKey) : new Set<string>();
   const relation = selected ? stagePlan.links.find(link => link.key === selected.key) : null;
   const analysed = plan.reviewNote !== INITIAL_NOTE;
+  const taskCount = value.stages.reduce((sum, item) => sum + item.tasks.length, 0);
+  const removesAll = (keepFollowing ? 1 : descendants.size + 1) >= taskCount;
   return <div data-tour="tutorial-draft-editor" className="space-y-4">
     <fieldset disabled={disabled} className="space-y-4 min-w-0">
       <legend className="sr-only">编辑任务草案与科技树编排</legend>
@@ -159,9 +164,9 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
         <button type="button" className="ac-btn-ghost" onClick={() => void analyse()}>AI 重新安排与复核</button></div>
       <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex min-w-0 items-center gap-2 text-xs text-ink-3">阶段名称<input className="ac-field min-w-0" aria-label={`阶段 ${stageIndex + 1} 名称`} maxLength={120} value={stage.title} onChange={event => setValue({ ...value, stages: value.stages.map((item, index) => index === stageIndex ? { ...item, title: event.target.value } : item) })} /></label><button type="button" className="ac-btn-ghost" onClick={() => beginAdd(null)}>＋ 添加并行起点</button></div>
       {stageIndex > 0 && <p className="text-xs text-ink-3">本阶段在上一阶段集成审核通过后开始。</p>}
-      <DraftTechTree draftId={draftId} tasks={stage.tasks} plan={stagePlan} selectedKey={selectedKey} members={members} disabled={disabled} analysed={analysed}
-        onSelect={key => { setSelectedKey(key); setNewTask(null); setSuggestion(null); }} onAdd={beginAdd}
-        onDelete={key => { setRemoveKey(key); setKeepFollowing(true); }} onConnect={connect} />
+      <DraftTechTree draftId={draftId} tasks={value.stages.flatMap(item => item.tasks)} plan={{ stageIndex: 0, links: plan.stages.flatMap(item => item.links) }} sections={value.stages.map(item => ({ title: item.title, keys: item.tasks.map(task => task.key) }))} focusStage={stageIndex} selectedKey={selectedKey} members={members} disabled={disabled} analysed={analysed}
+        onSelect={key => { setStageIndex(value.stages.findIndex(item => item.tasks.some(task => task.key === key))); setSelectedKey(key); setNewTask(null); setSuggestion(null); }} onAdd={beginAdd}
+        onDelete={key => { setStageIndex(value.stages.findIndex(item => item.tasks.some(task => task.key === key))); setRemoveKey(key); setKeepFollowing(true); }} onConnect={connect} />
       {selected && <section className="ac-tech-inspector"><header className="mb-4 flex items-center justify-between"><h3 className="font-semibold">任务详情</h3><button type="button" className="text-xs text-ink-3" onClick={() => setSelectedKey(null)}>收起</button></header>
         <div className="grid gap-4 md:grid-cols-2"><label className="text-xs text-ink-3 md:col-span-2">任务名称<input className="ac-field mt-1 w-full" maxLength={160} value={selected.title} onChange={event => changeTask(selected.key, { title: event.target.value })} /></label>
           <label className="text-xs text-ink-3">负责人<select className="ac-field mt-1 w-full" value={selected.assigneeId ?? ""} onChange={event => changeTask(selected.key, { assigneeId: event.target.value || null })}><option value="">待分配</option>{members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
@@ -169,7 +174,7 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
           <label className="text-xs text-ink-3">执行说明<textarea className="ac-field mt-1 w-full" rows={3} maxLength={2000} value={selected.description} onChange={event => changeTask(selected.key, { description: event.target.value })} /></label>
           <label className="text-xs text-ink-3">验收标准（每行一项）<textarea className="ac-field mt-1 w-full" rows={3} value={selected.doneCriteria.join("\n")} onChange={event => changeTask(selected.key, { doneCriteria: event.target.value.split("\n") })} /></label>
         </div>
-        {!groups.has(selected.key) && <details className="mt-4"><summary className="cursor-pointer text-xs text-signal">前置任务与连接理由</summary><p className="my-3 text-xs leading-6 text-ink-3">{relation?.reason}</p><div className="flex flex-wrap gap-3">{stage.tasks.filter(task => task.key !== selected.key && !groups.has(task.key)).map(task => <label key={task.key} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={relation?.afterKeys.includes(task.key) ?? false} onChange={event => updatePredecessors(selected.key, event.target.checked ? [...relation?.afterKeys ?? [], task.key] : relation?.afterKeys.filter(key => key !== task.key) ?? [])} />{task.title}</label>)}</div><p className="mt-3 text-xs text-ink-3">无前置是起点；多个前置表示等待它们汇合。这里也可以用键盘调整分支。</p></details>}
+        {!groups.has(selected.key) && <details className="mt-4"><summary className="cursor-pointer text-xs text-signal">前置任务与连接理由</summary><p className="my-3 text-xs leading-6 text-ink-3">{relation?.reason}</p><div className="flex flex-wrap gap-3">{value.stages.slice(0, stageIndex + 1).flatMap(item => item.tasks).filter(task => task.key !== selected.key && !value.stages.flatMap(item => item.tasks).some(item => item.parentKey === task.key)).map(task => <label key={task.key} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={relation?.afterKeys.includes(task.key) ?? false} onChange={event => updatePredecessors(selected.key, event.target.checked ? [...relation?.afterKeys ?? [], task.key] : relation?.afterKeys.filter(key => key !== task.key) ?? [])} />{task.title}</label>)}</div><p className="mt-3 text-xs text-ink-3">无前置是起点；多个前置表示等待它们汇合。可连接本阶段和前面阶段的执行任务。</p></details>}
       </section>}
       {newTask && <section className="ac-tech-inspector"><h3 className="font-semibold">新增任务</h3><p className="mt-2 text-xs text-ink-3">{newTask.parentKey ? `加入分组：${stage.tasks.find(task => task.key === newTask.parentKey)?.title}` : newTask.afterKeys.length ? `接在：${newTask.afterKeys.map(key => stage.tasks.find(task => task.key === key)?.title).join("、")}` : "作为本阶段的并行起点"}</p>
         <label className="mt-4 block text-xs text-ink-3">小任务名称<input className="ac-field mt-1 w-full" maxLength={160} value={newTask.title} onChange={event => { setNewTask({ ...newTask, title: event.target.value }); setSuggestion(null); }} /></label>
@@ -191,10 +196,10 @@ export function DraftEditor({ projectId, draftId, payload, members }: {
     <DraftActions projectId={projectId} draftId={draftId} disabled={dirty || disabled} />
     {removeKey && <dialog ref={dialog} className="ac-tech-delete-dialog" aria-labelledby={`${id}-delete-title`} onCancel={event => { event.preventDefault(); setRemoveKey(null); }}>
       <h3 id={`${id}-delete-title`} className="text-xl font-semibold">确认删除这个任务？</h3><p className="mt-3 text-sm">{stage.tasks.find(task => task.key === removeKey)?.title}</p>
-      {descendants.size > 0 ? <fieldset className="mt-5 space-y-3"><legend className="mb-3 text-sm text-ink-3">它后面关联了 {descendants.size} 个任务，请选择处理方式：</legend><label className="flex items-start gap-2 text-sm"><input type="radio" name={`${id}-keep`} checked={keepFollowing} onChange={() => setKeepFollowing(true)} />保留后续任务，接回原来的前置条件</label><label className="flex items-start gap-2 text-sm"><input type="radio" name={`${id}-keep`} checked={!keepFollowing} onChange={() => setKeepFollowing(false)} />一起删除全部后续任务（含汇合任务）</label><p className="text-xs leading-6 text-ink-3">{stage.tasks.filter(task => descendants.has(task.key)).map(task => task.title).join("、")}</p></fieldset> : <p className="mt-4 text-sm text-ink-3">没有后续任务，只移除这一项。</p>}
+      {descendants.size > 0 ? <fieldset className="mt-5 space-y-3"><legend className="mb-3 text-sm text-ink-3">它后面关联了 {descendants.size} 个任务（可能跨阶段），请选择处理方式：</legend><label className="flex items-start gap-2 text-sm"><input type="radio" name={`${id}-keep`} checked={keepFollowing} onChange={() => setKeepFollowing(true)} />保留后续任务，接回原来的前置条件</label><label className="flex items-start gap-2 text-sm"><input type="radio" name={`${id}-keep`} checked={!keepFollowing} onChange={() => setKeepFollowing(false)} />一起删除全部后续任务（含汇合任务）</label><p className="text-xs leading-6 text-ink-3">{value.stages.flatMap(item => item.tasks).filter(task => descendants.has(task.key)).map(task => task.title).join("、")}</p></fieldset> : <p className="mt-4 text-sm text-ink-3">没有后续任务，只移除这一项。</p>}
       {stage.tasks.length === descendants.size + 1 && !keepFollowing && value.stages.length > 1 && <p className="mt-3 text-xs text-risk">本阶段将没有任务，因此也会移除这个空阶段。</p>}
-      {value.stages.length === 1 && (keepFollowing ? 1 : descendants.size + 1) >= stage.tasks.length && <p className="mt-3 text-sm text-risk">草案至少需要保留一个任务，请先添加其他任务。</p>}
-      <div className="mt-6 flex gap-3"><button type="button" className="ac-btn-ghost" onClick={() => setRemoveKey(null)}>取消</button><button type="button" className="ac-btn" disabled={value.stages.length === 1 && (keepFollowing ? 1 : descendants.size + 1) >= stage.tasks.length} onClick={remove}>确认删除{!keepFollowing && descendants.size ? "及后续任务" : "任务"}</button></div>
+      {removesAll && <p className="mt-3 text-sm text-risk">草案至少需要保留一个任务，请先添加其他任务。</p>}
+      <div className="mt-6 flex gap-3"><button type="button" className="ac-btn-ghost" onClick={() => setRemoveKey(null)}>取消</button><button type="button" className="ac-btn" disabled={removesAll} onClick={remove}>确认删除{!keepFollowing && descendants.size ? "及后续任务" : "任务"}</button></div>
     </dialog>}
   </div>;
 }
