@@ -22,7 +22,7 @@ export default async function TodayPage({
     listMyProjects(session.user.id),
   ]);
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-5xl">
       <header className="ac-page-header">
         <p className="!mb-3 !mt-0 text-xs">你的工作，从这里接着做</p>
         <h1>今日</h1>
@@ -36,7 +36,7 @@ export default async function TodayPage({
               : "先找到一起做项目的团队，再开始第一轮协作。"}
         </p>
       </header>
-      <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
         <div className="min-w-0 space-y-7">
           <section
             id="decisions"
