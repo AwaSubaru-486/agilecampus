@@ -1,3 +1,5 @@
+import { getProjectView } from "@/lib/project-view";
+import { ProjectViewSwitch } from "./_shared/project-view-switch";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -21,7 +23,9 @@ export default async function ProjectLayout({
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
   const milestones = await listProjectMilestones(session.user.id, projectId);
-  const { project, role } = access;
+  const { project, role: actualRole } = access;
+  const role = await getProjectView(actualRole, projectId);
+  const preview = actualRole !== role;
   const next = milestones.find((m) => m.status === "open");
   return (
     <div className="ac-project-workspace">
@@ -51,8 +55,9 @@ export default async function ProjectLayout({
                     : "明确完成要求，接下任务并交付成果。"}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {role === "teacher" && (
+          <div className="flex flex-wrap items-center gap-2">
+            {actualRole === "admin" && <ProjectViewSwitch projectId={projectId} view={role} />}
+            {role === "teacher" && !preview && (
               <TeacherEvaluationModal
                 projectId={projectId}
                 projectName={project.name}
@@ -91,7 +96,7 @@ export default async function ProjectLayout({
         </div>
       </header>
       <ProjectNavigation projectId={projectId} role={role} />
-      <div className="ac-project-body">{children}</div>
+      <div className="ac-project-body">{preview && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">正在预览{role === "student" ? "组员" : "老师"}界面，任务按你本人展示。预览时暂停操作；切回组长即可继续管理，团队角色没有改变。</p>}<fieldset disabled={preview} className="min-w-0"><legend className="sr-only">项目内容</legend>{children}</fieldset></div>
     </div>
   );
 }

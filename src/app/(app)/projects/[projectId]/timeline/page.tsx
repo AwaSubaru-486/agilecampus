@@ -1,9 +1,18 @@
+import Link from "next/link";
+import { db } from "@/db";
+import { taskTreeDrafts } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
+import { getTaskTree, taskTreePayloadSchema, type TaskTreePayload } from "@/lib/task-tree";
+import { listTeamMembers } from "@/lib/team";
+import { getProjectView } from "@/lib/project-view";
+import { emptyDraftPlan } from "@/lib/draft-planning";
+import { TimelineTaskTrees, type TimelineTreeGroup } from "./timeline-task-trees";
 import { z } from "zod";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
-import { listProjectTasks } from "@/lib/task";
-import { isActive } from "@/lib/task-status";
+import { listProjectTasks, listProjectDependencies } from "@/lib/task";
+import { isActive, statusLabel } from "@/lib/task-status";
 
 const DAY = 86_400_000;
 
@@ -32,9 +41,10 @@ interface Bar {
 }
 
 export default async function TimelinePage({
-  params,
+  params, searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { projectId } = await params;
   const session = await auth();
@@ -44,10 +54,35 @@ export default async function TimelinePage({
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
 
-  const [tasks, milestones] = await Promise.all([
-    listProjectTasks(session.user.id, projectId),
-    listProjectMilestones(session.user.id, projectId),
+  const role = await getProjectView(access.role, projectId);
+  const query = await searchParams;
+  const showDates = query.diagram === "schedule";
+  const [tasks, milestones, tree, dependencies, published, members] = await Promise.all([
+    showDates ? listProjectTasks(session.user.id, projectId) : Promise.resolve([]),
+    showDates ? listProjectMilestones(session.user.id, projectId) : Promise.resolve([]),
+    showDates ? Promise.resolve({ stages: [], tasks: [], drafts: [] }) : getTaskTree(session.user.id, projectId),
+    showDates ? Promise.resolve([]) : listProjectDependencies(session.user.id, projectId),
+    showDates ? Promise.resolve([]) : db.select({ id: taskTreeDrafts.id, briefId: taskTreeDrafts.briefId, payload: taskTreeDrafts.payload }).from(taskTreeDrafts).where(and(eq(taskTreeDrafts.projectId, projectId), eq(taskTreeDrafts.status, "published"))),
+    showDates ? Promise.resolve([]) : listTeamMembers(access.project.teamId),
   ]);
+  const publishedDrafts = published.map(draft => ({ ...draft, payload: taskTreePayloadSchema.parse(draft.payload) }));
+  const groups: TimelineTreeGroup[] = [];
+  const stageGroups = [...tree.stages, ...(tree.tasks.some(task => !task.stageId) ? [{ id: "unassigned-stage", title: "未归入阶段的任务", sourceBriefId: null }] : [])];
+  for (const stage of stageGroups) {
+    const rows = tree.tasks.filter(task => stage.id === "unassigned-stage" ? !task.stageId : task.stageId === stage.id);
+    if (!rows.length) continue;
+    const keys = new Set(rows.map(task => task.id));
+    const payload: TaskTreePayload = { summary: stage.title, stages: [{ title: stage.title, tasks: rows.map(task => ({ key: task.id, parentKey: task.parentTaskId && keys.has(task.parentTaskId) ? task.parentTaskId : null, title: task.title, description: task.description ?? "", assigneeId: task.id, priority: task.priority, doneCriteria: Array.isArray(task.doneCriteria) ? task.doneCriteria.filter((value): value is string => typeof value === "string") : [] })) }] };
+    const links = emptyDraftPlan(payload).stages[0].links.map(link => ({ ...link, afterKeys: dependencies.filter(edge => edge.successorId === link.key && keys.has(edge.predecessorId)).map(edge => edge.predecessorId), reason: "项目中设置的任务后续关系" }));
+    const draft = publishedDrafts.find(item => item.briefId === stage.sourceBriefId);
+    const draftStageIndex = tree.stages.filter(item => item.sourceBriefId === stage.sourceBriefId).findIndex(item => item.id === stage.id);
+    groups.push({ id: stage.id, title: stage.title, payload, pending: false, links, draftId: draft?.id, draftStageIndex, details: rows.map(task => ({ key: task.id, taskId: task.id, status: statusLabel(task.status), owner: task.assigneeName ?? "待分配" })) });
+  }
+  const pendingDrafts = role === "admin" ? tree.drafts : [];
+  for (const draft of pendingDrafts) draft.payload.stages.forEach((stage, index) => {
+    const payload = { summary: draft.payload.summary, stages: [{ ...stage, tasks: stage.tasks.map(task => ({ ...task, assigneeId: task.key })) }] };
+    groups.push({ id: `${draft.id}-${index}`, title: stage.title, payload, pending: true, draftId: draft.id, draftStageIndex: index, links: emptyDraftPlan(payload).stages[0].links, details: stage.tasks.map(task => ({ key: task.key, taskId: null, status: "待确认", owner: members.find(member => member.id === task.assigneeId)?.name ?? "待分配" })) });
+  });
 
   // 拆出「已排期」（至少有起始或截止日）与「未排期」
   const scheduled: { task: TaskRow; start: number; end: number }[] = [];
@@ -74,10 +109,12 @@ export default async function TimelinePage({
       <header className="space-y-1">
         <h2 className="text-xl font-semibold text-ink">时间线</h2>
         <p className="text-sm text-ink-soft">
-          按起始日和截止日显示任务，竖线表示今天。
+          查看任务先后与并行分支，也可以切换到日期排期。
         </p>
       </header>
 
+      <nav aria-label="时间线显示方式" className="ac-view-switch"><Link href={`/projects/${projectId}/timeline`} aria-current={!showDates ? "page" : undefined}>任务树</Link><Link href={`/projects/${projectId}/timeline?diagram=schedule`} aria-current={showDates ? "page" : undefined}>日期排期</Link></nav>
+      {!showDates ? <TimelineTaskTrees projectId={projectId} groups={groups} drafts={[...publishedDrafts, ...pendingDrafts].map(draft => ({ id: draft.id, payload: draft.payload }))} /> : <>
       {scheduled.length === 0 ? (
         <div className="ac-card p-8 text-center text-sm text-ink-soft">
           暂无已排期任务。为任务填写起始日或截止日。
@@ -100,6 +137,7 @@ export default async function TimelinePage({
           </ul>
         </section>
       )}
+      </>}
     </main>
   );
 }

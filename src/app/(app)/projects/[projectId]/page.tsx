@@ -1,3 +1,4 @@
+import { getProjectView } from "@/lib/project-view";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
@@ -48,7 +49,8 @@ export default async function ProjectPage({
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
 
-  const { project, role } = access;
+  const { project } = access;
+  const role = await getProjectView(access.role, projectId);
   const actorId = session.user.id;
   if (isProjectHome(sp)) return <ProjectRoleHome actorId={actorId} projectId={projectId} role={role} />;
 

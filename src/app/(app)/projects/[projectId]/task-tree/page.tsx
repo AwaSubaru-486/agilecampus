@@ -1,3 +1,4 @@
+import { getProjectView } from "@/lib/project-view";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -42,23 +43,24 @@ export default async function TaskTreePage({
   if (!z.uuid().safeParse(projectId).success) notFound();
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
+  const role = await getProjectView(access.role, projectId);
   const [tree, members] = await Promise.all([
     getTaskTree(session.user.id, projectId),
     listTeamMembers(access.project.teamId),
   ]);
   const tutorialProgress = await getTutorialProgress(session.user.id);
   const isTutorial = tutorialProgress.journey?.projectId === projectId;
-  const canManage = access.role === "admin";
-  const canReview = canManage || access.role === "teacher";
+  const canManage = role === "admin";
+  const canReview = canManage || role === "teacher";
   const actorId = session.user.id;
-  const mine = query.scope === "mine" || access.role === "student" && query.scope !== "all";
+  const mine = query.scope === "mine" || role === "student" && query.scope !== "all";
   const leaves = tree.tasks.filter((task) => task.stageId && !task.isTaskGroup);
   const complete = leaves.filter((task) => task.status === "done").length;
   const current = tree.stages.find(
     (stage) => stage.status === "active" || stage.status === "integrating",
   );
   const requestedStage = typeof query.stage === "string" ? query.stage : null;
-  const pendingIntegration = access.role === "teacher"
+  const pendingIntegration = role === "teacher"
     ? tree.integrations.find(item => item.decision === "pending" && item.submittedById !== actorId)
     : undefined;
   const selectedStage = tree.stages.find(stage => stage.id === requestedStage)
@@ -71,14 +73,14 @@ export default async function TaskTreePage({
       latestDeliveries.set(delivery.taskId, delivery);
   const nextAction = canManage
     ? "补充需求、确认分工，再组织阶段集成。"
-    : access.role === "teacher"
+    : role === "teacher"
       ? "检查成果与集成材料，审核通过或填写退回原因。"
       : "查看分配给你的任务，在执行台认领与提交成果。";
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div><h2 className="text-xl font-semibold text-ink">{canManage ? "规划与集成" : access.role === "teacher" ? "阶段集成审核" : "阶段与我的交付"}</h2><p className="mt-2 text-sm text-ink-3">{nextAction}</p></div>
+        <div><h2 className="text-xl font-semibold text-ink">{canManage ? "规划与集成" : role === "teacher" ? "阶段集成审核" : "阶段与我的交付"}</h2><p className="mt-2 text-sm text-ink-3">{nextAction}</p></div>
         {canManage && <Link href={`/projects/${projectId}/task-tree?plan=1#planning`} className="ac-btn">{tree.stages.length ? "规划下一轮 ＋" : "规划第一轮 ＋"}</Link>}
       </header>
       <section
@@ -113,7 +115,7 @@ export default async function TaskTreePage({
           <p className="mt-2 text-sm text-ink">
             {canManage
               ? `${tree.drafts.length} 份任务草案`
-              : access.role === "teacher"
+              : role === "teacher"
                 ? `${tree.stages.filter((stage) => stage.status === "integrating").length} 个阶段待审核`
                 : `${leaves.filter((task) => task.assigneeId === actorId && task.status !== "done").length} 项我的未完成任务`}
           </p>
@@ -144,7 +146,7 @@ export default async function TaskTreePage({
           )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display font-semibold text-ink">阶段任务</h2>
-            {access.role === "student" && (
+            {role === "student" && (
               <nav aria-label="任务范围" className="flex gap-3 text-xs">
                 <Link
                   aria-current={!mine ? "page" : undefined}
@@ -235,7 +237,7 @@ export default async function TaskTreePage({
                       (item) => item.id === task.parentTaskId,
                     );
                     const mayDeliver =
-                      access.role !== "teacher" &&
+                      role !== "teacher" &&
                       (canManage || task.assigneeId === actorId);
                     return (
                       <article key={task.id} className="p-4">

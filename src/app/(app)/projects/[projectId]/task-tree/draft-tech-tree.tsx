@@ -7,7 +7,7 @@ import { taskLevels, type DraftTask, type StagePlan } from "@/lib/draft-planning
 type Point = { x: number; y: number };
 type TreeProps = {
   draftId: string; tasks: DraftTask[]; plan: StagePlan; selectedKey: string | null; analysed: boolean;
-  members: { id: string; name: string }[]; disabled: boolean;
+  members: { id: string; name: string }[]; disabled: boolean; readOnly?: boolean;
   onSelect: (key: string) => void; onAdd: (key: string) => void; onDelete: (key: string) => void;
   onConnect: (key: string, target: string | null, parallel: boolean) => void;
 };
@@ -19,18 +19,18 @@ function DropTarget({ id, children, disabled }: { id: string; children: React.Re
 
 function TaskNode({ task, point, group, selected, owner, zoom, ...props }: {
   task: DraftTask; point: Point; group: boolean; selected: boolean; owner: string; zoom: number;
-  dragging: boolean; disabled: boolean; onSelect: () => void; onAdd: () => void; onDelete: () => void;
+  dragging: boolean; disabled: boolean; readOnly?: boolean; onSelect: () => void; onAdd: () => void; onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id: task.key, disabled: props.disabled || group });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id: task.key, disabled: props.disabled || props.readOnly || group });
   return <article ref={setNodeRef} className={`ac-tech-node ${selected ? "is-selected" : ""} ${group ? "is-group" : ""} ${isDragging ? "is-dragging" : ""}`}
     style={{ left: point.x, top: point.y, transform: transform ? `translate3d(${transform.x / zoom}px,${transform.y / zoom}px,0)` : undefined }}>
-    <button type="button" className="ac-tech-minus" aria-label={`删除任务：${task.title || "未命名"}`} disabled={props.disabled} onClick={props.onDelete}>−</button>
+    {!props.readOnly && <button type="button" className="ac-tech-minus" aria-label={`删除任务：${task.title || "未命名"}`} disabled={props.disabled} onClick={props.onDelete}>−</button>}
     <div className="ac-tech-node-head"><span>{group ? "任务分组" : "执行任务"}</span>
-      {!group && <button ref={setActivatorNodeRef} type="button" {...attributes} {...listeners} className="ac-tech-handle" disabled={props.disabled} aria-label={`拖动任务：${task.title || "未命名"}`}>⠿</button>}
+      {!group && !props.readOnly && <button ref={setActivatorNodeRef} type="button" {...attributes} {...listeners} className="ac-tech-handle" disabled={props.disabled} aria-label={`拖动任务：${task.title || "未命名"}`}>⠿</button>}
     </div>
-    <button type="button" className="ac-tech-node-title" disabled={props.disabled} aria-label={`编辑任务：${task.title || "未命名"}`} onClick={props.onSelect}>{task.title || "给新任务起个名字"}</button>
+    <button type="button" className="ac-tech-node-title" disabled={props.disabled && !props.readOnly} aria-label={`${props.readOnly ? "查看" : "编辑"}任务：${task.title || "未命名"}`} onClick={props.onSelect}>{task.title || "给新任务起个名字"}</button>
     <div className="ac-tech-node-foot"><span>{owner}</span><span>{task.doneCriteria.filter(text => text.trim()).length} 项验收标准</span></div>
-    <button type="button" className="ac-tech-plus" disabled={props.disabled} aria-label={`在任务后新增：${task.title || "未命名"}`} onClick={props.onAdd}>＋</button>
+    {!props.readOnly && <button type="button" className="ac-tech-plus" disabled={props.disabled} aria-label={`在任务后新增：${task.title || "未命名"}`} onClick={props.onAdd}>＋</button>}
     {props.dragging && !isDragging && !group && <div className="ac-tech-targets">
       <DropTarget id={`after:${task.key}`} disabled={props.disabled}>接在此任务后</DropTarget>
       <DropTarget id={`parallel:${task.key}`} disabled={props.disabled}>与此任务并行</DropTarget>
@@ -66,7 +66,7 @@ export function DraftTechTree(props: TreeProps) {
     }
   }
   return <div className="ac-tech-tree">
-    <div className="ac-tech-toolbar"><p>{props.analysed ? "从左向右推进，同一列可并行。" : "关系尚未确认，当前仅展示任务。"}点击任务编辑；拖动 ⠿ 调整分支。</p>
+    <div className="ac-tech-toolbar"><p>{props.analysed ? "从左向右推进，同一列可并行。" : "关系尚未确认，当前仅展示任务。"}{props.readOnly ? "点击任务查看详情。" : "点击任务编辑；拖动 ⠿ 调整分支。"}</p>
       <div className="flex items-center gap-2"><button type="button" className="ac-btn-ghost" aria-label="缩小任务树" onClick={() => setZoom(value => Math.max(.6, value - .1))}>−</button><span className="text-xs tabular-nums">{Math.round(zoom * 100)}%</span><button type="button" className="ac-btn-ghost" aria-label="放大任务树" onClick={() => setZoom(value => Math.min(1.3, value + .1))}>＋</button></div>
     </div>
     <DndContext id={`draft-${props.draftId}-${props.plan.stageIndex}`} sensors={sensors}
@@ -92,7 +92,7 @@ export function DraftTechTree(props: TreeProps) {
             </svg>
             {orderedTasks.map(task => <TaskNode key={task.key} task={task} point={positions.get(task.key)!}
               group={groups.has(task.key)} selected={props.selectedKey === task.key} owner={props.members.find(member => member.id === task.assigneeId)?.name ?? "待分配"}
-              zoom={zoom} dragging={dragging} disabled={props.disabled} onSelect={() => props.onSelect(task.key)} onAdd={() => props.onAdd(task.key)} onDelete={() => props.onDelete(task.key)} />)}
+              readOnly={props.readOnly} zoom={zoom} dragging={dragging} disabled={props.disabled} onSelect={() => props.onSelect(task.key)} onAdd={() => props.onAdd(task.key)} onDelete={() => props.onDelete(task.key)} />)}
           </div>
         </div>
       </div>
