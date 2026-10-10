@@ -83,6 +83,7 @@ describe("AI 草案建议只读边界", () => {
     const prompts: string[] = [];
     const input = { mode: "plan" as const, projectId: s.project.id, draftId: s.draft.id, payload: s.payload };
     const result = await adviseDraftPlanning(s.owner.id, input, modelFor([plan, plan], prompts));
+    if (!result.plan) throw new Error("草案规划建议未返回计划");
     expect(result.plan.stages[1].links[0].afterKeys).toEqual(["a", "b"]);
     expect(prompts[0]).toContain("跨阶段交接");
     const bad = structuredClone(plan); bad.stages[0].links[0].afterKeys = ["d"];
@@ -95,6 +96,7 @@ describe("AI 草案建议只读边界", () => {
     const before = await db.select().from(tasks).where(eq(tasks.projectId, s.project.id));
     const prompts: string[] = [];
     const result = await adviseDraftPlanning(s.owner.id, { mode: "timeline", projectId: s.project.id }, modelFor([plan, plan], prompts));
+    if (!result.plan) throw new Error("时间线分析未返回计划");
     expect(result.plan.stages[0].links[1].afterKeys).toEqual([tree.tasks[0].id]);
     expect("signature" in result && result.signature).toBeTruthy();
     expect(prompts[0]).toContain("t1");

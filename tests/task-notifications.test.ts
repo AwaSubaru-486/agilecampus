@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks, taskStages } from "@/db/schema";
+import { taskHandoffNotifications, tasks, taskStages } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject, updateProject } from "@/lib/project";
@@ -88,6 +88,25 @@ describe("站内交接通知", () => {
     await updateTask(owner.id, after.id, { assigneeId: member.id });
     await updateProject(owner.id, project.id, { status: "archived" });
     expect(await listTaskNotifications(member.id)).toEqual([]);
+  });
+
+  it("超过 20 条时保留最新的交接通知", async () => {
+    const { member, project, before, after } = await scene();
+    const now = Date.now();
+    await db.insert(taskHandoffNotifications).values(Array.from({ length: 21 }, (_, index) => ({
+      recipientId: member.id,
+      projectId: project.id,
+      sourceTaskId: before.id,
+      taskId: after.id,
+      sourceSubmissionAt: new Date(now + index * 1_000),
+      sourceTitle: `前置任务 ${index + 1}`,
+      createdAt: new Date(now + index * 1_000),
+    })));
+
+    const notices = await listTaskNotifications(member.id);
+    expect(notices).toHaveLength(20);
+    expect(notices[0].sourceTitle).toBe("前置任务 21");
+    expect(notices.at(-1)?.sourceTitle).toBe("前置任务 2");
   });
 
   it("锁定阶段不会提前提醒；解锁后通知该阶段负责人", async () => {
