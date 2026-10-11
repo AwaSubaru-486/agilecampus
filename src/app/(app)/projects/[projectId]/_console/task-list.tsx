@@ -3,14 +3,14 @@
 /**
  * 任务列表（W02）。
  *
- * 显示当前页任务，按优先分组：待我验收 → 有阻塞 → 我的进行中 → 其他进行中 → 待办 → 已完成（折叠）。
- * 已完成组默认收起，选中其中的任务时自动展开。
- * 只对当前页排序，注明"当前页"不冒充全项目排序。
+ * 工作任务按阶段展示，默认折叠；深链接选中任务时展开所属阶段。
+ * 旧 Agent 运行列表保留状态分组。
  */
 
 import Link from "next/link";
 import { useState } from "react";
 import type { TaskRowSummary } from "./console-shell";
+import { groupTasksByStage } from "@/lib/project-stage-groups";
 import type { TaskPriorityGroup } from "@/lib/collaboration-console-view";
 
 const GROUP_LABEL: Record<TaskPriorityGroup, string> = {
@@ -32,6 +32,7 @@ const STATUS_CLASSES: Record<string, string> = {
 export function TaskList({
   projectId,
   taskRows,
+  stages = [],
   hasMore,
   selectedTaskId,
   canWrite,
@@ -41,6 +42,7 @@ export function TaskList({
 }: {
   projectId: string;
   taskRows: TaskRowSummary[];
+  stages?: { id: string; title: string }[];
   hasMore: boolean;
   nextCursor?: string | null;
   selectedTaskId: string | null;
@@ -79,7 +81,7 @@ export function TaskList({
         <span className="text-xs font-medium text-ink-2">
           {isStudio ? "Agent 任务与运行" : "任务"}
           <span className="ml-1 tabular-nums text-ink-3">
-            （当前页 {displayRows.length} 项）
+            （{hasMore ? "已加载" : "共"} {displayRows.length} 项）
           </span>
         </span>
         {isStudio ? (
@@ -121,7 +123,12 @@ export function TaskList({
       )}
 
       {/* 分组渲染 */}
-      {ORDER.map((group) => {
+      {!isStudio ? groupTasksByStage(stages, displayRows).map(group => <details key={`${group.id}-${selectedTaskId ?? "closed"}`} open={group.tasks.some(task => task.id === selectedTaskId)} className="border-b border-stroke">
+        <summary className="cursor-pointer px-3 py-3 text-sm font-medium text-ink-2">{group.label}</summary>
+        <p className="px-3 pb-2 text-xs text-ink-3">{group.title}</p>
+        {group.tasks.map(task => <TaskRow key={task.id} task={task} selected={task.id === selectedTaskId} onSelect={() => onSelectTask(task.id)} />)}
+        {!group.tasks.length && <p className="px-3 pb-3 text-xs text-ink-3">此阶段暂无任务</p>}
+      </details>) : ORDER.map((group) => {
         const rows = groups[group];
         if (!rows?.length) return null;
 

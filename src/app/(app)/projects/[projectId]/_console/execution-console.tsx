@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getProjectForUser, listProjectMilestones } from "@/lib/project";
+import { getTaskTree } from "@/lib/task-tree";
 import { listTeamMembers } from "@/lib/team";
 import {
   listConsoleTasks,
@@ -38,16 +39,28 @@ export async function ExecutionConsole({
   const access = await getProjectForUser(actorId, projectId);
   if (!access) notFound();
 
-  const canReview = role === "admin" || role === "teacher";
-  const canWrite = role === "admin" || role === "student";
-  const canCreateTask = role === "admin";
-  const canDeleteTask = role === "admin";
+  const canAct = role === access.role;
+  const canReview = canAct && (role === "admin" || role === "teacher");
+  const canWrite = canAct && (role === "admin" || role === "student");
+  const canCreateTask = canAct && role === "admin";
+  const canDeleteTask = canAct && role === "admin";
 
+  async function loadTasks() {
+    const scope = projectTaskScope(role, normalized.scope ?? null);
+    const first = await listConsoleTasks(actorId, projectId, { limit: 100, scope });
+    const items = [...first.items];
+    let cursor = first.nextCursor;
+    while (cursor) { const page = await listConsoleTasks(actorId, projectId, { limit: 100, scope, cursor }); items.push(...page.items); cursor = page.nextCursor; }
+    return { ...first, items, hasMore: false, nextCursor: null };
+  }
+
+  // 按阶段显示完整任务集合
   // 分页加载任务列表与团队成员
   const listData = Promise.all([
-    listConsoleTasks(actorId, projectId, { limit: 50, scope: projectTaskScope(access.role, normalized.scope ?? null) }),
+    loadTasks(),
     listTeamMembers(access.project.teamId),
     listProjectMilestones(actorId, projectId),
+    getTaskTree(actorId, projectId),
   ]);
 
   // 选中任务详情
@@ -59,6 +72,10 @@ export async function ExecutionConsole({
   if (normalized.task && z.string().uuid().safeParse(normalized.task).success) {
     try {
       selectedTask = await getConsoleTask(actorId, projectId, normalized.task);
+      if (role === "teacher" && selectedTask.task.status !== "done") {
+        selectedTask = null;
+        selectedTaskError = "成果验收只展示已完成的任务。";
+      }
     } catch {
       selectedTaskError = "任务不存在或无权访问";
     }
@@ -89,7 +106,7 @@ export async function ExecutionConsole({
   }
 
   // Start independent list queries before loading selected task details.
-  const [tasksResult, teamMembersList, milestones] = await listData;
+  const [tasksResult, teamMembersList, milestones, tree] = await listData;
 
   const serializeRunResult = (result: unknown) => {
     if (result == null) return null;
@@ -109,7 +126,7 @@ export async function ExecutionConsole({
     canViewEvidence: true,
   };
 
-  const taskRows = tasksResult.items.map((t) => ({
+  const taskRows = tasksResult.items.sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)).map((t) => ({
     ...toTaskRowModel(
       {
         id: t.id,
@@ -129,6 +146,7 @@ export async function ExecutionConsole({
       actor,
       capabilities,
     ),
+    stageId: t.stageId ?? null,
     assigneeName: t.assigneeName ?? null,
   }));
 
@@ -140,8 +158,10 @@ export async function ExecutionConsole({
       canCreateTask={canCreateTask}
       canDeleteTask={canDeleteTask}
       canReview={canReview}
+      stages={tree.stages.map(stage => ({ id: stage.id, title: stage.title }))}
       taskRows={taskRows.map((r) => ({
         id: r.id,
+        stageId: r.stageId,
         title: r.title,
         status: r.status,
         priority: r.priority,
@@ -166,6 +186,8 @@ export async function ExecutionConsole({
         selectedTask
           ? {
               id: selectedTask.task.id,
+              completionNote: selectedTask.task.completionNote,
+              reviewNote: selectedTask.task.reviewNote,
               title: selectedTask.task.title,
               status: selectedTask.task.status,
               assigneeId: selectedTask.task.assigneeId ?? null,

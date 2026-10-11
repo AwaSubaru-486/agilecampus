@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { recheckCompletedTask } from "@/lib/task-recheck";
 import {
   claimTask,
   createTask,
@@ -24,6 +25,16 @@ import { createEvidenceItem, EVIDENCE_LABEL, missingRequiredEvidence } from "@/l
 import { EVIDENCE_TYPES, type EvidenceType } from "@/lib/handoff";
 
 export type FormState = { error: string } | null;
+export async function recheckCompletedTaskAction(_previous: UpdateTaskState, data: FormData): Promise<UpdateTaskState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+  const parsed = z.object({ projectId: z.uuid(), taskId: z.uuid(), decision: z.enum(["accept", "revise"]), note: z.string().trim().max(5000).optional() }).safeParse(Object.fromEntries(data));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  try { await recheckCompletedTask(session.user.id, parsed.data.projectId, parsed.data.taskId, parsed.data); }
+  catch (error) { if (error instanceof AppError) return { error: error.message }; throw error; }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
+}
 export type CreateTaskState = { error: string } | { ok: true; revision: string } | null;
 // 更新任务专用：成功回 { ok: true }，供编辑弹窗据以自闭
 export type UpdateTaskState = { error: string } | { ok: true } | null;
@@ -349,6 +360,9 @@ export async function updateTaskHandoffAction(
 
   try {
     const current = await getTaskDetail(session.user.id, taskId);
+    if (current.projectId !== projectId) return { error: "任务不属于当前项目" };
+    const access = await getProjectForUser(session.user.id, projectId);
+    if (assigneeId !== undefined && access?.role !== "admin") return { error: "只有组长可以下派任务" };
     if (current.status === "review" || current.status === "done") {
       return { error: "已进入验收或已完成的任务不可直接修改交接契约，请先退回修改" };
     }

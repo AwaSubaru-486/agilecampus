@@ -96,7 +96,7 @@ export default async function ProjectLayout({
         </div>
       </header>
       <ProjectNavigation projectId={projectId} role={role} />
-      <div className="ac-project-body">{preview && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">正在预览{role === "student" ? "组员" : "老师"}界面，任务按你本人展示。预览时暂停操作；切回组长即可继续管理，团队角色没有改变。</p>}<fieldset disabled={preview} className="min-w-0"><legend className="sr-only">项目内容</legend>{children}</fieldset></div>
+      <div className="ac-project-body">{preview && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">正在预览{role === "student" ? "组员" : "老师"}界面，任务按你本人展示。可以浏览任务与时间线，预览时暂停提交和管理操作，团队角色没有改变。</p>}<div className="min-w-0">{children}</div></div>
     </div>
   );
 }

@@ -35,6 +35,7 @@ export function HandoffEditor({
   projectId,
   selectedTask,
   canWrite,
+  canDispatch = false,
   members = [],
   availablePacks = [],
   onClose,
@@ -42,6 +43,7 @@ export function HandoffEditor({
   projectId: string;
   selectedTask: SelectedTaskDetail;
   canWrite: boolean;
+  canDispatch?: boolean;
   members?: MemberSummary[];
   availablePacks?: { id: string; title: string; frozenAt?: string | null }[];
   onClose: () => void;
@@ -116,22 +118,23 @@ export function HandoffEditor({
       {/* 接手人选择 */}
       <div>
         <label htmlFor="assigneeId" className="block text-xs font-medium text-ink-2">
-          接手负责人（人 / Agent）
+          接手组员
         </label>
         <select
           id="assigneeId"
           name="assigneeId"
           defaultValue={selectedTask.assigneeId ?? "unassigned"}
           className="ac-field mt-1 text-sm"
+          disabled={!canDispatch}
         >
           <option value="unassigned">未指派</option>
-          {members.map((m) => (
+          {members.filter(member => member.kind === "human" && member.role === "student").map((m) => (
             <option key={m.id} value={m.id}>
               {m.name} ({m.kind === "agent" ? "Agent" : m.role === "admin" ? "负责人" : "成员"})
             </option>
           ))}
           {/* 若当前负责人不在 members 列表中，保留当前值 */}
-          {selectedTask.assigneeId && !members.some((m) => m.id === selectedTask.assigneeId) && (
+          {selectedTask.assigneeId && !members.some((m) => m.id === selectedTask.assigneeId && m.kind === "human" && m.role === "student") && (
             <option value={selectedTask.assigneeId}>
               {selectedTask.assigneeName ?? selectedTask.assigneeId} (当前)
             </option>

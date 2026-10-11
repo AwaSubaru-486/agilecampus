@@ -28,6 +28,10 @@ button[aria-busy="true"] { cursor: wait; }
 .ac-tech-node { position:absolute; width:252px; height:116px; padding:12px 16px; border:1px solid #c4d7c9; border-left:4px solid var(--color-signal); border-radius:10px; background:var(--color-panel); box-shadow:0 3px 9px #203c3a08; }
 .ac-tech-node.is-selected { border-color:var(--color-signal); box-shadow:0 0 0 3px #18796014; }
 .ac-tech-node.is-group { border-style:dashed; border-left-color:#a2aea7; background:#eef2ed; }
+.ac-tech-node.is-completed { background:#d9f3df; border-color:#63ad78; border-left-color:#278044; }
+.ac-tech-node.is-completed .ac-tech-node-title { color:#205c31; }
+.ac-task-dialog { position:fixed; inset:0; margin:auto; width:min(38rem,calc(100vw - 2rem)); max-height:85vh; overflow:auto; padding:0; border:1px solid var(--color-stroke); border-radius:16px; background:var(--color-panel); color:var(--color-ink); }
+.ac-task-dialog::backdrop { background:#17363455; }
 .ac-tech-node.is-dragging { z-index:30; box-shadow:0 14px 30px #203c3a30; }
 .ac-tech-node-head { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--color-ink-3); height:18px; }
 .ac-tech-handle { cursor:grab; touch-action:none; font-size:18px; width:24px; }

@@ -245,6 +245,7 @@ export async function getTaskTree(actorId: string, projectId: string) {
       id: tasks.id, stageId: tasks.stageId, parentTaskId: tasks.parentTaskId, title: tasks.title,
       isTaskGroup: tasks.isTaskGroup,
       description: tasks.description, status: tasks.status, priority: tasks.priority,
+      completionNote: tasks.completionNote, reviewNote: tasks.reviewNote, dueDate: tasks.dueDate,
       assigneeId: tasks.assigneeId, assigneeName: users.name, doneCriteria: tasks.doneCriteria,
     }).from(tasks).leftJoin(users, eq(tasks.assigneeId, users.id)).where(eq(tasks.projectId, projectId)).orderBy(asc(tasks.sortOrder)),
     db.select().from(taskTreeDrafts).where(and(eq(taskTreeDrafts.projectId, projectId), eq(taskTreeDrafts.status, "pending"))).orderBy(desc(taskTreeDrafts.createdAt)),

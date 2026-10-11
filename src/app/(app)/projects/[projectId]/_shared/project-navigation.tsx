@@ -20,7 +20,7 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
           ? "studio"
           : search.get("space") === "record"
             ? "record"
-            : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? "home" : "work";
+            : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? (search.get("view") === "manage" ? "manage" : "home") : search.get("scope") === "all" && role === "admin" ? "assignment" : "work";
   const spaceLink = (space: "work" | "studio" | "record") =>
     buildSpaceHref({
       projectId,
@@ -28,17 +28,18 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
       taskId: search.get("task") ?? undefined,
     });
   const tabs = [
-    { id: "home", title: workspace.title, href: base, tour: "nav-home" },
+    { id: "home", title: role === "teacher" ? workspace.title : "看板", href: base, tour: "nav-home" },
+    ...(role === "admin" ? [{ id: "manage", title: "项目推进台", href: `${base}?space=home&view=manage`, tour: "nav-manage" }, { id: "assignment", title: "分工", href: `${base}?space=work&scope=all&panel=list`, tour: "nav-assignment" }] : []),
     {
       id: "work",
       title: workspace.work,
-      href: spaceLink("work"),
+      href: `${base}?space=work&scope=mine&panel=list`,
       tour: "nav-work",
     },
     {
       id: "iterations",
       title: workspace.iterations,
-      href: `${base}/task-tree`,
+      href: `${base}/timeline`,
       tour: "nav-iterations",
     },
     {
@@ -60,7 +61,7 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
         aria-label="项目工作流程"
         className="flex gap-5 overflow-x-auto sm:gap-8"
       >
-        {tabs.filter(tab => tab.title).map((tab) => (
+        {tabs.filter(tab => tab.title && !(role === "student" && tab.id === "record")).map((tab) => (
           <Link
             key={tab.id}
             href={tab.href}
@@ -72,35 +73,19 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
           </Link>
         ))}
       </nav>
-      {section === "work" && (
+      {section === "work" && role === "student" && (
         <nav aria-label="执行视图" className="ac-view-switch">
           <Link
             href={spaceLink("work")}
             aria-current={search.get("scope") !== "all" ? "page" : undefined}
           >
-            {role === "teacher" ? "待验收" : role === "student" ? "我的任务" : "团队任务"}
+            我的任务
           </Link>
           <Link
             href={`${base}?space=work&scope=all&panel=list`}
             aria-current={search.get("scope") === "all" ? "page" : undefined}
           >
-            {role === "teacher" ? "全部任务与历史" : "全部任务"}
-          </Link>
-        </nav>
-      )}
-      {section === "iterations" && (
-        <nav aria-label="迭代视图" className="ac-view-switch">
-          <Link
-            href={`${base}/task-tree`}
-            aria-current={pathname.endsWith("/task-tree") ? "page" : undefined}
-          >
-            阶段与任务
-          </Link>
-          <Link
-            href={`${base}/timeline`}
-            aria-current={pathname.endsWith("/timeline") ? "page" : undefined}
-          >
-            时间线
+            全部任务
           </Link>
         </nav>
       )}

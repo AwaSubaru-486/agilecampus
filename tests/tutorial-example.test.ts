@@ -8,7 +8,7 @@ describe("原页面项目教程路线",()=>{
     expect(steps[2].route).toBe("/teams/demo-team/members");expect(steps[3].route).toBe("/teams/demo-team/projects");
     expect(steps.every(step=>!step.route.startsWith("/tutorials/example"))).toBe(true);
     expect(steps.slice(4,15).every(step=>step.route.startsWith("/projects/demo-project"))).toBe(true);
-    expect(steps[welcomeStepIndex("select")].route).toBe("/projects/demo-project/task-tree");expect(steps[welcomeStepIndex("select")].target).toBe('[data-tour="tutorial-stage-task"]');
+    expect(steps[welcomeStepIndex("select")].route).toBe("/projects/demo-project?space=work&task=first-task&panel=list");expect(steps[welcomeStepIndex("select")].target).toBe('[data-tour="console-task"]');
     expect(steps[welcomeStepIndex("claim")].completion).toBe("data-tour-claimed");expect(steps[welcomeStepIndex("submit")].completion).toBe("data-tour-submitted");
     expect(steps[welcomeStepIndex("submit")].route).toBe("/projects/demo-project?space=work&task=first-task");
     expect(steps[welcomeStepIndex("review")].action).toBe("explore");expect(steps[welcomeStepIndex("integration")].action).toBe("explore");

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { listConversationMessages, listProjectConversations } from "@/lib/agent/conversation";
 import { listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
@@ -7,29 +6,17 @@ import { listContextPacks } from "@/lib/context-pack";
 import { extractDraftsFromToolCalls, listApprovalRequests, type PersistedDraft } from "@/lib/approval";
 import { ChatPanel } from "../chat-panel";
 import { selectConversationForWorkspace } from "@/lib/agent/conversation-selection";
-import { ExecutionConsole } from "../_console/execution-console";
 import type { NormalizedConsoleParams } from "@/lib/console-navigation";
 
-// Agent 协作（studio）：
-//
-// W03 / Section 3.1 规则：
-//   - Agent 协作复用同一个执行台，左侧显示真实运行摘要或带运行的任务；
-//     选中后中央仍是同一任务的契约与成果，右侧为所选 Run。
-//   - 运行列表无数据时显示“暂无执行记录”，提供回任务列表的入口。
-//   - 会话放在所选任务内的“会话与分支”，不再作为独立的默认 AI 首页。
-//   - 未关联任务的历史会话移到显式的“项目会话”（?view=chat）次要入口，
-//     保留可访问性，不删除历史。
+// AI 助手直接展示项目对话，保留任务、会话和审批深链接。
 
 export async function StudioSpace({
   actorId,
   projectId,
   teamId,
-  role,
   selectedConversationId,
   selectedTaskId,
   selectedApprovalId,
-  view,
-  normalized,
 }: {
   actorId: string;
   projectId: string;
@@ -41,14 +28,12 @@ export async function StudioSpace({
   selectedTaskId: string | null;
   /** 从协作页/今日页跳入时，直接打开这条 AI 审批。 */
   selectedApprovalId: string | null;
-  /** ?view=chat 时访问项目级历史会话 */
+  /** 兼容旧项目对话链接。 */
   view?: string | null;
   normalized?: NormalizedConsoleParams;
 }) {
-  // 显式请求项目会话视图，或仅带 conversation 参数未绑定任务时，降级展示全量聊天工作区
-  const showChatPanel = view === "chat" || (selectedConversationId && !selectedTaskId);
-
-  if (showChatPanel) {
+  // 所有 AI 入口使用同一个项目对话工作区。
+  {
     const [projectMilestones, projectTasks, members, projectConversations, contextPacks, approvalRows] =
       await Promise.all([
         listProjectMilestones(actorId, projectId),
@@ -100,17 +85,7 @@ export async function StudioSpace({
 
     return (
       <div data-tour="ai-workspace" className="space-y-3">
-        <div className="flex items-center justify-between border-b border-stroke pb-2">
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/projects/${projectId}?space=studio`}
-              className="ac-btn-ghost min-h-8 px-2.5 text-xs text-ink-2 hover:text-ink"
-            >
-              ← 返回 Agent 执行台
-            </Link>
-            <span className="text-xs text-ink-3">项目历史会话</span>
-          </div>
-        </div>
+        <header><h2 className="text-lg font-semibold text-ink">AI 助手</h2><p className="mt-1 text-sm text-ink-3">围绕项目和任务展开对话。</p></header>
         <ChatPanel
           projectId={projectId}
           currentUserId={actorId}
@@ -138,51 +113,4 @@ export async function StudioSpace({
     );
   }
 
-  // 默认：Agent 协作复用同一个执行台（Section 3.1 & W03）
-  const defaultNormalized: NormalizedConsoleParams = normalized
-    ? { ...normalized, space: "studio" }
-    : {
-        space: "studio",
-        task: selectedTaskId ?? null,
-        conversation: null,
-        approval: selectedApprovalId,
-        run: null,
-        panel: null,
-        assignee: null,
-        priority: null,
-        label: null,
-        milestone: null,
-        overdue: null,
-        group: null,
-      };
-
-  return (
-    <section data-tour="ai-workspace" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold text-ink">Agent 协作</h2>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/projects/${projectId}?space=studio&view=chat`}
-            data-tour="project-chat"
-            className="ac-btn-ghost min-h-8 px-2.5 text-xs"
-          >
-            项目会话
-          </Link>
-          <Link
-            href={`/projects/${projectId}?space=work`}
-            className="ac-btn-ghost min-h-8 px-2.5 text-xs"
-          >
-            全部任务
-          </Link>
-        </div>
-      </div>
-
-      <ExecutionConsole
-        actorId={actorId}
-        projectId={projectId}
-        role={role}
-        normalized={defaultNormalized}
-      />
-    </section>
-  );
 }

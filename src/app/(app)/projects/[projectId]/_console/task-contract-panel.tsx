@@ -24,6 +24,7 @@ import {
 } from "../actions";
 import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
+import { TaskRecheckForm } from "../_shared/task-recheck-form";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
 import {
@@ -242,6 +243,7 @@ export function TaskContractPanel({
             </button>
           </div>
         </details>
+        {canWrite && canReview && task.status !== "done" && task.status !== "review" && <button type="button" className="ac-btn-ghost" onClick={() => setEditingHandoff(!editingHandoff)}>{editingHandoff ? "取消分工" : "下派任务 / 调整分工"}</button>}
       </div>
 
       <div className="flex flex-col gap-5 px-6 py-6">
@@ -262,6 +264,7 @@ export function TaskContractPanel({
             projectId={projectId}
             selectedTask={task}
             canWrite={canWrite}
+            canDispatch={isAdmin}
             members={members}
             availablePacks={task.availablePacks}
             onClose={() => setEditingHandoff(false)}
@@ -478,6 +481,9 @@ export function TaskContractPanel({
           </ActionFormBlock>
         )}
 
+        {task.completionNote && <Section label="提交成果"><p className="whitespace-pre-wrap text-sm leading-6">{task.completionNote}</p></Section>}
+        {task.reviewNote && <Section label="验收与复核意见"><p className="whitespace-pre-wrap text-sm leading-6">{task.reviewNote}</p></Section>}
+        {canReview && !canWrite && task.status === "done" && !isMine && <TaskRecheckForm key={task.id} projectId={projectId} taskId={task.id} />}
         {canReviewThis && (
           <div className="space-y-2">
             <ActionFormBlock

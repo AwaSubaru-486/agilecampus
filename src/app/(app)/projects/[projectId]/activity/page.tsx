@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { notFound, redirect } from "next/navigation";
+import { getProjectView } from "@/lib/project-view";
 import { auth } from "@/lib/auth";
 import { getProjectForUser } from "@/lib/project";
 import { listProjectActivity } from "@/lib/activity-feed";
@@ -53,6 +54,7 @@ export default async function ActivityPage({
 
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
+  if (await getProjectView(access.role, projectId) === "student") redirect(`/projects/${projectId}`);
 
   const events = await listProjectActivity(session.user.id, projectId, { limit: 200 });
 

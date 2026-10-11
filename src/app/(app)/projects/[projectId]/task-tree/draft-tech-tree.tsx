@@ -11,6 +11,7 @@ type TreeProps = {
   members: { id: string; name: string }[]; disabled: boolean; readOnly?: boolean;
   sections?: TreeSection[];
   focusStage?: number;
+  completedKeys?: string[];
   onSelect: (key: string) => void; onAdd: (key: string) => void; onDelete: (key: string) => void;
   onConnect: (key: string, target: string | null, parallel: boolean) => void;
 };
@@ -22,10 +23,10 @@ function DropTarget({ id, children, disabled }: { id: string; children: React.Re
 
 function TaskNode({ task, point, group, selected, owner, zoom, ...props }: {
   task: DraftTask; point: Point; group: boolean; selected: boolean; owner: string; zoom: number;
-  dragging: boolean; disabled: boolean; readOnly?: boolean; onSelect: () => void; onAdd: () => void; onDelete: () => void;
+  dragging: boolean; disabled: boolean; readOnly?: boolean; completed?: boolean; onSelect: () => void; onAdd: () => void; onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id: task.key, disabled: props.disabled || props.readOnly || group });
-  return <article ref={setNodeRef} className={`ac-tech-node ${selected ? "is-selected" : ""} ${group ? "is-group" : ""} ${isDragging ? "is-dragging" : ""}`}
+  return <article ref={setNodeRef} className={`ac-tech-node ${selected ? "is-selected" : ""} ${group ? "is-group" : ""} ${props.completed ? "is-completed" : ""} ${isDragging ? "is-dragging" : ""}`}
     style={{ left: point.x, top: point.y, transform: transform ? `translate3d(${transform.x / zoom}px,${transform.y / zoom}px,0)` : undefined }}>
     {!props.readOnly && <button type="button" data-tour={selected ? "draft-delete-selected" : undefined} className="ac-tech-minus" aria-label={`删除任务：${task.title || "未命名"}`} disabled={props.disabled} onClick={props.onDelete}>−</button>}
     <div className="ac-tech-node-head"><span>{group ? "任务分组" : "执行任务"}</span>
@@ -92,7 +93,7 @@ export function DraftTechTree(props: TreeProps) {
             </svg>
             {orderedTasks.map(task => <TaskNode key={task.key} task={task} point={positions.get(task.key)!}
               group={groups.has(task.key)} selected={props.selectedKey === task.key} owner={props.members.find(member => member.id === task.assigneeId)?.name ?? "待分配"}
-              readOnly={props.readOnly} zoom={zoom} dragging={dragging} disabled={props.disabled} onSelect={() => props.onSelect(task.key)} onAdd={() => props.onAdd(task.key)} onDelete={() => props.onDelete(task.key)} />)}
+              completed={props.completedKeys?.includes(task.key)} readOnly={props.readOnly} zoom={zoom} dragging={dragging} disabled={props.disabled} onSelect={() => props.onSelect(task.key)} onAdd={() => props.onAdd(task.key)} onDelete={() => props.onDelete(task.key)} />)}
           </div>
         </div>
       </div>
