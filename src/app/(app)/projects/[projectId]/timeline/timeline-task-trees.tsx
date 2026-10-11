@@ -7,6 +7,7 @@ import { emptyDraftPlan, validateDraftPlan, type DraftPlan, type PlanningLink } 
 import { mapWholeTimelinePlan, planningSignature } from "@/lib/timeline-task-tree";
 import { DraftTechTree } from "../task-tree/draft-tech-tree";
 import { DeliveryForm } from "../task-tree/task-tree-forms";
+import { LoadingProgress } from "@/components/loading-progress";
 
 export type TimelineTreeGroup = {
   id: string; title: string; payload: TaskTreePayload; draftId?: string; draftStageIndex?: number; pending: boolean;
@@ -123,7 +124,7 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
     </div>
     <p className="text-xs leading-6 text-ink-3">从左向右推进，分支表示并行，连线表示需要的前置成果。竖向虚线划分阶段，跨阶段依赖会继续连线。</p>
     <nav aria-label="定位任务树阶段" className="flex flex-wrap gap-2">{payload.stages.map((stage, index) => <button data-tour="stage-link" type="button" key={index} className={`ac-tech-stage ${focusStage === index ? "is-active" : ""}`} aria-pressed={focusStage === index} onClick={() => setFocusStage(index)}>{index + 1}. {stage.title}</button>)}</nav>
-    {busy && <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-signal"><span className="ac-loading-dot" aria-hidden />AI 正在分析所有阶段的先后与并行关系，并进行第二轮复核…<button type="button" className="ac-btn-ghost" onClick={() => { controller.current?.abort(); controller.current = null; setBusy(false); setNotice("已停止分析，可以稍后重试。"); }}>停止分析</button></div>}
+    {busy && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-signal"><LoadingProgress className="flex-1 min-w-48" label="AI 正在分析任务链…" detail="检查各阶段的先后关系、并行分支与必要前置。" /><button type="button" className="ac-btn-ghost" onClick={() => { controller.current?.abort(); controller.current = null; setBusy(false); setNotice("已停止分析，可以稍后重试。"); }}>停止分析</button></div>}
     {notice && <p role="alert" className="text-sm text-risk">{notice}</p>}
     {invalid && <p role="alert" className="text-sm text-risk">任务关系存在冲突，已忽略无法采用的编排，请重新分析或核对任务关系。</p>}
     {!busy && !linked && <p className="text-xs text-ink-3">尚未确认任务先后关系。{canAnalyse ? "请让 AI 分析任务链；分析失败时不会编造连线。" : "请组长先分析任务链。"}</p>}

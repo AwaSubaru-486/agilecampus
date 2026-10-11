@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import type { TeamRole } from "@/db/schema";
 import { listProjectTasks } from "@/lib/task";
 import { getTaskTree } from "@/lib/task-tree";

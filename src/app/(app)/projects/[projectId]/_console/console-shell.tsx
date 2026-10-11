@@ -20,6 +20,8 @@ import { NewTaskForm } from "../new-task-form";
 import { TaskList } from "./task-list";
 import { TaskContractPanel } from "./task-contract-panel";
 import { AgentRunRail } from "./agent-run-rail";
+import { LoadingProgress } from "@/components/loading-progress";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 export type TaskRowSummary = {
   stageId: string | null;
@@ -331,7 +333,8 @@ export function ConsoleShell({
 
   return (
     <div ref={consoleRef} aria-busy={isNavigating} className="relative flex min-h-0 w-full flex-col">
-      {isNavigating && <p role="status" className="mb-3 flex items-center gap-2 text-sm text-signal"><span className="ac-loading-dot" aria-hidden />正在切换任务…</p>}
+      <NavigationProgress active={isNavigating} label="正在切换任务…" />
+      {isNavigating && <LoadingProgress className="mb-3" label="正在切换任务…" />}
       {/* 任务列表与详情工作面 */}
       <div className="flex min-h-0 flex-1 divide-x divide-stroke overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingProgress } from "@/components/loading-progress";
+
 /**
  * 交接表单（W04）。
  *
@@ -258,6 +260,7 @@ export function HandoffEditor({
         </div>
       </div>
 
+      {pending && <LoadingProgress label="正在保存分工与交接要求…" />}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-stroke">
         <button
           type="button"

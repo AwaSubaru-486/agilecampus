@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingProgress } from "@/components/loading-progress";
+
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import type { TaskTreePayload } from "@/lib/task-tree";
 import { emptyDraftPlan, followingTasks, removePlannedTask, validateDraftPlan, type DraftPlan, type DraftTask } from "@/lib/draft-planning";
@@ -192,13 +194,13 @@ export function DraftEditor({ projectId, draftId, payload, members, tutorial = f
         <div className="mt-4 flex gap-3"><button type="button" className="ac-btn" onClick={add}>确认添加任务</button><button type="button" className="ac-btn-ghost" onClick={() => { setNewTask(null); setSuggestion(null); }}>取消</button></div>
       </section>}
     </fieldset>
-    {busy && <div className="flex flex-wrap items-center gap-3"><p role="status" className="flex items-center gap-2 text-sm text-signal"><span className="ac-loading-dot" aria-hidden />{busy === "plan" ? "AI 正在安排任务关系，并单独复核必要前置与并行分支…" : "AI 正在对照项目目标，检查任务位置与验收标准…"}</p><button type="button" className="ac-btn-ghost" onClick={() => controllers.current.forEach(controller => controller.abort())}>停止分析，手动编排</button></div>}
+    {busy && <div className="flex flex-wrap items-center gap-3"><LoadingProgress className="flex-1 min-w-48" label={busy === "plan" ? "AI 正在安排任务关系…" : "AI 正在检查任务…"} detail={busy === "plan" ? "复核必要前置与并行分支。" : "对照项目目标检查任务位置与验收标准。"} /><button type="button" className="ac-btn-ghost" onClick={() => controllers.current.forEach(controller => controller.abort())}>停止分析，手动编排</button></div>}
     {notice && <p role="status" className="text-sm leading-6 text-ink-2">{notice}</p>}
     <details className="text-xs text-ink-3"><summary className="cursor-pointer">{plan.source === "ai" ? "查看 AI 二次复核结论" : "查看编排说明"}</summary><p className="mt-2 leading-6">{plan.reviewNote}</p></details>
     <form action={action} onReset={event => event.preventDefault()} className="flex flex-wrap items-center justify-between gap-3">
       <input type="hidden" name="projectId" value={projectId} /><input type="hidden" name="draftId" value={draftId} /><input type="hidden" name="payload" value={serialized} />
       <p id={`${id}-status`} role={state?.error ? "alert" : "status"} className={`text-xs ${state?.error ? "text-risk" : "text-ink-3"}`}>{state?.error ?? (dirty ? "有未保存修改，请先保存再发布。" : state?.success ?? "检查任务、分工与验收标准后发布。")}</p>
-      <button className="ac-btn-ghost" disabled={disabled || !dirty} aria-describedby={`${id}-status`}>{pending ? "保存中…" : "保存修改与编排"}</button>
+      <button className="ac-btn-ghost" disabled={disabled || !dirty} aria-busy={pending} aria-describedby={`${id}-status`}>{pending ? <><span className="ac-loading-dot mr-2" aria-hidden />保存中…</> : "保存修改与编排"}</button>
     </form>
     <p className="text-xs leading-6 text-ink-3">任务资料保存到项目，编排连线保存在当前浏览器。此图用于草案规划；发布后继续沿用现有阶段流程。</p>
     <DraftActions projectId={projectId} draftId={draftId} disabled={dirty || disabled} />

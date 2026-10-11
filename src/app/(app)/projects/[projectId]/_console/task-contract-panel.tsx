@@ -12,7 +12,8 @@
  */
 
 import { useState, useActionState } from "react";
-import Link from "next/link";
+import Link from "@/components/feedback-link";
+import { LoadingProgress } from "@/components/loading-progress";
 import { useRouter } from "next/navigation";
 import {
   claimTaskAction,
@@ -143,7 +144,7 @@ export function TaskContractPanel({
   if (!selectedTask) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-sm text-ink-3">
-        加载中…
+        <LoadingProgress className="max-w-sm" label="正在读取任务详情…" />
       </div>
     );
   }
@@ -812,7 +813,7 @@ function ActionFormBlock({
       <h4 className="text-xs font-semibold uppercase tracking-wide text-ink">
         {title}
       </h4>
-      <form action={formAction} className="space-y-2">
+      <form action={formAction} aria-busy={pending} className="space-y-2">
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="taskId" value={taskId} />
         {children}
@@ -832,6 +833,7 @@ function ActionFormBlock({
             <span>✓</span> {success}
           </p>
         )}
+        {pending && <LoadingProgress label="正在处理任务…" />}
         <button
           type="submit"
           disabled={pending}

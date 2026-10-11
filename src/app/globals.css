@@ -7,9 +7,15 @@ button:not(:disabled):active, a.ac-btn:active, a.ac-btn-ghost:active,
   translate: 0 1px;
 }
 button[aria-busy="true"] { cursor: wait; }
-.ac-link-pending { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 11px; color: var(--color-signal); }
 .ac-loading-dot { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ac-spin .7s linear infinite; }
-.ac-page-skeleton { background: var(--color-stroke, #e5e7eb); animation: ac-pulse 1.5s ease-in-out infinite; }
+.ac-page-skeleton { background: linear-gradient(100deg, var(--color-stroke, #e5e7eb) 25%, #f8fbf9 50%, var(--color-stroke, #e5e7eb) 75%); background-size: 200% 100%; animation: ac-shimmer 1.8s ease-in-out infinite; }
+.ac-loading-progress { width: 100%; }
+.ac-progress-track { position: relative; height: 4px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: var(--color-signal-soft, #e4f3ed); }
+.ac-progress-runner { position: absolute; inset: 0 auto 0 0; width: 38%; border-radius: inherit; background: linear-gradient(90deg, #64bea2, var(--color-signal, #187960)); animation: ac-progress-sweep 1.15s ease-in-out infinite alternate; }
+.ac-navigation-progress { position: fixed; inset: 0 0 auto; z-index: 100; height: 3px; overflow: hidden; pointer-events: none; background: #18796014; }
+.ac-navigation-progress .ac-progress-runner { box-shadow: 0 0 8px #18796066; }
+@keyframes ac-progress-sweep { from { transform: translateX(0); } to { transform: translateX(164%); } }
+@keyframes ac-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @keyframes ac-spin { to { rotate: 360deg; } }
 @keyframes ac-pulse { 50% { opacity: .45; } }
 .ac-tech-tree { border:1px solid var(--color-stroke); border-radius:14px; overflow:hidden; background:var(--color-panel); }
@@ -57,7 +63,7 @@ button[aria-busy="true"] { cursor: wait; }
 .ac-handoff-content { max-width: 720px; margin: 20px auto; }
 .ac-handoff-symbol { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; margin: 32px 0; border-radius: 24px; background: var(--color-signal); color: white; font-size: 48px; }
 @media (max-width: 640px) { .ac-handoff-dialog { padding: 60px 24px 28px; border-radius: 16px; } }
-@media (prefers-reduced-motion: reduce) { .ac-loading-dot, .ac-page-skeleton { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ac-loading-dot, .ac-page-skeleton, .ac-progress-runner { animation: none; } .ac-progress-runner { width: 100%; opacity: .65; } }
 
 /* AgileCampus：浅色阅读面与深青导航。
  * 以用户当前行动组织信息，语义色区分人工、AI、风险与交付状态。

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import { getTaskTree } from "@/lib/task-tree";
 import { listProjectBlockers } from "@/lib/blocker";
 import { groupTasksByStage } from "@/lib/project-stage-groups";

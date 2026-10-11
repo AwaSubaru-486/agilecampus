@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import { listProjectAgents } from "@/lib/agent-member";
 import { listBusyTaskIds } from "@/lib/agent-run";
 import { applyFilters, type BoardFilters } from "@/lib/board-filters";
