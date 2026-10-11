@@ -11,7 +11,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 // 这里把它们提到一级导航，因为「谁在等搭手」「AI 在干什么」
 // 是每天都要看一眼的事，不该埋进某个项目里找。
 //
-// 「今日」已经统一承接所有需要人处理的动作；这里专注回答「谁卡住了」
+// 项目工作区承接任务和待确认动作；这里专注回答「谁卡住了」
 // 和「AI 成员现在在干什么」，避免同一条审批在两个入口重复出现。
 export default async function CollaborationPage() {
   const session = await auth();
@@ -81,10 +81,10 @@ export default async function CollaborationPage() {
             </div>
           </div>
           <Link
-            href="/today"
+            href="/projects"
             className="text-xs font-medium text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
           >
-            去今日处理待确认 →
+            查看我的项目 →
           </Link>
         </div>
       </header>

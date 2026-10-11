@@ -60,7 +60,7 @@ export function TopWorkbar({
       <div className="ac-shell-sidebar-inner">
         <div className="ac-brand-row">
           <Link
-            href="/today"
+            href="/projects"
             aria-label="AgileCampus 首页"
             className="flex items-center gap-3"
           >
@@ -118,7 +118,6 @@ export function TopWorkbar({
               <WorkspaceIcon
                 name={
                   item.href.slice(1) as
-                    | "today"
                     | "projects"
                     | "collaboration"
                     | "tutorials"
