@@ -1,7 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
-import { preparedExtractionRequestSchema, validateCandidateEvidence } from "@/lib/session-memory/extract";
+import { describe, expect, it, vi } from "vitest";
+import { extractSessionMemoryCandidate, preparedExtractionRequestSchema, validateCandidateEvidence } from "@/lib/session-memory/extract";
 import { validateMemoryCandidate } from "../vscode-extension/src/memory/candidate-validator";
+import { createUser } from "@/lib/user";
+import { saveModelConfig } from "@/lib/model-config";
+import { resetDb } from "./helpers";
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 function stableStringify(value: unknown): string {
@@ -34,6 +37,25 @@ function preparedInput() {
 }
 
 describe("session memory model boundary", () => {
+  it("用户 API 自动用于记忆提炼，模型来源记录真实的个人模型名称", async () => {
+    vi.stubEnv("AUTH_SECRET", "memory-model-routing-secret");
+    try {
+      await resetDb();
+      const user = await createUser({ name: "提炼者", email: "extract@api.test", password: "password123" });
+      await saveModelConfig(user.id, { baseUrl: "https://extract.test/v1", model: "personal-memory-model", apiKey: "test-memory-key" });
+      const candidate = { goal: [], constraints: [], completed: [], remaining: [], decisions: [], rejectedApproaches: [], blockers: [], nextActions: [], tests: [] };
+      let sentModel = ""; let sentUrl = "";
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)); sentModel = body.model; sentUrl = String(input);
+        return new Response(JSON.stringify({ id: "memory-test", object: "chat.completion", created: 1, model: body.model,
+          choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify(candidate) }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 } }), { headers: { "Content-Type": "application/json" } });
+      }));
+      const result = await extractSessionMemoryCandidate(preparedInput(), { actorId: user.id });
+      expect(sentUrl).toBe("https://extract.test/v1/chat/completions");
+      expect(sentModel).toBe("personal-memory-model"); expect(result.model).toBe(sentModel);
+    } finally { vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
+  });
   it("accepts only a matching, ordered, budget-scoped request", () => {
     expect(preparedExtractionRequestSchema.parse(preparedInput()).events).toHaveLength(2);
     const invalid = preparedInput();

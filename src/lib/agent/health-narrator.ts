@@ -1,5 +1,5 @@
 import { generateText, type LanguageModel } from "ai";
-import { getModel } from "./model";
+import { getModel, getModelForUser } from "./model";
 import type { HealthIssue } from "@/lib/health";
 
 // 健康度叙事：把确定性规则算出的一串条目，译成一段人话。
@@ -27,8 +27,9 @@ const PREAMBLE = `你在帮一个高校项目团队读「项目健康度」面�
 - 用中文，三到五句话，直接说事，不要复述数据结构。`;
 
 export type NarrateHealthOptions = {
-  /** 测试注入 mock；生产不传，走 getModel() */
+  /** Tests may inject a model; authenticated requests use their saved API config. */
   model?: LanguageModel;
+  actorId?: string;
 };
 
 export async function narrateHealth(
@@ -46,7 +47,7 @@ export async function narrateHealth(
   }));
 
   const { text } = await generateText({
-    model: opts?.model ?? getModel(),
+    model: opts?.model ?? (opts?.actorId ? await getModelForUser(opts.actorId) : getModel()),
     system: PREAMBLE,
     prompt: `项目：${projectName}\n\n健康度条目（JSON）：\n${JSON.stringify(payload, null, 2)}`,
     // 叙事不调工具，且与对话同口径：失败即如实呈报，不自动重试
