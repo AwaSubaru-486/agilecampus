@@ -72,19 +72,20 @@ button[aria-busy="true"] { cursor: wait; }
 
 @theme {
   /* ---------- 底与面 ---------- */
-  --color-ground: #f4f6f5;
+  --color-ground: #f2f6f8;
   --color-panel: #ffffff;
   --color-raised: #ffffff;
-  --color-sunken: #edf2ef;
+  --color-sunken: #eaf0f3;
+  --color-panel-hover: #f3f8f6;
 
   /* ---------- 字 ---------- */
-  --color-ink: #203c3a;
-  --color-ink-2: #526865;
-  --color-ink-3: #768985;
+  --color-ink: #1d3539;
+  --color-ink-2: #4d6570;
+  --color-ink-3: #647a85;
 
   /* ---------- 线 ---------- */
-  --color-stroke: #dde6e1;
-  --color-stroke-strong: #c3d2ca;
+  --color-stroke: #dce6eb;
+  --color-stroke-strong: #c2d2db;
 
   /* ---------- 人机语义色 ---------- */
   /* 人与 AI 是并列的两类成员。绿色不代表好人，紫色不代表危险 */
@@ -94,10 +95,10 @@ button[aria-busy="true"] { cursor: wait; }
   --color-agent-soft: #edf2fa;
 
   /* ---------- 信号与状态 ---------- */
-  --color-signal: #187960;
-  --color-signal-hover: #12614b;
-  --color-signal-soft: #e4f2ec;
-  --color-signal-ring: #95c9b3;
+  --color-signal: #147d68;
+  --color-signal-hover: #0f6555;
+  --color-signal-soft: #e3f3ed;
+  --color-signal-ring: #a6d6c6;
 
   --color-risk: #bb4a4a;
   --color-risk-soft: #fbeeee;
@@ -107,10 +108,10 @@ button[aria-busy="true"] { cursor: wait; }
   --color-success-soft: #e7f5eb;
 
   /* ---------- 形状 ---------- */
-  /* 主面板 12px、抽屉 16px。不再所有元素都用 24px 大圆角 */
-  --radius-control: 0.5rem; /* 控件 6px */
-  --radius-panel: 0.875rem; /* 面板 6px：资料/任务工作面不做软卡片 */
-  --radius-sheet: 1rem; /* 抽屉 / 全屏层 8px */
+  /* 只调整轮廓，不改变元素尺寸与排布。 */
+  --radius-control: 0.625rem;
+  --radius-panel: 1rem;
+  --radius-sheet: 1.125rem;
 
   /* ---------- 尺寸 ---------- */
   --spacing-workbar: 3.5rem; /* 顶部工作带 56px */
@@ -130,10 +131,11 @@ button[aria-busy="true"] { cursor: wait; }
   --font-display: var(--font-sans);
 }
 
-/* 阴影：只给浮层。普通面板一律不投影，靠边框与留白分层 */
+/* 面板轻阴影与浮层阴影分级，不影响文档流。 */
 :root {
-  --shadow-float: 0 16px 40px -16px rgba(27, 55, 43, 0.18);
-  --shadow-pop: 0 24px 60px -24px rgba(27, 55, 43, 0.2);
+  --shadow-panel: 0 2px 5px #1d353903, 0 10px 28px -18px #1d353922;
+  --shadow-float: 0 8px 12px -8px #1d35391a, 0 20px 52px -16px #1d353929;
+  --shadow-pop: 0 28px 80px -24px #1d353933;
   color-scheme: light;
 }
 
@@ -179,6 +181,7 @@ button[aria-busy="true"] { cursor: wait; }
 
 body {
   background-color: var(--color-ground);
+  background-image: radial-gradient(ellipse at 20% 0%, #e5f2ed80, transparent 55%), radial-gradient(ellipse at 100% 10%, #e5edf780, transparent 50%);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -200,10 +203,11 @@ html {
 
 /* A quiet workspace: global navigation on the left, contextual actions in the page. */
 .ac-shell-sidebar {
-  --color-ink: #f2f8f6; --color-ink-2: #c2d3d0; --color-ink-3: #8ba5a1;
-  --color-panel: #203f43; --color-sunken: #274b4d; --color-stroke: #355256;
-  --color-stroke-strong: #52716d; --color-signal: #a5eed7; --color-signal-soft: #305650;
-  position: sticky; top: 0; z-index: 50; background: #183638; color: var(--color-ink);
+  --color-ink: #f3faf8; --color-ink-2: #c7d9dc; --color-ink-3: #9ab6bc;
+  --color-panel: #1d3d47; --color-sunken: #244b54; --color-stroke: #ffffff14;
+  --color-stroke-strong: #56787d; --color-signal: #a5eed7; --color-signal-soft: #285b58;
+  position: sticky; top: 0; z-index: 50; background: linear-gradient(165deg, #1c424a 0%, #15333f 65%, #122d38 100%); color: var(--color-ink);
+  box-shadow: 8px 0 32px #18363808;
 }
 .ac-shell-sidebar-inner { display:flex; align-items:center; gap:12px; height:64px; padding:0 18px; }
 .ac-brand-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -217,15 +221,15 @@ html {
 .ac-shell-primary-nav,.ac-shell-account,.ac-sidebar-scrim {display:none;}
 .ac-nav-label {font-size:10px;letter-spacing:.1em;color:var(--color-ink-3);padding:0 12px;margin:0 0 12px;}
 .ac-nav-item {display:flex; align-items:center; gap:12px; min-height:46px; padding:10px 12px; border-radius:9px; font-size:13px; color:var(--color-ink-2);transition:background .15s,color .15s;}
-.ac-nav-item:hover {background:rgba(255,255,255,.04);color:var(--color-ink);}
-.ac-nav-item.is-active,.ac-nav-item[aria-current="page"] {background:#2b5050;color:#b4f1db;font-weight:600;}
-.ac-nav-count {margin-left:auto;font-size:10px;background:#3f5e5d;padding:1px 6px;border-radius:5px;}
+.ac-nav-item:hover {background:rgba(255,255,255,.07);color:var(--color-ink);}
+.ac-nav-item.is-active,.ac-nav-item[aria-current="page"] {background:linear-gradient(110deg,#31766877,#2d63674d);color:#c2f6e5;font-weight:600;box-shadow:inset 0 0 0 1px #a5eed722,0 4px 12px #092a3020;}
+.ac-nav-count {margin-left:auto;font-size:10px;background:#ffffff16;color:#d3eee7;padding:1px 6px;border-radius:5px;}
 .ac-navigation-support {border-top:1px solid var(--color-stroke);margin-top:28px;padding-top:26px;}
-.ac-sidebar-tip {font-size:11px;line-height:1.8;color:var(--color-ink-3);padding:16px 12px;margin-bottom:18px;border:1px solid var(--color-stroke);border-radius:10px;}
+.ac-sidebar-tip {font-size:11px;line-height:1.8;color:var(--color-ink-3);padding:16px 12px;margin-bottom:18px;border:1px solid var(--color-stroke);border-radius:10px;background:linear-gradient(120deg,#ffffff08,#ffffff02);}
 .ac-sidebar-tip a {display:block;color:var(--color-ink-2);}
 .ac-shell-main {padding:28px 20px 60px;max-width:1600px;}
 @media(min-width:1024px) {
- .ac-shell-sidebar {position:fixed;inset:0 auto 0 0;width:228px;border-right:1px solid #244447;}
+ .ac-shell-sidebar {position:fixed;inset:0 auto 0 0;width:228px;border-right:1px solid #ffffff0d;}
  .ac-shell-sidebar-inner {flex-direction:column;align-items:stretch;height:100%;padding:30px 18px 24px;gap:0;overflow-y:auto;}
  .ac-shell-switcher {margin:30px 0 0;width:100%;padding-bottom:20px;border-bottom:1px solid var(--color-stroke);}
  .ac-shell-primary-nav {display:block;margin-top:28px;}
@@ -279,7 +283,7 @@ html {
 .ac-action-deadline-tag {flex-shrink:0;white-space:nowrap;}
 .ac-action-link {display:flex;align-items:center;gap:12px;flex-shrink:0;font-size:12px;color:var(--color-signal);font-weight:600;}
 .ac-action-link:hover {text-decoration:underline;}
-.ac-focus-card {background:var(--color-panel);border:1px solid var(--color-stroke);border-radius:16px;box-shadow:0 4px 24px -18px #18362c25;overflow:hidden;}
+.ac-focus-card {background:var(--color-panel);border:1px solid var(--color-stroke);border-radius:16px;box-shadow:var(--shadow-panel);overflow:hidden;}
 .ac-disclosure {border:1px solid var(--color-stroke);border-radius:12px;background:var(--color-panel);}
 .ac-disclosure > summary {padding:18px 22px;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-ink-2);}
 .ac-disclosure[open] > summary {border-bottom:1px solid var(--color-stroke);}
@@ -362,13 +366,12 @@ html {
     letter-spacing: 0.06em;
   }
 
-  /* ---------- 面板 ----------
-   * 无静止阴影。旧版靠「圆角 + 投影 + 纯白」制造卡片感，
-   * 一屏堆七八张就成了卡片墙；改用边框与留白分层。 */
+  /* ---------- 面板：柔和边界与轻量层次 ---------- */
   .ac-card {
     border-radius: var(--radius-panel);
     border: 1px solid var(--color-stroke);
     background-color: var(--color-panel);
+    box-shadow: var(--shadow-panel);
   }
 
   .ac-toolbar {
@@ -388,7 +391,8 @@ html {
     min-height: 2.25rem; /* 标准控件 36px */
     border-radius: var(--radius-control);
     border: 1px solid var(--color-stroke-strong);
-    background-color: var(--color-raised);
+    background-color: #fbfdfe;
+    box-shadow: inset 0 1px 2px #1d353904;
     padding: 0.45rem 0.7rem;
     font-size: 0.875rem;
     color: var(--color-ink);
@@ -400,7 +404,8 @@ html {
   .ac-field:focus {
     outline: none;
     border-color: var(--color-signal);
-    box-shadow: 0 0 0 3px var(--color-signal-ring);
+    background-color: var(--color-panel);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-signal-ring) 38%, transparent);
   }
 
   /* ---------- 主按钮 ----------
@@ -416,14 +421,17 @@ html {
     border-radius: var(--radius-control);
     border: 1px solid transparent;
     background-color: var(--color-signal);
+    background-image: linear-gradient(180deg, #ffffff0d, #00000008);
+    box-shadow: inset 0 1px 0 #ffffff26, 0 3px 7px #147d681a;
     padding: 0.45rem 0.95rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: #ffffff;
-    transition: background-color var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
+    transition: background-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, transform var(--motion-fast) var(--motion-spring);
   }
   .ac-btn:hover:not(:disabled) {
     background-color: var(--color-signal-hover);
+    box-shadow: inset 0 1px 0 #ffffff26, 0 4px 12px #147d6826;
   }
   .ac-btn:active:not(:disabled) {
     transform: scale(0.985);
@@ -442,7 +450,8 @@ html {
     min-width: 2.75rem;
     border-radius: var(--radius-control);
     border: 1px solid var(--color-stroke-strong);
-    background-color: transparent;
+    background-color: color-mix(in srgb, var(--color-panel) 70%, transparent);
+    box-shadow: 0 1px 2px #1d353905;
     padding: 0.4rem 0.8rem;
     font-size: 0.8125rem;
     font-weight: 500;
@@ -501,7 +510,8 @@ html {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    border-radius: 0.375rem; /* 方一点，不再全是胶囊 */
+    border-radius: 0.5rem;
+    box-shadow: inset 0 0 0 1px #1d353906;
     padding: 0.05rem 0.4rem;
     font-size: 0.6875rem;
     font-weight: 600;
@@ -554,7 +564,7 @@ html {
 }
 
 /* 项目与教程：优先展示下一步行动，保留足够阅读空间。 */
-.ac-project-card { display:block; height:100%; padding:28px; border:1px solid var(--color-stroke); border-radius:var(--radius-panel); background:var(--color-panel); transition:border-color 160ms,box-shadow 160ms,transform 160ms; }
+.ac-project-card { display:block; height:100%; padding:28px; border:1px solid var(--color-stroke); border-radius:var(--radius-panel); background:linear-gradient(145deg,var(--color-panel) 72%,#f2faf7); box-shadow:var(--shadow-panel); transition:border-color 160ms,box-shadow 160ms,transform 160ms; }
 .ac-project-card:hover { border-color:var(--color-signal-ring); box-shadow:var(--shadow-panel); transform:translateY(-2px); }
 .ac-tutorial-feature { display:flex; align-items:center; gap:32px; padding:32px; border:1px solid var(--color-signal-ring); border-radius:var(--radius-sheet); background:linear-gradient(115deg,#e5f2eb,#f8fbf9); }
 .ac-tutorial-symbol { display:grid; flex-shrink:0; width:84px; height:84px; place-items:center; border-radius:24px; background:var(--color-panel); color:var(--color-signal); font-size:32px; box-shadow:0 8px 24px #1836380a; }
@@ -573,3 +583,61 @@ html {
 
 .ac-project-delete-dialog { width:min(480px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; margin:auto; padding:28px; border:1px solid var(--color-stroke); border-radius:16px; background:var(--color-panel); box-shadow:0 24px 80px #0003; }
 .ac-project-delete-dialog::backdrop { background:#102c32a0; backdrop-filter:blur(3px); }
+
+/* 外观细化：不修改尺寸、间距、排列、显示状态或操作行为。 */
+::selection { background: #cbeade; color: #174637; }
+
+.ac-brand-symbol { text-shadow: 0 2px 12px #a5eed720; }
+.ac-sidebar-collapse:hover, .ac-sidebar-menu:hover { background: #ffffff0a; color: var(--color-ink); }
+
+.ac-project-navigation > nav:first-child > a,
+[role="tablist"] > :is(a, button) {
+  border-radius: 8px 8px 0 0;
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+.ac-project-navigation > nav:first-child > a:hover,
+[role="tablist"] > :is(a, button):hover { background-color: #147d6808; }
+.ac-project-navigation > nav:first-child > a[aria-current="page"],
+[role="tablist"] > :is([aria-current="page"], [aria-selected="true"]) {
+  color: var(--color-signal);
+  border-bottom-color: var(--color-signal);
+  background: linear-gradient(180deg, #147d6800, #147d6810);
+}
+
+.ac-card > header,
+.ac-focus-card > header,
+.ac-tech-toolbar {
+  background: linear-gradient(100deg, #f5faf9, #fbfdfe);
+}
+.ac-card > details > summary,
+.ac-disclosure > summary {
+  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+.ac-card > details > summary:hover,
+.ac-disclosure > summary:hover { background-color: #147d6806; color: var(--color-signal); }
+.ac-card > details[open] > summary,
+.ac-disclosure[open] > summary { background-color: #147d6809; color: var(--color-signal); }
+.ac-card > details > summary::marker,
+.ac-disclosure > summary::marker { color: var(--color-signal); }
+
+.ac-field:hover:not(:focus, :disabled) { border-color: #9cb7b4; }
+.ac-field:disabled { background: var(--color-sunken); }
+.ac-field:focus-visible { outline: 2px solid var(--color-signal); outline-offset: 2px; }
+.ac-btn-ghost:disabled { opacity: .45; cursor: not-allowed; }
+.ac-shell-main :where(table) thead { background-color: #eff5f7; color: var(--color-ink-2); }
+.ac-shell-main :where(table) tbody tr:hover { background-color: #f4faf7; }
+.ac-shell-main :where(progress) { appearance: none; border: 0; border-radius: 999px; background: var(--color-sunken); accent-color: var(--color-signal); }
+.ac-shell-main progress::-webkit-progress-bar { border-radius: 999px; background: var(--color-sunken); }
+.ac-shell-main progress::-webkit-progress-value { border-radius: 999px; background: linear-gradient(90deg,var(--color-signal),#3ca889); }
+.ac-shell-main progress::-moz-progress-bar { border-radius: 999px; background: linear-gradient(90deg,var(--color-signal),#3ca889); }
+[data-tour="stage-progress"] { border-radius: var(--radius-panel); box-shadow: var(--shadow-panel); }
+
+.ac-disclosure, .ac-live-panel, .ac-tech-tree, .ac-tech-inspector { box-shadow: var(--shadow-panel); }
+.ac-tech-viewport { background-color: #f1f6f8; background-image: radial-gradient(#cad9dd 1px,transparent 1px); }
+.ac-tech-node { border-color: #cddde1; border-left-color: var(--color-signal); box-shadow: 0 3px 10px #1d35390b; }
+.ac-tech-node.is-selected { border-color: var(--color-signal); box-shadow: 0 0 0 3px #147d681c; }
+.ac-tech-node.is-group { background-color: #eaf0f3; border-left-color: #a2aea7; }
+.ac-tech-node.is-completed { background: linear-gradient(135deg,#d9f3df,#e6f7eb); border-color: #63ad78; border-left-color: #278044; }
+.ac-tech-node.is-dragging { box-shadow: 0 14px 30px #203c3a30; }
+.ac-task-dialog, .ac-tech-delete-dialog { box-shadow: var(--shadow-pop); }
+.ac-task-dialog::backdrop { background: #18343f66; backdrop-filter: blur(4px); }
