@@ -6,6 +6,8 @@ import {
   blockers,
   tasks,
   users,
+  projects,
+  teamMembers,
   type BlockerReason,
   type BlockerStatus,
 } from "@/db/schema";
@@ -246,6 +248,21 @@ export async function listProjectBlockers(
     .orderBy(desc(blockers.createdAt));
 
   return rows.map((r) => ({ ...r, createdAtMs: Number(r.createdAtMs) }));
+}
+
+/** Collaboration includes one's own requests, so a project-board deep link always has a destination. */
+export async function listCollaborationHelp(actorId: string, projectId?: string) {
+  const rows = await db.select({ ...SELECTION, projectName: projects.name, ageHours: AGE_HOURS,
+    createdAtMs: sql<number>`extract(epoch from ${blockers.createdAt}) * 1000` })
+    .from(blockers)
+    .innerJoin(projects, eq(projects.id, blockers.projectId))
+    .innerJoin(teamMembers, and(eq(teamMembers.teamId, projects.teamId), eq(teamMembers.userId, actorId)))
+    .leftJoin(tasks, and(eq(tasks.id, blockers.taskId), eq(tasks.projectId, projects.id)))
+    .leftJoin(users, eq(users.id, blockers.raisedById))
+    .leftJoin(resolver, eq(resolver.id, blockers.resolvedById))
+    .where(and(eq(blockers.status, "open"), projectId ? eq(projects.id, projectId) : undefined))
+    .orderBy(desc(blockers.createdAt));
+  return rows.map(row => ({ ...row, createdAtMs: Number(row.createdAtMs) }));
 }
 
 // 跨项目：所有未解决、且我有权看到的求助，按悬置时长倒序（最久的排最前）。
