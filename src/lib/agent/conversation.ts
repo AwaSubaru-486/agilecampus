@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   conversations,
@@ -166,8 +166,13 @@ export async function persistTurn(
   toolTrace: ToolTraceEntry[],
   authorId?: string,
   contextPackId?: string,
+  expectedVisibility?: ConversationVisibility,
 ) {
   return db.transaction(async (tx) => {
+    // Serialize message timestamps across simultaneous replies in a shared conversation.
+    const [locked] = await tx.select({ id: conversations.id, visibility: conversations.visibility }).from(conversations).where(eq(conversations.id, conversationId)).for("update");
+    if (!locked) throw new AppError("会话不存在");
+    if (expectedVisibility && locked.visibility !== expectedVisibility) throw new AppError("会话可见范围已改变，请重新发送");
     const [lastMessage] = await tx
       .select({ createdAt: messages.createdAt })
       .from(messages)
@@ -206,6 +211,15 @@ export async function persistTurn(
       .where(eq(conversations.id, conversationId));
     return { userMessage: inserted[0], assistantMessage: inserted[1] };
   });
+}
+
+/** AI needs a bounded tail; the user-facing history API still returns the full conversation. */
+export async function listRecentConversationMessages(actorId: string, conversationId: string) {
+  await getConversationForUser(actorId, conversationId);
+  const tail = await db.select({ role: messages.role, content: messages.content }).from(messages)
+    .where(and(eq(messages.conversationId, conversationId), inArray(messages.role, ["user", "assistant"])))
+    .orderBy(desc(messages.createdAt), desc(messages.id)).limit(41);
+  return tail.reverse();
 }
 
 export async function listConversationMessages(actorId: string, conversationId: string) {
@@ -255,7 +269,7 @@ export async function forkConversation(
         taskId: source.taskId,
         parentConversationId: source.id,
         forkedFromMessageId: throughMessageId,
-        visibility: input.visibility ?? "project",
+        visibility: input.visibility ?? source.visibility,
         title,
       })
       .returning();

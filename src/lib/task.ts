@@ -457,6 +457,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       milestoneId: tasks.milestoneId,
       parentTaskId: tasks.parentTaskId,
       isTaskGroup: tasks.isTaskGroup,
+      stageId: tasks.stageId,
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,

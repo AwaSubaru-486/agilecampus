@@ -3,12 +3,13 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { runAgentTurn } from "@/lib/agent/orchestrator";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { MAX_CHAT_INPUT_CHARS, ChatTimeoutError, ChatCanceledError } from "@/lib/agent/chat-context";
 
 const schema = z.object({
   projectId: z.uuid(),
   conversationId: z.uuid().optional(),
   contextPackId: z.uuid().optional(),
-  userText: z.string().trim().min(1, "请输入内容"),
+  userText: z.string().trim().min(1, "请输入内容").max(MAX_CHAT_INPUT_CHARS, "消息过长，请缩短后再发送"),
 });
 
 export async function POST(req: Request) {
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
       conversationId: parsed.data.conversationId,
       contextPackId: parsed.data.contextPackId,
       userText: parsed.data.userText,
+      abortSignal: req.signal,
     });
     return NextResponse.json({
       conversationId: result.conversationId,
@@ -38,6 +40,8 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return NextResponse.json({ error: "没有权限" }, { status: 403 });
+    if (e instanceof ChatTimeoutError) return NextResponse.json({ error: e.message }, { status: 504 });
+    if (e instanceof ChatCanceledError) return NextResponse.json({ error: e.message }, { status: 408 });
     if (e instanceof AppError) return NextResponse.json({ error: e.message }, { status: 400 });
     // 未预期错误（含 DeepSeek 超时/失败）：服务端留痕，对客户端只呈通用消息，不暴露内部细节
     console.error("[/api/chat] runAgentTurn 失败:", e);
