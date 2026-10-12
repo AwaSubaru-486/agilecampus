@@ -28,6 +28,7 @@ import { HandoffEditor } from "./handoff-editor";
 import { TaskRecheckForm } from "../_shared/task-recheck-form";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
+import { ExtensionEntry, TaskMaterialBinding, TaskMemoryEntry } from "./task-material-controls";
 import {
   RequiredEvidenceFields,
   missingRequiredEvidenceTypes,
@@ -352,6 +353,7 @@ export function TaskContractPanel({
           ) : (
             <Empty text="尚未绑定交接资料" />
           )}
+          <TaskMaterialBinding key={task.id + ":" + (task.contextPackId ?? "")} projectId={projectId} task={task} canWrite={canWrite} />
         </Section>
 
         {/* 认领与接手状态 */}
@@ -646,14 +648,15 @@ export function TaskContractPanel({
             </div>
           ) : (
             <p className="text-xs text-ink-3">
-              暂无并行尝试记录。在 VS Code
-              插件中接收交接后，即可创建主线或并行分支尝试并回传执行回执。
+              暂无已登记到平台的接续回执。
             </p>
           )}
+          <ExtensionEntry parallel />
         </Section>
 
         {/* 有效项目记忆（B05） */}
         <Section label="有效项目记忆">
+          <TaskMemoryEntry key={task.id} projectId={projectId} taskId={task.id} canAdd={canWrite || canReview} />
           {task.memories && task.memories.length > 0 ? (
             <div className="space-y-2">
               {task.memories.map((mem) => (
@@ -714,19 +717,18 @@ export function TaskContractPanel({
           </summary>
           <div className="border-t border-stroke px-3 py-2.5 space-y-2 text-ink-2 leading-relaxed">
             <p>
-              <strong className="text-ink">共享契约状态：</strong>
-              E09 契约已签署，支持通过 VS Code
-              插件登记小体积检查点索引、发起点对点交接并执行基线预检（Preflight）。
+              在 VS Code 插件中发布检查点、选择接收成员，并检查代码基线和工作区状态。
             </p>
             <p>
               <strong className="text-ink">接续流转机制：</strong>
-              发起交接 → 接收人运行预检（校验 Git 基线与工作区状态）→
-              接收后自动创建 Attempt 执行回执 → 并行尝试结果实时聚合回传。
+              发起交接 → 接收人核对 Git 基线与工作区状态 →
+              登记接续尝试和测试结果 → 由组长或教师审核。
             </p>
             <p className="text-ink-3">
               提示：Handoff
               接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
             </p>
+            <ExtensionEntry />
           </div>
         </details>
       </div>
@@ -753,7 +755,7 @@ function Section({
   ) {
     return (
       <details className="ac-disclosure">
-        <summary>{label}</summary>
+        <summary>{label}<span className="float-right ml-3 text-xs font-normal text-ink-3">{label === "交接资料" ? "查看 / 绑定" : label === "有效项目记忆" ? "查看 / 添加" : label === "会话与分支" ? "打开会话" : label === "并行接续尝试" ? "查看 / 配置" : ""}</span></summary>
         <div className="ac-disclosure-body">{children}</div>
       </details>
     );

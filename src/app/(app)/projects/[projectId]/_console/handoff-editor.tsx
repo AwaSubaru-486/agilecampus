@@ -228,8 +228,7 @@ export function HandoffEditor({
           <label htmlFor="contextPackId" className="block text-xs font-medium text-ink-2">
             绑定交接资料包
           </label>
-          {availablePacks.length > 0 ? (
-            <select
+          <select
               id="contextPackId"
               name="contextPackId"
               defaultValue={selectedTask.contextPackId ?? ""}
@@ -246,17 +245,8 @@ export function HandoffEditor({
                   {selectedTask.contextTitle ?? "当前已绑定资料包"}
                 </option>
               )}
-            </select>
-          ) : (
-            <input
-              type="text"
-              id="contextPackId"
-              name="contextPackId"
-              defaultValue={selectedTask.contextPackId ?? ""}
-              placeholder="暂无冻结包，可输入资料包 UUID"
-              className="ac-field mt-1 text-xs font-mono"
-            />
-          )}
+          </select>
+          {availablePacks.length === 0 && <p className="mt-1 text-[11px] text-ink-3">暂无冻结资料包。关闭编辑后，可在“交接资料”中创建并绑定。</p>}
         </div>
       </div>
 

@@ -259,7 +259,7 @@ export async function updateTask(
           doneCriteria: (patch.doneCriteria ?? task.doneCriteria) as string[] | null,
           requiredEvidence: (patch.requiredEvidence ?? task.requiredEvidence) as HandoffFields["requiredEvidence"],
           responseDueAt: patch.responseDueAt ?? task.responseDueAt,
-          contextPackId: patch.contextPackId ?? task.contextPackId,
+          contextPackId: patch.contextPackId !== undefined ? patch.contextPackId : task.contextPackId,
         })
       : null;
   const sameHandoffValue = (a: unknown, b: unknown) =>

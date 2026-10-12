@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { LoadingProgress } from "@/components/loading-progress";
 
 type SourceType = "project" | "task" | "milestone" | "conversation";
 type Option = { id: string; name: string };
@@ -168,6 +169,7 @@ export function ContextPackBuilder({
         </div>
       </div>
 
+      {loading && <LoadingProgress label="正在整理交接资料…" />}
       {message && <p role="status" className="text-xs leading-5 text-ink-2">{message}</p>}
     </div>
   );
