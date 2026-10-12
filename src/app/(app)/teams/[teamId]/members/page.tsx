@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -30,7 +30,7 @@ export default async function MembersPage({
   // 它有合成的 @agents.local 邮箱、没有密码，列在这里只会让人困惑。
   // 它另有一页。
   const members = await db
-    .select({ userId: users.id, name: users.name, email: users.email, role: teamMembers.role })
+    .select({ userId: users.id, name: users.name, email: users.email, role: teamMembers.role, hasLogin: sql<boolean>`${users.passwordHash} is not null or ${users.feishuOpenId} is not null` })
     .from(teamMembers)
     .innerJoin(users, eq(teamMembers.userId, users.id))
     .where(and(eq(teamMembers.teamId, teamId), eq(users.kind, "human")));
@@ -49,7 +49,7 @@ export default async function MembersPage({
         {members.map((m) => (
           <li key={m.userId} className="ac-card flex items-center justify-between p-4">
             <span className="text-ink">
-              {m.name} <span className="text-xs text-ink-soft">{m.email}</span>
+              {m.name} <span className="text-xs text-ink-soft">{m.hasLogin ? m.email : "成员档案"}</span>
             </span>
             {isAdmin && m.userId !== session.user.id ? (
               <form action={updateRoleAction} className="flex items-center gap-2">
@@ -57,14 +57,14 @@ export default async function MembersPage({
                 <input type="hidden" name="userId" value={m.userId} />
                 {/* key=role：角色变更后强制重挂载，使 defaultValue 重新采纳（非受控 select 不更新已挂载节点） */}
                 <select key={m.role} name="role" defaultValue={m.role} className="ac-field w-auto py-1 text-sm">
-                  <option value="admin">admin</option>
-                  <option value="teacher">teacher</option>
-                  <option value="student">student</option>
+                  <option value="admin">组长</option>
+                  <option value="teacher">老师</option>
+                  <option value="student">组员</option>
                 </select>
                 <button className="ac-btn px-2 py-1 text-xs">保存</button>
               </form>
             ) : (
-              <span className="text-sm text-ink-soft">{m.role}</span>
+              <span className="text-sm text-ink-soft">{{ admin: "组长", teacher: "老师", student: "组员" }[m.role]}</span>
             )}
           </li>
         ))}

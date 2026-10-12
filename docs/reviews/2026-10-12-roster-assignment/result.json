@@ -1,0 +1,768 @@
+{
+  "teamName": "汪汪队",
+  "projectName": "敏捷开发平台",
+  "teamId": "ffe88690-3f16-4aa3-8c55-184ca4f6ebae",
+  "projectId": "f82b8973-200a-4cb3-9a08-00773eebd8f5",
+  "members": [
+    {
+      "name": "鱼乐",
+      "role": "student",
+      "id": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "created": true
+    },
+    {
+      "name": "哈哈哈",
+      "role": "student",
+      "id": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "created": true
+    },
+    {
+      "name": "聂翔",
+      "role": "student",
+      "id": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "created": true
+    },
+    {
+      "name": "郭诗辉",
+      "role": "teacher",
+      "id": "207d735e-b79d-4d2a-89bf-d65de9a6c17d",
+      "created": true
+    }
+  ],
+  "counts": [
+    {
+      "name": "鱼乐",
+      "count": 14
+    },
+    {
+      "name": "哈哈哈",
+      "count": 14
+    },
+    {
+      "name": "聂翔",
+      "count": 14
+    }
+  ],
+  "stages": [
+    {
+      "title": "阶段一：需求澄清与架构基线",
+      "counts": [
+        {
+          "name": "鱼乐",
+          "count": 3
+        },
+        {
+          "name": "哈哈哈",
+          "count": 3
+        },
+        {
+          "name": "聂翔",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "title": "阶段二：工程基础设施与账户体系",
+      "counts": [
+        {
+          "name": "鱼乐",
+          "count": 3
+        },
+        {
+          "name": "哈哈哈",
+          "count": 3
+        },
+        {
+          "name": "聂翔",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "title": "阶段三：核心业务增量（项目、工作项与迭代）",
+      "counts": [
+        {
+          "name": "鱼乐",
+          "count": 3
+        },
+        {
+          "name": "哈哈哈",
+          "count": 3
+        },
+        {
+          "name": "聂翔",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "title": "阶段四：协作、度量与体验完善",
+      "counts": [
+        {
+          "name": "鱼乐",
+          "count": 3
+        },
+        {
+          "name": "哈哈哈",
+          "count": 3
+        },
+        {
+          "name": "聂翔",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "title": "阶段五：验收、发布与运营",
+      "counts": [
+        {
+          "name": "鱼乐",
+          "count": 2
+        },
+        {
+          "name": "哈哈哈",
+          "count": 2
+        },
+        {
+          "name": "聂翔",
+          "count": 3
+        }
+      ]
+    }
+  ],
+  "assignmentEvents": 42,
+  "otherProjectsUnchanged": true,
+  "loginEnabled": false,
+  "tasks": [
+    {
+      "id": "2d3237dc-78c4-4f9f-b2f7-2d182f8ceef0",
+      "title": "用户手册与管理员文档",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "1aeeed99-d18f-489a-b20f-82e9b660a3d7",
+      "title": "用户角色与核心场景梳理",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "5475da5d-e503-476d-a592-f81220cb5bf8",
+      "title": "项目范围与目标定义",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "b638d47e-b1f9-4428-b460-722b1ddcedd5",
+      "title": "产品待办列表初稿与优先级排序",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "f39935a6-23c6-4015-984c-307cd80431ae",
+      "title": "非功能需求清单",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "eefc5bee-adb0-4efc-8e08-d948d4ebc18e",
+      "title": "技术选型与架构决策记录",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "38203b27-cd58-430a-819d-9868889a44de",
+      "title": "领域模型与数据模型设计",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "9a32cb03-886d-4b88-8ca0-8ee009806968",
+      "title": "迭代里程碑与发布计划",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "d34c27be-0c49-4ca8-ba14-4be502ac5813",
+      "title": "完成定义（DoD）与工程规范",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "85f0cc83-fc13-4472-a064-92eec878e86a",
+      "title": "阶段一评审与基线冻结",
+      "stageId": "215e0d01-515e-467c-81b0-cd0a7af2375f",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "adf8b12f-21d4-45c4-872a-ab2fc8a6cfdd",
+      "title": "代码仓库与分支策略落地",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "2ebb3078-b108-49bf-894e-c4a378906730",
+      "title": "后端服务脚手架与配置管理",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "26895698-19d5-4f80-a4a9-6b74d97902b9",
+      "title": "前端工程脚手架与基础布局",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "38e65329-cfa2-495b-81ce-880638fb927e",
+      "title": "数据库迁移框架与基础表结构",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "f8d56eb9-b561-42b5-a2ad-2ad495facee6",
+      "title": "CI 流水线与质量门禁",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "56cf6334-2b1e-4139-88d0-92fd0572a3f5",
+      "title": "账号认证能力落地",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "daca9125-a53b-4093-8713-83ad7aaafdb9",
+      "title": "权限模型与角色管理",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "b220a151-758e-40d2-9109-e48cc5744cbc",
+      "title": "日志、监控与错误上报接入",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "62bf6bd6-0476-4bdb-90f0-18b8f31bd699",
+      "title": "阶段二集成验证与环境可用性确认",
+      "stageId": "9db1f114-a87c-4fab-a304-795a7511b2aa",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "f0c9b6c6-42fa-4727-b314-226fb9fa5ee6",
+      "title": "项目与团队成员管理",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "b3668bd9-b6ba-4143-a85d-dc4220927915",
+      "title": "工作项模型与增删改查",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "a534af6d-f52f-466c-8746-7e4ca9a3b93b",
+      "title": "工作项状态机与流转规则",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "0a20dcab-f2a3-4f05-a2bf-7118c9ecf3eb",
+      "title": "产品待办列表与优先级排序",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "04921cfb-0807-4019-b221-f68ca71e3a23",
+      "title": "迭代（Sprint）创建与范围管理",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "7f0cd5d1-85b4-4503-a0b4-500fe2022c2c",
+      "title": "看板视图与拖拽流转",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "53c25997-ebca-4849-b2e6-ac71d3372395",
+      "title": "核心接口自动化测试",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "aa75af97-47b0-4f3f-83c2-2cd7c639c7a2",
+      "title": "阶段三集成审核与可演示增量确认",
+      "stageId": "d50e240b-6b8d-4517-909c-e7dd3b1a69bb",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "3445a1e2-97c1-42c8-abb1-9309f4b1cb69",
+      "title": "评论、@提醒与活动流",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "74eb6d4e-10e3-4b2f-8699-a15d18138558",
+      "title": "站内通知与邮件通知",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "f2dcf1b4-3088-4a18-9ca5-62c79b6aeaea",
+      "title": "附件上传与文件管理",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "5fb04fc9-6cf6-44cb-8001-ad5729ec149b",
+      "title": "燃尽图与迭代报告",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "db83b3e0-372c-48b7-95ea-02a9ab1b7092",
+      "title": "全局搜索与筛选",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "ad3ed5c9-a8b9-4ef9-aa48-c4e92c4fdaf2",
+      "title": "项目级权限细化与审计日志",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "ed489a8c-cac8-432a-8d1a-f41684ea2945",
+      "title": "前端交互与响应式体验优化",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "509f215b-6c5c-4069-a05e-4fea2e4cccb9",
+      "title": "关键路径性能优化",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "74824607-e47e-45c4-ae2a-70914a91c573",
+      "title": "阶段四集成审核",
+      "stageId": "fe19f546-f768-4e0b-80f7-34cdfbc6e0e7",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "2ac453c0-61b8-4e3a-b74f-8a3ef7ffd9a7",
+      "title": "端到端验收测试用例与执行",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "e5521389-eef8-429f-87da-05b6143f4089",
+      "title": "安全测试与修复",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "7034bd40-d35b-42e8-ae68-f6196fd45365",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "e1889689-e054-4359-b3c5-3d18534eecc2",
+      "title": "生产环境部署与发布流程",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "5c02152b-27bb-4056-97ae-6dd951389cc7",
+      "title": "数据初始化与迁移演练",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "0db119ac-63d7-47c8-b632-a86500a3e0f4",
+      "title": "上线监控告警与回滚预案",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "28350558-9b9e-4308-ac4f-e8851239904c",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    },
+    {
+      "id": "60f8e27d-3ee2-4fd2-829b-fcb79e9d9ffb",
+      "title": "验收评审与交付确认",
+      "stageId": "9c66b309-b267-4345-9b99-98c5b7745cf9",
+      "assigneeId": "719435d8-85bb-4557-b5b9-fb62e21caaa7",
+      "status": "todo",
+      "committedAt": null,
+      "committedHandoffVersion": null,
+      "commitmentNote": null,
+      "estimatedHours": null,
+      "declineReason": null,
+      "declinedAt": null,
+      "declinedById": null,
+      "updatedAt": "2026-10-12T10:40:28.795Z"
+    }
+  ]
+}
