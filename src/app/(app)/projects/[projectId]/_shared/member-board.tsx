@@ -23,13 +23,11 @@ export async function MemberBoard({ actorId, projectId }: { actorId: string; pro
         </div></details>)}
         {!groups.length && <p className="p-6 text-sm text-ink-3">组长分配任务后，会按阶段显示在这里。</p>}
       </section>
-      <aside data-tour="board-help-tasks" className="ac-card overflow-hidden"><header className="border-b border-stroke p-4"><h3 className="font-semibold">协作中心</h3><p className="mt-1 text-xs text-ink-3">需要帮助的任务，点击后到协作中心处理求助。</p></header>
-        {taskHelp.length ? <ul className="divide-y divide-stroke">{taskHelp.map(group => <li key={group.anchor}>
-          <Link className="block p-4 hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal" href={collaborationHelpHref(group.requests[0])}>
-            <p className="font-medium text-ink">{group.title}</p>
-            <p className="mt-2 text-xs text-ink-3">{[...new Set(group.requests.map(item => item.raisedByName ?? "项目成员"))].join("、")}需要帮助{group.requests.length > 1 ? `，${group.requests.length} 条求助` : ""}</p>
-            <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-6 text-ink-2">{group.requests[0].helpNeeded ?? group.requests[0].detail ?? "点击查看求助详情"}</p>
-            <span className="mt-3 inline-block text-xs text-signal">去协作中心处理 →</span>
+      <aside data-tour="board-help-tasks" className="ac-card overflow-hidden"><header className="border-b border-stroke p-4"><h3 className="font-semibold">协作中心</h3></header>
+        {taskHelp.length ? <ul className="space-y-3 p-4">{taskHelp.map(group => <li key={group.anchor}>
+          <Link className="group block rounded-xl border border-signal/15 bg-gradient-to-br from-signal-soft/60 to-panel p-5 transition-[border-color,background-color,box-shadow] duration-200 hover:border-signal/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 motion-reduce:transition-none" href={collaborationHelpHref(group.requests[0])}>
+            <p className="break-words text-base font-semibold leading-7 text-ink group-hover:text-signal">{group.title}</p>
+            <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-ink-2"><span aria-hidden="true" className="mt-2 h-2 w-2 shrink-0 rounded-full bg-signal/60" /><span>{[...new Set(group.requests.map(item => item.raisedByName ?? "项目成员"))].join("、")}需要帮助</span></p>
           </Link>
         </li>)}</ul> : <p className="p-6 text-sm text-ink-3">当前没有需要帮助的任务。</p>}
         <Link className="block border-t border-stroke p-4 text-xs text-signal" href={`/collaboration?project=${projectId}#help`}>查看项目全部求助 →</Link>
