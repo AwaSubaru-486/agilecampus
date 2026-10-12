@@ -9,6 +9,7 @@ export default function TutorialsPage() {
   const {
     projects,
     project,
+    showcase,
     courses,
     progress,
     pending,
@@ -20,7 +21,7 @@ export default function TutorialsPage() {
     project?.role === "admin"
       ? "组长"
       : project?.role === "teacher"
-        ? "导师"
+        ? "老师"
         : "组员";
   const groups = [...new Set(courses.slice(1).map((c) => c.category))];
   const [category, setCategory] = useState("任务流程");
@@ -45,34 +46,34 @@ export default function TutorialsPage() {
       <header className="ac-page-header flex flex-wrap items-end justify-between gap-6">
         <div>
           <h1>新手教程</h1>
-          <p>在原有页面创建示例项目，跟着高亮一步步熟悉功能。</p>
+          <p>跟着汪汪队的敏捷开发平台，认识从分工到交付的完整流程。</p>
         </div>
         {projects.length > 0 && (
           <label className="text-xs text-ink-3">
-            功能课程使用的项目，{roleName}
+            功能课程展示项目 · {roleName}
             <select
-              aria-label="教程练习项目"
+              aria-label="教程展示项目"
               className="ac-field mt-2 block max-w-full sm:w-64"
               value={project?.id ?? ""}
               onChange={(e) => selectProject(e.target.value)}
             >
               <option value="" disabled>
-                选择练习项目
+                选择展示项目
               </option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {p.teamName ? `${p.teamName} · ` : ""}{p.name}（{p.taskTotal ?? 0} 项任务）
                 </option>
               ))}
             </select>
           </label>
         )}
       </header>
-      {!project && (
+      {!showcase && (
         <p className="mb-5 rounded-xl bg-signal-soft p-5 text-sm text-ink-2">
-          示例项目无需已有团队。想在真实项目中练习功能，可
+          当前账号尚未加入汪汪队，加入后即可查看展示导览。下方功能课程也可使用你有权限的其他项目。
           <Link href="/teams" className="ml-2 text-signal underline">
-            创建或加入团队
+            查看我的团队
           </Link>
           。
         </p>
@@ -82,32 +83,42 @@ export default function TutorialsPage() {
           {error}
         </p>
       )}
-      <section className="ac-tutorial-feature">
+      <section data-tour="tutorial-showcase" className="ac-tutorial-feature">
         <div className="ac-tutorial-symbol">
           <WorkspaceIcon name="tutorials" className="size-10" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-signal">
-            示例项目路线，
+            汪汪队 · 项目导览，
             {courses[0].steps.length} 个互动步骤
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-ink">
-            从零开始一个校园活动报名项目
+            用敏捷开发平台看懂团队协作
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">
-            先配置模型 API，再创建示例团队和项目。沿着连续任务树练习并行与汇合、增加任务和删除确认，预览三角色界面，再发布、认领与提交成果。全程留在原有页面。
+            从现有成员和任务出发，了解组长如何下派任务、组员如何交付、老师如何复核。查看按阶段折叠的任务列表，在时间线点开详情，再认识 AI 项目对话和成果记录。
           </p>
+          <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+            {[['01', '成员与分工', '先看角色，再看负责人'], ['02', '任务与时间线', '展开阶段，点开任务详情'], ['03', '协作与验收', '认识对话、交付和复核']].map(([number, title, detail]) => (
+              <div key={number} className="rounded-xl border border-stroke bg-panel p-4">
+                <span className="text-xs font-semibold text-signal">{number}</span>
+                <h3 className="mt-2 font-semibold text-ink">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-ink-3">{detail}</p>
+              </div>
+            ))}
+          </div>
+          {showcase && <p className="mt-4 text-xs text-ink-3">展示项目：{showcase.teamName} / {showcase.name}，共 {showcase.taskTotal ?? 0} 项任务，按你的真实角色安排教程。</p>}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               className="ac-btn"
-              disabled={pending}
+              disabled={pending || !showcase}
               onClick={() => void start("welcome")}
             >
-              {progress.journey?.teamId ? "重新创建示例项目 →" : "创建示例项目并开始 →"}
+              {pending ? "正在准备导览…" : progress.completed.includes("welcome") ? "重新查看项目导览 →" : "开始项目导览 →"}
             </button>
             {progress.journey?.teamId && (
               <p className="w-full text-xs text-ink-3">
-                重新开始会创建另一份练习团队和项目，已有练习记录会保留。继续上次教程可接着完成。草案编辑练习会从任务树重新定位，已保存的修改保留。
+                查看页面即可继续学习。教程进度会保存，随时暂停后可从上次的位置继续。
               </p>
             )}
             {progress.active && (

@@ -9,9 +9,11 @@ import type { TutorialCommand } from "@/lib/tutorials/progress";
 import { saveTutorialProgress } from "./actions";
 import { findTutorialTarget } from "@/lib/tutorials/target";
 import { welcomeResumeIndex } from "@/lib/tutorials/example-flow";
+import { findShowcaseProject } from "@/lib/tutorials/showcase";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 type TutorialContextValue = {
-  projects: TutorialProject[]; project: TutorialProject | null; courses: TutorialCourse[];
+  projects: TutorialProject[]; project: TutorialProject | null; showcase: TutorialProject | null; courses: TutorialCourse[];
   progress: TutorialProgress; pending: boolean; error: string;
   selectProject: (id: string) => void;
   start: (id: CourseId, resume?: boolean) => Promise<void>;
@@ -30,9 +32,10 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const router = useRouter();
   const pathname = usePathname();
   const [progress, setProgress] = useState(initialProgress);
+  const showcase = findShowcaseProject(projects);
   const [projectId, setProjectId] = useState(initialProgress.active && initialProgress.active.courseId !== "welcome" && (!initialProgress.active.projectId || projects.some((item) => item.id === initialProgress.active?.projectId))
     ? initialProgress.active.projectId ?? ""
-    : pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? projects[0]?.id ?? "");
+    : showcase?.id ?? pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? projects[0]?.id ?? "");
   const project = projects.find((item) => item.id === projectId) ?? null;
   const courses = useMemo(() => buildTutorialCourses(project, progress.journey), [project, progress.journey]);
   useEffect(() => { const frame = requestAnimationFrame(() => setProgress(initialProgress)); return () => cancelAnimationFrame(frame); }, [initialProgress]);
@@ -57,7 +60,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const card = useRef<HTMLDivElement>(null);
   const active = progress.active;
   const course = courses.find((item) => item.id === active?.courseId);
-  const allowed = course && (!course.needsProject || project) && (!course.roles || project && course.roles.includes(project.role))
+  const allowed = course && (course.id === "welcome" ? showcase : !course.needsProject || project) && (!course.roles || project && course.roles.includes(project.role))
     && (course.id === "welcome" || !active?.projectId || active.projectId === project?.id) && (active?.step ?? 0) < course.steps.length;
   const step = running && allowed && course ? course.steps[active?.step ?? 0] : null;
   const stepKey = step ? `${course?.id}:${active?.step}:${projectId}` : "";
@@ -93,7 +96,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
 
   async function start(id: CourseId, resume = false) {
     const saved = resume && progress.active?.courseId === id ? progress.active : null;
-    const selectedProject = id === "welcome" ? projects.find(item => item.id === (saved?.projectId ?? progress.journey?.projectId)) ?? null : saved ? projects.find((item) => item.id === saved.projectId) ?? null : project;
+    const selectedProject = id === "welcome" ? showcase : saved ? projects.find((item) => item.id === saved.projectId) ?? null : project;
     if (saved?.projectId && !selectedProject) {
       setError("上次练习的项目已不可访问。请选择当前项目，重新开始课程。"); return;
     }
@@ -101,9 +104,9 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     if (!selected || selected.needsProject && !selectedProject || selected.roles && (!selectedProject || !selected.roles.includes(selectedProject.role))) {
       setError("此课程需要可访问的项目和对应角色。请选择项目后重新开始。"); return;
     }
-    const index = saved ? id === "welcome" ? welcomeResumeIndex(saved.step) : Math.min(saved.step, selected.steps.length - 1) : 0;
+    const index = saved ? id === "welcome" ? welcomeResumeIndex(saved.step, progress.journey) : Math.min(saved.step, selected.steps.length - 1) : 0;
     if (await persist(id === "welcome" && !resume ? {type:"restart-example"} : { type: "save", courseId: id, step: index, projectId: id === "welcome" ? progress.journey?.projectId ?? null : selectedProject?.id ?? null })) {
-      if (id !== "welcome") setProjectId(selectedProject?.id ?? "");
+      setProjectId(selectedProject?.id ?? "");
       readyKey.current = "";
       setLocatedKey(""); setFulfilled(false); setMissing(false);
       window.dispatchEvent(new Event("agilecampus:tutorial-close-panels"));
@@ -163,7 +166,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       }
       const resolved = findTutorialTarget(document, stepTarget);
       const element = resolved.element;
-      if (stepAction === "result" && (element?.getAttribute(step?.completion ?? "data-tour-complete") === "true" || course?.id === "welcome" && ((step?.id === "team" && progress.journey?.teamId) || (step?.id === "project" && progress.journey?.projectId)))) {
+      if (stepAction === "result" && element?.getAttribute(step?.completion ?? "data-tour-complete") === "true") {
         setActionKey(stepKey); setFulfilled(true);
       }
       setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
@@ -274,19 +277,20 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     : rect && !hasSideSpace && below ? rect.top + rect.height + 16
     : Math.max(16, Math.min(rect?.top ?? 80, viewport.height - 340));
 
-  return <TutorialContext.Provider value={{ projects, project, courses, progress, pending, error, selectProject: setProjectId, start }}>
+  return <TutorialContext.Provider value={{ projects, project, showcase, courses, progress, pending, error, selectProject: setProjectId, start }}>
+    <NavigationProgress active={pending} label="正在保存教程进度…" />
     <div ref={app} data-tutorial-app inert={modal ? true : undefined}>{children}</div>
     {mounted && (modal || running) && createPortal(
       modal ? <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/65 p-4 backdrop-blur-sm">
         <div ref={card} role="dialog" aria-modal="true" aria-labelledby="tutorial-dialog-title" className="w-full max-w-lg rounded-2xl border border-stroke bg-panel p-6 shadow-2xl sm:p-8">
           <span className="text-xs font-semibold tracking-widest text-signal">AGILECAMPUS，互动教程</span>
-          <h2 id="tutorial-dialog-title" className="mt-3 text-2xl font-semibold text-ink">{finished ? `完成了：${finished}` : "一起做一个示例项目？"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "已经掌握这段流程。以后可以从侧栏“新手教程”单独练习任何功能。" : "先配置模型 API，再从校园活动报名页开始，亲手创建项目、生成并发布任务、认领与提交成果，再认识验收和迭代入口。每次完成操作后解锁下一步，可以随时暂停。"}</p>
-          {!finished && <p className="mt-3 rounded-lg bg-sunken p-3 text-xs leading-5 text-ink-3">引导会在现有页面创建实际的练习团队、项目与任务。新建教学项目的任务生成使用示例模板。验收与集成保留真实角色权限。</p>}
+          <h2 id="tutorial-dialog-title" className="mt-3 text-2xl font-semibold text-ink">{finished ? `完成了：${finished}` : "跟着汪汪队认识敏捷开发平台"}</h2>
+          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "以后可以从“新手教程”按功能继续学习，或重新查看展示项目。" : "从汪汪队现有的成员与任务出发，认识看板、时间线、三角色分工、AI 对话与成果验收。可以随时暂停，之后继续查看。"}</p>
+          {!finished && <p className="mt-3 rounded-lg bg-sunken p-3 text-xs leading-5 text-ink-3">{showcase ? "点击查看实际页面即可学习，认领、提交和审核留到真实工作时操作。" : "展示教程需要加入汪汪队。你也可以先进入教程目录，选择可访问项目学习其他功能。"}</p>}
           {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             {finished ? <button className="ac-btn" onClick={() => { setFinished(null); router.push("/tutorials"); }}>查看教程目录</button> : <>
-              <button className="ac-btn" disabled={pending} onClick={() => void start("welcome")}>{pending ? "保存中…" : "开始互动引导 →"}</button>
+              <button className="ac-btn" disabled={pending || !showcase} onClick={() => void start("welcome")}>{pending ? "保存中…" : "开始项目导览 →"}</button>
               <button className="ac-btn-ghost" disabled={pending} onClick={async () => { if (await persist({ type: "dismiss" })) setPrompt(false); }}>暂时跳过</button>
             </>}
           </div>
@@ -318,7 +322,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-2 bg-panel pt-2">
             <button className="ac-btn-ghost" disabled={pending || !active?.step} onClick={() => void advance(true)}>上一步</button>
-            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { if (course?.id === "welcome" && active && welcomeResumeIndex(active.step) !== active.step) { void persist({ type: "save", courseId: "welcome", step: welcomeResumeIndex(active.step), projectId: progress.journey?.projectId ?? null }); } else { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); } }}>{course?.id === "welcome" && active && welcomeResumeIndex(active.step) !== active.step ? "回到任务树继续练习" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
+            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { if (course?.id === "welcome" && active && welcomeResumeIndex(active.step, progress.journey) !== active.step) { void persist({ type: "save", courseId: "welcome", step: welcomeResumeIndex(active.step, progress.journey), projectId: progress.journey?.projectId ?? null }); } else { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); } }}>{course?.id === "welcome" && active && welcomeResumeIndex(active.step, progress.journey) !== active.step ? "重新打开任务详情" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
           </div>
         </div>
       </div>, portalRoot ?? document.body)}

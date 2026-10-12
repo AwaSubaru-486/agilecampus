@@ -28,7 +28,7 @@ export async function ProjectRoleHome({ actorId, projectId, role }: { actorId: s
     : role === "teacher" ? [["已完成成果", review.length], ["集成待审核", integrations.length], ["成员求助", blockers.length]]
     : [["待分配", unassigned.length], ["成员阻塞", blockers.length], ["成果待验收", review.length]];
   return (
-    <section data-role-workspace={role} className="space-y-8">
+    <section data-tour="project-home" data-role-workspace={role} className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div><p className="text-xs font-medium text-signal">{current.name}工作区</p><h2 className="mt-2 text-2xl font-semibold text-ink">{current.title}</h2><p className="mt-2 text-sm leading-6 text-ink-3">{current.description}</p></div>
         <Link className="ac-btn" href={role === "admin" ? `${base}/task-tree?plan=1#planning` : `${base}?space=work&panel=list`}>{role === "admin" ? tree.stages.length ? "规划下一轮" : "规划第一轮" : role === "teacher" ? "进入成果验收" : "进入我的任务"}</Link>

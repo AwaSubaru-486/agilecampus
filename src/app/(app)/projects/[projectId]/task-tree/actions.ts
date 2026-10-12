@@ -55,7 +55,7 @@ export async function generateTreeAction(_state: TreeActionState, formData: Form
   try {
     const actorId=await actor();
     const progress=await getTutorialProgress(actorId);
-    if(progress.journey?.projectId===projectId) await generateTutorialTaskTreeDraft(actorId,projectId,content);
+    if(progress.journey?.version===5 && progress.journey.projectId===projectId) await generateTutorialTaskTreeDraft(actorId,projectId,content);
     else await generateTaskTreeDraft(actorId, projectId, content);
     revalidatePath(`/projects/${projectId}/task-tree`);
     return { success: "草案已生成，请确认后发布" };

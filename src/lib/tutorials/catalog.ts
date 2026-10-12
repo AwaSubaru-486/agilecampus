@@ -1,6 +1,6 @@
 import { buildWelcomeSteps, EMPTY_JOURNEY, type TutorialJourney } from "./example-flow";
 export type TutorialRole = "admin" | "student" | "teacher";
-export type TutorialProject = { id: string; name: string; teamId: string; role: TutorialRole };
+export type TutorialProject = { id: string; name: string; teamId: string; teamName?: string; taskTotal?: number; role: TutorialRole };
 export type TutorialProgress = {
   journey?: TutorialJourney;
   example?: {version:1;phase:number;values:Record<string,string>;events:{phase:number;title:string;at:string}[]};
@@ -51,7 +51,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("contract", "查看交接与交付", "在高亮执行台里找到负责人、完成条件和证据要求；提交成果会进入待验收，由人审核。", work, "execution-console"),
       step("delivery", "登记交付材料", "点击任务节点打开详情，有执行权限时可在弹窗登记交付分支；锁定阶段要等前一阶段通过。", `${base}/timeline`, "timeline-node", "click"),
     ] },
-    { id: "review", title: "任务验收与导师评审", category: "任务流程", needsProject: true, roles: ["admin", "teacher"], description: "检查成果，通过或填写原因退回。", steps: [
+    { id: "review", title: "任务验收与老师复核", category: "任务流程", needsProject: true, roles: ["admin", "teacher"], description: "组长验收提交成果，老师复核已完成任务并审核阶段集成。", steps: [
       step("review", project?.role === "teacher" ? "复核已完成任务" : "找到待验收任务", project?.role === "teacher" ? "成果验收只展示已完成任务，查看成果证据并填写复核意见。" : "在分工页查看待验收任务及成果证据，检查后通过或填写原因退回。", project?.role === "teacher" ? work : `${work}&scope=all`, "execution-console"),
       step("integration", "检查阶段集成", "这里显示集成分支、测试材料和审核记录。非提交者才会看到审核操作；退回必须填写原因。", `${work}&scope=all`, "stage-tasks"),
       ...(project?.role === "teacher" ? [step("evaluation", "打开导师评审", "点击导师评审按钮，查看评分与评语表单。教程只打开表单，不会替你提交评价。", work, "teacher-evaluation", "click"), step("evaluation-close", "退出评审练习", "点击关闭按钮返回项目。只有正式提交才会写入评分与评语。", work, "evaluation-close", "click")] : []),
@@ -107,8 +107,8 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"先配置模型 API，再创建团队与项目，在原有页面练习连续任务树、任务增删和角色切换，再发布、提交与迭代。",
-    steps:buildWelcomeSteps(journey),
+    id:"welcome",title:"跟着汪汪队认识敏捷开发平台",category:"推荐起点",needsProject:true,description:"以现有项目展示成员分工、阶段任务、时间线、三角色界面与成果验收。",
+    steps:buildWelcomeSteps(journey.projectId ? journey : project ? {version:6,teamId:project.teamId,projectId:project.id,role:project.role} : EMPTY_JOURNEY),
   };
   return [welcome, ...courses.map(course => course.id === "iterations" && project?.role === "student" ? { ...course, steps: course.steps.filter(step => !step.route.endsWith("/retrospective") && !step.route.endsWith("/activity")) } : course)];
 }

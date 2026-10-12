@@ -102,7 +102,7 @@ export async function generateTaskTreeDraft(
 export async function generateTutorialTaskTreeDraft(actorId:string,projectId:string,content:string) {
   await requireTreeAdmin(actorId,projectId);
   const progress=await getTutorialProgress(actorId);
-  if(progress.journey?.projectId!==projectId) throw new ForbiddenError();
+  if(progress.journey?.version!==5 || progress.journey.projectId!==projectId) throw new ForbiddenError();
   const briefText=content.trim();
   if(briefText.length<10 || briefText.length>20000) throw new AppError("项目说明需填写 10 至 20000 个字");
   const payload=taskTreePayloadSchema.parse({

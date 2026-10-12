@@ -1,60 +1,76 @@
-import type { TutorialStep } from "./catalog";
+import type { TutorialStep, TutorialRole } from "./catalog";
 
-export type TutorialJourney = {version:4|5;teamId:string|null;projectId:string|null;taskId?:string|null};
-export const EMPTY_JOURNEY: TutorialJourney = {version:5,teamId:null,projectId:null};
-export const LEGACY_WELCOME_IDS = ["api", "team", "roles", "project", "brief", "generate", "draft", "publish", "stages", "select", "claim", "submit", "review", "integration", "ai", "resource", "records", "iteration", "directory"];
+export type TutorialJourney = {
+  version: 4 | 5 | 6;
+  teamId: string | null;
+  projectId: string | null;
+  taskId?: string | null;
+  role?: TutorialRole;
+};
+export const EMPTY_JOURNEY: TutorialJourney = { version: 6, teamId: null, projectId: null };
+
 export function welcomeStepIndex(id: string) {
   const index = buildWelcomeSteps(EMPTY_JOURNEY).findIndex(step => step.id === id);
   if (index < 0) throw new Error(`Unknown tutorial step: ${id}`);
   return index;
 }
-// Expanded forms and unsaved edits do not survive leaving the planning page.
-export function welcomeResumeIndex(index: number) {
-  return index >= welcomeStepIndex("node") && index <= welcomeStepIndex("save")
-    ? welcomeStepIndex("draft") : index;
+
+// A native task dialog closes on reload; resume at its opening action.
+export function welcomeResumeIndex(index: number, journey: TutorialJourney = EMPTY_JOURNEY) {
+  const steps = buildWelcomeSteps(journey);
+  return ["timeline-detail", "timeline-close"].includes(steps[index]?.id)
+    ? steps.findIndex(step => step.id === "timeline-node") : index;
 }
 
-export function buildWelcomeSteps(journey:TutorialJourney):TutorialStep[] {
-  const team=journey.teamId ? `/teams/${journey.teamId}` : "/teams";
-  const base=journey.projectId ? `/projects/${journey.projectId}` : "/projects";
-  const planning=`${base}/task-tree?plan=1#planning`;
-  const work=`${base}?space=work${journey.taskId ? `&task=${journey.taskId}` : ""}`;
-  const step=(id:string,title:string,instruction:string,route:string,target:string,action:TutorialStep["action"]="explore",completion?:string):TutorialStep=>({id,title,instruction,route,target:`[data-tour="${target}"]`,action,completion});
+export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
+  const team = journey.teamId ? `/teams/${journey.teamId}` : "/teams";
+  const base = journey.projectId ? `/projects/${journey.projectId}` : "/projects";
+  const role = journey.role ?? "admin";
+  const work = `${base}?space=work${role === "admin" ? "&scope=all" : ""}`;
+  const detail = `${work}${journey.taskId ? `&task=${journey.taskId}` : ""}`;
+  const timeline = `${base}/timeline`;
+  const step = (id: string, title: string, instruction: string, route: string, target: string, action: TutorialStep["action"] = "explore", completion?: string): TutorialStep =>
+    ({ id, title, instruction, route, target: `[data-tour="${target}"]`, action, completion });
+
   return [
-    step("api","先配置模型 API","在真实配置页填写 API 地址、模型名称和 API Key，然后保存。已有个人或站点默认配置时可以继续；教程不会自动调用模型。","/settings/api","api-config","result"),
-    step("team","在我的团队创建示例团队","在原有创建表单填入“新手练习团队”并点击创建。它会保存在你的团队列表；教程不会改动已有团队。","/teams","team-create","result"),
-    step("roles","认识真实成员与三种分工","组长规划与分工，组员执行并交付，导师评审与验收。这里是实际成员管理页，可用邀请码邀请同伴；教程不会创建虚假成员或更改角色。",`${team}/members`,"team-members"),
-    step("project","在团队项目页创建项目","使用原有创建表单，项目名称建议“教学示例：校园活动报名页”，描述写清报名表单与必填校验的目标。创建后会出现在原项目列表。",`${team}/projects`,"project-create","result"),
-    step("brief","写下项目需求","在原有项目说明输入框填写：制作校园活动报名页，支持填写姓名与联系方式，缺少必填信息时提示错误，成功后显示回执。",planning,"task-brief","input"),
-    step("generate","从需求生成草案","点击这里的生成按钮。这个新建教学项目使用固定模板演示，不需要模型配置；正式项目仍调用你配置的模型。保存成功才继续。",planning,"planning-form","result"),
-    step("draft","沿着连续任务树看规划","所有阶段在同一张图里，从左往右推进。并行分支会汇合，阶段用竖向虚线分开。教学模板预设了演示连线；正式项目由 AI 分析并复核。",`${base}/task-tree?plan=1`,"draft-tree"),
-    step("node","打开一个任务节点","点击亮起的节点，下方会展开负责人、执行说明与验收标准。",`${base}/task-tree?plan=1`,"draft-node","click"),
-    step("details","检查任务与连接理由","在这里修订任务、负责人和验收标准，展开前置任务能看到连接理由。拖动节点上的手柄可调整分支；AI 重新安排与复核会真实调用已配置的模型，不必在练习中等待。",`${base}/task-tree?plan=1`,"draft-inspector"),
-    step("add","在当前任务后接入新任务","点击节点后方的加号，练习把一个补充任务接入分支。",`${base}/task-tree?plan=1`,"draft-add-selected","click"),
-    step("add-name","给补充任务起个名字","填写“验证重复报名提示”。AI 可以结合项目目标检查它是否适合接在这里，并完善标准；这次先手动完成练习。",`${base}/task-tree?plan=1`,"draft-new-name","input"),
-    step("add-criteria","写下可检查的完成标准","填写“重复报名时显示清晰提示，并保留已填写的信息”。标准要能通过结果或证据核对。",`${base}/task-tree?plan=1`,"draft-new-criteria","input"),
-    step("add-confirm","确认接入任务树","点击新增表单里的确认添加任务。节点出现后再继续，任务资料还需要保存。",`${base}/task-tree?plan=1`,"tutorial-draft-editor","result","data-tour-added"),
-    step("delete-open","认识节点前方的减号","点击刚添加节点前方的减号。这里只打开二次确认，不会立即删除。",`${base}/task-tree?plan=1`,"draft-delete-selected","click"),
-    step("delete-check","删除前检查影响范围","有后续任务时，可选择保留它们并接回前置，或一起删除，包括跨阶段的后续任务。练习中保留刚添加的任务，下一步点取消。",`${base}/task-tree?plan=1`,"draft-delete-dialog"),
-    step("delete-cancel","取消本次删除","点击取消，回到任务树。",`${base}/task-tree?plan=1`,"draft-delete-cancel","click"),
-    step("save","保存任务和编排","点击保存修改与编排。任务资料保存到项目，规划连线保存在当前浏览器；保存成功后才能发布。",`${base}/task-tree?plan=1`,"tutorial-draft-editor","result","data-tour-saved"),
-    step("publish","亲手确认并发布","在原有草案区域点击确认并发布。未保存的修改必须先保存。发布成功后，任务与阶段进入这个项目的真实执行列表。",`${base}/task-tree?plan=1`,"task-drafts","result"),
-    step("timeline","在时间线查看整条任务链","同一份已发布任务在这里连续展开。阶段按钮只定位图中位置，不拆开任务链；可以缩放和滚动。教学编排会从当前浏览器恢复。",`${base}/timeline`,"timeline-tree"),
-    step("timeline-node","查看已发布任务的要求","点击亮起的任务节点，查看负责人、状态与连接理由。",`${base}/timeline`,"timeline-node","click"),
-    step("timeline-detail","从树上回到实际任务","节点详情会显示验收标准，也提供打开执行任务的入口。这里只查看，稍后再接住任务。",`${base}/timeline`,"timeline-inspector"),
-    step("member-view","切换到组员视角","在亮起的查看视角中选择“组员（预览）”。观察首页和导航如何围绕个人交付展开；任务仍按你本人展示。",base,"project-view-switch","result","data-tour-member-view"),
-    step("teacher-view","切换到老师视角","选择“老师（预览）”，观察成果验收和集成审核入口。预览不更改成员角色，也不允许提交实际评审。",base,"project-view-switch","result","data-tour-teacher-view"),
-    step("leader-view","切回组长继续推进","选择“组长”恢复规划与管理功能。回到组长视角后，继续接住并提交练习任务。",base,"project-view-switch","result","data-tour-leader-view"),
-    step("stages","查看本轮与下一轮","当前阶段可执行，后一阶段显示未解锁。任务验收与阶段集成分别审核，前一阶段集成通过后才开放下一阶段。",`${base}/timeline`,"stage-progress"),
-    step("select","打开第一项执行任务","点击当前阶段的报名表单任务，进入原有执行台详情。这里会展示目标、完成标准、交接要求与动作入口。",`${work}&panel=list`,"console-task","click"),
-    step("claim","接住任务并确认计划","在亮起的任务详情找到认领区域，填写执行计划，再点击确认接住。组长也可承担执行任务；正式组员使用同样的入口。",work,"tutorial-task-detail","result","data-tour-claimed"),
-    step("submit","提交你的练习成果","在原有提交表单填写成果说明，例如“练习证据：已核对必填缺失与正常提交两种验收场景”。提交会进入待验收。此处是练习记录，请勿写成已实际完成代码。",work,"tutorial-task-detail","result","data-tour-submitted"),
-    step("review","认识验收入口与导师职责","现在查看待验收状态、证据和通过/退回入口。真实审核由有权限的组长或导师完成；不需要在教程里伪造导师审核，也不会替你自动通过。",work,"tutorial-task-detail"),
-    step("integration","查看交付分支与阶段集成","回到规划页，找到任务交付分支与阶段集成区域。任务全部验收且登记交付后，组长才能提交集成；另一位组长或导师审核。可以先认识流程，稍后与同伴完成。",`${work}&scope=all`,"stage-tasks"),
-    step("ai","找到任务关联的 AI 协作","这里是原有 Agent 协同室，查看会话与待确认事项。真实 AI 讨论需要配置模型；教程只带你认识入口和任务背景，不会自动发送消息。",`${base}?space=studio${journey.taskId ? `&task=${journey.taskId}` : ""}`,"ai-workspace"),
-    step("resource","查看团队共享资源","在原有资源页登记设备、场地或共享资料的使用情况。这里与刚创建的团队关联，避免资源入口与项目流程脱节。",`${team}/resources`,"resource-form"),
-    step("records","回看你刚才的过程","原有复盘页汇总这个项目的认领、提交和贡献。你已经在真实页面留下练习记录；导师验收与集成需要实际协作者继续完成。",`${base}/retrospective`,"retrospective"),
-    step("iteration","回到下一轮需求入口","打开原有规划表单，认识下一轮新增需求的入口，例如增加报名成功回执。新增阶段仍会等待上一阶段集成审核，网页不会自动合并代码。",planning,"planning-form"),
-    step("directory","以后按功能复习","侧栏的新手教程保留目录入口。选择这个新建项目后，可以单独复习生成任务、执行、评审、AI 与其他功能。","/tutorials","tutorial-directory"),
+    step("directory", "从汪汪队的项目开始", "这次以汪汪队的敏捷开发平台为展示项目。按真实页面认识成员、阶段和任务分工，点击查看即可继续。", "/tutorials", "tutorial-showcase"),
+    step("roles", "认识项目中的三种角色", "鱼乐、哈哈哈和聂翔是组员，负责各自任务；郭诗辉是老师，负责成果复核与集成审核；组长安排分工并推进项目。这里显示团队的当前成员档案。", `${team}/members`, "team-members"),
+    ...(role === "admin" ? [
+      step("leader-start", "进入组长工作区", "在查看视角中选择组长，先认识团队的真实分工；稍后再预览组员和老师界面。", base, "project-view-switch", "result", "data-tour-leader-view"),
+      step("assignments", "查看组长下派的任务", "分工页列出全项目任务。每个阶段默认折叠，展开后能核对任务和负责人；组长可在任务资料与管理中调整分工。", `${work}&panel=list`, "console-task-list"),
+    ] : []),
+    ...(role !== "teacher" ? [
+      step("board", "看板：我的任务与协作中心", "看板左侧按阶段展示我的任务，右侧显示谁需要什么帮助。没有分配给自己的任务时会显示空状态；组长可从分工查看组员的工作。", base, "member-board"),
+      step("task-list", "展开阶段查看任务", "我的任务只展示分配给自己的工作。阶段默认折叠；点击具体任务会打开对应的执行详情。", `${base}?space=work&panel=list`, "console-task-list"),
+      ...(journey.taskId ? [
+        step("select", "打开一项实际任务", "点击高亮任务查看执行要求。这里使用已分配的项目任务，只需查看即可学习交付流程。", `${detail}&panel=list`, "console-task", "click"),
+        step("delivery", "认识认领、交付与验收", "核对任务目标、负责人、完成条件和证据要求。组员确认接住后执行，提交成果进入待验收，再由有权限的人审核。查看后可直接继续。", detail, "tutorial-task-detail"),
+      ] : []),
+    ] : []),
+    step("stages", "只看当前阶段的验收进度", "上方显示当前阶段及该阶段已验收任务的比例。阶段全部任务验收并通过集成审核后，才开放下一阶段。", timeline, "stage-progress"),
+    step("timeline", "在一张任务树里看全项目", "下方是连续任务树，可以缩放、滚动并沿阶段查看任务。已完成的任务显示绿色；连线表示已经确认的前置关系。没有分析结果时先查看节点。", timeline, "timeline-tree"),
+    step("stage", "定位另一个阶段", "点击阶段按钮定位任务树中的阶段。这里只调整查看位置，不会改变阶段状态。", timeline, "timeline-stages", "click"),
+    step("timeline-node", "点开任务的小界面", "点击一个任务节点，在当前页面打开详情小界面。", timeline, "timeline-node", "click"),
+    step("timeline-detail", "查看任务目标与完成条件", "这里显示当前负责人的任务要求、状态与已登记成果。任务未完成时成果区域可能为空。", timeline, "timeline-inspector"),
+    step("timeline-close", "关闭详情回到任务树", "点击关闭，继续认识角色和协作入口。", timeline, "timeline-close", "click"),
+    ...(role === "admin" ? [
+      step("member-view", "预览组员的界面", "选择组员（预览）。组员拥有看板、我的任务、时间线和 AI 助手，成果与记录不显示。预览的我的任务仍按你本人展示。", base, "project-view-switch", "result", "data-tour-member-view"),
+      step("teacher-view", "预览老师的界面", "选择老师（预览）。老师只复核已完成任务，并在成果验收同一页面审核阶段集成。", base, "project-view-switch", "result", "data-tour-teacher-view"),
+      step("review", "成果验收与集成审核", "这里合并展示成果复核与集成审核。当前还没有已完成任务时，列表为空是正常状态；已有任务提交后先由组长验收，完成后供老师复核。", `${base}?space=work`, "execution-console"),
+      step("integration", "查看阶段集成材料", "组长提交阶段集成后，老师可检查分支、测试材料和审核记录。尚未提交时会显示空状态。", `${base}?space=work`, "stage-tasks"),
+      step("leader-view", "返回组长继续查看", "选择组长，恢复分工、项目推进台和成果与记录入口。", base, "project-view-switch", "result", "data-tour-leader-view"),
+      step("management", "项目推进台", "项目推进台帮助组长检查分工、阻塞和待验收事项，安排团队下一步工作。", `${base}?space=home&view=manage`, "project-home"),
+    ] : role === "teacher" ? [
+      step("review", "复核已完成任务", "成果验收只显示已完成任务。没有已完成任务时可先认识页面，等待组长验收后再复核成果与证据。", work, "execution-console"),
+      step("integration", "在同一页审核阶段集成", "这里显示组长提交的阶段集成材料。审核分支、测试记录和反馈；暂无提交时会显示空状态。", work, "stage-tasks"),
+    ] : []),
+    ...(role !== "teacher" ? [
+      step("ai", "AI 助手直接打开项目对话", "AI 助手展示项目对话与共享会话，可以围绕敏捷开发平台的需求、任务和验收标准讨论。先认识会话与上下文入口，需要讨论时再发送消息。", `${base}?space=studio&view=chat`, "ai-workspace"),
+    ] : []),
+    ...(role !== "student" ? [
+      step("records", "查看成果与记录", "组长和老师可以查看项目成果、证据与决策。这里展示实际记录；没有登记的材料会显示空状态。", `${base}?space=record`, "project-records"),
+      step("activity", "追溯任务分配与交付", "活动记录保存了任务分配、认领、提交和验收等动作，可用于查找过程和复盘。", `${base}/activity`, "activity"),
+    ] : []),
+    step("finish", "按功能继续学习", "主线已介绍项目中的角色、阶段与交付流程。下方目录可单独学习具体功能，默认使用同一个展示项目。", "/tutorials", "tutorial-directory"),
   ];
 }

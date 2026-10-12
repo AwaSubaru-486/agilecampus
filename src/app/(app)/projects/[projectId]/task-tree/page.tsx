@@ -19,7 +19,7 @@ export default async function TaskTreePage({ params, searchParams }: { params: P
   const role = await getProjectView(access.role, projectId);
   if (role !== "admin" || query.plan !== "1") redirect("/projects/" + projectId + "/timeline");
   const [tree, members, tutorialProgress] = await Promise.all([getTaskTree(session.user.id, projectId), listTeamMembers(access.project.teamId), getTutorialProgress(session.user.id)]);
-  const isTutorial = tutorialProgress.journey?.projectId === projectId;
+  const isTutorial = tutorialProgress.journey?.version === 5 && tutorialProgress.journey.projectId === projectId;
   const canManage = true;
   return (<div className="space-y-6"><header><h2 className="text-xl font-semibold text-ink">项目规划与分工</h2></header>
       {canManage && (
