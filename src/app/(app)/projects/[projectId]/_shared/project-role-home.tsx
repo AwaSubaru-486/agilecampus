@@ -6,7 +6,7 @@ import { listProjectBlockers } from "@/lib/blocker";
 import { PROJECT_ROLE_WORKSPACE } from "@/lib/project-role-workspace";
 import { statusLabel } from "@/lib/task-status";
 
-export async function ProjectRoleHome({ actorId, projectId, role }: { actorId: string; projectId: string; role: TeamRole }) {
+export async function ProjectRoleHome({ actorId, viewUserId = actorId, projectId, role }: { actorId: string; viewUserId?: string; projectId: string; role: TeamRole }) {
   const [tasks, tree, blockers] = await Promise.all([
     listProjectTasks(actorId, projectId), getTaskTree(actorId, projectId),
     listProjectBlockers(actorId, projectId, { status: ["open"] }),
@@ -14,10 +14,10 @@ export async function ProjectRoleHome({ actorId, projectId, role }: { actorId: s
   const base = `/projects/${projectId}`;
   const current = PROJECT_ROLE_WORKSPACE[role];
   const leaves = tasks.filter(task => !task.isTaskGroup);
-  const mine = leaves.filter(task => task.assigneeId === actorId && task.status !== "done");
-  const review = leaves.filter(task => (role === "teacher" ? task.status === "done" : task.status === "review") && (role === "admin" || task.assigneeId !== actorId));
+  const mine = leaves.filter(task => task.assigneeId === viewUserId && task.status !== "done");
+  const review = leaves.filter(task => (role === "teacher" ? task.status === "done" : task.status === "review") && (role === "admin" || task.assigneeId !== viewUserId));
   const unassigned = leaves.filter(task => !task.assigneeId && task.status !== "done");
-  const integrations = tree.integrations.filter(item => item.decision === "pending" && item.submittedById !== actorId);
+  const integrations = tree.integrations.filter(item => item.decision === "pending" && item.submittedById !== viewUserId);
   const activeStage = tree.stages.find(stage => stage.status === "active" || stage.status === "integrating");
   const focus = role === "student" ? mine : role === "teacher" ? review : unassigned;
   const title = role === "student" ? "需要我交付" : role === "teacher" ? "已完成成果复核" : "需要安排负责人";

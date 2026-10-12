@@ -5,12 +5,12 @@ import { groupTasksByStage } from "@/lib/project-stage-groups";
 import { statusLabel } from "@/lib/task-status";
 import { collaborationHelpHref, groupTaskHelp } from "@/lib/collaboration-help";
 
-export async function MemberBoard({ actorId, projectId }: { actorId: string; projectId: string }) {
+export async function MemberBoard({ actorId, viewUserId = actorId, projectId }: { actorId: string; viewUserId?: string; projectId: string }) {
   const [tree, blockers] = await Promise.all([
     getTaskTree(actorId, projectId),
     listProjectBlockers(actorId, projectId, { status: ["open"] }),
   ]);
-  const mine = tree.tasks.filter(task => !task.isTaskGroup && task.assigneeId === actorId);
+  const mine = tree.tasks.filter(task => !task.isTaskGroup && task.assigneeId === viewUserId);
   const groups = groupTasksByStage(tree.stages, mine);
   const base = `/projects/${projectId}`;
   const taskHelp = groupTaskHelp(blockers.filter(blocker => blocker.taskId && blocker.taskTitle));

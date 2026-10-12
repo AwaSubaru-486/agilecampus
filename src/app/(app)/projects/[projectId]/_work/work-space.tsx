@@ -23,6 +23,7 @@ import { StageIntegrationPanel } from "../_shared/stage-integration-panel";
 
 export async function WorkSpace({
   actorId,
+  viewUserId = actorId,
   projectId,
   teamId,
   role,
@@ -33,6 +34,7 @@ export async function WorkSpace({
   canAct = true,
 }: {
   actorId: string;
+  viewUserId?: string;
   projectId: string;
   teamId: string;
   role: "admin" | "teacher" | "student";
@@ -73,7 +75,7 @@ export async function WorkSpace({
       ]);
 
     const agentStatusById = Object.fromEntries(projectAgents.map((a) => [a.userId, a.status]));
-    const scopedTasks = normalized?.scope !== "all" ? projectTasks.filter(task => task.assigneeId === actorId) : projectTasks;
+    const scopedTasks = normalized?.scope !== "all" ? projectTasks.filter(task => task.assigneeId === viewUserId) : projectTasks;
     const visibleTasks = applyFilters(scopedTasks, filters, today());
     const members_ = members;
     const projectMilestones_ = projectMilestones;
@@ -146,7 +148,7 @@ export async function WorkSpace({
           }))}
           canWrite={canWrite}
           canReview={canReview}
-          currentUserId={actorId}
+          currentUserId={viewUserId}
           members={members_}
           milestones={projectMilestones_.map((m) => ({ id: m.id, name: m.title }))}
           allTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
@@ -187,11 +189,12 @@ export async function WorkSpace({
       {/* 执行台：三栏交接工作面 */}
       <ExecutionConsole
         actorId={actorId}
+        viewUserId={viewUserId}
         projectId={projectId}
         role={role}
         normalized={defaultNormalized}
       />
-      {(role === "teacher" || role === "admin" && normalized?.scope === "all") && <StageIntegrationPanel actorId={actorId} projectId={projectId} role={role} canAct={canAct} />}
+      {(role === "teacher" || role === "admin" && normalized?.scope === "all") && <StageIntegrationPanel actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} canAct={canAct} />}
     </section>
   );
 }

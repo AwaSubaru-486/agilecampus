@@ -42,9 +42,9 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("detail", "从规划进入执行", "任务详情在当前页面弹窗打开，可查看要求与交付资料。尚未生成任务时，请先完成任务规划课程。", `${base}/timeline`, "timeline-inspector"),
     ] },
     { id: "role-views", title: "组长切换角色视角", category: "任务流程", needsProject: true, roles: ["admin"], description: "依次预览组员和老师的界面，再返回组长。", steps: [
-      { ...step("member", "切换到组员视角", "选择组员（预览），认识执行入口。预览不改变真实角色与权限。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
-      { ...step("teacher", "切换到老师视角", "选择老师（预览），认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
-      { ...step("leader", "返回组长视角", "选择组长，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
+      { ...step("member", "切换到具体组员视角", "选择一位具体组员，查看分配给这位成员的任务。预览不改变真实角色与权限。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
+      { ...step("teacher", "切换到具体老师视角", "选择一位具体老师，认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
+      { ...step("leader", "返回组长视角", "选择组长本人的选项，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
     ] },
     { id: "execution", title: "认领与提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
       step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以认领、报告执行情况或提交成果。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),

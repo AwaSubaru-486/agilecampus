@@ -7,12 +7,17 @@ export async function POST(request: Request, context: { params: Promise<{ projec
     if (new URL(request.headers.get("origin") ?? "").host !== request.headers.get("host")) return NextResponse.json({ error: "请求来源不正确" }, { status: 403 });
   } catch { return NextResponse.json({ error: "请求来源不正确" }, { status: 403 }); }
   const form = await request.formData();
-  const result = await setProjectView(projectId, String(form.get("view") ?? ""));
+  const view = String(form.get("view") ?? "");
+  const result = await setProjectView(projectId, view);
   if (result.error) return NextResponse.json(result, { status: 403 });
   const base = `/projects/${projectId}`;
   const raw = String(form.get("returnTo") ?? base);
   const destination = new URL(raw, "http://project-view.invalid");
   const safe = destination.origin === "http://project-view.invalid" && (destination.pathname === base || destination.pathname.startsWith(`${base}/`));
+  // A task selected for the previous person must not remain selected in the new
+  // person's "my tasks" view. Keep the current page and unrelated filters.
+  for (const key of ["task", "run", "assignee"]) destination.searchParams.delete(key);
+  if (view.startsWith("student:") && destination.searchParams.get("space") === "work") destination.searchParams.set("scope", "mine");
   // Relative Location preserves the browser host, even when Next sees localhost internally.
   return new NextResponse(null, { status: 303, headers: { Location: safe ? `${destination.pathname}${destination.search}` : base } });
 }

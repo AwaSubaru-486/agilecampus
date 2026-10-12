@@ -25,11 +25,13 @@ import { projectTaskScope } from "@/lib/project-role-workspace";
 
 export async function ExecutionConsole({
   actorId,
+  viewUserId = actorId,
   projectId,
   role,
   normalized,
 }: {
   actorId: string;
+  viewUserId?: string;
   projectId: string;
   role: "admin" | "teacher" | "student";
   normalized: NormalizedConsoleParams;
@@ -39,7 +41,7 @@ export async function ExecutionConsole({
   const access = await getProjectForUser(actorId, projectId);
   if (!access) notFound();
 
-  const canAct = role === access.role;
+  const canAct = role === access.role && viewUserId === actorId;
   const canReview = canAct && (role === "admin" || role === "teacher");
   const canWrite = canAct && (role === "admin" || role === "student");
   const canCreateTask = canAct && role === "admin";
@@ -47,10 +49,11 @@ export async function ExecutionConsole({
 
   async function loadTasks() {
     const scope = projectTaskScope(role, normalized.scope ?? null);
-    const first = await listConsoleTasks(actorId, projectId, { limit: 100, scope });
+    const options = { limit: 100, scope, ...(scope === "mine" ? { mineAssigneeId: viewUserId } : {}) };
+    const first = await listConsoleTasks(actorId, projectId, options);
     const items = [...first.items];
     let cursor = first.nextCursor;
-    while (cursor) { const page = await listConsoleTasks(actorId, projectId, { limit: 100, scope, cursor }); items.push(...page.items); cursor = page.nextCursor; }
+    while (cursor) { const page = await listConsoleTasks(actorId, projectId, { ...options, cursor }); items.push(...page.items); cursor = page.nextCursor; }
     return { ...first, items, hasMore: false, nextCursor: null };
   }
 
@@ -119,7 +122,7 @@ export async function ExecutionConsole({
   };
 
   // 映射为行模型（排序、分组、主动作）
-  const actor = { id: actorId, canReview };
+  const actor = { id: viewUserId, canReview };
   const capabilities = {
     canStartAgentRun: false, // 网页暂无执行接口
     canViewAgentRun: true,
@@ -153,7 +156,7 @@ export async function ExecutionConsole({
   return (
     <ConsoleShell
       projectId={projectId}
-      actorId={actorId}
+      actorId={viewUserId}
       canWrite={canWrite}
       canCreateTask={canCreateTask}
       canDeleteTask={canDeleteTask}

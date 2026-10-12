@@ -4,6 +4,7 @@ import { cache } from "react";
 import { db } from "@/db";
 import { activityEvents, agentRuns, blockers, contextPacks, conversations, tasks, users } from "@/db/schema";
 import { getProjectForUser } from "./project";
+import { getTeamMembership } from "./team";
 import { AppError, ForbiddenError } from "./errors";
 import { getTaskDetail } from "./task";
 import { listTaskEvidence } from "./evidence";
@@ -57,10 +58,12 @@ const taskAccess = cache(async (actorId: string, projectId: string, taskId: stri
 });
 
 /** Stable ID pagination; action grouping applies within the loaded page, not a global ranking. */
-export async function listConsoleTasks(actorId: string, projectId: string, options: PageOptions & { scope?: "mine" | "review" | "completed" | "all" } = {}) {
+export async function listConsoleTasks(actorId: string, projectId: string, options: PageOptions & { scope?: "mine" | "review" | "completed" | "all"; mineAssigneeId?: string } = {}) {
   const access = await projectAccess(actorId, projectId);
+  const mineAssigneeId = options.mineAssigneeId ?? actorId;
+  if (mineAssigneeId !== actorId && (access.role !== "admin" || !uuid.safeParse(mineAssigneeId).success || !await getTeamMembership(mineAssigneeId, access.project.teamId))) throw inaccessible();
   const limit = pageSize(options.limit, 50);
-  const scope = `tasks:${projectId}${options.scope && options.scope !== "all" ? `:${options.scope}:${actorId}` : ""}`;
+  const scope = `tasks:${projectId}${options.scope && options.scope !== "all" ? `:${options.scope}:${actorId}${options.scope === "mine" ? `:${mineAssigneeId}` : ""}` : ""}`;
   const after = cursorId(options.cursor, scope);
   const rows = await db.select({
     id: tasks.id, stageId: tasks.stageId, title: tasks.title, status: tasks.status, priority: tasks.priority,
@@ -69,7 +72,7 @@ export async function listConsoleTasks(actorId: string, projectId: string, optio
     committedHandoffVersion: tasks.committedHandoffVersion, handoffVersion: tasks.handoffVersion,
   }).from(tasks).leftJoin(users, eq(tasks.assigneeId, users.id))
     .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false),
-      options.scope === "mine" ? eq(tasks.assigneeId, actorId) : undefined,
+      options.scope === "mine" ? eq(tasks.assigneeId, mineAssigneeId) : undefined,
       options.scope === "completed" ? eq(tasks.status, "done") : undefined,
       options.scope === "review" ? eq(tasks.status, "review") : undefined,
       options.scope === "review" && access.role !== "admin" ? sql`(${tasks.assigneeId} is null or ${tasks.assigneeId} <> ${actorId})` : undefined,

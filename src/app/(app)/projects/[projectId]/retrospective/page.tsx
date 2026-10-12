@@ -29,7 +29,7 @@ export default async function RetrospectivePage({
 
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
-  if (await getProjectView(access.role, projectId) === "student") redirect(`/projects/${projectId}`);
+  if (await getProjectView(access.role, projectId, session.user.id, access.project.teamId) === "student") redirect(`/projects/${projectId}`);
 
   const report = await buildContributionReport(session.user.id, projectId);
   const { rows, blockerStats, reviewStats, span } = report;

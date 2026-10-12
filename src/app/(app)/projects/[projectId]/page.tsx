@@ -1,4 +1,4 @@
-import { getProjectView } from "@/lib/project-view";
+import { getProjectPerspective } from "@/lib/project-view";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
@@ -51,11 +51,11 @@ export default async function ProjectPage({
   if (!access) notFound();
 
   const { project } = access;
-  const role = await getProjectView(access.role, projectId);
   const actorId = session.user.id;
+  const { role, viewUserId, preview } = await getProjectPerspective(access.role, projectId, actorId, project.teamId);
   if (isProjectHome(sp)) return role !== "teacher" && !(role === "admin" && sp.view === "manage")
-    ? <MemberBoard actorId={actorId} projectId={projectId} />
-    : <ProjectRoleHome actorId={actorId} projectId={projectId} role={role} />;
+    ? <MemberBoard actorId={actorId} viewUserId={viewUserId} projectId={projectId} />
+    : <ProjectRoleHome actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} />;
 
   // 归一化所有参数：live→work，非法→work，带会话/审批→studio。
   // 数组参数取第一项；规范化结果幂等，不产生重定向循环。
@@ -101,11 +101,12 @@ export default async function ProjectPage({
       {space === "work" && (
         <WorkSpace
           actorId={actorId}
+          viewUserId={viewUserId}
           projectId={projectId}
           teamId={project.teamId}
           role={role}
           filters={filters}
-          canAct={role === access.role}
+          canAct={!preview}
           selectedTaskId={taskId}
           view={typeof sp.view === "string" ? sp.view : null}
           normalized={normalized}
@@ -113,7 +114,7 @@ export default async function ProjectPage({
       )}
 
       {space === "studio" && (
-        <fieldset disabled={role !== access.role} className="min-w-0">
+        <fieldset disabled={preview} className="min-w-0">
         <StudioSpace
           actorId={actorId}
           projectId={projectId}

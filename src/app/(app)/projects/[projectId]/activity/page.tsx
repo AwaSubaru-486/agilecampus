@@ -54,7 +54,7 @@ export default async function ActivityPage({
 
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
-  if (await getProjectView(access.role, projectId) === "student") redirect(`/projects/${projectId}`);
+  if (await getProjectView(access.role, projectId, session.user.id, access.project.teamId) === "student") redirect(`/projects/${projectId}`);
 
   const events = await listProjectActivity(session.user.id, projectId, { limit: 200 });
 

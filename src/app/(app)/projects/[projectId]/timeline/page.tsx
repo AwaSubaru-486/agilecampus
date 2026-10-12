@@ -3,7 +3,7 @@ import { taskTreeDrafts } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getTaskTree, taskTreePayloadSchema, type TaskTreePayload } from "@/lib/task-tree";
 import { listTeamMembers } from "@/lib/team";
-import { getProjectView } from "@/lib/project-view";
+import { getProjectPerspective } from "@/lib/project-view";
 import { emptyDraftPlan } from "@/lib/draft-planning";
 import { TimelineTaskTrees, type TimelineTreeGroup } from "./timeline-task-trees";
 import { z } from "zod";
@@ -21,7 +21,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ proje
   if (!z.uuid().safeParse(projectId).success) notFound();
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
-  const role = await getProjectView(access.role, projectId);
+  const { role, viewUserId, preview } = await getProjectPerspective(access.role, projectId, session.user.id, access.project.teamId);
   const [tree, dependencies, published, members] = await Promise.all([
     getTaskTree(session.user.id, projectId), listProjectDependencies(session.user.id, projectId),
     db.select({ id: taskTreeDrafts.id, briefId: taskTreeDrafts.briefId, payload: taskTreeDrafts.payload }).from(taskTreeDrafts).where(and(eq(taskTreeDrafts.projectId, projectId), eq(taskTreeDrafts.status, "published"))),
@@ -43,7 +43,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ proje
     groups.push({ id: stage.id, title: stage.title, payload, pending: false, links, draftId: draft?.id, draftStageIndex, details: rows.map(task => {
       const delivery = deliveryByTask.get(task.id);
       return { key: task.id, taskId: task.id, status: statusLabel(task.status), owner: task.assigneeName ?? "待分配", completed: task.status === "done", completionNote: task.completionNote, reviewNote: task.reviewNote, dueDate: task.dueDate,
-        canDeliver: role === access.role && role !== "teacher" && !task.isTaskGroup && tree.stages.find(item => item.id === task.stageId)?.status === "active" && (role === "admin" || task.assigneeId === session.user.id),
+        canDeliver: !preview && role !== "teacher" && !task.isTaskGroup && tree.stages.find(item => item.id === task.stageId)?.status === "active" && (role === "admin" || task.assigneeId === session.user.id),
         delivery: delivery ? { branchName: delivery.branchName, testSummary: delivery.testSummary, pullRequestUrl: delivery.pullRequestUrl } : null };
     }) });
   }
@@ -62,7 +62,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ proje
     <section data-tour="stage-progress" aria-label="项目阶段进度" className="grid gap-px overflow-hidden border border-stroke bg-stroke sm:grid-cols-3">
       <div className="bg-panel p-4"><p className="text-xs text-ink-3">当前阶段</p><p className="mt-2 font-semibold">{current?.title ?? (tree.stages.length ? "全部阶段已完成" : "等待规划")}</p><p className="mt-1 text-xs text-ink-3">{current?.status === "integrating" ? "待集成审核" : current ? "执行中" : "暂无执行中的阶段"}</p></div>
       <div className="bg-panel p-4"><p className="text-xs text-ink-3">当前阶段任务验收进度</p><p className="mt-2 text-xl tabular-nums">{complete}<span className="text-sm text-ink-3"> / {currentTasks.length}</span></p><progress aria-label="当前阶段已验收任务比例" className="mt-2 h-1.5 w-full accent-[var(--color-signal)]" value={complete} max={currentTasks.length || 1} /></div>
-      <div className="bg-panel p-4"><p className="text-xs text-ink-3">待处理</p><p className="mt-2 text-sm">{role === "student" ? currentTasks.filter(task => task.assigneeId === session.user.id && task.status !== "done").length + " 项当前阶段我的未完成任务" : currentTasks.filter(task => task.status !== "done").length + " 项当前阶段未完成任务"}</p><p className="mt-2 text-xs text-ink-3">{tree.stages.filter(stage => stage.status === "completed").length} / {tree.stages.length} 个阶段已完成</p></div>
+      <div className="bg-panel p-4"><p className="text-xs text-ink-3">待处理</p><p className="mt-2 text-sm">{role === "student" ? currentTasks.filter(task => task.assigneeId === viewUserId && task.status !== "done").length + " 项当前阶段我的未完成任务" : currentTasks.filter(task => task.status !== "done").length + " 项当前阶段未完成任务"}</p><p className="mt-2 text-xs text-ink-3">{tree.stages.filter(stage => stage.status === "completed").length} / {tree.stages.length} 个阶段已完成</p></div>
     </section>
     <TimelineTaskTrees projectId={projectId} projectName={access.project.name} canAnalyse={role === "admin"} groups={groups} drafts={[...publishedDrafts, ...pendingDrafts].map(draft => ({ id: draft.id, payload: draft.payload }))} />
   </main>;

@@ -54,11 +54,11 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
     step("timeline-detail", "查看任务目标与完成条件", "这里显示当前负责人的任务要求、状态与已登记成果。任务未完成时成果区域可能为空。", timeline, "timeline-inspector"),
     step("timeline-close", "关闭详情回到任务树", "点击关闭，继续认识角色和协作入口。", timeline, "timeline-close", "click"),
     ...(role === "admin" ? [
-      step("member-view", "预览组员的界面", "选择组员（预览）。组员拥有看板、我的任务、时间线和 AI 助手，成果与记录不显示。预览的我的任务仍按你本人展示。", base, "project-view-switch", "result", "data-tour-member-view"),
-      step("teacher-view", "预览老师的界面", "选择老师（预览）。老师只复核已完成任务，并在成果验收同一页面审核阶段集成。", base, "project-view-switch", "result", "data-tour-teacher-view"),
+      step("member-view", "预览具体组员的界面", "在组员分组中选择一位成员。看板和我的任务按这位成员展示，阶段默认折叠；成果与记录不显示。", base, "project-view-switch", "result", "data-tour-member-view"),
+      step("teacher-view", "预览具体老师的界面", "在老师分组中选择一位老师。老师只复核已完成任务，并在成果验收同一页面审核阶段集成。", base, "project-view-switch", "result", "data-tour-teacher-view"),
       step("review", "成果验收与集成审核", "这里合并展示成果复核与集成审核。当前还没有已完成任务时，列表为空是正常状态；已有任务提交后先由组长验收，完成后供老师复核。", `${base}?space=work`, "execution-console"),
       step("integration", "查看阶段集成材料", "组长提交阶段集成后，老师可检查分支、测试材料和审核记录。尚未提交时会显示空状态。", `${base}?space=work`, "stage-tasks"),
-      step("leader-view", "返回组长继续查看", "选择组长，恢复分工、项目推进台和成果与记录入口。", base, "project-view-switch", "result", "data-tour-leader-view"),
+      step("leader-view", "返回组长继续查看", "选择标有组长本人的选项，恢复分工、项目推进台和成果与记录入口。", base, "project-view-switch", "result", "data-tour-leader-view"),
       step("management", "项目推进台", "项目推进台帮助组长检查分工、阻塞和待验收事项，安排团队下一步工作。", `${base}?space=home&view=manage`, "project-home"),
     ] : role === "teacher" ? [
       step("review", "复核已完成任务", "成果验收只显示已完成任务。没有已完成任务时可先认识页面，等待组长验收后再复核成果与证据。", work, "execution-console"),

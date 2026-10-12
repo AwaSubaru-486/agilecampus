@@ -16,7 +16,7 @@ export default async function TaskTreePage({ params, searchParams }: { params: P
   if (!z.uuid().safeParse(projectId).success) notFound();
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
-  const role = await getProjectView(access.role, projectId);
+  const role = await getProjectView(access.role, projectId, session.user.id, access.project.teamId);
   if (role !== "admin" || query.plan !== "1") redirect("/projects/" + projectId + "/timeline");
   const [tree, members, tutorialProgress] = await Promise.all([getTaskTree(session.user.id, projectId), listTeamMembers(access.project.teamId), getTutorialProgress(session.user.id)]);
   const isTutorial = tutorialProgress.journey?.version === 5 && tutorialProgress.journey.projectId === projectId;
