@@ -43,7 +43,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ proje
     groups.push({ id: stage.id, title: stage.title, payload, pending: false, links, draftId: draft?.id, draftStageIndex, details: rows.map(task => {
       const delivery = deliveryByTask.get(task.id);
       return { key: task.id, taskId: task.id, status: statusLabel(task.status), owner: task.assigneeName ?? "待分配", completed: task.status === "done", completionNote: task.completionNote, reviewNote: task.reviewNote, dueDate: task.dueDate,
-        canDeliver: !preview && role !== "teacher" && !task.isTaskGroup && tree.stages.find(item => item.id === task.stageId)?.status === "active" && (role === "admin" || task.assigneeId === session.user.id),
+        canDeliver: !preview && role !== "teacher" && !task.isTaskGroup && tree.stages.find(item => item.id === task.stageId)?.status === "active" && (role === "admin" || task.assigneeId === viewUserId),
         delivery: delivery ? { branchName: delivery.branchName, testSummary: delivery.testSummary, pullRequestUrl: delivery.pullRequestUrl } : null };
     }) });
   }

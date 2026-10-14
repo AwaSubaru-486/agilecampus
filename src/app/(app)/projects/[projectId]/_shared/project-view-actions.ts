@@ -14,7 +14,7 @@ export async function setProjectView(projectId: string, view: string) {
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
   const access = await getProjectForUser(session.user.id, projectId);
-  if (access?.role !== "admin") return { error: "只有组长可以切换预览视角" };
+  if (access?.role !== "admin") return { error: "只有组长可以切换成员操作视角" };
   if (choice.role !== "admin") {
     const members = projectViewMembers(await listTeamMembers(access.project.teamId));
     if (!members.some(member => member.id === choice.memberId && member.role === choice.role)) return { error: "请选择当前小组的组员或老师" };

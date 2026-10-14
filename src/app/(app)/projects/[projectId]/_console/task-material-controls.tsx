@@ -25,7 +25,7 @@ export function TaskMaterialBinding({ projectId, task, canWrite }: { projectId: 
       <button type="button" className="ac-btn-ghost !min-h-8 !text-xs" disabled={!canBind || pending} onClick={() => setEditing(!editing)} aria-expanded={editing}>
         {editing ? "收起绑定" : task.contextPackId ? "更换交接资料" : "绑定交接资料"}
       </button>
-      {!canWrite && <span className="text-xs text-ink-3">当前视角只读，请由组长或任务成员绑定。</span>}
+      {!canWrite && <span className="text-xs text-ink-3">交接资料由组长或任务成员绑定。</span>}
       {canWrite && !canBind && <span className="text-xs text-ink-3">验收中或已完成的任务需先退回修改。</span>}
     </div>
     {editing && canBind && <div className="space-y-3 rounded-xl border border-stroke bg-sunken/30 p-4">

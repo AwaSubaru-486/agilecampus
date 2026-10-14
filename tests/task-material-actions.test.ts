@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), access: vi.fn(), perspective: vi.fn(), bind: vi.fn(), memory: vi.fn(), revalidate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), operation: vi.fn(), bind: vi.fn(), memory: vi.fn(), revalidate: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ auth: mocks.auth }));
-vi.mock("@/lib/project", () => ({ getProjectForUser: mocks.access }));
-vi.mock("@/lib/project-view", () => ({ getProjectPerspective: mocks.perspective }));
+vi.mock("@/lib/project-operation", () => ({ runProjectOperation: mocks.operation }));
 vi.mock("@/lib/task-material", () => ({ bindTaskContextPack: mocks.bind }));
 vi.mock("@/lib/project-memory", () => ({ createProjectMemory: mocks.memory }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
+import { ForbiddenError } from "@/lib/errors";
 import { addTaskMemoryAction, bindTaskMaterialAction } from "@/app/(app)/projects/[projectId]/_console/material-actions";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
@@ -15,19 +15,18 @@ describe("网页资料操作鉴权", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.auth.mockResolvedValue({ user: { id: "real-actor" } });
-    mocks.access.mockResolvedValue({ role: "admin", project: { teamId: "team" } });
-    mocks.perspective.mockResolvedValue({ preview: false });
+    mocks.operation.mockImplementation(async (actorId, _projectId, _action, execute) => execute(actorId));
   });
-  it("预览视角不允许写入资料和记忆", async () => {
-    mocks.perspective.mockResolvedValue({ preview: true });
-    expect(await bindTaskMaterialAction(null, form({ contextPackId: "" }))).toHaveProperty("error", expect.stringContaining("只读"));
-    expect(await addTaskMemoryAction(null, form({ category: "decision", title: "依据", content: "结论" }))).toHaveProperty("error", expect.stringContaining("只读"));
+  it("失效的视角不允许写入资料和记忆", async () => {
+    mocks.operation.mockRejectedValue(new ForbiddenError("视角失效，请重新切换"));
+    expect(await bindTaskMaterialAction(null, form({ contextPackId: "" }))).toHaveProperty("error", expect.stringContaining("视角失效"));
+    expect(await addTaskMemoryAction(null, form({ category: "decision", title: "依据", content: "结论" }))).toHaveProperty("error", expect.stringContaining("视角失效"));
     expect(mocks.bind).not.toHaveBeenCalled(); expect(mocks.memory).not.toHaveBeenCalled();
   });
   it("未登录和无项目权限不会调用写入", async () => {
     mocks.auth.mockResolvedValue(null);
     expect(await bindTaskMaterialAction(null, form({ contextPackId: "" }))).toHaveProperty("error", "请先登录");
-    mocks.auth.mockResolvedValue({ user: { id: "real-actor" } }); mocks.access.mockResolvedValue(null);
+    mocks.auth.mockResolvedValue({ user: { id: "real-actor" } }); mocks.operation.mockRejectedValue(new ForbiddenError("无权访问该项目"));
     expect(await addTaskMemoryAction(null, form({ category: "decision", title: "依据", content: "结论" }))).toHaveProperty("error", "无权访问该项目");
     expect(mocks.bind).not.toHaveBeenCalled(); expect(mocks.memory).not.toHaveBeenCalled();
   });

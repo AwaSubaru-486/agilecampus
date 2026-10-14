@@ -36,7 +36,7 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
     step("directory", "从汪汪队的项目开始", "这次以汪汪队的敏捷开发平台为展示项目。按真实页面认识成员、阶段和任务分工，点击查看即可继续。", "/tutorials", "tutorial-showcase"),
     step("roles", "认识项目中的三种角色", "鱼乐、哈哈哈和聂翔是组员，负责各自任务；郭诗辉是老师，负责成果复核与集成审核；组长安排分工并推进项目。这里显示团队的当前成员档案。", `${team}/members`, "team-members"),
     ...(role === "admin" ? [
-      step("leader-start", "进入组长工作区", "在查看视角中选择组长，先认识团队的真实分工；稍后再预览组员和老师界面。", base, "project-view-switch", "result", "data-tour-leader-view"),
+      step("leader-start", "进入组长工作区", "在查看视角中选择组长，先认识团队的真实分工；稍后再切换组员和老师的操作视角。", base, "project-view-switch", "result", "data-tour-leader-view"),
       step("assignments", "查看组长下派的任务", "分工页列出全项目任务。每个阶段默认折叠，展开后能核对任务和负责人；组长可在任务资料与管理中调整分工。", `${work}&panel=list`, "console-task-list"),
     ] : []),
     ...(role !== "teacher" ? [
@@ -54,8 +54,8 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
     step("timeline-detail", "查看任务目标与完成条件", "这里显示当前负责人的任务要求、状态与已登记成果。任务未完成时成果区域可能为空。", timeline, "timeline-inspector"),
     step("timeline-close", "关闭详情回到任务树", "点击关闭，继续认识角色和协作入口。", timeline, "timeline-close", "click"),
     ...(role === "admin" ? [
-      step("member-view", "预览具体组员的界面", "在组员分组中选择一位成员。看板和我的任务按这位成员展示，阶段默认折叠；成果与记录不显示。", base, "project-view-switch", "result", "data-tour-member-view"),
-      step("teacher-view", "预览具体老师的界面", "在老师分组中选择一位老师。老师只复核已完成任务，并在成果验收同一页面审核阶段集成。", base, "project-view-switch", "result", "data-tour-teacher-view"),
+      step("member-view", "切换具体组员的操作视角", "在组员分组中选择一位成员。看板和我的任务按这位成员展示，阶段默认折叠；成果与记录不显示。", base, "project-view-switch", "result", "data-tour-member-view"),
+      step("teacher-view", "切换具体老师的操作视角", "在老师分组中选择一位老师。老师只复核已完成任务，并在成果验收同一页面审核阶段集成。", base, "project-view-switch", "result", "data-tour-teacher-view"),
       step("review", "成果验收与集成审核", "这里合并展示成果复核与集成审核。当前还没有已完成任务时，列表为空是正常状态；已有任务提交后先由组长验收，完成后供老师复核。", `${base}?space=work`, "execution-console"),
       step("integration", "查看阶段集成材料", "组长提交阶段集成后，老师可检查分支、测试材料和审核记录。尚未提交时会显示空状态。", `${base}?space=work`, "stage-tasks"),
       step("leader-view", "返回组长继续查看", "选择标有组长本人的选项，恢复分工、项目推进台和成果与记录入口。", base, "project-view-switch", "result", "data-tour-leader-view"),

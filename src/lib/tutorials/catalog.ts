@@ -41,8 +41,8 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("node", "选择一个任务", "点击高亮任务，查看执行说明、负责人和验收标准。", `${base}/timeline`, "timeline-node", "click"),
       step("detail", "从规划进入执行", "任务详情在当前页面弹窗打开，可查看要求与交付资料。尚未生成任务时，请先完成任务规划课程。", `${base}/timeline`, "timeline-inspector"),
     ] },
-    { id: "role-views", title: "组长切换角色视角", category: "任务流程", needsProject: true, roles: ["admin"], description: "依次预览组员和老师的界面，再返回组长。", steps: [
-      { ...step("member", "切换到具体组员视角", "选择一位具体组员，查看分配给这位成员的任务。预览不改变真实角色与权限。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
+    { id: "role-views", title: "组长切换角色视角", category: "任务流程", needsProject: true, roles: ["admin"], description: "依次切换具体组员和老师的操作视角，再返回组长。", steps: [
+      { ...step("member", "切换到具体组员视角", "选择一位具体组员，查看分配给这位成员的任务。组长可代其操作，记录会保留实际操作者。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
       { ...step("teacher", "切换到具体老师视角", "选择一位具体老师，认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
       { ...step("leader", "返回组长视角", "选择组长本人的选项，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
     ] },

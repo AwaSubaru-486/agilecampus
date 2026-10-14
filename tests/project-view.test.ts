@@ -33,8 +33,8 @@ describe("具体成员的项目视角", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("选择同角色的不同组员时保留各自身份和姓名", () => {
-    expect(resolveProjectPerspective("admin", "owner", roster, `student:${studentA}`)).toMatchObject({ role: "student", viewUserId: studentA, viewUserName: "鱼乐", preview: true });
-    expect(resolveProjectPerspective("admin", "owner", roster, `student:${studentB}`)).toMatchObject({ role: "student", viewUserId: studentB, viewUserName: "哈哈哈", preview: true });
+    expect(resolveProjectPerspective("admin", "owner", roster, `student:${studentA}`)).toMatchObject({ role: "student", viewUserId: studentA, viewUserName: "鱼乐", preview: false, delegated: true });
+    expect(resolveProjectPerspective("admin", "owner", roster, `student:${studentB}`)).toMatchObject({ role: "student", viewUserId: studentB, viewUserName: "哈哈哈", preview: false, delegated: true });
     expect(resolveProjectPerspective("admin", "owner", roster, `teacher:${teacher}`)).toMatchObject({ role: "teacher", viewUserId: teacher, viewUserName: "郭诗辉" });
   });
   it("非组长不能通过伪造 cookie 改变本人视角", () => {
@@ -46,9 +46,9 @@ describe("具体成员的项目视角", () => {
     }
     expect(projectViewMembers(roster).map(item => item.id).sort()).toEqual([studentA, studentB, teacher].sort());
   });
-  it("每次读取使用当前项目的 cookie 和当前小组成员，撤销成员后预览失效", async () => {
+  it("每次读取使用当前项目的 cookie 和当前小组成员，撤销成员后代操作失效", async () => {
     mocks.get.mockReturnValue({ value: `student:${studentA}` });
-    expect(await getProjectPerspective("admin", project, "owner", "team")).toMatchObject({ viewUserId: studentA, preview: true });
+    expect(await getProjectPerspective("admin", project, "owner", "team")).toMatchObject({ viewUserId: studentA, preview: false, delegated: true });
     expect(mocks.get).toHaveBeenCalledWith(`project-view-${project}`);
     expect(mocks.roster).toHaveBeenCalledWith("team");
     mocks.roster.mockResolvedValue(roster.filter(member => member.id !== studentA));

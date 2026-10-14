@@ -41,7 +41,7 @@ export async function ExecutionConsole({
   const access = await getProjectForUser(actorId, projectId);
   if (!access) notFound();
 
-  const canAct = role === access.role && viewUserId === actorId;
+  const canAct = access.role === "admin" || (role === access.role && viewUserId === actorId);
   const canReview = canAct && (role === "admin" || role === "teacher");
   const canWrite = canAct && (role === "admin" || role === "student");
   const canCreateTask = canAct && role === "admin";

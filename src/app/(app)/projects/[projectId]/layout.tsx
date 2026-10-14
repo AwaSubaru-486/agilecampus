@@ -25,7 +25,7 @@ export default async function ProjectLayout({
   const milestones = await listProjectMilestones(session.user.id, projectId);
   const { project, role: actualRole } = access;
   const perspective = await getProjectPerspective(actualRole, projectId, session.user.id, project.teamId);
-  const { role, preview, viewUserName } = perspective;
+  const { role, delegated, viewUserName } = perspective;
   const next = milestones.find((m) => m.status === "open");
   return (
     <div className="ac-project-workspace">
@@ -57,7 +57,7 @@ export default async function ProjectLayout({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {actualRole === "admin" && <ProjectViewSwitch projectId={projectId} view={role} selection={perspective.selection} members={perspective.members} leaderName={session.user.name ?? "组长"} />}
-            {role === "teacher" && !preview && (
+            {role === "teacher" && (
               <TeacherEvaluationModal
                 projectId={projectId}
                 projectName={project.name}
@@ -96,7 +96,7 @@ export default async function ProjectLayout({
         </div>
       </header>
       <ProjectNavigation projectId={projectId} role={role} />
-      <div className="ac-project-body">{preview && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">正在预览{viewUserName}的{role === "student" ? "组员" : "老师"}视角{role === "student" ? `，我的任务按${viewUserName}展示` : ""}。可以浏览任务与时间线，预览时暂停提交和管理操作，团队角色没有改变。</p>}<div className="min-w-0">{children}</div></div>
+      <div className="ac-project-body">{delegated && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">当前以{viewUserName}的{role === "student" ? "组员" : "老师"}视角操作。{role === "student" ? "可以认领、交付本人任务和登记材料。" : "可以验收、复核成果和审核阶段集成。"}操作将实际保存，并记录由组长代操作；登录账号和团队角色保持原样。</p>}<div className="min-w-0">{children}</div></div>
     </div>
   );
 }
