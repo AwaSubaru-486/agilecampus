@@ -6,12 +6,13 @@ import type { TaskTreePayload } from "@/lib/task-tree";
 import { emptyDraftPlan, validateDraftPlan, type DraftPlan, type PlanningLink } from "@/lib/draft-planning";
 import { mapWholeTimelinePlan, planningSignature } from "@/lib/timeline-task-tree";
 import { DraftTechTree } from "../task-tree/draft-tech-tree";
-import { DeliveryForm } from "../task-tree/task-tree-forms";
+import { TaskSubmissionForm } from "../_shared/task-submit-dialog";
+import type { EvidenceType } from "@/lib/handoff";
 import { LoadingProgress } from "@/components/loading-progress";
 
 export type TimelineTreeGroup = {
   id: string; title: string; payload: TaskTreePayload; draftId?: string; draftStageIndex?: number; pending: boolean;
-  links: PlanningLink[]; details: { key: string; taskId: string | null; status: string; owner: string; completed?: boolean; completionNote?: string | null; reviewNote?: string | null; dueDate?: string | null; canDeliver?: boolean; delivery?: { branchName: string; testSummary: string | null; pullRequestUrl: string | null } | null }[];
+  links: PlanningLink[]; details: { handoffVersion?: number; requiredEvidence?: EvidenceType[]; key: string; taskId: string | null; status: string; owner: string; completed?: boolean; completionNote?: string | null; reviewNote?: string | null; dueDate?: string | null; canDeliver?: boolean; delivery?: { branchName: string; testSummary: string | null; pullRequestUrl: string | null } | null }[];
 };
 type Draft = { id: string; payload: TaskTreePayload };
 
@@ -139,7 +140,7 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
       {detail?.completionNote && <section><h4 className="text-sm font-semibold">提交成果</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{detail.completionNote}</p></section>}
       {detail?.reviewNote && <section><h4 className="text-sm font-semibold">验收意见</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{detail.reviewNote}</p></section>}
       {detail?.delivery && <section><h4 className="text-sm font-semibold">交付资料</h4><p className="mt-2 break-all text-sm">分支：{detail.delivery.branchName}</p><p className="mt-2 whitespace-pre-wrap text-sm">{detail.delivery.testSummary}</p>{detail.delivery.pullRequestUrl && /^https?:\/\//i.test(detail.delivery.pullRequestUrl) && <a className="mt-2 inline-block text-sm text-signal" href={detail.delivery.pullRequestUrl} target="_blank" rel="noreferrer">查看成果链接 ↗</a>}</section>}
-      {detail?.taskId && detail.canDeliver && <details><summary className="cursor-pointer text-sm text-signal">{detail.delivery ? "更新交付分支" : "登记交付分支"}</summary><DeliveryForm projectId={projectId} taskId={detail.taskId} /></details>}
+      {detail?.taskId && detail.canDeliver && <section className="space-y-3"><h4 className="text-sm font-semibold text-signal">提交任务</h4><TaskSubmissionForm key={detail.taskId} projectId={projectId} task={{ ...task, id: detail.taskId, handoffVersion: detail.handoffVersion }} evidenceTypes={detail.requiredEvidence} onSubmitted={() => dialog.current?.close()} /></section>}
       </div>
     </dialog>}
   </section>;

@@ -13,6 +13,10 @@ describe("角色项目入口", () => {
     expect(projectTaskScope("teacher", "all")).toBe("completed");
     expect(projectTaskScope("admin", null)).toBe("mine");
     expect(projectTaskScope("admin", "all")).toBe("all");
+    expect(projectTaskScope("admin", "review")).toBe("review");
+    expect(projectTaskScope("admin", "completed")).toBe("completed");
+    expect(projectTaskScope("student", "review")).toBe("mine");
+    expect(projectTaskScope("teacher", "review")).toBe("completed");
     expect(projectTaskScope("student", "all")).toBe("all");
     expect(PROJECT_ROLE_WORKSPACE.teacher.studio).toBeNull();
     expect(PROJECT_ROLE_WORKSPACE.student.title).toBe("看板");

@@ -96,7 +96,7 @@ export default async function ProjectLayout({
         </div>
       </header>
       <ProjectNavigation projectId={projectId} role={role} />
-      <div className="ac-project-body">{delegated && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">当前以{viewUserName}的{role === "student" ? "组员" : "老师"}视角操作。{role === "student" ? "可以认领、交付本人任务和登记材料。" : "可以验收、复核成果和审核阶段集成。"}操作将实际保存，并记录由组长代操作；登录账号和团队角色保持原样。</p>}<div className="min-w-0">{children}</div></div>
+      <div className="ac-project-body">{delegated && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">当前以{viewUserName}的{role === "student" ? "组员" : "老师"}视角操作。{role === "student" ? "可以直接提交本人任务和交付材料。" : "可以复核组长已审核的成果和审核阶段集成。"}操作将实际保存，并记录由组长代操作；登录账号和团队角色保持原样。</p>}<div className="min-w-0">{children}</div></div>
     </div>
   );
 }

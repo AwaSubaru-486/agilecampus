@@ -44,7 +44,7 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
       step("task-list", "展开阶段查看任务", "我的任务只展示分配给自己的工作。阶段默认折叠；点击具体任务会打开对应的执行详情。", `${base}?space=work&panel=list`, "console-task-list"),
       ...(journey.taskId ? [
         step("select", "打开一项实际任务", "点击高亮任务查看执行要求。这里使用已分配的项目任务，只需查看即可学习交付流程。", `${detail}&panel=list`, "console-task", "click"),
-        step("delivery", "认识认领、交付与验收", "核对任务目标、负责人、完成条件和证据要求。组员确认接住后执行，提交成果进入待验收，再由有权限的人审核。查看后可直接继续。", detail, "tutorial-task-detail"),
+        step("delivery", "认识提交、审核与复核", "核对任务目标、负责人、完成条件和证据要求。组员直接填写交付材料并提交，组长审核通过后由老师复核。查看后可直接继续。", detail, "tutorial-task-detail"),
       ] : []),
     ] : []),
     step("stages", "只看当前阶段的验收进度", "上方显示当前阶段及该阶段已验收任务的比例。阶段全部任务验收并通过集成审核后，才开放下一阶段。", timeline, "stage-progress"),

@@ -49,7 +49,7 @@ export async function ExecutionConsole({
 
   async function loadTasks() {
     const scope = projectTaskScope(role, normalized.scope ?? null);
-    const options = { limit: 100, scope, ...(scope === "mine" ? { mineAssigneeId: viewUserId } : {}) };
+    const options: { limit: number; scope: ReturnType<typeof projectTaskScope>; mineAssigneeId?: string } = { limit: 100, scope, ...(scope === "mine" ? { mineAssigneeId: viewUserId } : {}) };
     const first = await listConsoleTasks(actorId, projectId, options);
     const items = [...first.items];
     let cursor = first.nextCursor;
@@ -195,6 +195,7 @@ export async function ExecutionConsole({
               status: selectedTask.task.status,
               assigneeId: selectedTask.task.assigneeId ?? null,
               assigneeName: selectedTask.task.assigneeName ?? null,
+              delivery: (() => { const delivery = tree.deliveries.find(item => item.taskId === selectedTask!.task.id); return delivery ? { branchName: delivery.branchName, headSha: delivery.headSha, pullRequestUrl: delivery.pullRequestUrl, testSummary: delivery.testSummary } : null; })(),
               dueDate: selectedTask.task.dueDate ?? null,
               description: selectedTask.task.description ?? null,
               handoffBrief: selectedTask.task.handoffBrief ?? null,

@@ -96,12 +96,12 @@ export async function notifyTaskDeclined(
   await safeSend(openId, buildDeclinedCard(await enrich(task), reason));
 }
 
-// 项目的验收人：团队内的 admin 与 teacher。直接查库而不复用 listTeamMembers，
+// 任务初审人：团队内的 admin。老师在组长审核通过后复核。
 // 为的是顺带滤掉未绑飞书者，省一次往返；提交人自己排除在外（不给自己发待验收）。
 async function reviewerOpenIds(projectId: string, excludeUserId: string | null): Promise<string[]> {
   const conds = [
     eq(projects.id, projectId),
-    inArray(teamMembers.role, ["admin", "teacher"] as const),
+    eq(teamMembers.role, "admin"),
     isNotNull(users.feishuOpenId),
   ];
   if (excludeUserId) conds.push(ne(teamMembers.userId, excludeUserId));

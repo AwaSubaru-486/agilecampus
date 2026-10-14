@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { submitTaskWithDelivery } from "@/lib/task-submission";
 import { runProjectOperation } from "@/lib/project-operation";
 import { recheckCompletedTask } from "@/lib/task-recheck";
 import {
@@ -14,7 +15,6 @@ import {
   getTaskDetail,
   reviewTask,
   setTaskSuccessors,
-  submitTask,
   updateTask,
 } from "@/lib/task";
 import { setTaskLabels } from "@/lib/label";
@@ -22,10 +22,10 @@ import { createMilestone, deleteProject, getProjectForUser } from "@/lib/project
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { createEntry, deleteEntry } from "@/lib/entry";
-import { createEvidenceItem, EVIDENCE_LABEL, missingRequiredEvidence } from "@/lib/evidence";
+import { EVIDENCE_LABEL } from "@/lib/evidence";
 import { EVIDENCE_TYPES, type EvidenceType } from "@/lib/handoff";
 
-export type FormState = { error: string } | null;
+export type FormState = { error?: string; ok?: boolean } | null;
 export async function recheckCompletedTaskAction(_previous: UpdateTaskState, data: FormData): Promise<UpdateTaskState> {
   const session = await auth();
   if (!session?.user) return { error: "请先登录" };
@@ -555,9 +555,12 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
 }
 
 const submitTaskSchema = z.object({
-  taskId: z.uuid(),
-  projectId: z.uuid(),
-  completionNote: z.string().trim().optional(),
+  taskId: z.uuid(), projectId: z.uuid(), completionNote: z.string().trim().optional(),
+  branchName: z.string().trim().min(1, "请填写任务分支").max(200),
+  headSha: z.string().trim().max(128).optional(),
+  pullRequestUrl: z.string().trim().max(2000).optional(),
+  testSummary: z.string().trim().max(5000).optional(),
+  handoffVersion: z.coerce.number().int().positive("任务版本无效，请重新打开提交窗口"),
 });
 
 export async function submitTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -578,31 +581,11 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
   try {
     // 把必需材料随交付表单一并落库。之前页面只收完成说明，
     // 但 submitTask 会拒绝缺少契约证据的任务，成员因此没有可完成的路径。
-    await runProjectOperation(session.user.id, parsed.data.projectId, "提交任务成果", async actorId => {
-      const missingBeforeSubmit = await missingRequiredEvidence(actorId, parsed.data.taskId);
-      const evidenceValues = new Map<EvidenceType, string>();
-      for (const type of missingBeforeSubmit) {
-        const value = String(formData.get(`evidence_${type}`) ?? "").trim();
-        if (!value) {
-          const labels = missingBeforeSubmit.map((missingType) => EVIDENCE_LABEL[missingType]);
-          throw new AppError(`请补充必需交付材料：${labels.join("、")}`);
-        }
-        if (value.length > 8_000) throw new AppError(`${EVIDENCE_LABEL[type]}最多 8000 个字`);
-        evidenceValues.set(type, value);
-      }
-
-      for (const [type, value] of evidenceValues) {
-        await createEvidenceItem(actorId, parsed.data.taskId, {
-          type,
-          label: EVIDENCE_LABEL[type],
-          value,
-        });
-      }
-
-      await submitTask(actorId, parsed.data.taskId, {
-        completionNote: parsed.data.completionNote || "已完成任务并提交成果物待验收",
-      });
-    }, { kind: "task", id: parsed.data.taskId });
+    const evidence: Partial<Record<EvidenceType, string>> = {};
+    for (const type of EVIDENCE_TYPES) evidence[type] = String(formData.get(`evidence_${type}`) ?? "").trim();
+    await runProjectOperation(session.user.id, parsed.data.projectId, "提交任务成果", actorId => submitTaskWithDelivery(actorId, parsed.data.taskId, {
+      ...parsed.data, completionNote: parsed.data.completionNote || "已完成任务并提交交付材料，待组长审核", evidence,
+    }), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以提交" };
     if (e instanceof AppError) {
@@ -619,7 +602,7 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
   revalidatePath("/today");
-  return null;
+  return { ok: true };
 }
 
 const reviewTaskSchema = z.object({
@@ -652,7 +635,7 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
       note: parsed.data.note,
     }), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
-    if (e instanceof ForbiddenError) return { error: "只有组长或教师可以验收" };
+    if (e instanceof ForbiddenError) return { error: "任务由组长审核，老师可复核已完成成果" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

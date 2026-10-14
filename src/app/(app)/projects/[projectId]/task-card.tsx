@@ -9,7 +9,6 @@ import {
   declineTaskAction,
   deleteTaskAction,
   reviewTaskAction,
-  submitTaskAction,
   updateTaskAction,
   type FormState,
   type UpdateTaskState,
@@ -18,8 +17,9 @@ import { LABEL_COLOR_CLASS } from "@/lib/board-columns";
 import { isAwaitingResponse, isCompleted, isInFlight, isInReview } from "@/lib/task-status";
 import type { BoardTask } from "./board";
 import type { CardDensity } from "./board";
+import { TaskSubmitDialog } from "./_shared/task-submit-dialog";
 import { Badge, Button } from "@/components/ui";
-import { RequiredEvidenceFields, missingRequiredEvidenceTypes } from "./_shared/required-evidence-fields";
+import { missingRequiredEvidenceTypes } from "./_shared/required-evidence-fields";
 
 // 负责人下拉的每一项。kind 决定卡面上是否给它挂「AI」标识——
 // 人机混排的界面里，一眼分得清谁是谁是基本要求。
@@ -72,17 +72,15 @@ export function TaskCard({
   // 比显示了再报错友好——尤其对初次使用的人。
   const isMine = task.assigneeId === currentUserId;
   const isAdmin = canWrite && canReview;
-  const hasCurrentCommitment = Boolean(task.committedAt) &&
-    task.committedHandoffVersion === task.handoffVersion;
   const canClaim = canWrite && isInFlight(task.status) &&
-    ((!task.assigneeId && isAdmin) || (isMine && !hasCurrentCommitment));
-  const canSubmit = canWrite && isMine && isInFlight(task.status) && hasCurrentCommitment;
+    (!task.assigneeId && isAdmin);
+  const canSubmit = canWrite && isMine && isInFlight(task.status);
   const missingEvidenceTypes = missingRequiredEvidenceTypes(
     task.requiredEvidence,
     task.evidenceTypes,
   );
-  // 组长（admin）可闭环验收所有待验收任务（含自己承接的活）；普通教师只能验收他人交付的活，避免自审自判
-  const canReviewThis = canReview && isInReview(task.status) && (isAdmin || !isMine);
+  // 组长初审；教师在已完成成果中复核。
+  const canReviewThis = isAdmin && isInReview(task.status);
 
   // 「还没接住」——派下去但本人没回话。看板上要看得见，
   // 否则它会伪装成「有人在做了」，一路蒙到 deadline
@@ -167,7 +165,7 @@ export function TaskCard({
         {/* 还没接住：派了不等于有人接。一句话点破这层误会 */}
         {awaitingResponse && (
           <p className="mt-1.5 rounded border border-medium/30 bg-medium-soft/60 px-2 py-1 text-xs text-medium">
-            {assigneeIsAgent ? "派给 AI 了，但它还没回话" : "已指派，等本人回复接不接"}
+            {assigneeIsAgent ? "派给 AI 了，但它还没回话" : "已分配，完成后可直接提交"}
           </p>
         )}
         {density === "comfortable" && task.labels.length > 0 && (
@@ -221,8 +219,8 @@ export function TaskCard({
         {isInReview(task.status) && !canReviewThis && (
           <p className="mt-1.5 border border-line bg-sunken px-2 py-1 text-xs text-ink-soft">
             {isMine
-              ? "已提交，需由其他组长或教师验收"
-              : "待组长或教师验收"}
+              ? "已提交，等待组长审核"
+              : "等待组长审核"}
           </p>
         )}
       </div>
@@ -262,34 +260,7 @@ export function TaskCard({
                 </Button>
               </div>
             )}
-            {canSubmit && (
-              <div className="inline-flex items-center gap-1">
-                <QuickActionButton
-                  action={submitTaskAction}
-                  projectId={projectId}
-                  taskId={task.id}
-                  payload={{ completionNote: "已完成任务并提交成果物待验收" }}
-                  label="⚡ 提交待验收"
-                  pendingLabel="提交中…"
-                  variant="ink"
-                  title="一键将任务提交待验收"
-                />
-                <Button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPanel(panel === "submit" ? null : "submit");
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  variant="quiet"
-                  size="sm"
-                  className="px-1.5 text-xs text-ink-faint hover:text-ink"
-                  title="展开填写交付说明与成果物去向"
-                >
-                  {panel === "submit" ? "收起" : "写交付说明…"}
-                </Button>
-              </div>
-            )}
+            {canSubmit && <TaskSubmitDialog projectId={projectId} task={task} evidenceTypes={missingEvidenceTypes} />}
             {canReviewThis && (
               <div className="inline-flex items-center gap-1">
                 <QuickActionButton
@@ -424,28 +395,6 @@ export function TaskCard({
               className="ac-field text-sm"
             />
           </label>
-        </ActionForm>
-      )}
-
-      {panel === "submit" && (
-        <ActionForm
-          action={submitTaskAction}
-          projectId={projectId}
-          taskId={task.id}
-          submitLabel="提交待验收"
-          onDone={() => setPanel(null)}
-          onCancel={() => setPanel(null)}
-        >
-          <label className="block space-y-1 text-xs text-ink-faint">
-            这次交付了什么？（选填）
-            <textarea
-              name="completionNote"
-              rows={2}
-              placeholder="说明交付成果与去向（选填，默认：已完成任务并提交成果物待验收）"
-              className="ac-field text-sm"
-            />
-          </label>
-          <RequiredEvidenceFields types={missingEvidenceTypes} />
         </ActionForm>
       )}
 

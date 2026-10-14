@@ -40,8 +40,8 @@ describe("组长切换身份后实际操作", () => {
     expect(await claimTaskAction(null, form)).toBeNull();
     const claimed = await getTaskDetail(owner.id, task.id);
     expect(claimed.assigneeId).toBe(member.id); expect(claimed.status).toBe("doing");
-    form.set("completionNote", "材料已完成");
-    expect(await submitTaskAction(null, form)).toBeNull();
+    form.set("completionNote", "材料已完成"); form.set("branchName", "task/feature"); form.set("handoffVersion", "1");
+    expect(await submitTaskAction(null, form)).toEqual({ ok: true });
     expect((await getTaskDetail(owner.id, task.id)).status).toBe("review");
     const records = await db.select().from(activityEvents).where(and(eq(activityEvents.taskId, task.id), eq(activityEvents.type, "task_claimed")));
     expect(records[0].actorId).toBe(owner.id);
@@ -49,18 +49,21 @@ describe("组长切换身份后实际操作", () => {
     expect(records[0].payload).toMatchObject({ delegation: { operatorId: owner.id, actingAsId: member.id, role: "student" } });
     expect(projectOperationContext.getStore()).toBeUndefined();
   });
-  it("老师视角可以验收和复核，审核身份与组长操作者均可追溯", async () => {
+  it("老师视角可复核组长审核后的任务，审核身份与组长操作者均可追溯", async () => {
     const { owner, member, teacher, project, task } = await scene();
     await claimTask(member.id, task.id, { commitmentNote: "完成" });
     await submitTask(member.id, task.id, { completionNote: "完成" });
     cookie.value = `teacher:${teacher.id}`;
     const form = new FormData(); form.set("projectId", project.id); form.set("taskId", task.id); form.set("decision", "accept"); form.set("note", "通过");
+    expect(await reviewTaskAction(null, form)).toHaveProperty("error");
+    cookie.value = "admin";
     expect(await reviewTaskAction(null, form)).toBeNull();
     const reviewed = await getTaskDetail(owner.id, task.id);
-    expect(reviewed.status).toBe("done"); expect(reviewed.reviewedById).toBe(teacher.id);
+    expect(reviewed.status).toBe("done"); expect(reviewed.reviewedById).toBe(owner.id);
+    cookie.value = `teacher:${teacher.id}`;
     form.set("note", "证据完整");
     expect(await recheckCompletedTaskAction(null, form)).toEqual({ ok: true });
-    const records = await db.select().from(activityEvents).where(and(eq(activityEvents.taskId, task.id), eq(activityEvents.type, "task_accepted")));
+    const records = await db.select().from(activityEvents).where(and(eq(activityEvents.taskId, task.id), eq(activityEvents.type, "task_updated")));
     expect(records[0].actorId).toBe(owner.id); expect(records[0].payload).toMatchObject({ delegation: { actingAsId: teacher.id } });
   });
   it("老师视角可以审核组长提交的阶段集成", async () => {
@@ -87,13 +90,13 @@ describe("组长切换身份后实际操作", () => {
   it("非组长伪造老师 cookie 无法获得老师权限", async () => {
     const { member, teacher, project, task } = await scene();
     cookie.value = `teacher:${teacher.id}`;
-    await expect(runProjectOperation(member.id, project.id, "验收", id => reviewTask(id, task.id, { decision: "accept" }), { kind: "task", id: task.id })).rejects.toThrow("只有组长或教师");
+    await expect(runProjectOperation(member.id, project.id, "验收", id => reviewTask(id, task.id, { decision: "accept" }), { kind: "task", id: task.id })).rejects.toThrow("任务由组长审核");
   });
   it("所选组员不能操作别人的任务或执行老师审核", async () => {
     const { owner, other, project, task } = await scene();
     cookie.value = `student:${other.id}`;
     await expect(runProjectOperation(owner.id, project.id, "认领", id => claimTask(id, task.id, { commitmentNote: "接住" }), { kind: "task", id: task.id })).rejects.toThrow("已有负责人");
-    await expect(runProjectOperation(owner.id, project.id, "审核", id => reviewTask(id, task.id, { decision: "accept" }), { kind: "task", id: task.id })).rejects.toThrow("只有组长或教师");
+    await expect(runProjectOperation(owner.id, project.id, "审核", id => reviewTask(id, task.id, { decision: "accept" }), { kind: "task", id: task.id })).rejects.toThrow("任务由组长审核");
   });
   it("移除成员、角色变更和跨项目对象均在执行前拒绝", async () => {
     const { owner, member, teacher, team, project, task } = await scene();

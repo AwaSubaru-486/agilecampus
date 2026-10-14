@@ -16,8 +16,9 @@ export const PROJECT_ROLE_WORKSPACE = {
   },
 } satisfies Record<TeamRole, { name: string; title: string; description: string; work: string; iterations: string; record: string; studio: string | null }>;
 
-export function projectTaskScope(role: TeamRole, scope: string | null) {
+export function projectTaskScope(role: TeamRole, scope: string | null): "completed" | "review" | "all" | "mine" {
   if (role === "teacher") return "completed" as const;
+  if (role === "admin" && (scope === "review" || scope === "completed")) return scope;
   if (scope === "all") return "all" as const;
   return "mine" as const;
 }

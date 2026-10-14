@@ -46,13 +46,13 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       { ...step("teacher", "切换到具体老师视角", "选择一位具体老师，认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
       { ...step("leader", "返回组长视角", "选择组长本人的选项，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
     ] },
-    { id: "execution", title: "认领与提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
-      step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以认领、报告执行情况或提交成果。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),
+    { id: "execution", title: "直接提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
+      step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以直接提交任务，填写分支和必需交付材料。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),
       step("contract", "查看交接与交付", "在高亮执行台里找到负责人、完成条件和证据要求；提交成果会进入待验收，由人审核。", work, "execution-console"),
       step("delivery", "登记交付材料", "点击任务节点打开详情，有执行权限时可在弹窗登记交付分支；锁定阶段要等前一阶段通过。", `${base}/timeline`, "timeline-node", "click"),
     ] },
     { id: "review", title: "任务验收与老师复核", category: "任务流程", needsProject: true, roles: ["admin", "teacher"], description: "组长验收提交成果，老师复核已完成任务并审核阶段集成。", steps: [
-      step("review", project?.role === "teacher" ? "复核已完成任务" : "找到待验收任务", project?.role === "teacher" ? "成果验收只展示已完成任务，查看成果证据并填写复核意见。" : "在分工页查看待验收任务及成果证据，检查后通过或填写原因退回。", project?.role === "teacher" ? work : `${work}&scope=all`, "execution-console"),
+      step("review", project?.role === "teacher" ? "复核已完成任务" : "找到待验收任务", project?.role === "teacher" ? "成果验收只展示已完成任务，查看成果证据并填写复核意见。" : "在成果验收页查看待审核任务及成果证据，检查后通过或填写原因退回。", project?.role === "teacher" ? work : `${work}&scope=review`, "execution-console"),
       step("integration", "检查阶段集成", "这里显示集成分支、测试材料和审核记录。非提交者才会看到审核操作；退回必须填写原因。", `${work}&scope=all`, "stage-tasks"),
       ...(project?.role === "teacher" ? [step("evaluation", "打开导师评审", "点击导师评审按钮，查看评分与评语表单。教程只打开表单，不会替你提交评价。", work, "teacher-evaluation", "click"), step("evaluation-close", "退出评审练习", "点击关闭按钮返回项目。只有正式提交才会写入评分与评语。", work, "evaluation-close", "click")] : []),
     ] },
@@ -61,7 +61,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("stage", "切换一个阶段", "点击高亮阶段导航，跳到对应任务。下一阶段只有在集成审核通过后才会解锁。", `${base}/timeline`, "stage-link", "click"),
       step("handoff", "查看执行与交接资料", "在执行台查看任务契约、运行记录与交接材料。分支信息是登记材料，网页不会自动合并代码。", work, "execution-console"),
       step("retrospective", "用过程记录复盘", "这里汇总交付、验收、求助与成员贡献。没有活动记录时会显示空状态；数据只反映已登记的过程。", `${base}/retrospective`, "retrospective"),
-      step("activity", "追溯具体动作", "活动流按时间记录认领、提交、验收等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
+      step("activity", "追溯具体动作", "活动流按时间记录提交、审核、复核等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
     ] },
     { id: "ai", roles: ["admin", "student"], title: "AI 协作与会话分支", category: "协作与沉淀", needsProject: true, description: "进入项目对话，认识共享会话和人工确认。", steps: [
       step("studio", "进入 Agent 协作", "点击 Agent 协作入口，进入项目协同室。", work, "nav-studio", "click"),

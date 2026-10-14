@@ -20,7 +20,7 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
           ? "studio"
           : search.get("space") === "record"
             ? "record"
-            : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? (search.get("view") === "manage" ? "manage" : "home") : search.get("scope") === "all" && role === "admin" ? "assignment" : "work";
+            : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? (search.get("view") === "manage" ? "manage" : "home") : role === "admin" && ["review", "completed"].includes(search.get("scope") ?? "") ? "acceptance" : search.get("scope") === "all" && role === "admin" ? "assignment" : "work";
   const spaceLink = (space: "work" | "studio" | "record") =>
     buildSpaceHref({
       projectId,
@@ -42,6 +42,7 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
       href: `${base}/timeline`,
       tour: "nav-iterations",
     },
+    ...(role === "admin" ? [{ id: "acceptance", title: "成果验收", href: `${base}?space=work&scope=review&panel=list`, tour: "nav-acceptance" }] : []),
     {
       id: "studio",
       title: workspace.studio,

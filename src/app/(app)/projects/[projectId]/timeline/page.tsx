@@ -11,6 +11,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProjectForUser } from "@/lib/project";
 import { listProjectDependencies } from "@/lib/task";
+import { parseRequiredEvidence } from "@/lib/handoff";
 import { statusLabel } from "@/lib/task-status";
 
 
@@ -42,8 +43,8 @@ export default async function TimelinePage({ params }: { params: Promise<{ proje
     const draftStageIndex = tree.stages.filter(item => item.sourceBriefId === stage.sourceBriefId).findIndex(item => item.id === stage.id);
     groups.push({ id: stage.id, title: stage.title, payload, pending: false, links, draftId: draft?.id, draftStageIndex, details: rows.map(task => {
       const delivery = deliveryByTask.get(task.id);
-      return { key: task.id, taskId: task.id, status: statusLabel(task.status), owner: task.assigneeName ?? "待分配", completed: task.status === "done", completionNote: task.completionNote, reviewNote: task.reviewNote, dueDate: task.dueDate,
-        canDeliver: !preview && role !== "teacher" && !task.isTaskGroup && tree.stages.find(item => item.id === task.stageId)?.status === "active" && (role === "admin" || task.assigneeId === viewUserId),
+      return { handoffVersion: task.handoffVersion, requiredEvidence: parseRequiredEvidence(task.requiredEvidence) ?? [], key: task.id, taskId: task.id, status: statusLabel(task.status), owner: task.assigneeName ?? "待分配", completed: task.status === "done", completionNote: task.completionNote, reviewNote: task.reviewNote, dueDate: task.dueDate,
+        canDeliver: !preview && role !== "teacher" && ["todo", "doing"].includes(task.status) && !task.isTaskGroup && (!task.stageId || tree.stages.find(item => item.id === task.stageId)?.status === "active") && (role === "admin" || task.assigneeId === viewUserId),
         delivery: delivery ? { branchName: delivery.branchName, testSummary: delivery.testSummary, pullRequestUrl: delivery.pullRequestUrl } : null };
     }) });
   }

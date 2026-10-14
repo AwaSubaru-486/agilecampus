@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "@/db";
+import { db, type DbTx } from "@/db";
 import { evidenceItems, tasks, type EvidenceType } from "@/db/schema";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { getProjectForUser } from "@/lib/project";
@@ -28,8 +28,8 @@ export type EvidenceInput = {
   sourceId?: string | null;
 };
 
-async function taskContext(actorId: string, taskId: string) {
-  const [task] = await db
+async function taskContext(actorId: string, taskId: string, exec: DbTx | typeof db = db) {
+  const [task] = await exec
     .select({
       id: tasks.id,
       projectId: tasks.projectId,
@@ -44,8 +44,9 @@ async function taskContext(actorId: string, taskId: string) {
   return { task, access };
 }
 
-export async function createEvidenceItem(actorId: string, taskId: string, input: EvidenceInput) {
-  const { task, access } = await taskContext(actorId, taskId);
+export async function createEvidenceItem(actorId: string, taskId: string, input: EvidenceInput, opts?: { tx?: DbTx }) {
+  const exec = opts?.tx ?? db;
+  const { task, access } = await taskContext(actorId, taskId, exec);
   if (task.assigneeId !== actorId && access.role !== "admin" && access.role !== "teacher") {
     throw new ForbiddenError("只有负责人、组长或教师可以补充交付证据");
   }
@@ -60,7 +61,7 @@ export async function createEvidenceItem(actorId: string, taskId: string, input:
     throw new AppError("链接证据必须以 http:// 或 https:// 开头");
   }
 
-  const [created] = await db
+  const [created] = await exec
     .insert(evidenceItems)
     .values({
       projectId: task.projectId,
@@ -73,7 +74,7 @@ export async function createEvidenceItem(actorId: string, taskId: string, input:
     })
     .returning();
 
-  await recordEvent(db, {
+  await recordEvent(exec, {
     projectId: task.projectId,
     actorId,
     taskId,
@@ -93,8 +94,9 @@ export async function listTaskEvidence(actorId: string, taskId: string) {
     .orderBy(desc(evidenceItems.createdAt));
 }
 
-export async function missingRequiredEvidence(actorId: string, taskId: string): Promise<RequiredEvidenceType[]> {
-  const { task } = await taskContext(actorId, taskId);
+export async function missingRequiredEvidence(actorId: string, taskId: string, opts?: { tx?: DbTx }): Promise<RequiredEvidenceType[]> {
+  const exec = opts?.tx ?? db;
+  const { task } = await taskContext(actorId, taskId, exec);
   const required = Array.isArray(task.requiredEvidence)
     ? task.requiredEvidence.filter((item): item is RequiredEvidenceType =>
         typeof item === "string" && EVIDENCE_TYPES.includes(item as RequiredEvidenceType),
@@ -102,7 +104,7 @@ export async function missingRequiredEvidence(actorId: string, taskId: string): 
     : [];
   if (required.length === 0) return [];
 
-  const existing = await db
+  const existing = await exec
     .select({ type: evidenceItems.type })
     .from(evidenceItems)
     .where(and(eq(evidenceItems.projectId, task.projectId), eq(evidenceItems.taskId, taskId)));

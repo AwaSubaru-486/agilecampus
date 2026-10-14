@@ -45,6 +45,7 @@ export type TaskRowSummary = {
 export type ConsoleLayout = "mobile" | "tablet" | "desktop";
 
 export type SelectedTaskDetail = {
+  delivery?: { branchName: string; headSha: string | null; pullRequestUrl: string | null; testSummary: string | null } | null;
   id: string;
   completionNote?: string | null;
   reviewNote?: string | null;

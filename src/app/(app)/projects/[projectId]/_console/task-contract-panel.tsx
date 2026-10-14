@@ -16,21 +16,18 @@ import Link from "@/components/feedback-link";
 import { LoadingProgress } from "@/components/loading-progress";
 import { useRouter } from "next/navigation";
 import {
-  claimTaskAction,
-  declineTaskAction,
-  submitTaskAction,
   reviewTaskAction,
   deleteTaskAction,
   type FormState,
 } from "../actions";
-import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
+import { isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
+import { TaskSubmitDialog } from "../_shared/task-submit-dialog";
 import { TaskRecheckForm } from "../_shared/task-recheck-form";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
 import { ExtensionEntry, TaskMaterialBinding, TaskMemoryEntry } from "./task-material-controls";
 import {
-  RequiredEvidenceFields,
   missingRequiredEvidenceTypes,
 } from "../_shared/required-evidence-fields";
 import type {
@@ -152,36 +149,14 @@ export function TaskContractPanel({
 
   const task = selectedTask;
   const isMine = Boolean(actorId && task.assigneeId === actorId);
-  const versionMatch =
-    task.committedHandoffVersion !== null &&
-    task.handoffVersion !== null &&
-    task.committedHandoffVersion === task.handoffVersion;
-
-  // 动作权限计算
-  const canClaim =
-    canWrite &&
-    isInFlight(task.status) &&
-    ((canReview && !task.assigneeId) || (isMine && (!task.committedAt || !versionMatch)));
-  const awaiting = isAwaitingResponse(
-    task.status,
-    task.assigneeId,
-    task.committedAt ? new Date(task.committedAt) : null,
-    task.committedHandoffVersion,
-    task.handoffVersion,
-  );
-  const canDecline = canWrite && isMine && awaiting;
-  const canSubmit =
-    canWrite && isMine &&
-    isInFlight(task.status) &&
-    Boolean(task.committedAt) &&
-    versionMatch;
+  const canSubmit = canWrite && isMine && isInFlight(task.status);
   const missingEvidenceTypes = missingRequiredEvidenceTypes(
     task.requiredEvidence,
     task.evidence.map((item) => item.type),
   );
   const isAdmin = canWrite && canReview;
   const canReviewThis =
-    canReview && isInReview(task.status) && (isAdmin || !isMine);
+    isAdmin && isInReview(task.status);
 
   return (
     <div data-tour="tutorial-task-detail" data-tour-claimed={task.committedAt ? "true" : "false"} data-tour-submitted={isInReview(task.status) || task.status === "done" ? "true" : "false"} className="flex flex-col gap-0">
@@ -255,8 +230,8 @@ export function TaskContractPanel({
             className="border border-stroke bg-sunken px-3 py-2 text-sm text-ink-soft"
           >
             {isMine
-              ? "已提交，不能验收自己提交的任务；请由其他组长或教师处理。"
-              : "当前账号无验收权限；请由组长或教师处理。"}
+              ? "已提交，不能验收自己提交的任务；请由组长处理。"
+              : "任务由组长审核，老师可复核已完成成果。"}
           </p>
         )}
 
@@ -356,42 +331,7 @@ export function TaskContractPanel({
           <TaskMaterialBinding key={task.id + ":" + (task.contextPackId ?? "")} projectId={projectId} task={task} canWrite={canWrite} />
         </Section>
 
-        {/* 认领与接手状态 */}
-        {task.status !== "review" && task.status !== "done" && (
-          <Section label="认领状态">
-            {task.committedAt ? (
-              <div className="text-sm text-ink">
-                已认领
-                <span className="ml-1 text-xs text-ink-3">
-                  （
-                  {task.committedHandoffVersion === null ? (
-                    <>
-                      <span>认领时版本未记录</span>
-                      <span className="text-caution">，请重新确认交接契约</span>
-                    </>
-                  ) : (
-                    <>
-                      契约版本 v{task.committedHandoffVersion}
-                      {!versionMatch && (
-                        <span className="text-caution">
-                          ，交接契约已更新至 v{task.handoffVersion}，需重新确认
-                        </span>
-                      )}
-                    </>
-                  )}
-                  ）
-                </span>
-              </div>
-            ) : (
-              <div className="text-sm text-ink-3">
-                未认领
-                <span className="ml-1 text-xs">
-                  （当前契约版本 v{task.handoffVersion}）
-                </span>
-              </div>
-            )}
-          </Section>
-        )}
+        {task.delivery && <Section label="交付材料"><div className="space-y-2 rounded-xl border border-stroke p-4 text-sm"><p>任务分支：<strong>{task.delivery.branchName}</strong></p>{task.delivery.headSha && <p className="break-all">提交 SHA：{task.delivery.headSha}</p>}{task.delivery.testSummary && <p className="whitespace-pre-wrap">测试摘要：{task.delivery.testSummary}</p>}{task.delivery.pullRequestUrl && /^https?:\/\//i.test(task.delivery.pullRequestUrl) && <a href={task.delivery.pullRequestUrl} target="_blank" rel="noreferrer" className="text-signal hover:underline">查看 PR 成果链接 ↗</a>}</div></Section>}
 
         {/* 看清要求与证据后，再完成当前阶段的任务动作。 */}
         {(task.evidence.length > 0 ||
@@ -403,86 +343,7 @@ export function TaskContractPanel({
           </Section>
         )}
 
-        {canClaim && (
-          <div className="space-y-2">
-            <ActionFormBlock
-              title={
-                task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"
-              }
-              action={claimTaskAction}
-              projectId={projectId}
-              taskId={task.id}
-              submitLabel={
-                task.committedAt
-                  ? "⚡ 确认新契约并接住"
-                  : "⚡ 确认接住 / 认领任务"
-              }
-              successMessage="✅ 任务已成功接住并认领！"
-            >
-              <textarea
-                name="commitmentNote"
-                rows={2}
-                aria-label="执行计划"
-                placeholder="写一句你的执行承诺或计划（选填，默认：已确认接住并认领任务）"
-                className="ac-field text-sm"
-              />
-              <input
-                type="number"
-                name="estimatedHours"
-                step="0.5"
-                min="0.5"
-                max="999"
-                placeholder="预估工时（小时，可选）"
-                className="ac-field text-xs"
-              />
-            </ActionFormBlock>
-          </div>
-        )}
-
-        {canDecline && (
-          <details className="ac-disclosure">
-            <summary>接不住？说明原因退回</summary>
-            <div className="ac-disclosure-body">
-              <ActionFormBlock
-                title="接不住 / 拒绝认领"
-                action={declineTaskAction}
-                projectId={projectId}
-                taskId={task.id}
-                submitLabel="退回并说明原因"
-                successMessage="✅ 已说明原因并退回任务！"
-              >
-                <textarea
-                  name="reason"
-                  required
-                  rows={2}
-                  aria-label="退回原因"
-                  placeholder="说明为什么接不住或需要协调什么（必填）"
-                  className="ac-field text-sm"
-                />
-              </ActionFormBlock>
-            </div>
-          </details>
-        )}
-
-        {canSubmit && (
-          <ActionFormBlock
-            title="提交成果"
-            action={submitTaskAction}
-            projectId={projectId}
-            taskId={task.id}
-            submitLabel="提交待验收"
-            successMessage="✅ 成果物已提交待验收！"
-          >
-            <textarea
-              name="completionNote"
-              rows={2}
-              aria-label="交付说明"
-              placeholder="说明交付成果与测试说明（选填，默认：已完成任务并提交成果物待验收）"
-              className="ac-field text-sm"
-            />
-            <RequiredEvidenceFields types={missingEvidenceTypes} />
-          </ActionFormBlock>
-        )}
+        {canSubmit && <TaskSubmitDialog key={task.id} projectId={projectId} task={task} evidenceTypes={missingEvidenceTypes} />}
 
         {task.completionNote && <Section label="提交成果"><p className="whitespace-pre-wrap text-sm leading-6">{task.completionNote}</p></Section>}
         {task.reviewNote && <Section label="验收与复核意见"><p className="whitespace-pre-wrap text-sm leading-6">{task.reviewNote}</p></Section>}
