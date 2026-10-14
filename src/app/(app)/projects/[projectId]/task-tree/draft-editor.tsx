@@ -10,6 +10,7 @@ import { saveDraftAction, type TreeActionState } from "./actions";
 import { DraftActions } from "./task-tree-forms";
 import { tutorialDemoPlan } from "@/lib/tutorials/demo-plan";
 import { DraftTechTree } from "./draft-tech-tree";
+import { usePlanningAnimation } from "../_shared/use-planning-animation";
 
 type NewTask = { title: string; description: string; doneCriteria: string[]; afterKeys: string[]; parentKey: string | null };
 const INITIAL_NOTE = "尚未进行 AI 关系分析";
@@ -26,7 +27,9 @@ export function DraftEditor({ projectId, draftId, payload, members, tutorial = f
   const [added, setAdded] = useState(false);
   const [newTask, setNewTask] = useState<NewTask | null>(null);
   const [suggestion, setSuggestion] = useState<DraftTaskSuggestion | null>(null);
-  const [busy, setBusy] = useState<"plan" | "refine" | null>(null);
+  const [requestBusy, setBusy] = useState<"refine" | null>(null);
+  const animation = usePlanningAnimation();
+  const busy = animation.busy ? "plan" : requestBusy;
   const [notice, setNotice] = useState("");
   const [removeKey, setRemoveKey] = useState<string | null>(null);
   const [keepFollowing, setKeepFollowing] = useState(true);
@@ -64,21 +67,8 @@ export function DraftEditor({ projectId, draftId, payload, members, tutorial = f
       return result as { plan?: DraftPlan; suggestion?: DraftTaskSuggestion };
     } finally { controllers.current.delete(controller); }
   }
-  async function analyse() {
-    if (busy) return;
-    setBusy("plan"); setNotice("");
-    try {
-      const result = await ask({ mode: "plan" });
-      if (!alive.current || !result.plan) return;
-      validateDraftPlan(value, result.plan);
-      setPlan(result.plan);
-      if (!dirtyPayload) {
-        setSavedPlan(JSON.stringify(result.plan));
-        localStorage.setItem(cacheKey, JSON.stringify({ relationVersion: 2, signature: serialized, plan: result.plan }));
-      }
-      setNotice("AI 已完成关系安排和第二轮复核。请检查连线理由，再确认发布。");
-    } catch (error) { if (alive.current) setNotice(error instanceof Error && error.name === "AbortError" ? "已停止分析，可以继续手动编排。" : error instanceof Error ? error.message : "AI 关系分析未完成，可以手动编排。"); }
-    finally { if (alive.current) setBusy(null); }
+  function analyse() {
+    if (!busy) { setNotice(""); animation.start(); }
   }
   useEffect(() => {
     alive.current = true;
@@ -99,10 +89,9 @@ export function DraftEditor({ projectId, draftId, payload, members, tutorial = f
         try { localStorage.setItem(cacheKey, JSON.stringify({ relationVersion: 2, signature: JSON.stringify(payload), plan: demo })); } catch { /* Teaching can continue without browser storage. */ }
         return;
       }
-      void analyse();
     });
     return () => { cancelAnimationFrame(frame); alive.current = false; activeControllers.forEach(controller => controller.abort()); };
-    // One analysis per draft mount; edits are reviewed only by the explicit button.
+    // Opening a draft restores its existing annotations without invoking a model.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId]);
   useEffect(() => { if (removeKey && dialog.current && !dialog.current.open) dialog.current.showModal(); }, [removeKey]);
@@ -194,7 +183,7 @@ export function DraftEditor({ projectId, draftId, payload, members, tutorial = f
         <div className="mt-4 flex gap-3"><button type="button" className="ac-btn" onClick={add}>确认添加任务</button><button type="button" className="ac-btn-ghost" onClick={() => { setNewTask(null); setSuggestion(null); }}>取消</button></div>
       </section>}
     </fieldset>
-    {busy && <div className="flex flex-wrap items-center gap-3"><LoadingProgress className="flex-1 min-w-48" label={busy === "plan" ? "AI 正在安排任务关系…" : "AI 正在检查任务…"} detail={busy === "plan" ? "复核必要前置与并行分支。" : "对照项目目标检查任务位置与验收标准。"} /><button type="button" className="ac-btn-ghost" onClick={() => controllers.current.forEach(controller => controller.abort())}>停止分析，手动编排</button></div>}
+    {busy && <div className="flex flex-wrap items-center gap-3"><LoadingProgress className="flex-1 min-w-48" label={busy === "plan" ? "AI 正在安排任务关系…" : "AI 正在检查任务…"} detail={busy === "plan" ? "动画演示，任务与连线保持原样。" : "对照项目目标检查任务位置与验收标准。"} /><button type="button" className="ac-btn-ghost" onClick={() => { animation.stop(); controllers.current.forEach(controller => controller.abort()); }}>停止分析，手动编排</button></div>}
     {notice && <p role="status" className="text-sm leading-6 text-ink-2">{notice}</p>}
     <details className="text-xs text-ink-3"><summary className="cursor-pointer">{plan.source === "ai" ? "查看 AI 二次复核结论" : "查看编排说明"}</summary><p className="mt-2 leading-6">{plan.reviewNote}</p></details>
     <form action={action} onReset={event => event.preventDefault()} className="flex flex-wrap items-center justify-between gap-3">

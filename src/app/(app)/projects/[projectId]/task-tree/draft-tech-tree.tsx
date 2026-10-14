@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, useDraggable, useDroppable, pointerWithin, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { type DraftTask, type StagePlan } from "@/lib/draft-planning";
 import { directPlanningLinks, layoutTechTree, type TreeSection } from "@/lib/tech-tree-layout";
@@ -49,12 +49,12 @@ export function DraftTechTree(props: TreeProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor));
   const groups = new Set(props.tasks.flatMap(task => task.parentKey ? [task.parentKey] : []));
   const orderedTasks = props.plan.links.map(link => props.tasks.find(task => task.key === link.key)!).filter(Boolean);
-  const { positions, bands, width, height } = layoutTechTree(props.tasks, props.plan, props.sections ?? [{ title: "任务编排", keys: props.tasks.map(task => task.key) }]);
+  const { positions, bands, width, height } = useMemo(() => layoutTechTree(props.tasks, props.plan, props.sections ?? [{ title: "任务编排", keys: props.tasks.map(task => task.key) }]), [props.tasks, props.plan, props.sections]);
   const drawingPlan = directPlanningLinks(props.plan);
   const focusLeft = props.focusStage === undefined ? undefined : bands[props.focusStage]?.left;
   useEffect(() => {
-    if (focusLeft !== undefined) viewport.current?.scrollTo({ left: Math.max(0, focusLeft * zoom), behavior: "smooth" });
-  }, [focusLeft, zoom]);
+    if (focusLeft !== undefined) viewport.current?.scrollTo({ left: Math.max(0, focusLeft * zoom), top: 0, behavior: "smooth" });
+  }, [focusLeft, zoom, props.focusStage]);
   function end(event: DragEndEvent) {
     setDragging(false);
     if (!event.over) return;
@@ -66,7 +66,7 @@ export function DraftTechTree(props: TreeProps) {
     }
   }
   return <div data-tour={props.readOnly ? "timeline-tree" : "draft-tree"} className="ac-tech-tree">
-    <div className="ac-tech-toolbar"><p>{props.analysed ? "从左向右推进，同一列可并行。" : "关系尚未确认，当前仅展示任务。"}{props.readOnly ? "点击任务查看详情。" : "点击任务编辑；拖动 ⠿ 调整分支。"}</p>
+    <div className="ac-tech-toolbar"><p>{props.analysed ? "从左向右推进，同一列可并行。" : "任务按阶段排列，连线展示已登记的关系。"}{props.readOnly ? "点击任务查看详情。" : "点击任务编辑；拖动 ⠿ 调整分支。"}</p>
       <div className="flex items-center gap-2"><button type="button" className="ac-btn-ghost" aria-label="缩小任务树" onClick={() => setZoom(value => Math.max(.6, value - .1))}>−</button><span className="text-xs tabular-nums">{Math.round(zoom * 100)}%</span><button type="button" className="ac-btn-ghost" aria-label="放大任务树" onClick={() => setZoom(value => Math.min(1.3, value + .1))}>＋</button></div>
     </div>
     <DndContext id={`draft-${props.draftId}-${props.plan.stageIndex}`} sensors={sensors}

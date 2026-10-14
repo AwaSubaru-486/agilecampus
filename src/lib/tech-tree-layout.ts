@@ -18,7 +18,7 @@ export function directPlanningLinks(plan: StagePlan): StagePlan {
 export function layoutTechTree(tasks: DraftTask[], plan: StagePlan, sections: TreeSection[]) {
   const levels = taskLevels(plan);
   const positions = new Map<string, { x: number; y: number }>();
-  const groups = new Set(tasks.flatMap(task => task.parentKey ? [task.parentKey] : []));
+  const byTask = new Map(tasks.map(task => [task.key, task]));
   const bands: { title: string; left: number; right: number }[] = [];
   let startColumn = 0;
   let maxRows = 1;
@@ -27,17 +27,18 @@ export function layoutTechTree(tasks: DraftTask[], plan: StagePlan, sections: Tr
     const columns = new Map<string, number>();
     const links = new Map(plan.links.map(link => [link.key, link]));
     const keys = new Set(section.keys);
-    const hasGroups = section.keys.some(key => groups.has(key));
     function column(key: string): number {
       if (columns.has(key)) return columns.get(key)!;
-      const localParents = (links.get(key)?.afterKeys ?? []).filter(before => keys.has(before));
-      const result = groups.has(key) ? 0 : Math.max(hasGroups ? 1 : 0, ...localParents.map(before => column(before) + 1));
+      const parentKey = byTask.get(key)?.parentKey;
+      const localParents = [...new Set([...(links.get(key)?.afterKeys ?? []), ...(parentKey && keys.has(parentKey) ? [parentKey] : [])])].filter(before => keys.has(before));
+      const result = Math.max(0, ...localParents.map(before => column(before) + 1));
       columns.set(key, result); return result;
     }
-    const ordered = section.keys.filter(key => tasks.some(task => task.key === key)).sort((a, b) => (levels.get(a) ?? 0) - (levels.get(b) ?? 0));
+    const ordered = section.keys.filter(key => byTask.has(key)).sort((a, b) => column(a) - column(b) || (levels.get(a) ?? 0) - (levels.get(b) ?? 0));
     for (const key of ordered) {
       const col = column(key);
-      const predecessors = links.get(key)?.afterKeys ?? [];
+      const parentKey = byTask.get(key)?.parentKey;
+      const predecessors = [...(links.get(key)?.afterKeys ?? []), ...(parentKey ? [parentKey] : [])];
       const parentRows = predecessors.flatMap(before => positions.has(before) ? [(positions.get(before)!.y - 88) / 172] : []);
       let row = parentRows.length ? Math.round(parentRows.reduce((a, b) => a + b, 0) / parentRows.length) : 0;
       while (rows.has(col * 10000 + row)) row++;

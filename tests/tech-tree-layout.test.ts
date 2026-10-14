@@ -13,6 +13,21 @@ function scene() {
 }
 
 describe("连续项目科技树", () => {
+  it("多层任务分组由父到子向右展开，节点不重叠", () => {
+    const { payload } = scene();
+    const root = payload.stages[0].tasks[0];
+    const child = { ...root, key: "child", parentKey: root.key };
+    const leaf = { ...root, key: "leaf", parentKey: child.key };
+    const sibling = { ...root, key: "sibling", parentKey: root.key };
+    const tasks = [leaf, sibling, child, root];
+    const tree = { ...payload, stages: [{ title: "分组", tasks }] };
+    const plan = emptyDraftPlan(tree).stages[0];
+    const result = layoutTechTree(tasks, plan, [{ title: "分组", keys: tasks.map(task => task.key) }]);
+    expect(result.positions.get(root.key)!.x).toBeLessThan(result.positions.get(child.key)!.x);
+    expect(result.positions.get(child.key)!.x).toBeLessThan(result.positions.get(leaf.key)!.x);
+    expect(result.positions.get(child.key)!.y).not.toBe(result.positions.get(sibling.key)!.y);
+    expect(new Set([...result.positions.values()].map(point => `${point.x}:${point.y}`)).size).toBe(4);
+  });
   it("只隐藏已经经过中间任务表达的重复连线，保留分叉与汇合", () => {
     const { plan } = scene();
     const full = { stageIndex: 0, links: plan.stages.flatMap(stage => stage.links) };
