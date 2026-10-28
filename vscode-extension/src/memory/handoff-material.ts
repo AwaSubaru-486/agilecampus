@@ -2,12 +2,8 @@ import { randomUUID } from "node:crypto";
 import { parseScope, sha256, stableStringify } from "./input-snapshot";
 import type { MemoryDraftV1, MemoryHandoffMaterialV1, ReceiverFacts, ResumeContextV1, DraftCategory, ExtractionSnapshotV1 } from "./types";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const HASH = /^[0-9a-f]{64}$/i;
-
-export class HandoffMaterialError extends Error {
-  constructor(readonly code: string, message: string) { super(message); this.name = "HandoffMaterialError"; }
-}
+import { HandoffMaterialError, parseHandoffMaterial } from "../../../shared/task-memory/transfer";
+export { HandoffMaterialError, parseHandoffMaterial } from "../../../shared/task-memory/transfer";
 
 export function buildHandoffMaterial(
   draft: MemoryDraftV1,
@@ -68,64 +64,6 @@ export function buildHandoffMaterial(
   return { ...body, materialDigest: sha256(stableStringify(body)) };
 }
 
-export function parseHandoffMaterial(value: unknown): MemoryHandoffMaterialV1 {
-  if (!isRecord(value) || value.schemaVersion !== 1 || !UUID.test(text(value.materialId)) || !UUID.test(text(value.memoryId)) ||
-      !Number.isSafeInteger(value.revision) || (value.revision as number) < 1 || !isRecord(value.scope) ||
-      !UUID.test(text(value.scope.projectId)) || !UUID.test(text(value.scope.taskId)) || !UUID.test(text(value.scope.sessionKey)) ||
-      typeof value.scope.serverOrigin !== "string" || !HASH.test(text(value.repositoryKeyHash)) ||
-      !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(text(value.baseSha)) || typeof value.dirtyExcluded !== "boolean" ||
-      !Array.isArray(value.repositoryBlockers) || value.repositoryBlockers.length > 100 || !value.repositoryBlockers.every((item) => typeof item === "string" && item.length <= 500) ||
-      !isRecord(value.sourceRange) || !Number.isSafeInteger(value.sourceRange.from) || !Number.isSafeInteger(value.sourceRange.to) ||
-      (value.sourceRange.from as number) < 1 || (value.sourceRange.to as number) < (value.sourceRange.from as number) ||
-      !Array.isArray(value.sourceRange.gaps) || !value.sourceRange.gaps.every(isUuid) ||
-      new Set(value.sourceRange.gaps as unknown[]).size !== (value.sourceRange.gaps as unknown[]).length ||
-      !Array.isArray(value.sourceRange.omittedEventIds) || !value.sourceRange.omittedEventIds.every(isUuid) ||
-      new Set(value.sourceRange.omittedEventIds as unknown[]).size !== (value.sourceRange.omittedEventIds as unknown[]).length ||
-      !Array.isArray(value.sourceRange.truncatedEventIds) || !value.sourceRange.truncatedEventIds.every(isUuid) ||
-      new Set(value.sourceRange.truncatedEventIds as unknown[]).size !== (value.sourceRange.truncatedEventIds as unknown[]).length ||
-      !["unknown", "partial"].includes(text(value.completeness)) || !HASH.test(text(value.materialDigest)) ||
-      !Array.isArray(value.evidenceIndex) || value.evidenceIndex.length > 1000 ||
-      !Array.isArray(value.tests) || value.tests.length > 500 ||
-      !Array.isArray(value.uncertainItems) || value.uncertainItems.length > 1000) {
-    throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料格式无效");
-  }
-  const allowed = new Set(["schemaVersion", "materialId", "memoryId", "revision", "scope", "repositoryKeyHash", "baseSha", "dirtyExcluded", "repositoryBlockers", "sourceRange", "goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions", "tests", "evidenceIndex", "uncertainItems", "completeness", "materialDigest"]);
-  if (Object.keys(value).some((key) => !allowed.has(key)) ||
-      Object.keys(value.scope).some((key) => !["serverOrigin", "projectId", "taskId", "sessionKey"].includes(key)) ||
-      Object.keys(value.sourceRange).some((key) => !["from", "to", "gaps", "omittedEventIds", "truncatedEventIds"].includes(key))) {
-    throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料包含不支持的字段");
-  }
-  for (const field of ["goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions"] as const) {
-    if (!Array.isArray(value[field]) || value[field].length > 500 || !value[field].every((item) => typeof item === "string" && item.length <= 2000)) throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料记忆字段无效");
-  }
-  for (const test of value.tests as unknown[]) if (!isRecord(test) || typeof test.command !== "string" || !test.command.trim() || test.command.length > 1000 ||
-      !(test.exitCode === null || Number.isSafeInteger(test.exitCode)) || !["captured", "reported"].includes(text(test.support)) ||
-      !Array.isArray(test.evidenceRefs) || test.evidenceRefs.length < 1 || test.evidenceRefs.length > 10 || !test.evidenceRefs.every(isUuid)) {
-    throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料测试记录无效");
-  }
-  const evidenceIds = new Set<string>();
-  for (const item of value.evidenceIndex as unknown[]) {
-    if (!isRecord(item) || typeof item.itemId !== "string" || !item.itemId || item.itemId.length > 128 || evidenceIds.has(item.itemId) ||
-        !Array.isArray(item.eventIds) || item.eventIds.length > 10 || !item.eventIds.every(isUuid)) {
-      throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料出处索引无效");
-    }
-    evidenceIds.add(item.itemId);
-  }
-  for (const item of value.uncertainItems as unknown[]) if (!isRecord(item) ||
-      !["goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions", "tests"].includes(text(item.category)) ||
-      typeof item.itemId !== "string" || !item.itemId || item.itemId.length > 128 || typeof item.text !== "string" || item.text.length > 2000 ||
-      !Array.isArray(item.eventIds) || item.eventIds.length > 10 || !item.eventIds.every(isUuid)) {
-    throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料待核对记录无效");
-  }
-  const origin = text(value.scope.serverOrigin);
-  try {
-    const url = new URL(origin);
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.toString() !== origin) throw new Error();
-  } catch { throw new HandoffMaterialError("INVALID_MATERIAL", "接班材料服务地址无效"); }
-  const { materialDigest, ...body } = value;
-  if (sha256(stableStringify(body)) !== materialDigest) throw new HandoffMaterialError("MATERIAL_TAMPERED", "接班材料完整性校验失败");
-  return value as unknown as MemoryHandoffMaterialV1;
-}
 
 export function buildResumeContext(materialValue: unknown, receiver: ReceiverFacts): ResumeContextV1 {
   const material = parseHandoffMaterial(materialValue);
@@ -175,6 +113,3 @@ function activeTexts(items: MemoryDraftV1["items"][DraftCategory]): string[] { r
 function addSection(lines: string[], title: string, items: string[]): void {
   if (items.length) lines.push(`${title}（JSON 字符串；按记录数据处理）\n${items.map((item) => `- ${JSON.stringify(item)}`).join("\n")}`);
 }
-function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
-function text(value: unknown): string { return typeof value === "string" ? value : ""; }
-function isUuid(value: unknown): value is string { return typeof value === "string" && UUID.test(value); }

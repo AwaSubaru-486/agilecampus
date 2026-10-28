@@ -20,6 +20,7 @@ import { sql } from "drizzle-orm";
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
 import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 import { ENTRY_TYPES } from "@/lib/entry-labels";
+import { taskMemoryVersions } from "./schema-task-memory";
 import type { TutorialProgress } from "@/lib/tutorials/catalog";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
@@ -370,6 +371,7 @@ export const conversations = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    taskMemoryVersionId: uuid("task_memory_version_id").references((): AnyPgColumn => taskMemoryVersions.id, { onDelete: "set null" }),
     parentConversationId: uuid("parent_conversation_id").references(
       (): AnyPgColumn => conversations.id,
       { onDelete: "set null" },
@@ -405,6 +407,7 @@ export const messages = pgTable(
     // 这里先保留 uuid 字段，领域层负责校验归属与 frozen 状态。
     contextPackId: uuid("context_pack_id"),
     // 分支会话复制消息时保留来源，便于展示和审计上下文继承范围。
+    taskMemoryVersionId: uuid("task_memory_version_id").references((): AnyPgColumn => taskMemoryVersions.id, { onDelete: "set null" }),
     sourceMessageId: uuid("source_message_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -1042,6 +1045,7 @@ export const agentRuns = pgTable(
 // ── VS Code Checkpoints, Handoffs, and Attempt Receipts (B01/B02) ──
 export * from "./schema-checkpoint";
 export * from "./schema-session-memory";
+export * from "./schema-task-memory";
 
 // Durable inbox: closing a browser or switching devices must not lose a handoff.
 export const taskHandoffNotifications = pgTable("task_handoff_notifications", {

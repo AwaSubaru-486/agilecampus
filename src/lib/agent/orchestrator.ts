@@ -11,6 +11,8 @@ import { getModelForUser } from "./model";
 import { getContextPackForUser } from "@/lib/context-pack";
 import { AppError } from "@/lib/errors";
 import { createApprovalRequests, type PersistedDraft } from "@/lib/approval";
+import { getTaskMemoryVersion } from "@/lib/task-memory";
+import { renderTaskMemoryContext } from "@/lib/task-memory-view";
 
 const SYSTEM_PREAMBLE = `你是 AgileCampus（敏捷校园）的项目管理助手，服务高校科研与课程团队。
 你的职责限于项目管理：拆解目标、排期、指派、跟踪进度、答疑项目现状。你不代做研究、编码或写作等实际工作。
@@ -52,12 +54,19 @@ export async function runAgentTurn(params: {
   userText: string;
   conversationId?: string;
   contextPackId?: string;
+  taskMemoryVersionId?: string;
   model?: LanguageModel;
 }) {
   const { actorId, projectId, userText, conversationId, contextPackId, model } = params;
 
   // 权限收敛：显式会话必须属于当前项目且对调用者可见；未指定时兼容旧入口。
   const conversation = await resolveConversation(actorId, projectId, conversationId);
+  const memoryVersionId = params.taskMemoryVersionId ?? conversation.taskMemoryVersionId ?? undefined;
+  if (memoryVersionId && !conversation.taskId) throw new AppError("请先创建关联当前任务的会话，再载入工作记忆");
+  const memoryVersion = memoryVersionId
+    ? await getTaskMemoryVersion(actorId, projectId, conversation.taskId!, memoryVersionId) : null;
+  const memoryContext = memoryVersion ? renderTaskMemoryContext(memoryVersion) : "";
+  if (Buffer.byteLength(memoryContext, "utf8") > 192 * 1024) throw new AppError("记忆上下文超过 192 KiB，请先整理为较小版本");
   const storedHistory = await listConversationMessages(actorId, conversation.id);
   const snapshot = await buildProjectSnapshot(actorId, projectId);
   const tools = buildTools(actorId, projectId);
@@ -91,7 +100,7 @@ export async function runAgentTurn(params: {
     stopWhen: stepCountIs(5),
     // 设计 §6.4：不自动重试——覆盖 AI SDK 默认 maxRetries=2，失败即如实呈报
     maxRetries: 0,
-    messages: [...inheritedMessages, { role: "user", content: userText }],
+    messages: [...inheritedMessages, ...(memoryContext ? [{ role: "user" as const, content: memoryContext }] : []), { role: "user", content: userText }],
   });
 
   // 工具轨迹：逐步展开 toolCalls 与对应 toolResults
@@ -120,6 +129,7 @@ export async function runAgentTurn(params: {
     toolTrace,
     actorId,
     contextPackId,
+    memoryVersionId,
   );
 
   // 决策草案必须能回到提出它的会话。模型不需要猜 UUID：编排层在
@@ -164,5 +174,6 @@ export async function runAgentTurn(params: {
     text: result.text,
     toolTrace,
     drafts: draftsWithApprovals,
+    taskMemoryVersionId: memoryVersionId ?? null,
   };
 }

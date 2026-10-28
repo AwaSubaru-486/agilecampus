@@ -30,6 +30,7 @@ export async function StudioSpace({
   selectedApprovalId,
   view,
   normalized,
+  forceNewConversation = false,
 }: {
   actorId: string;
   projectId: string;
@@ -44,6 +45,7 @@ export async function StudioSpace({
   /** ?view=chat 时访问项目级历史会话 */
   view?: string | null;
   normalized?: NormalizedConsoleParams;
+  forceNewConversation?: boolean;
 }) {
   // 显式请求项目会话视图，或仅带 conversation 参数未绑定任务时，降级展示全量聊天工作区
   const showChatPanel = view === "chat" || (selectedConversationId && !selectedTaskId);
@@ -71,7 +73,7 @@ export async function StudioSpace({
       ? approvalRows.find((approval) => approval.id === selectedApprovalId) ?? null
       : null;
 
-    const selected = selectConversationForWorkspace(projectConversations, {
+    const selected = forceNewConversation ? null : selectConversationForWorkspace(projectConversations, {
       conversationId: selectedConversationId,
       approvalConversationId: selectedApproval?.sourceConversationId,
       taskId: selectedTaskId,
@@ -94,6 +96,7 @@ export async function StudioSpace({
           content: m.content,
           authorName: m.authorName,
           sourceMessageId: m.sourceMessageId,
+          taskMemoryVersionId: m.taskMemoryVersionId,
           drafts: draftsWithApprovals.length > 0 ? draftsWithApprovals : undefined,
         };
       });
@@ -103,18 +106,20 @@ export async function StudioSpace({
         <div className="flex items-center justify-between border-b border-stroke pb-2">
           <div className="flex items-center gap-2">
             <Link
-              href={`/projects/${projectId}?space=studio`}
+              href={selectedTaskId ? `/projects/${projectId}?space=work&task=${selectedTaskId}` : `/projects/${projectId}?space=studio`}
               className="ac-btn-ghost min-h-8 px-2.5 text-xs text-ink-2 hover:text-ink"
             >
-              ← 返回 Agent 执行台
+              {selectedTaskId ? "返回任务" : "返回 Agent 执行台"}
             </Link>
-            <span className="text-xs text-ink-3">项目历史会话</span>
+            <span className="text-xs text-ink-3">{selectedTaskId ? "任务对话" : "项目历史会话"}</span>
           </div>
         </div>
         <ChatPanel
+          key={`${selectedTaskId ?? "project"}:${selected?.id ?? "new"}`}
+          canWriteMemory={role !== "teacher"}
           projectId={projectId}
           currentUserId={actorId}
-          initialConversations={projectConversations.map((c) => ({
+          initialConversations={projectConversations.filter((c) => !selectedTaskId || c.taskId === selectedTaskId).map((c) => ({
             ...c,
             createdAt: c.createdAt.toISOString(),
             updatedAt: c.updatedAt.toISOString(),

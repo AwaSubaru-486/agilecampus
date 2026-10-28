@@ -34,6 +34,8 @@ export type MemoryTestV1 = {
   support: "captured" | "reported";
 };
 
+export type MemoryParentReferenceV1 = { memoryId: string; revision: number; memoryDigest: string };
+
 export type MemoryDocumentV1 = {
   schemaVersion: 1;
   id: string;
@@ -41,6 +43,7 @@ export type MemoryDocumentV1 = {
   projectId: string;
   taskId: string;
   parentMemoryId: string | null;
+  parentReference?: MemoryParentReferenceV1;
   revision: number;
   inputDigest: string;
   sourceCoverage: { fromSequence: number; toSequence: number; gaps: string[] };

@@ -108,6 +108,7 @@ export default async function ProjectPage({
 
       {space === "studio" && (
         <StudioSpace
+          forceNewConversation={sp.new === "1"}
           actorId={actorId}
           projectId={projectId}
           teamId={project.teamId}

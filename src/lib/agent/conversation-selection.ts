@@ -15,14 +15,15 @@ export function selectConversationForWorkspace<T extends ConversationSelection>(
     taskId?: string | null;
   },
 ): T | null {
+  const scoped = options.taskId ? conversations.filter((conversation) => conversation.taskId === options.taskId) : conversations;
   return (
-    conversations.find((conversation) => conversation.id === options.conversationId) ??
-    conversations.find((conversation) => conversation.id === options.approvalConversationId) ??
-    conversations.find(
+    scoped.find((conversation) => conversation.id === options.conversationId) ??
+    scoped.find((conversation) => conversation.id === options.approvalConversationId) ??
+    scoped.find(
       (conversation) =>
         conversation.taskId === options.taskId && conversation.visibility === "project",
     ) ??
-    conversations[0] ??
+    scoped[0] ??
     null
   );
 }

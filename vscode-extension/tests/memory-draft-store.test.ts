@@ -97,6 +97,23 @@ describe("revisioned memory drafts and handoff artifacts", () => {
     expect(next.items.decisions.some((item) => item.text === "human-only decision" && item.origin === "human")).toBe(true);
   });
 
+  it("preserves exact parent revision and digest through draft persistence and export", async () => {
+    const { storageRoot, snapshot, input, candidate } = await fixture();
+    const store = new MemoryDraftStore(storageRoot);
+    const parent = await store.createDraft(candidate, input, snapshot);
+    const accepted = await store.acceptDraft(parent.draftId, parent.revision, snapshot);
+    const reference = { memoryId: accepted.document.id, revision: accepted.document.revision, memoryDigest: createHash("sha256").update(stableStringify(accepted.document)).digest("hex") };
+    const child = await store.createDraft(candidate, input, snapshot, { parentDraft: accepted.draft, parentReference: reference });
+    const finished = await store.acceptDraft(child.draftId, child.revision, snapshot);
+    expect(finished.document.parentReference).toEqual(reference);
+    const exported = createMemoryHandoffExport(finished.document, buildHandoffMaterial(finished.draft, snapshot, finished.draft.revision));
+    expect(parseMemoryHandoffExport(JSON.parse(JSON.stringify(exported))).memory.parentReference).toEqual(reference);
+    const reloaded = await new MemoryDraftStore(storageRoot).listDrafts(snapshot.scope);
+    expect(reloaded.find((entry) => entry.draftId === child.draftId)?.parentReference).toEqual(reference);
+    await expect(store.createDraft(candidate, input, snapshot, { parentDraft: accepted.draft, parentReference: { ...reference, revision: reference.revision + 1 } })).rejects.toThrow("修订号不匹配");
+    await expect(store.createDraft(candidate, input, snapshot, { parentMemoryId: reference.memoryId, parentReference: { ...reference, memoryId: randomUUID() } })).rejects.toThrow("精确版本无效");
+  });
+
   it("rejects stale revisions, accepts an immutable strict V1 document, and builds honest receiver blockers", async () => {
     const { storageRoot, workspacePath, events, scope, snapshot, input, candidate } = await fixture();
     const store = new MemoryDraftStore(storageRoot);

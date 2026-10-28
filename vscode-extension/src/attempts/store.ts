@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, realpath, rename, rm, rmdir, utimes, writeFile } from "node:fs/promises";
 import * as path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { GitRefLockStore, type CoordinationLock, type CoordinationLockRecord } from "./git-ref-lock";
+import { parseMemoryInheritance, type MemoryInheritanceV1 } from "../memory/continuation";
 
 export type AttemptState = "preparing" | "prepared" | "launching" | "running" | "finished" | "failed" | "awaiting_confirmation" | "unknown" | "ended_unverified";
 export type AttemptKind = "single" | "parallel";
@@ -29,6 +31,7 @@ export type LocalAttempt = {
   completionHeadSha?: string | null;
   completionDirty?: boolean | null;
   testEvidence?: string | null;
+  memoryInheritance?: MemoryInheritanceV1 | null;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -63,13 +66,17 @@ export class AttemptStore {
       completionDirty: input.completionDirty ?? null,
       testEvidence: input.testEvidence ?? null,
     };
+    if (attempt.memoryInheritance) {
+      attempt.memoryInheritance = parseMemoryInheritance(attempt.memoryInheritance);
+      if (attempt.memoryInheritance.baseSha !== attempt.baseSha) throw new Error("继承记忆与尝试代码基线不一致");
+    }
     await this.writeNew(attempt);
     return attempt;
   }
 
   async update(id: string, patch: Partial<Pick<LocalAttempt,
     "providerSessionId" | "state" | "pid" | "exitCode" | "timedOut" | "workdir" | "branch" | "baseSha" |
-    "agentSummary" | "completionHeadSha" | "completionDirty" | "testEvidence">>): Promise<LocalAttempt> {
+    "agentSummary" | "completionHeadSha" | "completionDirty" | "testEvidence" | "memoryInheritance">>): Promise<LocalAttempt> {
     if (!UUID.test(id)) throw new Error("Attempt ID 无效");
     const previous = this.queues.get(id) ?? Promise.resolve();
     let updated!: LocalAttempt;
@@ -78,7 +85,18 @@ export class AttemptStore {
       try {
         const current = await this.read(id);
         if (!current) throw new Error("Attempt 记录不存在");
+        if (patch.memoryInheritance !== undefined) {
+          const incoming = patch.memoryInheritance === null ? null : parseMemoryInheritance(patch.memoryInheritance);
+          if (current.memoryInheritance && !isDeepStrictEqual(current.memoryInheritance, incoming)) {
+            throw new Error("已记录的记忆继承来源不可覆盖");
+          }
+          if (incoming && (incoming.baseSha !== (patch.baseSha ?? current.baseSha) ||
+              !current.memoryInheritance && !["prepared", "launching"].includes(current.state))) {
+            throw new Error("当前尝试不能绑定此记忆版本");
+          }
+        }
         updated = { ...current, ...patch, updatedAt: new Date().toISOString() };
+        if (updated.memoryInheritance && updated.baseSha !== updated.memoryInheritance.baseSha) throw new Error("不能改变继承记忆的代码基线");
         await this.write(updated);
       } finally {
         await lock.release();
@@ -457,6 +475,8 @@ function parseAttempt(value: unknown): LocalAttempt {
       item.exitCode !== null && !Number.isSafeInteger(item.exitCode) || typeof item.timedOut !== "boolean") {
     throw new Error("Attempt 记录格式无效");
   }
+  const memoryInheritance = item.memoryInheritance == null ? null : parseMemoryInheritance(item.memoryInheritance);
+  if (memoryInheritance && memoryInheritance.baseSha !== item.baseSha) throw new Error("继承记忆与尝试代码基线不一致");
   return {
     ...(item as unknown as LocalAttempt),
     attemptKind: item.attemptKind === "parallel" ? "parallel" : "single",
@@ -468,6 +488,7 @@ function parseAttempt(value: unknown): LocalAttempt {
     completionHeadSha: typeof item.completionHeadSha === "string" && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(item.completionHeadSha) ? item.completionHeadSha : null,
     completionDirty: typeof item.completionDirty === "boolean" ? item.completionDirty : null,
     testEvidence: typeof item.testEvidence === "string" ? item.testEvidence.slice(0, 8_000) : null,
+    memoryInheritance,
   };
 }
 

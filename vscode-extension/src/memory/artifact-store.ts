@@ -1,20 +1,17 @@
-import { link, lstat, mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises";
+import { link, lstat, mkdir, readFile, readdir, realpath, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import * as path from "node:path";
 import { parseMemoryDocumentV1 } from "../../../shared/session-memory/schema";
 import type { MemoryDocumentV1 } from "../../../shared/session-memory/types";
-import { parseHandoffMaterial } from "./handoff-material";
+import { parseHandoffMaterial, parseMemoryHandoffExport, type MemoryHandoffExportV1 } from "../../../shared/task-memory/transfer";
 import { parseScope, sha256, stableStringify } from "./input-snapshot";
 import type { MemoryHandoffMaterialV1, MemoryScope } from "./types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_HANDOFF_BYTES = 2 * 1024 * 1024;
 
-export type MemoryHandoffExportV1 = {
-  format: "agilecampus-memory-handoff";
-  schemaVersion: 1;
-  memory: MemoryDocumentV1;
-  material: MemoryHandoffMaterialV1;
-};
+export type { MemoryHandoffExportV1 } from "../../../shared/task-memory/transfer";
+export { parseMemoryHandoffExport } from "../../../shared/task-memory/transfer";
 
 /** Writes accepted memory and handoff material as immutable local artifacts. */
 export class MemoryArtifactStore {
@@ -58,6 +55,40 @@ export class MemoryArtifactStore {
     if (parsed.material.scope.serverOrigin !== scope.serverOrigin || parsed.material.scope.projectId !== scope.projectId || parsed.material.scope.taskId !== scope.taskId) {
       throw new Error("接班材料与当前服务、项目或任务不匹配");
     }
+    const directory = await this.receivedDirectory(scope);
+    const file = path.join(directory, `${parsed.material.materialId}.json`);
+    const content = stableStringify(parsed);
+    if (Buffer.byteLength(content, "utf8") > MAX_HANDOFF_BYTES) throw new Error("接班材料超过 2 MiB 限制");
+    await writeImmutable(file, content);
+    return file;
+  }
+
+  /** Task-level library, isolated by the authenticated actor and workspace; never falls back to another scope. */
+  async listReceivedExports(receiverScope: Omit<MemoryScope, "sessionKey">): Promise<MemoryHandoffExportV1[]> {
+    // Reuse scope validation; a task library spans sessions and does not persist this validation-only key.
+    const scope = parseScope({ ...receiverScope, sessionKey: "00000000-0000-4000-8000-000000000000" });
+    const directory = await this.receivedDirectory(scope);
+    const records: MemoryHandoffExportV1[] = [];
+    for (const entry of await readdir(directory)) {
+      const match = /^([0-9a-f-]{36})\.json$/i.exec(entry);
+      if (!match || !UUID.test(match[1])) continue;
+      const file = path.join(directory, entry);
+      const metadata = await lstat(file);
+      if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > MAX_HANDOFF_BYTES) throw new Error("任务记忆材料文件无效");
+      const bytes = await readFile(file);
+      if (bytes.byteLength > MAX_HANDOFF_BYTES) throw new Error("任务记忆材料超过大小限制");
+      const record = parseMemoryHandoffExport(JSON.parse(bytes.toString("utf8")));
+      if (record.material.materialId !== match[1] || record.material.scope.serverOrigin !== scope.serverOrigin ||
+          record.material.scope.projectId !== scope.projectId || record.material.scope.taskId !== scope.taskId) {
+        throw new Error("任务记忆材料与当前范围不匹配");
+      }
+      records.push(record);
+    }
+    return records.sort((a, b) => b.memory.provenance.createdAt.localeCompare(a.memory.provenance.createdAt) ||
+      b.material.materialId.localeCompare(a.material.materialId));
+  }
+
+  private async receivedDirectory(scope: MemoryScope): Promise<string> {
     const root = await this.ensureDirectory("received-handoffs");
     const ownerHash = sha256(stableStringify({ actorScope: scope.actorScope, workspaceScope: scope.workspaceScope, projectId: scope.projectId, taskId: scope.taskId }));
     const directory = path.join(root, ownerHash);
@@ -65,9 +96,7 @@ export class MemoryArtifactStore {
     catch (error) { if (!isAlreadyExists(error)) throw error; }
     const metadata = await lstat(directory);
     if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error("接收材料目录不安全");
-    const file = path.join(directory, `${parsed.material.materialId}.json`);
-    await writeImmutable(file, stableStringify(parsed));
-    return file;
+    return directory;
   }
 
   private async ensureDirectory(name: "accepted-memories" | "handoff-materials" | "received-handoffs"): Promise<string> {
@@ -87,58 +116,6 @@ export class MemoryArtifactStore {
   }
 }
 
-export function parseMemoryHandoffExport(value: unknown): MemoryHandoffExportV1 {
-  if (!isRecord(value) || value.format !== "agilecampus-memory-handoff" || value.schemaVersion !== 1 ||
-      Object.keys(value).some((key) => key !== "format" && key !== "schemaVersion" && key !== "memory" && key !== "material")) {
-    throw new Error("接班 JSON 格式或版本无效");
-  }
-  const material = parseHandoffMaterial(value.material);
-  const memory = parseMemoryDocumentV1(value.memory);
-  const evidence = new Map(material.evidenceIndex.map((item) => [item.itemId, [...item.eventIds].sort()]));
-  const checkRefs = (itemId: string, refs: string[]) => {
-    const indexed = evidence.get(itemId);
-    if (!indexed || stableStringify([...refs].sort()) !== stableStringify(indexed)) throw new Error("记忆正文的出处与接班材料索引不一致");
-  };
-  for (const category of ["goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions"] as const) {
-    for (const item of memory[category]) checkRefs(item.id, item.evidenceRefs);
-  }
-  for (const category of ["goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions"] as const) {
-    const acceptedText = memory[category].filter((item) => item.disposition === "active").map((item) => item.text);
-    if (stableStringify(material[category]) !== stableStringify(acceptedText)) {
-      throw new Error("接班材料记忆内容与人工接受的记忆版本不一致");
-    }
-  }
-  for (const [index, test] of memory.tests.entries()) checkRefs(`test:${index}`, test.evidenceRefs);
-  for (const category of ["goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions"] as const) {
-    for (const item of memory[category].filter((entry) => entry.disposition === "uncertain")) {
-      const indexed = material.uncertainItems.find((entry) => entry.category === category && entry.itemId === item.id);
-      if (!indexed || indexed.text !== item.text || stableStringify([...indexed.eventIds].sort()) !== stableStringify([...item.evidenceRefs].sort())) {
-        throw new Error("记忆正文的待核对条目与接班材料不一致");
-      }
-    }
-  }
-  const uncertainTestItems = material.uncertainItems.filter((item) => item.category === "tests");
-  for (const uncertain of uncertainTestItems) {
-    const index = Number(uncertain.itemId.slice("test:".length));
-    const test = memory.tests[index];
-    if (!uncertain.itemId.startsWith("test:") || !Number.isSafeInteger(index) || !test || uncertain.text !== test.command ||
-        stableStringify([...uncertain.eventIds].sort()) !== stableStringify([...test.evidenceRefs].sort())) {
-      throw new Error("记忆正文的待核对测试与接班材料不一致");
-    }
-  }
-  const uncertainTestIndexes = new Set(uncertainTestItems.map((item) => item.itemId));
-  const activeMemoryTests = memory.tests.filter((_test, index) => !uncertainTestIndexes.has(`test:${index}`));
-  if (stableStringify(activeMemoryTests) !== stableStringify(material.tests)) throw new Error("记忆正文的测试记录与接班材料不一致");
-  if (memory.id !== material.memoryId || memory.revision !== material.revision ||
-      memory.projectId !== material.scope.projectId || memory.taskId !== material.scope.taskId ||
-      memory.sessionKey !== material.scope.sessionKey || memory.code.repositoryKeyHash !== material.repositoryKeyHash ||
-      memory.code.headSha !== material.baseSha || memory.sourceCoverage.fromSequence !== material.sourceRange.from ||
-      memory.sourceCoverage.toSequence !== material.sourceRange.to ||
-      stableStringify(memory.sourceCoverage.gaps) !== stableStringify(material.sourceRange.gaps)) {
-    throw new Error("导出包中的记忆与接班材料不匹配");
-  }
-  return { format: "agilecampus-memory-handoff", schemaVersion: 1, memory, material };
-}
 
 export function createMemoryHandoffExport(memory: MemoryDocumentV1, material: MemoryHandoffMaterialV1): MemoryHandoffExportV1 {
   if (!UUID.test(memory.id) || !UUID.test(material.materialId)) throw new Error("接班材料标识无效");
@@ -169,4 +146,3 @@ async function writeImmutable(file: string, content: string): Promise<void> {
 
 function isMissing(error: unknown): boolean { return !!error && typeof error === "object" && "code" in error && error.code === "ENOENT"; }
 function isAlreadyExists(error: unknown): boolean { return !!error && typeof error === "object" && "code" in error && error.code === "EEXIST"; }
-function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }

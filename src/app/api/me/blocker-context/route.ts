@@ -33,16 +33,16 @@ export async function GET(req: Request) {
     // 只列我自己的在办任务：这个入口解决的是「我卡住了」，
     // 报别人的任务是另一回事，不该混进来
     const tasks = (await listProjectTasks(session.user.id, projectId))
-      .filter((t) => isInFlight(t.status) && t.assigneeId === session.user.id)
+      .filter((t) => (isInFlight(t.status) && t.assigneeId === session.user.id) || t.id === taskId)
       .map((t) => ({ id: t.id, title: t.title }));
 
     const helpers = reason
       ? await suggestHelpers(session.user.id, { projectId, taskId: taskId ?? null, reason })
       : [];
 
-    return NextResponse.json({ tasks, helpers });
+    return NextResponse.json({ tasks, helpers }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     // 非成员或项目不存在，一律按无权处理，不泄露存在性
-    return NextResponse.json({ tasks: [], helpers: [] });
+    return NextResponse.json({ error: "无法读取项目求助信息" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
 }

@@ -136,6 +136,7 @@ export type MemoryDraftV1 = {
   memoryId: string;
   revision: number;
   parentMemoryId: string | null;
+  parentReference?: import("../../../shared/session-memory/types").MemoryParentReferenceV1;
   snapshotId: string;
   inputCoverage: { capturedEventIds: string[]; omissions: Array<{ eventId: string; sequence: number; reason: "budget" | "oversize"; originalTextBytes: number }> };
   scope: MemoryScope;
@@ -149,31 +150,7 @@ export type MemoryDraftV1 = {
   tombstones: string[];
 };
 
-export type MemoryHandoffMaterialV1 = {
-  schemaVersion: 1;
-  materialId: string;
-  memoryId: string;
-  revision: number;
-  scope: Omit<MemoryScope, "actorScope" | "workspaceScope">;
-  repositoryKeyHash: string;
-  baseSha: string;
-  dirtyExcluded: boolean;
-  repositoryBlockers: string[];
-  sourceRange: { from: number; to: number; gaps: string[]; omittedEventIds: string[]; truncatedEventIds: string[] };
-  goal: string[];
-  constraints: string[];
-  completed: string[];
-  remaining: string[];
-  decisions: string[];
-  rejectedApproaches: string[];
-  blockers: string[];
-  nextActions: string[];
-  tests: CandidateTest[];
-  evidenceIndex: Array<{ itemId: string; eventIds: string[] }>;
-  uncertainItems: Array<{ category: DraftCategory | "tests"; itemId: string; text: string; eventIds: string[] }>;
-  completeness: "unknown" | "partial";
-  materialDigest: string;
-};
+export type { MemoryHandoffMaterialV1 } from "../../../shared/task-memory/transfer";
 
 export type ReceiverFacts = {
   repositoryKeyHash: string | null;

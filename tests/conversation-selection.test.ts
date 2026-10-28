@@ -11,10 +11,10 @@ describe("selectConversationForWorkspace", () => {
   it("prefers the explicitly requested conversation", () => {
     expect(
       selectConversationForWorkspace(conversations, {
-        conversationId: "recent",
+        conversationId: "task-private",
         taskId: "task-a",
       })?.id,
-    ).toBe("recent");
+    ).toBe("task-private");
   });
 
   it("resumes a shared task conversation for a task deep link", () => {
@@ -22,7 +22,9 @@ describe("selectConversationForWorkspace", () => {
   });
 
   it("falls back to the most recent visible conversation", () => {
-    expect(selectConversationForWorkspace(conversations, { taskId: "missing" })?.id).toBe("recent");
+    expect(selectConversationForWorkspace(conversations, {})?.id).toBe("recent");
+    expect(selectConversationForWorkspace(conversations, { taskId: "missing" })).toBeNull();
+    expect(selectConversationForWorkspace(conversations, { taskId: "missing", conversationId: "recent" })).toBeNull();
     expect(selectConversationForWorkspace([], { taskId: "task-a" })).toBeNull();
   });
 });

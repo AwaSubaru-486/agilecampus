@@ -15,6 +15,10 @@ import { hasCommit, readRepositorySnapshot } from "../git/repository-service";
 import { isRegisteredWorktree } from "../git/worktree-service";
 import type { WorkspaceBinding } from "../workspace/binding-store";
 import { createWorkspaceApi, getLocalOnlyRepositoryId, selectBoundWorkspace } from "./checkpoint-support";
+import { selectContinuationMemory } from "./memory-continuation";
+import { inheritedMemoryEvent, parseContinuationRequest } from "../memory/continuation";
+import { LocalSessionStore } from "../session-memory/local-store";
+import type { ContinuationObserver } from "../memory/continuation-reporter";
 
 const activeLaunchKeys = new Set<string>();
 const activeAttemptIds = new Set<string>();
@@ -24,13 +28,14 @@ export function registerResumeCheckpointCommand(context: vscode.ExtensionContext
   output = vscode.window.createOutputChannel("AgileCampus Agent");
   context.subscriptions.push(output);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.resumeCheckpoint", () => resumeCheckpoint(context)));
+  context.subscriptions.push(vscode.commands.registerCommand("agilecampus.continueTaskMemory", (request?: unknown, observer?: unknown) => resumeCheckpoint(context, true, request, typeof observer === "function" ? observer as ContinuationObserver : undefined)));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.listAttempts", () => listAttempts(context)));
 }
 
-async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void> {
-  if (!vscode.workspace.isTrusted) { void vscode.window.showErrorMessage("接续 Agent 前必须信任当前 VS Code 工作区。"); return; }
+async function resumeCheckpoint(context: vscode.ExtensionContext, requireMemory = false, requestValue?: unknown, report?: ContinuationObserver): Promise<void> {
+  if (!vscode.workspace.isTrusted) { await report?.({ state: "failed" }); void vscode.window.showErrorMessage("接续 Agent 前必须信任当前 VS Code 工作区。"); return; }
   const selected = await selectBoundWorkspace(context);
-  if (!selected) return;
+  if (!selected) { await report?.({ state: "cancelled" }); return; }
   const { folder, binding } = selected;
   const checkpointStore = new CheckpointStore(context.globalStorageUri.fsPath);
   const attemptStore = new AttemptStore(context.globalStorageUri.fsPath);
@@ -42,17 +47,23 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
   let leaseAttemptId: string | undefined;
   let agentProcess: CodexProcess | undefined;
   let leaseCompromised = false;
+  let continuedSessionKey: string | undefined;
+  let cancelled = false;
+  let reportedAttemptId: string | undefined;
   try {
+    const request = parseContinuationRequest(requestValue);
     await attemptStore.markInterruptedUnknown(activeAttemptIds);
-    const records = await checkpointStore.list(binding.serverOrigin, binding.projectId);
-    if (!records.length) { void vscode.window.showInformationMessage("当前项目没有本地检查点。"); return; }
+    const allRecords = await checkpointStore.list(binding.serverOrigin, binding.projectId);
+    const records = allRecords.filter(({ manifest }) => (!request || manifest.taskId === request.taskId) &&
+      (!request?.checkpointId || manifest.id === request.checkpointId));
+    if (!records.length) { void vscode.window.showInformationMessage("当前范围没有本地检查点；请先为此任务保存或导入匹配的检查点。"); return; }
     const choice = await vscode.window.showQuickPick(records.map(({ manifest }) => ({
       label: manifest.handoff.goal,
       description: `${manifest.repository.headSha.slice(0, 10)} · ${new Date(manifest.capturedAt).toLocaleString()}`,
       detail: `${manifest.taskSnapshot.title} · ${manifest.session.captureMode}`,
       id: manifest.id,
     })), { title: "选择 Agent 接续检查点" });
-    if (!choice) return;
+    if (!choice) { cancelled = true; return; }
     const prepared = (await attemptStore.list()).filter((item) => item.checkpointId === choice.id && item.attemptKind === "parallel" && item.state === "prepared");
     const targetChoices: Array<{ label: string; description: string; key: string; attempt?: LocalAttempt }> = [
       { label: "当前干净工作区", description: "直接在当前仓库启动；已有未确认的单次尝试时会阻止重复启动", key: "single" },
@@ -64,7 +75,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       })),
     ];
     const targetChoice = await vscode.window.showQuickPick(targetChoices, { title: "选择 Agent 写入位置" });
-    if (!targetChoice) return;
+    if (!targetChoice) { cancelled = true; return; }
     const parallelAttempt = targetChoice.attempt;
     const workdir = parallelAttempt?.workdir ?? folder.uri.fsPath;
     const activeKey = `agilecampus:${await realpath(workdir)}`;
@@ -103,7 +114,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     if (preflight.status === "needs-confirmation") {
       await showTaskChanges(checkpoint, preflight);
       const changedConsent = await vscode.window.showWarningMessage("任务要求、负责人或版本与检查点不同。要按当前服务端要求尝试吗？", { modal: true }, "按当前要求继续");
-      if (changedConsent !== "按当前要求继续") return;
+      if (changedConsent !== "按当前要求继续") { cancelled = true; return; }
       preflight = evaluateHandoffPreflight({ ...initial, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: true });
     }
     if (preflight.status !== "ready") { void vscode.window.showWarningMessage("接续预检未通过；未启动 Agent。"); return; }
@@ -114,7 +125,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       picked: artifact.kind === "context",
       artifact,
     })), { title: "选择交给新 Agent 的材料", canPickMany: true, placeHolder: "仅选择本次继续工作所需的内容" }) : [];
-    if (checkpoint.artifacts.length && !materialChoices) return;
+    if (checkpoint.artifacts.length && !materialChoices) { cancelled = true; return; }
     const materials: SelectedMaterial[] = [];
     for (const item of materialChoices ?? []) {
       const content = await checkpointStore.readArtifact(binding.serverOrigin, binding.projectId, checkpoint.id, item.artifact.id);
@@ -127,6 +138,8 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       await vscode.window.showTextDocument(preview, { preview: true });
       materials.push({ kind: item.artifact.kind, content });
     }
+    const continuation = await selectContinuationMemory(context, binding, folder.uri.fsPath, checkpoint, initial.repository, requireMemory, request?.materialId);
+    if (continuation === undefined) { cancelled = true; return; }
     const cli = await inspectCodexCliVersion();
     if (cli.status !== "ready") { void vscode.window.showErrorMessage(cli.reason); return; }
 
@@ -138,20 +151,25 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
     }
     const currentTask = finalFresh.task;
     if (!currentTask) { await showBlockers(["当前任务不可访问；未把检查点交给 Agent。"]); return; }
-    const secretFindings = findObviousSecrets(JSON.stringify({ task: currentTask, handoff: checkpoint.handoff, materials: materials.map((item) => Buffer.from(item.content).toString("utf8")) }));
+    const secretFindings = findObviousSecrets(JSON.stringify({
+      task: currentTask, handoff: checkpoint.handoff,
+      materials: materials.map((item) => Buffer.from(item.content).toString("utf8")),
+      inheritedMemory: continuation?.resume.instructions ?? null,
+    }));
     if (secretFindings.length) {
       void vscode.window.showErrorMessage(`材料检测到可能的凭据格式（${secretFindings.join("、")}）；未将材料发给 Agent。请编辑并重新保存无凭据检查点。`);
       return;
     }
     let prompt: string;
-    try { prompt = buildContextPrompt(checkpoint, currentTask, materials); }
+    try { prompt = buildContextPrompt(checkpoint, currentTask, materials, continuation); }
     catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法准备 Agent 上下文"); return; }
 
+    await report?.({ state: "awaiting_confirmation" });
     const accept = await vscode.window.showWarningMessage(
-      `将启动新的 Codex CLI ${cli.version} 会话，不是恢复原 session。Agent 会在 ${workdir} 中读写；所选任务文本${materials.length ? "和附件" : "（未选附件）"}会发给你已配置的 Codex 服务。不会提交、推送或改平台任务状态。`,
+      `将启动新的 Codex CLI ${cli.version} 会话，不是恢复原 session。${continuation ? `继承记忆 ${continuation.inheritance.memoryId} r${continuation.inheritance.revision}。` : ""}Agent 会在 ${workdir} 中读写；所选任务文本${materials.length || continuation ? "和上下文" : "（未选附件）"}会发给你已配置的 Codex 服务。不会提交、推送或改平台任务状态。`,
       { modal: true }, "启动新的 Codex 会话",
     );
-    if (accept !== "启动新的 Codex 会话") return;
+    if (accept !== "启动新的 Codex 会话") { cancelled = true; return; }
 
     const attemptId = parallelAttempt?.id ?? randomUUID();
     leaseAttemptId = attemptId;
@@ -182,17 +200,41 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       attemptKind: "single", mode: "context-only", provider: "codex-cli", providerSessionId: null, state: "launching",
       workdir, branch: preflight.plan.branch, baseSha: preflight.plan.baseSha,
       parentAttemptId: null, pid: null, exitCode: null, timedOut: false,
+      memoryInheritance: continuation?.inheritance ?? null,
     }, attemptId);
-    if (parallelAttempt) await attemptStore.update(attempt.id, { state: "launching" });
+    if (parallelAttempt) await attemptStore.update(attempt.id, {
+      state: "launching", memoryInheritance: continuation?.inheritance ?? null,
+    });
     activeAttemptIds.add(attempt.id);
+    reportedAttemptId = attempt.id;
     output?.show(true);
     output?.appendLine(`Attempt ${attempt.id}: launching context-only Codex CLI.`);
     let process: CodexProcess;
     try {
+      await report?.({ state: "launching", attemptId: attempt.id });
       process = startCodexContextSession(workdir, prompt, {
         onSessionStarted: async (sessionId) => {
+          if (continuation) {
+            try {
+              const sessionStore = new LocalSessionStore(context.globalStorageUri.fsPath);
+              const captured = await sessionStore.bind({
+                provider: "codex", providerSessionId: sessionId, workspacePath: workdir,
+                projectId: checkpoint!.projectId, taskId: checkpoint!.taskId,
+              });
+              await sessionStore.append(captured.sessionKey, inheritedMemoryEvent(attempt.id, continuation));
+              continuedSessionKey = captured.sessionKey;
+              output?.appendLine(`Attempt ${attempt.id}: inherited memory ${continuation.inheritance.memoryId} r${continuation.inheritance.revision}; local session ${captured.sessionKey}.`);
+            } catch (error) {
+              agentProcess?.terminate();
+              output?.appendLine(`Attempt ${attempt.id}: memory capture failed; stopping Agent. ${error instanceof Error ? error.message : "unknown"}`);
+              throw error;
+            }
+          }
           await attemptStore.update(attempt.id, { providerSessionId: sessionId, state: "running" });
           output?.appendLine(`Attempt ${attempt.id}: Codex session ${sessionId} started.`);
+          await report?.({ state: "running", attemptId: attempt.id, sessionConfirmed: true }).catch(() => {
+            output?.appendLine("网页暂未收到启动回执；本机执行记录仍保留，请勿重复启动。");
+          });
         },
       });
       agentProcess = process;
@@ -216,6 +258,12 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
       throw error;
     }
     void process.completion.then(async (outcome) => {
+      if (continuedSessionKey && outcome.agentSummary) {
+        await new LocalSessionStore(context.globalStorageUri.fsPath).append(continuedSessionKey, {
+          kind: "assistant", text: outcome.agentSummary,
+          sourceRef: `agilecampus:agent-result:${attempt.id}`,
+        });
+      }
       let completionHeadSha: string | null = null;
       let completionDirty: boolean | null = null;
       try {
@@ -230,11 +278,15 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
         agentSummary: outcome.agentSummary, completionHeadSha, completionDirty,
       });
       output?.appendLine(`Attempt ${attempt.id}: ${outcome.state}; exit=${outcome.exitCode ?? "unknown"}; session=${outcome.providerSessionId ?? "unconfirmed"}.`);
+      await report?.({ state: outcome.state === "finished" && continuedSessionKey ? "finished" : outcome.state === "failed" ? "failed" : "unknown", attemptId: attempt.id }).catch(() => {
+        output?.appendLine("网页结果回传失败，请在本机核对本次执行记录。");
+      });
       activeAttemptIds.delete(attempt.id);
       activeLaunchKeys.delete(activeKey);
       const label = outcome.state === "finished" ? "Codex 会话已完成" : outcome.state === "failed" ? "Codex 会话失败" : "Codex 会话结束状态待核对";
       void vscode.window.showInformationMessage(`${label}。Attempt ${attempt.id.slice(0, 8)}；退出码 ${outcome.exitCode ?? "未知"}。查看“AgileCampus: 查看本地 Agent 尝试”核对记录。`);
     }).catch(async () => {
+      await report?.({ state: "unknown", attemptId: attempt.id }).catch(() => undefined);
       await attemptStore.update(attempt.id, { state: "awaiting_confirmation" }).catch(() => undefined);
       activeAttemptIds.delete(attempt.id);
       output?.appendLine(`Attempt ${attempt.id}: receipt persistence failed; state requires manual confirmation.`);
@@ -250,6 +302,7 @@ async function resumeCheckpoint(context: vscode.ExtensionContext): Promise<void>
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "启动检查点接续失败");
   } finally {
+    if (!processStarted) await report?.({ state: cancelled ? "cancelled" : "failed", ...(reportedAttemptId ? { attemptId: reportedAttemptId } : {}) }).catch(() => undefined);
     if (launchLock && !processStarted && launchKey) activeLaunchKeys.delete(launchKey);
     if (persistentLease && !processStarted && leaseAttemptId) {
       await attemptStore.releaseWorkdirLease(launchKey?.replace(/^agilecampus:/, "") ?? "", leaseAttemptId).catch(() => undefined);
@@ -316,6 +369,7 @@ async function listAttempts(context: vscode.ExtensionContext): Promise<void> {
       pid: item.pid, hostPid: item.hostPid, exitCode: item.exitCode, timedOut: item.timedOut,
       agentSummary: item.agentSummary, completionHeadSha: item.completionHeadSha,
       completionDirty: item.completionDirty, userReportedTestEvidence: item.testEvidence,
+      memoryInheritance: item.memoryInheritance ?? null,
     }, null, 2) });
     await vscode.window.showTextDocument(document, { preview: true });
   } catch (error) { void vscode.window.showErrorMessage(error instanceof Error ? error.message : "读取本地 Agent 尝试失败"); }

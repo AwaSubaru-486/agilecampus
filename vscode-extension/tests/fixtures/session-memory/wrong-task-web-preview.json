@@ -1,0 +1,11 @@
+{
+  "format": "agilecampus-memory-handoff",
+  "schemaVersion": 1,
+  "memory": {},
+  "material": {
+    "scope": {
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "taskId": "00000000-0000-4000-8000-000000000002"
+    }
+  }
+}

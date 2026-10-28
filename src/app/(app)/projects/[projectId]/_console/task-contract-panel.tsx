@@ -26,6 +26,7 @@ import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
+import { TaskMemoryPanel } from "./task-memory-panel";
 import {
   RequiredEvidenceFields,
   missingRequiredEvidenceTypes,
@@ -244,6 +245,13 @@ export function TaskContractPanel({
         </details>
       </div>
 
+      <TaskMemoryPanel key={task.id} projectId={projectId} taskId={task.id} canWrite={canWrite} />
+
+      <section aria-label="任务对话" className="border-b border-stroke px-6 py-5">
+        <h3 className="mb-3 text-sm font-semibold text-ink">任务对话</h3>
+        <TaskConversations projectId={projectId} taskId={task.id} conversations={task.conversations ?? []} />
+      </section>
+
       <div className="flex flex-col gap-5 px-6 py-6">
         {isInReview(task.status) && !canReviewThis && (
           <p
@@ -401,17 +409,17 @@ export function TaskContractPanel({
           <div className="space-y-2">
             <ActionFormBlock
               title={
-                task.committedAt ? "重新确认交接承诺 (接住)" : "认领任务 (接住)"
+                task.committedAt ? "确认更新后的任务要求" : "认领任务"
               }
               action={claimTaskAction}
               projectId={projectId}
               taskId={task.id}
               submitLabel={
                 task.committedAt
-                  ? "⚡ 确认新契约并接住"
-                  : "⚡ 确认接住 / 认领任务"
+                  ? "确认更新后的要求"
+                  : "确认认领"
               }
-              successMessage="✅ 任务已成功接住并认领！"
+              successMessage="任务已认领"
             >
               <textarea
                 name="commitmentNote"
@@ -435,15 +443,15 @@ export function TaskContractPanel({
 
         {canDecline && (
           <details className="ac-disclosure">
-            <summary>接不住？说明原因退回</summary>
+            <summary>说明原因并退回任务</summary>
             <div className="ac-disclosure-body">
               <ActionFormBlock
-                title="接不住 / 拒绝认领"
+                title="退回任务"
                 action={declineTaskAction}
                 projectId={projectId}
                 taskId={task.id}
                 submitLabel="退回并说明原因"
-                successMessage="✅ 已说明原因并退回任务！"
+                successMessage="任务已退回"
               >
                 <textarea
                   name="reason"
@@ -465,7 +473,7 @@ export function TaskContractPanel({
             projectId={projectId}
             taskId={task.id}
             submitLabel="提交待验收"
-            successMessage="✅ 成果物已提交待验收！"
+            successMessage="成果已提交，等待验收"
           >
             <textarea
               name="completionNote"
@@ -486,7 +494,7 @@ export function TaskContractPanel({
               projectId={projectId}
               taskId={task.id}
               submitLabel="提交验收结果"
-              successMessage="✅ 验收结果已提交并生效！"
+              successMessage="验收结果已保存"
             >
               <div className="space-y-2">
                 <fieldset className="flex gap-4 text-sm text-ink">
@@ -545,15 +553,6 @@ export function TaskContractPanel({
             </div>
           </Section>
         )}
-
-        {/* 会话与分支入口（W06） */}
-        <Section label="会话与分支">
-          <TaskConversations
-            projectId={projectId}
-            taskId={task.id}
-            conversations={task.conversations ?? []}
-          />
-        </Section>
 
         {/* 并行接续尝试（B04） */}
         <Section label="并行接续尝试">
@@ -646,7 +645,7 @@ export function TaskContractPanel({
         </Section>
 
         {/* 有效项目记忆（B05） */}
-        <Section label="有效项目记忆">
+        <Section label="项目规则与经验">
           {task.memories && task.memories.length > 0 ? (
             <div className="space-y-2">
               {task.memories.map((mem) => (
@@ -697,31 +696,7 @@ export function TaskContractPanel({
           )}
         </Section>
 
-        {/* 检查点共享与接续契约（W07/B01） */}
-        <details className="group rounded border border-stroke bg-sunken/30 text-xs">
-          <summary className="cursor-pointer px-3 py-2 font-medium text-ink-2 hover:text-ink select-none flex items-center justify-between">
-            <span>检查点共享与接续契约（VS Code 插件）</span>
-            <span className="text-ink-3 group-open:rotate-180 transition-transform">
-              ▼
-            </span>
-          </summary>
-          <div className="border-t border-stroke px-3 py-2.5 space-y-2 text-ink-2 leading-relaxed">
-            <p>
-              <strong className="text-ink">共享契约状态：</strong>
-              E09 契约已签署，支持通过 VS Code
-              插件登记小体积检查点索引、发起点对点交接并执行基线预检（Preflight）。
-            </p>
-            <p>
-              <strong className="text-ink">接续流转机制：</strong>
-              发起交接 → 接收人运行预检（校验 Git 基线与工作区状态）→
-              接收后自动创建 Attempt 执行回执 → 并行尝试结果实时聚合回传。
-            </p>
-            <p className="text-ink-3">
-              提示：Handoff
-              接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
-            </p>
-          </div>
-        </details>
+
       </div>
     </div>
   );
@@ -739,7 +714,7 @@ function Section({
       "交接资料",
       "会话与分支",
       "并行接续尝试",
-      "有效项目记忆",
+      "项目规则与经验",
       "AGENT 运行",
       "任务活动",
     ].includes(label)
@@ -815,7 +790,7 @@ function ActionFormBlock({
             aria-live="polite"
             className="text-xs font-medium text-risk bg-risk/10 p-2 rounded"
           >
-            ⚠️ {state.error}
+            {state.error}
           </p>
         )}
         {success && (
@@ -875,7 +850,7 @@ function DeleteTaskButton({
         className="shrink-0 rounded border border-risk/30 px-2.5 py-1 text-xs text-risk hover:bg-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-risk"
         title="组长专享：删除当前任务"
       >
-        🗑️ 删除任务
+        删除任务
       </button>
     );
   }

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { link, lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import * as path from "node:path";
-import { parseMemoryDocumentV1 } from "../../../shared/session-memory/schema";
+import { parseMemoryDocumentV1, parseMemoryParentReference } from "../../../shared/session-memory/schema";
 import type { MemoryDocumentV1, MemoryItemV1 } from "../../../shared/session-memory/types";
 import { GitRefLockStore } from "../attempts/git-ref-lock";
 import { parseScope, stableStringify } from "./input-snapshot";
@@ -39,10 +39,12 @@ export class MemoryDraftStore {
     candidate: MemoryCandidateV1,
     input: PreparedExtractionInputV1,
     snapshot: ExtractionSnapshotV1,
-    options: { parentMemoryId?: string | null; parentDraft?: MemoryDraftV1 } = {},
+    options: { parentMemoryId?: string | null; parentDraft?: MemoryDraftV1; parentReference?: MemoryDocumentV1["parentReference"] } = {},
   ): Promise<MemoryDraftV1> {
     assertSources(candidate, input, snapshot);
     const parentMemoryId = options.parentDraft?.memoryId ?? options.parentMemoryId ?? null;
+    const parentReference = options.parentReference ? parseMemoryParentReference(options.parentReference, parentMemoryId) : undefined;
+    if (options.parentDraft && parentReference && parentReference.revision !== options.parentDraft.revision) throw new MemoryDraftError("INVALID_PARENT", "父记忆修订号不匹配");
     if (!(parentMemoryId === null || UUID.test(parentMemoryId))) throw new MemoryDraftError("INVALID_PARENT", "父记忆版本标识无效");
     if (options.parentDraft && (options.parentDraft.status !== "accepted" || options.parentDraft.memoryId !== parentMemoryId ||
         !sameScope(options.parentDraft.scope, snapshot.scope))) {
@@ -57,6 +59,7 @@ export class MemoryDraftStore {
     if (options.parentDraft) inheritAcceptedHumanEdits(items, tests, tombstones, options.parentDraft, snapshot, this.makeId);
     const draft: MemoryDraftV1 = {
       schemaVersion: 1, draftId, memoryId: this.makeId(), revision: 1, parentMemoryId,
+      ...(parentReference ? { parentReference } : {}),
       snapshotId: snapshot.snapshotId, inputCoverage: { capturedEventIds: [...input.capturedEventIds], omissions: structuredClone(input.omissions) },
       scope: snapshot.scope, inputDigest: input.inputDigest,
       status: "candidate", createdAt: timestamp, updatedAt: timestamp,
@@ -431,6 +434,7 @@ function parseDraft(value: unknown): MemoryDraftV1 {
   return {
     schemaVersion: 1, draftId: text(value.draftId), memoryId: text(value.memoryId), revision: value.revision as number,
     parentMemoryId: value.parentMemoryId as string | null, snapshotId: text(value.snapshotId),
+    ...(value.parentReference !== undefined ? { parentReference: parseMemoryParentReference(value.parentReference, value.parentMemoryId as string | null) } : {}),
     inputCoverage: { capturedEventIds: capturedEventIds as string[], omissions: omissions as MemoryDraftV1["inputCoverage"]["omissions"] },
     scope, inputDigest: text(value.inputDigest),
     status: value.status as MemoryDraftV1["status"], createdAt: text(value.createdAt), updatedAt: text(value.updatedAt),
@@ -520,6 +524,7 @@ function toMemoryDocument(draft: MemoryDraftV1, snapshot: ExtractionSnapshotV1):
   return parseMemoryDocumentV1({
     schemaVersion: 1, id: draft.memoryId, sessionKey: draft.scope.sessionKey, projectId: draft.scope.projectId, taskId: draft.scope.taskId,
     parentMemoryId: draft.parentMemoryId, revision: draft.revision, inputDigest: draft.inputDigest,
+    ...(draft.parentReference ? { parentReference: draft.parentReference } : {}),
     sourceCoverage: { fromSequence: snapshot.fromSequence, toSequence: snapshot.toSequence, gaps: snapshot.gapEventIds },
     code: { repositoryKeyHash: snapshot.repositoryKeyHash, headSha: snapshot.headSha, dirtyExcluded: snapshot.dirtyExcluded },
     goal: draft.items.goal.filter((item) => item.disposition !== "superseded").map(mapItem),

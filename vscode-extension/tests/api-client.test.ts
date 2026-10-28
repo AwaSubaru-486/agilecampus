@@ -8,6 +8,18 @@ function response(status: number, body: unknown) {
 }
 
 describe("AgileCampus API client", () => {
+  it("retries a lost claim response with one claim id, so another window cannot reuse the request", async () => {
+    const bodies: Array<{ claimId: string; id: string; versionId: string }> = [];
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)); bodies.push(body);
+      if (bodies.length === 1) throw new TypeError("response lost");
+      return response(200, { claimId: body.claimId });
+    }) as unknown as typeof fetch;
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_test", fetcher);
+    const claimed = await client.claimTaskMemoryContinuation("project", "task", "request", "version");
+    expect(bodies).toHaveLength(2); expect(bodies[0]).toEqual(bodies[1]);
+    expect(claimed.claimId).toBe(bodies[0].claimId);
+  });
   it("only accepts HTTPS outside loopback and rejects URL credentials/query", () => {
     expect(validateServerUrl("http://localhost:3000").toString()).toBe("http://localhost:3000/");
     expect(() => validateServerUrl("http://192.168.1.10:3000")).toThrow("必须使用 HTTPS");

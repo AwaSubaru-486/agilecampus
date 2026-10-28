@@ -15,6 +15,7 @@ import { registerCompareAttemptsCommand } from "./commands/compare-attempts";
 import { ProjectViewProvider } from "./views/project-view-provider";
 import { registerSessionMemoryCommands } from "./commands/session-memory";
 import { registerImportMemoryHandoffCommand } from "./commands/import-memory-handoff";
+import { registerTaskMemoryLinks } from "./commands/task-memory-link";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ProjectViewProvider(context.extensionUri, context);
@@ -37,6 +38,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCompareAttemptsCommand(context);
   registerSessionMemoryCommands(context);
   registerImportMemoryHandoffCommand(context);
+  registerTaskMemoryLinks(context);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.connect", () => provider.connect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disconnect", () => provider.disconnect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.selectProject", () => provider.selectProject()));

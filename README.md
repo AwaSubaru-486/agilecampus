@@ -1,5 +1,23 @@
 # AgileCampus 敏捷校园
 
+## 工作记忆与 Agent 接续（2026-10-28）
+
+最新插件为 [AgileCampus 0.1.4](vscode-extension/agilecampus-memory-wrapup-0.1.4.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
+
+使用入口：项目 → 分工与执行 → 选择任务 → 当前工作记忆。
+
+- 保存并查看任务断点：进度、失败方法、阻塞、下一步及来源。
+- 选择固定记忆版本，在 VS Code 核对代码后继续；网页显示插件接收、确认及执行回执。
+- 新记忆记录父记忆的精确修订和内容校验值，可以与继承版本比较变化。
+- 会话结束后，按执行记录整理准确的本机会话，审核后保存下一份断点。
+- “带此断点求助”生成可编辑说明；协作中心可以回查自己的求助及工作断点。
+
+部署需要同步数据库 schema（首次安装按下文 `npm run db:push` 操作）。增量迁移见 [记忆版本](scripts/migrations/2026-10-26-task-memory-versions.sql) 和 [接续回执](scripts/migrations/2026-10-26-task-memory-continuations.sql)，两份均需应用。插件和网页应一起升级。
+
+原始对话和未提交代码不会由此记忆材料自动上传。真实双机、真实模型完整接班仍待验证，页面截图使用合成测试数据。详细记录：[网页与插件回执](docs/reviews/memory-core/2026-10-26-continuation-receipts.md)、[精确版本](docs/reviews/memory-core/2026-10-27-exact-parent-version.md)、[任务求助](docs/reviews/memory-core/2026-10-27-memory-help.md)、[会话收尾](docs/reviews/memory-core/2026-10-27-memory-wrapup.md)。
+
+以下早期施工入口的阶段描述为历史记录，以本节和 [AGENTS.md](AGENTS.md) 顶部的最新说明为准。
+
 > **下一阶段 Luna 执行入口（2026-10-05）**：[真实采集、记忆草稿与交接准备 N00–N06](docs/superpowers/plans/2026-10-05-session-memory-next-luna-plan.md)。首批只做 N00–N02，完成后停下来验收。此前 H00–H02 的代码验收已通过；真实 Extension Host + Codex Hook 采集、AI 提炼、私有材料发布和异机接班仍待验证与施工。
 
 > **最新 Luna 施工入口：自动会话记忆与一键发布（2026-10-02）**：[M00–M08 完整工单](docs/superpowers/plans/2026-10-02-session-memory-publish-luna-plan.md)。M00 能力盘点完成；M01 契约、数据库基础表、项目授权记录和受权限控制的会话/版本索引 API 已通过定向测试；M02 本地绑定与追加式事件存储基础正在施工。当前尚无 Hook/扩展命令接线、真实会话采集、发布登记、AI 提炼、远端 transcript 读取、网页会话页或 A→B 真实接班。分工以 [AGENTS.md](AGENTS.md) 顶部为准，阶段证据见 [施工记录](docs/reviews/session-memory-publish/progress.md)。
@@ -41,7 +59,7 @@
 
 - **工作现场**：正在发生（人与 AI 混排的实时状态）、接力（一件工作怎么在人与 AI 之间流转）、里程碑（自动记录的功勋墙）
 - **项目健康度**：六类风险，每条都答「为什么红 / 该做什么 / 谁来做」——不是仪表盘，是待办清单
-- **阻塞上报**：一键「我卡住了」，自动推荐可能帮得上的人（推荐带理由）
+- **任务求助**：关联工作断点、编辑求助说明，按原因推荐协助人，发送后在协作中心回查
 - **项目活动流**：append-only 的过程账本，人机混排、分得清谁做的
 
 ### 闭环与沉淀

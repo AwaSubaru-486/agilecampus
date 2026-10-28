@@ -8,6 +8,7 @@ const schema = z.object({
   projectId: z.uuid(),
   conversationId: z.uuid().optional(),
   contextPackId: z.uuid().optional(),
+  taskMemoryVersionId: z.uuid().optional(),
   userText: z.string().trim().min(1, "请输入内容"),
 });
 
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
       projectId: parsed.data.projectId,
       conversationId: parsed.data.conversationId,
       contextPackId: parsed.data.contextPackId,
+      taskMemoryVersionId: parsed.data.taskMemoryVersionId,
       userText: parsed.data.userText,
     });
     return NextResponse.json({
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
       text: result.text,
       toolTrace: result.toolTrace,
       drafts: result.drafts,
+      taskMemoryVersionId: result.taskMemoryVersionId,
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return NextResponse.json({ error: "没有权限" }, { status: 403 });

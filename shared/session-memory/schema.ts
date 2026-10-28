@@ -1,5 +1,6 @@
 import type {
   MemoryDocumentV1,
+  MemoryParentReferenceV1,
   MemoryItemV1,
   MemorySupport,
   NormalizedEventV1,
@@ -70,10 +71,18 @@ export function parseNormalizedEventV1(value: unknown): NormalizedEventV1 {
   };
 }
 
+export function parseMemoryParentReference(value: unknown, parentMemoryId: string | null): MemoryParentReferenceV1 {
+  if (!record(value)) fail("父记忆精确版本无效");
+  keys(value, new Set(["memoryId", "revision", "memoryDigest"]), "父记忆精确版本包含不支持的字段");
+  if (!UUID.test(str(value.memoryId)) || value.memoryId !== parentMemoryId ||
+      !Number.isSafeInteger(value.revision) || (value.revision as number) < 1 || !HASH.test(str(value.memoryDigest))) fail("父记忆精确版本无效");
+  return { memoryId: str(value.memoryId), revision: value.revision as number, memoryDigest: str(value.memoryDigest) };
+}
+
 export function parseMemoryDocumentV1(value: unknown, eventIds?: ReadonlySet<string>): MemoryDocumentV1 {
   if (!record(value) || value.schemaVersion !== 1) fail("记忆文档格式或版本无效");
   const fields = ["goal", "constraints", "completed", "remaining", "decisions", "rejectedApproaches", "blockers", "nextActions"] as const;
-  keys(value, new Set(["schemaVersion", "id", "sessionKey", "projectId", "taskId", "parentMemoryId", "revision", "inputDigest", "sourceCoverage", "code", ...fields, "tests", "provenance"]), "记忆文档包含不支持的字段");
+  keys(value, new Set(["schemaVersion", "id", "sessionKey", "projectId", "taskId", "parentMemoryId", "parentReference", "revision", "inputDigest", "sourceCoverage", "code", ...fields, "tests", "provenance"]), "记忆文档包含不支持的字段");
   if (!UUID.test(str(value.id)) || !UUID.test(str(value.sessionKey)) ||
       !(value.parentMemoryId === null || UUID.test(str(value.parentMemoryId))) || value.parentMemoryId === value.id) fail("记忆文档 ID 或父记忆引用无效");
   if (!str(value.projectId) || !str(value.taskId) || !Number.isSafeInteger(value.revision) || (value.revision as number) < 1 || !HASH.test(str(value.inputDigest))) fail("记忆版本或项目关联无效");
@@ -108,6 +117,7 @@ export function parseMemoryDocumentV1(value: unknown, eventIds?: ReadonlySet<str
   return {
     schemaVersion: 1, id: str(value.id), sessionKey: str(value.sessionKey), projectId: str(value.projectId), taskId: str(value.taskId),
     parentMemoryId: value.parentMemoryId as string | null, revision: value.revision as number, inputDigest: str(value.inputDigest),
+    ...(value.parentReference !== undefined ? { parentReference: parseMemoryParentReference(value.parentReference, value.parentMemoryId as string | null) } : {}),
     sourceCoverage: coverage, code, ...items, tests,
     provenance: { extractor: str(provenance.extractor), promptVersion: str(provenance.promptVersion), model: str(provenance.model), createdAt: str(provenance.createdAt), editedBy: provenance.editedBy as string | null,
       usage: { inputTokens: provenance.usage.inputTokens as number | null, outputTokens: provenance.usage.outputTokens as number | null } },

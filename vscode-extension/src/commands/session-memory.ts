@@ -8,10 +8,12 @@ import { validateMemoryCandidate } from "../memory/candidate-validator";
 import { buildAcceptedMemoryDocument, MemoryDraftStore, type MemoryDraftPatch } from "../memory/draft-store";
 import { buildHandoffMaterial } from "../memory/handoff-material";
 import { createExtractionPreview, prepareExtractionInput } from "../memory/input-builder";
-import { createInputSnapshot, sha256, workspaceScopeHash } from "../memory/input-snapshot";
+import { createInputSnapshot, sha256, stableStringify, workspaceScopeHash } from "../memory/input-snapshot";
 import { MemorySnapshotStore } from "../memory/snapshot-store";
 import type { DraftCategory, DraftItem, DraftTest, MemoryDraftV1, MemoryScope, PreparedExtractionInputV1 } from "../memory/types";
 import { GitRefLockStore } from "../attempts/git-ref-lock";
+import { AttemptStore } from "../attempts/store";
+import { inheritedParentMemoryReference } from "../memory/continuation";
 import { getLocalOnlyRepositoryId, selectBoundWorkspace, type BoundWorkspace } from "./checkpoint-support";
 
 const CATEGORY_LABELS: Record<DraftCategory, string> = {
@@ -27,18 +29,22 @@ type ReviewChoice =
 type ReviewQuickPickItem = vscode.QuickPickItem & { choice: ReviewChoice };
 
 export function registerSessionMemoryCommands(context: vscode.ExtensionContext): void {
-  context.subscriptions.push(vscode.commands.registerCommand("agilecampus.extractSessionMemory", () => extractSessionMemory(context)));
+  context.subscriptions.push(vscode.commands.registerCommand("agilecampus.extractSessionMemory", (request?: unknown) => extractSessionMemory(context, request)));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.reviewSessionMemory", () => reviewSavedDraft(context)));
 }
 
-async function extractSessionMemory(context: vscode.ExtensionContext): Promise<void> {
+async function extractSessionMemory(context: vscode.ExtensionContext, request?: unknown): Promise<void> {
   if (!vscode.workspace.isTrusted) { void vscode.window.showErrorMessage("会话记忆需要先信任当前工作区。"); return; }
   const selected = await selectBoundWorkspace(context);
   if (!selected) return;
   try {
     const api = createApi(context, selected);
     const actor = await api.getCurrentActor();
-    const { binding, sessionStore } = await selectLocalSession(context, selected);
+    const taskId = request && typeof request === "object" ? (request as { taskId?: unknown }).taskId : undefined;
+    const sessionKey = request && typeof request === "object" ? (request as { sessionKey?: unknown }).sessionKey : undefined;
+    if (taskId !== undefined && (typeof taskId !== "string" || !/^[0-9a-f-]{36}$/i.test(taskId))) throw new Error("任务参数无效");
+    if (sessionKey !== undefined && (typeof sessionKey !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionKey) || !taskId)) throw new Error("会话参数无效");
+    const { binding, sessionStore } = await selectLocalSession(context, selected, taskId as string | undefined, sessionKey as string | undefined);
     const task = await api.getTask(binding.taskId);
     if (task.id !== binding.taskId || task.projectId !== selected.binding.projectId) throw new Error("本机会话关联的任务与当前项目不匹配");
     const scope = await makeScope(selected, binding, actor.id);
@@ -79,8 +85,12 @@ async function extractSessionMemory(context: vscode.ExtensionContext): Promise<v
         }, async () => api.extractSessionMemory(input));
         const candidate = validateMemoryCandidate(rawCandidate, input);
         const parentDraft = existingRows.find((entry) => entry.status === "accepted");
+        const inheritedParent = await inheritedParentMemoryReference(await new AttemptStore(context.globalStorageUri.fsPath).list(), binding);
+        const parentDocument = parentDraft ? buildAcceptedMemoryDocument(parentDraft, await snapshotStore.loadSnapshot(parentDraft.snapshotId, scope)) : null;
+        const parentReference = parentDocument ? { memoryId: parentDocument.id, revision: parentDocument.revision, memoryDigest: sha256(stableStringify(parentDocument)) } : inheritedParent;
         draft = await drafts.createDraft(candidate, input, snapshot, {
-          parentMemoryId: parentDraft?.memoryId ?? null,
+          parentMemoryId: parentDraft?.memoryId ?? inheritedParent?.memoryId ?? null,
+          ...(parentReference ? { parentReference } : {}),
           ...(parentDraft ? { parentDraft } : {}),
         });
       }
@@ -258,6 +268,8 @@ async function persistAndPresent(context: vscode.ExtensionContext, draft: Memory
   const material = buildHandoffMaterial(draft, snapshot, draft.revision, () => stableMaterialId(draft.memoryId, draft.revision));
   const materialPath = await artifacts.saveHandoffMaterial(material);
   const handoff = createMemoryHandoffExport(document, material);
+  // Both locally accepted and imported versions enter the same actor/workspace/task library.
+  await artifacts.saveReceivedExport(handoff, draft.scope);
   const lines = [
     `AgileCampus · 会话记忆接班材料 r${material.revision}`,
     `项目 ${material.scope.projectId} / 任务 ${material.scope.taskId}`,
@@ -323,11 +335,12 @@ async function selectEvidence(snapshot: Parameters<MemoryDraftStore["acceptDraft
   return picks?.map((item) => item.id) ?? [];
 }
 
-async function selectLocalSession(context: vscode.ExtensionContext, selected: BoundWorkspace): Promise<{ binding: LocalSessionBinding; sessionStore: LocalSessionStore }> {
+async function selectLocalSession(context: vscode.ExtensionContext, selected: BoundWorkspace, taskId?: string, sessionKey?: string): Promise<{ binding: LocalSessionBinding; sessionStore: LocalSessionStore }> {
   const sessionStore = new LocalSessionStore(context.globalStorageUri.fsPath);
-  const bindings = await sessionStore.list(selected.folder.uri.fsPath, selected.binding.projectId);
+  const bindings = await sessionStore.list(selected.folder.uri.fsPath, selected.binding.projectId, taskId);
   const rows = [];
   for (const binding of bindings) {
+    if (sessionKey && binding.sessionKey !== sessionKey) continue;
     const summary = await sessionStore.summary(binding.sessionKey);
     if (summary.eventCount > 0) rows.push({
       label: `${binding.provider.toUpperCase()} · ${summary.eventCount} 条 · ${binding.recording ? "记录中" : "已停止"}`,
@@ -337,6 +350,7 @@ async function selectLocalSession(context: vscode.ExtensionContext, selected: Bo
     });
   }
   if (!rows.length) throw new Error("当前项目工作区没有可整理的本机会话记录。请先在项目面板关联 Codex 会话并产生记录。");
+  if (sessionKey) return { binding: rows[0].binding, sessionStore };
   const choice = await vscode.window.showQuickPick(rows, { title: "选择需要提炼的本机会话", placeHolder: "原始记录仍只在本机；接下来可先检查脱敏出站预览" });
   if (!choice) throw new Error("已取消会话选择");
   return { binding: choice.binding, sessionStore };

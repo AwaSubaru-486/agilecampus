@@ -2,7 +2,7 @@
   "name": "agilecampus-vscode",
   "displayName": "AgileCampus",
   "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "private": true,
   "publisher": "agilecampus",
   "license": "MIT",
@@ -14,6 +14,7 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
+    "onUri",
     "onView:agilecampus.projectView",
     "onStartupFinished",
     "onCommand:agilecampus.openProject",
@@ -32,6 +33,7 @@
     "onCommand:agilecampus.importCheckpoint",
     "onCommand:agilecampus.prepareHandoff",
     "onCommand:agilecampus.resumeCheckpoint",
+    "onCommand:agilecampus.continueTaskMemory",
     "onCommand:agilecampus.listAttempts",
     "onCommand:agilecampus.forkAttempt",
     "onCommand:agilecampus.compareAttempts",
@@ -118,6 +120,10 @@
       {
         "command": "agilecampus.resumeCheckpoint",
         "title": "AgileCampus: 从检查点启动 Agent"
+      },
+      {
+        "command": "agilecampus.continueTaskMemory",
+        "title": "AgileCampus: 继承任务记忆并继续工作"
       },
       {
         "command": "agilecampus.listAttempts",

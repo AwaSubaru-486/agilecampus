@@ -265,6 +265,36 @@ export class AgileCampusApiClient {
     return new URL(path.replace(/^\/+/, ""), this.baseUrl).toString();
   }
 
+  async publishTaskMemory(projectId: string, taskId: string, payload: unknown): Promise<{ id: string }> {
+    const result = asRecord(await this.request<unknown>(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    }), "记忆同步返回格式无效");
+    if (typeof result.id !== "string" || !/^[0-9a-f-]{36}$/i.test(result.id)) throw new ApiError("记忆版本标识无效", null);
+    return { id: result.id };
+  }
+
+  async getSharedTaskMemory(projectId: string, taskId: string, versionId: string): Promise<unknown> {
+    return this.request<unknown>(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory?version=${encodeURIComponent(versionId)}`);
+  }
+
+  async claimTaskMemoryContinuation(projectId: string, taskId: string, id: string, versionId: string): Promise<{ claimId: string }> {
+    const claimId = crypto.randomUUID();
+    const claim = () => this.request<unknown>(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory/continuations`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation: "claim", id, versionId, claimId }),
+    });
+    let value: unknown;
+    try { value = await claim(); } catch (error) { if (error instanceof ApiError && error.status !== null) throw error; value = await claim(); }
+    const result = asRecord(value, "接续确认格式无效");
+    if (result.claimId !== claimId) throw new ApiError("接续确认标识不一致", null);
+    return { claimId: result.claimId };
+  }
+
+  async reportTaskMemoryContinuation(projectId: string, taskId: string, progress: { id: string; claimId: string; sequence: number; state: string; attemptId?: string; sessionConfirmed?: boolean }): Promise<void> {
+    await this.request(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory/continuations`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation: "report", ...progress }),
+    });
+  }
+
   private async request<T>(path: string, init: RequestInit = {}, timeoutMs = this.timeoutMs): Promise<T> {
     const token = await this.token();
     if (!token || !token.startsWith("ac_")) throw new ApiError("请连接 AgileCampus Personal API Token", 401);

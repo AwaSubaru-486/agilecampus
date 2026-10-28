@@ -17,6 +17,7 @@ export type ConversationListItem = {
   title: string | null;
   visibility: ConversationVisibility;
   taskId: string | null;
+  taskMemoryVersionId?: string | null;
   taskTitle: string | null;
   parentConversationId: string | null;
   forkedFromMessageId: string | null;
@@ -75,6 +76,7 @@ export async function listProjectConversations(
       visibility: conversations.visibility,
       taskId: conversations.taskId,
       taskTitle: tasks.title,
+      taskMemoryVersionId: conversations.taskMemoryVersionId,
       parentConversationId: conversations.parentConversationId,
       forkedFromMessageId: conversations.forkedFromMessageId,
       createdById: conversations.createdById,
@@ -166,6 +168,7 @@ export async function persistTurn(
   toolTrace: ToolTraceEntry[],
   authorId?: string,
   contextPackId?: string,
+  taskMemoryVersionId?: string,
 ) {
   return db.transaction(async (tx) => {
     const [lastMessage] = await tx
@@ -188,6 +191,7 @@ export async function persistTurn(
           content: userText,
           authorId,
           contextPackId,
+          taskMemoryVersionId,
           createdAt: userCreatedAt,
         },
         {
@@ -196,13 +200,14 @@ export async function persistTurn(
           content: assistantText,
           toolCalls: toolTrace.length > 0 ? toolTrace : null,
           contextPackId,
+          taskMemoryVersionId,
           createdAt: assistantCreatedAt,
         },
       ])
       .returning();
     await tx
       .update(conversations)
-      .set({ updatedAt: new Date() })
+      .set({ updatedAt: new Date(), ...(taskMemoryVersionId ? { taskMemoryVersionId } : {}) })
       .where(eq(conversations.id, conversationId));
     return { userMessage: inserted[0], assistantMessage: inserted[1] };
   });
@@ -220,6 +225,7 @@ export async function listConversationMessages(actorId: string, conversationId: 
       authorId: messages.authorId,
       authorName: users.name,
       contextPackId: messages.contextPackId,
+      taskMemoryVersionId: messages.taskMemoryVersionId,
       sourceMessageId: messages.sourceMessageId,
       createdAt: messages.createdAt,
     })
@@ -253,6 +259,7 @@ export async function forkConversation(
         projectId: source.projectId,
         createdById: actorId,
         taskId: source.taskId,
+        taskMemoryVersionId: source.taskMemoryVersionId,
         parentConversationId: source.id,
         forkedFromMessageId: throughMessageId,
         visibility: input.visibility ?? "project",
@@ -269,6 +276,7 @@ export async function forkConversation(
           toolCalls: message.toolCalls,
           authorId: message.authorId,
           contextPackId: message.contextPackId,
+          taskMemoryVersionId: message.taskMemoryVersionId,
           sourceMessageId: message.id,
           createdAt: message.createdAt,
         })),

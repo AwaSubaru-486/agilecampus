@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { MemoryArtifactStore, parseMemoryHandoffExport } from "../memory/artifact-store";
-import { buildResumeContext } from "../memory/handoff-material";
+import { prepareMemoryContinuation } from "../memory/continuation";
 import { sha256, workspaceScopeHash } from "../memory/input-snapshot";
 import type { MemoryScope } from "../memory/types";
 import { readRepositorySnapshot } from "../git/repository-service";
@@ -66,10 +66,12 @@ async function importMemoryHandoff(context: vscode.ExtensionContext): Promise<vo
       workspaceBlockers = [...repository.recoveryBlockers];
     } catch { /* A missing/invalid repository is a visible receiver blocker, never guessed. */ }
 
-    const resume = buildResumeContext(handoff.material, {
+    const continuation = prepareMemoryContinuation(handoff, {
+      serverOrigin: expectedServer, projectId: selected.binding.projectId, taskId: handoff.material.scope.taskId,
       repositoryKeyHash, currentHeadSha, workspaceReady, workspaceClean,
       workspaceBlockers, receivedRevision: handoff.memory.revision, accessConfirmed,
     });
+    const resume = continuation.resume;
     const storedPath = await new MemoryArtifactStore(context.globalStorageUri.fsPath).saveReceivedExport(handoff, receiverScope);
     const report = [
       `AgileCampus 接班核对 · ${resume.ready ? "可以粘贴到 Agent" : "未通过，不要直接开始"}`,
@@ -89,7 +91,10 @@ async function importMemoryHandoff(context: vscode.ExtensionContext): Promise<vo
       void vscode.window.showErrorMessage(`接班材料已保存在本机，但有 ${resume.blockers.length} 项未通过；请先让队友处理仓库/worktree/权限问题。`);
       return;
     }
-    const action = await vscode.window.showInformationMessage("核对通过。复制整理后的记忆文本到 Codex/Claude 新会话，可让 Agent 从记录的断点继续；不会自动启动。", "复制接班上下文");
+    const action = await vscode.window.showInformationMessage("记忆已进入此任务的本机记忆库。可以复制上下文，或使用已有检查点在本机启动接续。", "从任务记忆继续", "复制接班上下文");
+    if (action === "从任务记忆继续") await vscode.commands.executeCommand("agilecampus.continueTaskMemory", {
+      taskId: handoff.material.scope.taskId, materialId: handoff.material.materialId,
+    });
     if (action === "复制接班上下文") {
       await vscode.env.clipboard.writeText(resume.instructions);
       void vscode.window.showInformationMessage("接班上下文已复制。请粘贴到目标 Agent 会话；启动前仍应让它读取当前代码并核对基线。");

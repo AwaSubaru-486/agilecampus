@@ -7,6 +7,7 @@ import { ContextPackBuilder } from "./context-pack-builder";
 import { ApprovalDetail } from "./approval-detail";
 import type { ApprovalListItem } from "@/lib/approval";
 import { Badge, Button } from "@/components/ui";
+import { TaskMemoryPanel } from "./_console/task-memory-panel";
 
 type Option = { id: string; name: string };
 type Conversation = {
@@ -15,6 +16,7 @@ type Conversation = {
   visibility: "private" | "project";
   taskId: string | null;
   taskTitle: string | null;
+  taskMemoryVersionId?: string | null;
   parentConversationId: string | null;
   forkedFromMessageId: string | null;
   createdById: string;
@@ -27,6 +29,7 @@ type Msg = {
   content: string;
   authorName?: string | null;
   sourceMessageId?: string | null;
+  taskMemoryVersionId?: string | null;
   drafts?: Draft[];
 };
 type ContextPack = {
@@ -49,6 +52,7 @@ export function ChatPanel({
   initialTaskId,
   initialContextPacks,
   initialApproval,
+  canWriteMemory = true,
 }: {
   projectId: string;
   currentUserId: string;
@@ -61,6 +65,7 @@ export function ChatPanel({
   initialTaskId?: string | null;
   initialContextPacks: ContextPack[];
   initialApproval: ApprovalListItem | null;
+  canWriteMemory?: boolean;
 }) {
   const initialTask = initialTaskId ? tasks.find((item) => item.id === initialTaskId) ?? null : null;
   const [conversations, setConversations] = useState(initialConversations);
@@ -69,11 +74,12 @@ export function ChatPanel({
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
-  const [creating, setCreating] = useState(Boolean(initialTask));
+  const [creating, setCreating] = useState(Boolean(initialTask) && !initialConversationId);
   const [newTitle, setNewTitle] = useState(initialTask ? `任务：${initialTask.name}` : "");
   const [newVisibility, setNewVisibility] = useState<"private" | "project">("project");
   const [newTaskId, setNewTaskId] = useState(initialTask?.id ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [attachedMemoryVersionId, setAttachedMemoryVersionId] = useState<string | null>(null);
   const [contextPackId, setContextPackId] = useState<string | null>(
     initialContextPacks.find((pack) => pack.status === "frozen")?.id ?? null,
   );
@@ -83,6 +89,7 @@ export function ChatPanel({
     () => conversations.find((item) => item.id === conversationId) ?? null,
     [conversations, conversationId],
   );
+  const memoryTaskId = conversationId ? activeConversation?.taskId : initialTask?.id;
 
   useEffect(() => {
     function startTaskConversation(event: Event) {
@@ -106,6 +113,8 @@ export function ChatPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "加载会话失败");
       setConversationId(id);
+      setAttachedMemoryVersionId(null);
+      setConversations((items) => items.map((item) => item.id === id ? { ...item, taskMemoryVersionId: data.conversation?.taskMemoryVersionId ?? null } : item));
       setMessages(
         data.messages
           .filter((message: { role: string }) =>
@@ -117,6 +126,7 @@ export function ChatPanel({
             content: message.content,
             authorName: message.authorName,
             sourceMessageId: message.sourceMessageId,
+            taskMemoryVersionId: message.taskMemoryVersionId,
             drafts: message.drafts,
           })),
       );
@@ -183,6 +193,7 @@ export function ChatPanel({
           conversationId: conversationId ?? undefined,
           contextPackId: contextPackId ?? undefined,
           userText: text,
+          taskMemoryVersionId: attachedMemoryVersionId ?? undefined,
         }),
       });
       const data = await res.json();
@@ -191,13 +202,14 @@ export function ChatPanel({
       setConversationId(data.conversationId);
       setMessages((items) => [
         ...items.map((message) =>
-          message.id === temporaryId ? { ...message, id: data.userMessageId } : message,
+          message.id === temporaryId ? { ...message, id: data.userMessageId, taskMemoryVersionId: data.taskMemoryVersionId } : message,
         ),
         {
           id: data.assistantMessageId,
           role: "assistant",
           content: data.text,
           drafts: data.drafts,
+          taskMemoryVersionId: data.taskMemoryVersionId,
         },
       ]);
       if (!conversationId) {
@@ -214,12 +226,13 @@ export function ChatPanel({
       } else {
         setConversations((items) =>
           items.map((item) =>
-            item.id === conversationId ? { ...item, updatedAt: new Date().toISOString() } : item,
+            item.id === conversationId ? { ...item, updatedAt: new Date().toISOString(), taskMemoryVersionId: data.taskMemoryVersionId ?? item.taskMemoryVersionId } : item,
           ),
         );
       }
     } catch (caught) {
       setMessages((items) => items.filter((message) => message.id !== temporaryId));
+      setInput(text);
       setError(caught instanceof Error ? caught.message : "网络异常，请重试");
     } finally {
       setPending(false);
@@ -276,6 +289,7 @@ export function ChatPanel({
         {creating && (
           <div data-tour="conversation-form" className="ac-panel-enter mt-3 grid gap-2 rounded-[var(--radius-control)] border border-stroke bg-sunken p-3 md:grid-cols-[1fr_11rem_9rem_auto]">
             <input
+              aria-label="会话主题"
               value={newTitle}
               data-tour="conversation-title"
               onChange={(event) => setNewTitle(event.target.value)}
@@ -283,6 +297,7 @@ export function ChatPanel({
               className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             />
             <select
+              aria-label="关联任务"
               value={newTaskId}
               onChange={(event) => setNewTaskId(event.target.value)}
               className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
@@ -291,6 +306,7 @@ export function ChatPanel({
               {tasks.map((task) => <option key={task.id} value={task.id}>{task.name}</option>)}
             </select>
             <select
+              aria-label="会话可见范围"
               value={newVisibility}
               onChange={(event) => setNewVisibility(event.target.value as "private" | "project")}
               className="ac-field text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
@@ -340,13 +356,20 @@ export function ChatPanel({
                 )}
               </div>
             ) : (
-              <p className="text-xs text-ink-3">创建 Agent 任务后开始协作</p>
+              <p className="text-xs text-ink-3">创建会话后开始讨论</p>
             )}
           </div>
 
           {initialApproval && (
             <ApprovalDetail projectId={projectId} approval={initialApproval} />
           )}
+
+          {memoryTaskId && <TaskMemoryPanel key={`${memoryTaskId}:${conversationId ?? "new"}`} projectId={projectId} taskId={memoryTaskId} canWrite={canWriteMemory}
+            preferredVersionId={attachedMemoryVersionId ?? activeConversation?.taskMemoryVersionId}
+            onContinueInWeb={conversationId ? (version) => {
+              setAttachedMemoryVersionId(version.id);
+              setInput((current) => current || "请基于这份工作记忆，核对进度和待验证事项，并给出下一步计划。");
+            } : undefined} />}
 
           <div className="max-h-[24rem] flex-1 space-y-3 overflow-y-auto p-4">
             {loadingConversation && <p role="status" className="text-center text-sm text-ink-3">正在加载会话…</p>}
@@ -356,6 +379,7 @@ export function ChatPanel({
                   <div className="mb-2 flex items-center gap-2 text-xs text-ink-3">
                     <span className="font-medium text-ink-2">{message.role === "user" ? message.authorName || "成员" : "AI 助手"}</span>
                   {message.sourceMessageId && <Badge tone="neutral">分支来源</Badge>}
+                  {message.taskMemoryVersionId && <span>工作记忆 {message.taskMemoryVersionId.slice(0, 8)}</span>}
                   </div>
                   <p className="whitespace-pre-wrap leading-6 text-ink">{message.content}</p>
                   {message.role === "assistant" && !message.id.startsWith("pending-") && (
@@ -365,7 +389,7 @@ export function ChatPanel({
                       disabled={pending}
                       className="ac-pressable mt-3 min-h-8 text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-signal disabled:opacity-50"
                     >
-                      从这里创建方案分支 →
+                      从此消息分叉对话
                     </button>
                   )}
                 </div>
@@ -375,14 +399,9 @@ export function ChatPanel({
               </div>
             ))}
             {!loadingConversation && messages.length === 0 && (
-              <div className="rounded-[var(--radius-control)] border border-stroke bg-sunken/30 p-6">
+              <div className="py-6">
                 <p className="text-sm font-semibold text-ink">暂无会话消息</p>
                 <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">输入任务目标、约束或当前阻塞，开始与 Agent 协作。</p>
-                <div className="mt-4 grid gap-2 text-xs text-ink-3 sm:grid-cols-3">
-                  <span className="rounded border border-stroke bg-panel px-2 py-1">说明现状</span>
-                  <span className="rounded border border-stroke bg-panel px-2 py-1">提出方案</span>
-                  <span className="rounded border border-stroke bg-panel px-2 py-1">人工确认</span>
-                </div>
               </div>
             )}
           </div>
@@ -390,17 +409,18 @@ export function ChatPanel({
           {error && <p role="alert" className="px-4 pb-2 text-sm font-medium text-risk">{error}</p>}
           <div className="flex gap-2 border-t border-stroke p-3">
               <input
+              aria-label="任务对话消息"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && send()}
-              placeholder={conversationId ? "补充约束或询问 Agent 进度…" : "先创建一个 Agent 任务…"}
+              onKeyDown={(event) => event.key === "Enter" && !event.nativeEvent.isComposing && send()}
+              placeholder={conversationId ? "补充约束或询问下一步…" : "先创建任务会话…"}
               className="ac-field flex-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-              disabled={pending}
+              disabled={pending || loadingConversation || Boolean(initialTask && !conversationId)}
             />
             <Button
               type="button"
               onClick={send}
-              disabled={pending || !input.trim()}
+              disabled={pending || loadingConversation || !input.trim() || Boolean(initialTask && !conversationId)}
               variant="ink"
             >
               {pending ? "处理中…" : "发送"}

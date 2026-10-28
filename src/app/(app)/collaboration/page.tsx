@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { agents, blockers, projects, teamMembers, users } from "@/db/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { agents, teamMembers, users } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import { listOpenBlockersForUser } from "@/lib/blocker";
+import { listMyProjects } from "@/lib/project";
 
 // 协作中心：求助邀请与 AI 成员状态。
 //
@@ -34,23 +36,9 @@ export default async function CollaborationPage() {
     );
   }
 
-  const [openBlockerRows, agentRows] = await Promise.all([
-    db
-      .select({
-        id: blockers.id,
-        reason: blockers.reason,
-        helpNeeded: blockers.helpNeeded,
-        projectId: projects.id,
-        projectName: projects.name,
-        raisedByName: users.name,
-        raisedById: blockers.raisedById,
-        createdAt: blockers.createdAt,
-      })
-      .from(blockers)
-      .innerJoin(projects, eq(blockers.projectId, projects.id))
-      .leftJoin(users, eq(blockers.raisedById, users.id))
-      .where(and(eq(blockers.status, "open"), inArray(projects.teamId, teamIds)))
-      .orderBy(desc(blockers.createdAt)),
+  const [openBlockerRows, visibleProjects, agentRows] = await Promise.all([
+    listOpenBlockersForUser(session.user.id),
+    listMyProjects(session.user.id),
     db
       .select({
         userId: agents.userId,
@@ -74,9 +62,9 @@ export default async function CollaborationPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink">协作中心</h1>
-            <p>找到需要搭手的伙伴，查看团队 AI 成员的状态。</p>
             <div className="mt-4 flex gap-4 text-xs text-ink-3">
               <span>待协助 {needingHelp.length}</span>
+              <span>我发起的 {openBlockerRows.length - needingHelp.length}</span>
               <span>AI 成员 {agentRows.length}</span>
             </div>
           </div>
@@ -93,29 +81,31 @@ export default async function CollaborationPage() {
 
       <section id="help" className="ac-card scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
-          <h2 className="text-sm font-semibold text-ink">需要协助</h2>
-          <span className="text-xs tabular-nums text-ink-3">{needingHelp.length} 项</span>
+          <h2 className="text-sm font-semibold text-ink">未解决的求助</h2>
+          <span className="text-xs tabular-nums text-ink-3">{openBlockerRows.length} 项</span>
         </header>
-        {needingHelp.length === 0 ? (
+        {openBlockerRows.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-ink-2">没有未解决的求助。</p>
         ) : (
           <ul className="divide-y divide-stroke">
-            {needingHelp.map((b) => (
+            {openBlockerRows.map((b) => (
               <li key={b.id} className="px-4 py-3">
                 <p className="flex flex-wrap items-baseline gap-2 text-sm">
                   <span className="font-medium text-ink">{b.raisedByName ?? "已注销成员"}</span>
+                  {b.raisedById === session.user.id && <span className="text-xs text-ink-2">我发起的</span>}
                   <span className="text-ink-3">在</span>
                   <Link
-                    href={`/projects/${b.projectId}?space=live`}
+                    href={`/projects/${b.projectId}?space=work${b.taskId ? `&task=${b.taskId}` : ""}`}
                     className="rounded-[var(--radius-control)] text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
                   >
-                    {b.projectName}
+                    {b.taskTitle ?? visibleProjects.find((project) => project.id === b.projectId)?.name ?? "查看项目"}
                   </Link>
                   <span className="text-ink-3">求助</span>
                 </p>
                 {b.helpNeeded && (
                   <p className="mt-1 text-xs leading-5 text-ink-2">需要：{b.helpNeeded}</p>
                 )}
+                {b.detail && <details className="mt-2 text-xs"><summary className="w-fit cursor-pointer py-2 text-ink-2">求助说明与工作断点</summary><p className="mt-2 whitespace-pre-wrap break-words leading-6 text-ink">{b.detail}</p></details>}
               </li>
             ))}
           </ul>
