@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db, type DbTx } from "@/db";
 import { projects, taskDependencies, taskHandoffNotifications, tasks, taskStages, teamMembers, users } from "@/db/schema";
 import { ForbiddenError } from "./errors";
@@ -60,7 +60,7 @@ export async function listTaskNotifications(userId: string) {
     .from(taskHandoffNotifications).innerJoin(projects, eq(projects.id, taskHandoffNotifications.projectId))
     .innerJoin(tasks, eq(tasks.id, taskHandoffNotifications.taskId))
     .innerJoin(teamMembers, eq(teamMembers.teamId, projects.teamId))
-    .where(inboxAccess(userId)).orderBy(asc(taskHandoffNotifications.createdAt)).limit(20);
+    .where(inboxAccess(userId)).orderBy(desc(taskHandoffNotifications.createdAt), desc(taskHandoffNotifications.id)).limit(20);
 }
 
 export async function dismissTaskNotification(userId: string, id: string) {
