@@ -71,15 +71,23 @@ export class ReceiptOutbox {
   }
 
   async pending(scope: Pick<ReceiptAddress, "serverOrigin" | "projectId" | "workspaceScope"> & { actorScope?: string }): Promise<ReceiptAddress[]> {
+    const result = await this.scanPending(scope);
+    if (result.unreadable) throw new Error("存在无法读取的本机回执文件，原文件已保留");
+    return result.addresses;
+  }
+
+  async scanPending(scope: Pick<ReceiptAddress, "serverOrigin" | "projectId" | "workspaceScope"> & { actorScope?: string }): Promise<{ addresses: ReceiptAddress[]; unreadable: number }> {
     const directory = await this.directory();
     const result: ReceiptAddress[] = [];
+    let unreadable = 0;
     for (const file of await readdir(directory)) {
       if (!file.endsWith(".json") || !UUID.test(file.slice(0, -5))) continue;
-      const record = await this.read(file.slice(0, -5));
+      let record: Outbox | undefined;
+      try { record = await this.read(file.slice(0, -5)); } catch { unreadable++; continue; }
       if (record?.events.length && record.address.serverOrigin === scope.serverOrigin && record.address.projectId === scope.projectId &&
           record.address.workspaceScope === scope.workspaceScope && (!scope.actorScope || record.address.actorScope === scope.actorScope)) result.push(record.address);
     }
-    return result;
+    return { addresses: result, unreadable };
   }
 
   private sameAddress(record: Outbox, address: ReceiptAddress) {

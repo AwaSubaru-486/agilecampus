@@ -22,7 +22,9 @@ export type CodexProcess = {
 
 export type CodexProcessCallbacks = {
   onSessionStarted(sessionId: string): Promise<void> | void;
+  onToolEvent?(event: CapturedToolEvent): Promise<void> | void;
 };
+export type CapturedToolEvent = { kind: "tool_call" | "tool_result"; toolCallId: string; command?: string; exitCode?: number | null; text: string };
 
 export async function inspectCodexCliVersion(): Promise<{ status: "ready"; version: string } | { status: "blocked"; reason: string }> {
   const result = await new Promise<{ error: NodeJS.ErrnoException | null; stdout: string }>((resolve) => {
@@ -74,6 +76,7 @@ function observeCodexProcess(child: ChildProcessWithoutNullStreams, prompt: stri
   let timedOut = false;
   let protocolFailed = false;
   let callbackChain = Promise.resolve();
+  const tools = new Map<string, { command: string; completed?: string }>();
   let settled = false;
   let timeout: NodeJS.Timeout;
 
@@ -101,6 +104,25 @@ function observeCodexProcess(child: ChildProcessWithoutNullStreams, prompt: stri
       if (event.type === "session-started") {
         providerSessionId = event.sessionId;
         callbackChain = callbackChain.then(() => callbacks.onSessionStarted(event.sessionId)).catch(() => { sawFailedTurn = true; });
+      } else if (event.type === "tool-started" || event.type === "tool-completed") {
+        if (!providerSessionId) { protocolFailed = true; return; }
+        let tool = tools.get(event.toolCallId);
+        if (tool && tool.command !== event.command) { protocolFailed = true; return; }
+        const capture = (item: CapturedToolEvent) => {
+          callbackChain = callbackChain.then(() => callbacks.onToolEvent?.(item)).catch(() => { sawFailedTurn = true; child.kill("SIGTERM"); });
+        };
+        if (!tool) {
+          tool = { command: event.command }; tools.set(event.toolCallId, tool);
+          capture({ kind: "tool_call", toolCallId: event.toolCallId, command: event.command, text: "Codex CLI command execution" });
+        }
+        if (event.type === "tool-completed") {
+          const signature = JSON.stringify([event.exitCode, event.text]);
+          if (tool.completed && tool.completed !== signature) { protocolFailed = true; return; }
+          if (!tool.completed) {
+            tool.completed = signature;
+            capture({ kind: "tool_result", toolCallId: event.toolCallId, exitCode: event.exitCode, text: event.text });
+          }
+        }
       } else if (event.type === "assistant-message") agentSummary = event.text;
       else if (event.type === "turn-completed") {
         sawCompletedTurn = true;
@@ -162,6 +184,8 @@ function record(value: unknown): value is Record<string, unknown> {
 export type CodexJsonlEvent =
   | { type: "session-started"; sessionId: string }
   | { type: "assistant-message"; text: string }
+  | { type: "tool-started"; toolCallId: string; command: string }
+  | { type: "tool-completed"; toolCallId: string; command: string; exitCode: number | null; text: string }
   | { type: "turn-completed"; agentSummary?: string }
   | { type: "turn-failed" };
 
@@ -178,6 +202,17 @@ export function parseCodexJsonlEvent(line: string): CodexJsonlEvent | "invalid" 
   if (value.type === "item.completed" && record(value.item) && value.item.type === "agent_message") {
     const text = extractMessageText(value.item);
     return text ? { type: "assistant-message", text } : null;
+  }
+  if (["item.started", "item.completed"].includes(value.type) && record(value.item) && value.item.type === "command_execution") {
+    const item = value.item;
+    if (typeof item.id !== "string" || !item.id.trim() || item.id.length > 200 ||
+        typeof item.command !== "string" || !item.command.trim() || item.command.length > 16_384) return "invalid";
+    if (value.type === "item.started") return { type: "tool-started", toolCallId: item.id, command: item.command };
+    if (!(item.exit_code === null || Number.isInteger(item.exit_code) && Number(item.exit_code) >= -255 && Number(item.exit_code) <= 255) ||
+        item.aggregated_output !== undefined && typeof item.aggregated_output !== "string") return "invalid";
+    const output = typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+    return { type: "tool-completed", toolCallId: item.id, command: item.command, exitCode: item.exit_code as number | null,
+      text: output.length > 24_000 ? `${output.slice(0, 24_000)}\n[CLI 输出截断；退出码独立记录]` : output || "[CLI 未提供命令输出]" };
   }
   if (value.type === "turn.completed") {
     return {

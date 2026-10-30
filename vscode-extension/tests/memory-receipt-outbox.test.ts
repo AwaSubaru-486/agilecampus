@@ -96,7 +96,7 @@ describe("durable continuation receipt outbox", () => {
     await expect(f.store.flush(f.address, send)).rejects.toThrow("顺序"); expect(send).not.toHaveBeenCalled();
     await rm(f.file);
     const external = path.join(f.root, "external.json"); await writeFile(external, "{}"); await symlink(external, f.file);
-    await expect(f.store.pending(f.address)).rejects.toThrow("文件无效");
+    await expect(f.store.pending(f.address)).rejects.toThrow("无法读取");
     expect(await readFile(external, "utf8")).toBe("{}");
   });
 });

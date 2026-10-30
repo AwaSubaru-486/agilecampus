@@ -112,6 +112,23 @@ describe("memory continuation through the existing Agent command", () => {
     await attempts.releaseWorkdirLease(f.workspacePath, nextId);
   });
 
+  it("records actual CLI tool events in the inherited child session for later memory extraction", async () => {
+    const f = await fixture();
+    await ui.commands.get("agilecampus.continueTaskMemory")!();
+    const callbacks = ui.launches[0].callbacks; const providerSessionId = randomUUID();
+    await callbacks.onSessionStarted(providerSessionId);
+    await callbacks.onToolEvent!({ kind: "tool_call", toolCallId: "real-command-1", command: "npm test", text: "command" });
+    await callbacks.onToolEvent!({ kind: "tool_result", toolCallId: "real-command-1", exitCode: 1, text: "failing test" });
+    const sessions = new LocalSessionStore(f.storageRoot);
+    const child = (await sessions.list(f.workspacePath)).find((entry) => entry.providerSessionId === providerSessionId)!;
+    expect((await sessions.readEvents(child.sessionKey)).map((event) => event.kind)).toEqual(["user", "tool_call", "tool_result"]);
+    expect((await sessions.readEvents(child.sessionKey))[2].exitCode).toBe(1);
+    ui.resolveOutcome!({ state: "finished", exitCode: 0, providerSessionId, timedOut: false, agentSummary: "The test failed, more work needed" });
+    await vi.waitFor(async () => expect((await new AttemptStore(f.storageRoot).list())[0].state).toBe("finished"));
+    // A completed Agent turn does not mean its captured test passed.
+    expect((await sessions.readEvents(child.sessionKey)).some((event) => event.kind === "tool_result" && event.exitCode === 1)).toBe(true);
+  });
+
   it("does not silently fall back to checkpoint text when the task has no accepted memory", async () => {
     const f = await fixture(false);
     await ui.commands.get("agilecampus.continueTaskMemory")!();

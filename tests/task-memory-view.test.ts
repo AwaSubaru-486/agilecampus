@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareTaskMemories, exactMemoryParent, memoryParentCandidates, renderMemoryHelpDraft, type TaskMemoryVersionView } from "../src/lib/task-memory-view";
+import { compareTaskMemories, exactMemoryParent, memoryParentCandidates, renderMemoryHelpDraft, selectTaskMemoryVersion, type TaskMemoryVersionView } from "../src/lib/task-memory-view";
 
 // Only fields used by lineage resolution; package validation is tested separately.
 function version(id: string, memoryId: string, revision: number, parentMemoryId: string | null = null, taskId = "task"): TaskMemoryVersionView {
@@ -9,6 +9,12 @@ function version(id: string, memoryId: string, revision: number, parentMemoryId:
   } } } as unknown as TaskMemoryVersionView;
 }
 describe("memory parent navigation", () => {
+  it("never displays the latest or a different task when a pinned version is missing", () => {
+    const current = version("latest", "memory", 3);
+    expect(selectTaskMemoryVersion([current], "project", "task", "older")).toBeUndefined();
+    expect(selectTaskMemoryVersion([current], "project", "task")).toBe(current);
+    expect(selectTaskMemoryVersion([current], "project", "other-task")).toBeUndefined();
+  });
   it("locates the pinned revision only when its content digest matches", () => {
     const child = version("c", "child", 1, "parent");
     child.payload.memory.parentReference = { memoryId: "parent", revision: 1, memoryDigest: "exact" };

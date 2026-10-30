@@ -26,6 +26,22 @@ export type TaskMemoryVersionView = {
   memoryId: string; payload: MemoryHandoffExportV1;
   memoryDigest?: string;
 };
+
+/** An explicit historical version never falls back to today's latest record. */
+export function selectTaskMemoryVersion(versions: TaskMemoryVersionView[], projectId: string, taskId: string, requestedId?: string | null) {
+  const scoped = versions.filter((version) => version.payload?.material?.scope?.projectId === projectId && version.payload.material.scope.taskId === taskId);
+  return requestedId ? scoped.find((version) => version.id === requestedId) : scoped[0];
+}
+
+export function readTaskMemoryVersion(value: unknown, projectId: string, taskId: string): TaskMemoryVersionView {
+  if (!value || typeof value !== "object") throw new Error("记忆版本返回格式无效");
+  const row = value as TaskMemoryVersionView;
+  previewTaskMemory(row.payload, projectId, taskId);
+  if (typeof row.id !== "string" || typeof row.title !== "string" || typeof row.createdAt !== "string" ||
+      row.memoryId !== row.payload.memory.id || row.revision !== row.payload.memory.revision ||
+      typeof row.memoryDigest !== "string" || !/^[0-9a-f]{64}$/i.test(row.memoryDigest)) throw new Error("记忆版本元数据无效");
+  return { ...row, creatorName: typeof row.creatorName === "string" ? row.creatorName : null };
+}
 export type MemoryPreview = { revision: number; goal: string[]; completed: string[]; blockers: string[]; nextActions: string[]; baseSha: string };
 export function renderMemoryHelpDraft(record: TaskMemoryVersionView): string {
   const { material } = record.payload;

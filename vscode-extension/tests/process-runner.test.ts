@@ -1,10 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { classifyCodexCliVersion, parseCodexJsonlEvent, startCodexContextSession, VERIFIED_CODEX_CLI_VERSION } from "../src/adapters/process-runner";
 
 describe("Codex CLI process receipt parsing", () => {
+  it("captures structured commands and results once, in session order, including nonzero exits", async () => {
+    const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), pid: 1234, kill: () => true }) as unknown as ChildProcessWithoutNullStreams;
+    const received: unknown[] = [];
+    const run = startCodexContextSession("/tmp/worktree", "test", { async onSessionStarted() { await Promise.resolve(); received.push("session"); }, onToolEvent(event) { received.push(event); } }, (() => child) as never);
+    child.stdout.write(JSON.stringify({ type: "thread.started", thread_id: "00000000-0000-4000-8000-000000000001" }) + "\n");
+    const item = { id: "tool-1", type: "command_execution", command: "npm test", aggregated_output: "one test failed", exit_code: 1 };
+    child.stdout.write(JSON.stringify({ type: "item.started", item }) + "\n");
+    child.stdout.write(JSON.stringify({ type: "item.completed", item }) + "\n");
+    child.stdout.write(JSON.stringify({ type: "item.completed", item }) + "\n");
+    child.stdout.write('{"type":"turn.completed"}\n'); child.emit("close", 0);
+    expect((await run.completion).state).toBe("finished");
+    expect(received).toEqual(["session", { kind: "tool_call", toolCallId: "tool-1", command: "npm test", text: "Codex CLI command execution" }, { kind: "tool_result", toolCallId: "tool-1", exitCode: 1, text: "one test failed" }]);
+  });
+
+  it("fails the run when local tool capture fails, and rejects mismatched command identities", async () => {
+    const kill = vi.fn();
+    const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), pid: 1234, kill }) as unknown as ChildProcessWithoutNullStreams;
+    const run = startCodexContextSession("/tmp/worktree", "test", { onSessionStarted() {}, onToolEvent() { throw new Error("disk failure"); } }, (() => child) as never);
+    child.stdout.write('{"type":"thread.started","thread_id":"00000000-0000-4000-8000-000000000001"}\n');
+    child.stdout.write('{"type":"item.started","item":{"id":"1","type":"command_execution","command":"npm test"}}\n');
+    child.stdout.write('{"type":"turn.completed"}\n'); child.emit("close", 0);
+    expect((await run.completion).state).toBe("failed"); expect(kill).toHaveBeenCalledWith("SIGTERM");
+    expect(parseCodexJsonlEvent('{"type":"item.completed","item":{"id":"1","type":"command_execution","command":"npm test","exit_code":"0"}}')).toBe("invalid");
+  });
   it("accepts only the verified version and structured lifecycle events", () => {
     expect(VERIFIED_CODEX_CLI_VERSION).toBe("0.153.4");
     expect(classifyCodexCliVersion(null, "codex-cli 0.153.4\n")).toEqual({ status: "ready", version: "0.153.4" });

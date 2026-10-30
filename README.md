@@ -2,7 +2,9 @@
 
 ## 工作记忆与 Agent 接续（2026-10-30）
 
-最新插件为 [AgileCampus 0.1.7](vscode-extension/agilecampus-memory-outbox-0.1.7.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
+模块验收入口：[功能、演示步骤与测试边界](docs/reviews/memory-core/2026-10-30-module-delivery.md)。
+
+最新插件为 [AgileCampus 0.1.8](vscode-extension/agilecampus-memory-delivery-0.1.8.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
 
 使用入口：项目 → 分工与执行 → 选择任务 → 当前工作记忆。
 
@@ -17,7 +19,7 @@
 
 部署需要同步数据库 schema（首次安装按下文 `npm run db:push` 操作）。增量迁移见 [记忆版本](scripts/migrations/2026-10-26-task-memory-versions.sql) 和 [接续回执](scripts/migrations/2026-10-26-task-memory-continuations.sql)，两份均需应用。插件和网页应一起升级。
 
-原始对话和未提交代码不会由此记忆材料自动上传。真实双机、真实模型完整接班仍待验证，页面截图使用合成测试数据。详细记录：[网页与插件回执](docs/reviews/memory-core/2026-10-26-continuation-receipts.md)、[精确版本](docs/reviews/memory-core/2026-10-27-exact-parent-version.md)、[任务求助](docs/reviews/memory-core/2026-10-27-memory-help.md)、[会话收尾](docs/reviews/memory-core/2026-10-27-memory-wrapup.md)。
+原始对话和未提交代码不会由此记忆材料自动上传。已通过真实 Codex CLI 在独立接收目录中继承记忆和记录命令的验证；真实双机 Extension Host 完整接班仍待验证。历史页面截图使用合成测试数据。详细记录：[网页与插件回执](docs/reviews/memory-core/2026-10-26-continuation-receipts.md)、[精确版本](docs/reviews/memory-core/2026-10-27-exact-parent-version.md)、[任务求助](docs/reviews/memory-core/2026-10-27-memory-help.md)、[会话收尾](docs/reviews/memory-core/2026-10-27-memory-wrapup.md)。
 
 以下早期施工入口的阶段描述为历史记录，以本节和 [AGENTS.md](AGENTS.md) 顶部的最新说明为准。
 

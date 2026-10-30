@@ -60,7 +60,7 @@ export async function getTaskMemoryVersion(actorId: string, projectId: string, t
     eq(taskMemoryVersions.id, versionId), eq(taskMemoryVersions.projectId, projectId), eq(taskMemoryVersions.taskId, taskId),
   ));
   if (!record) throw new NotFoundError("此任务中没有该记忆版本");
-  return record;
+  return { ...record, memoryDigest: memoryTransferDigest(record.payload.memory) };
 }
 
 /** Exact lookup is independent of the latest-50 history window. */
@@ -72,5 +72,5 @@ export async function getTaskMemoryByReference(actorId: string, projectId: strin
   ));
   if (!record) throw new NotFoundError("此任务中没有该精确记忆版本");
   if (memoryTransferDigest(record.payload.memory) !== reference.memoryDigest) throw new ConflictError("记忆内容校验不一致，未选择其他版本代替");
-  return record;
+  return { ...record, memoryDigest: memoryTransferDigest(record.payload.memory) };
 }

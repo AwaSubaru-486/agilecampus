@@ -36,6 +36,16 @@ async function main() {
     const material = { ...payload.material } as Partial<typeof payload.material>; delete material.materialDigest;
     payload.material.materialDigest = memoryTransferDigest(material);
     const saved = await saveTaskMemory(owner.id, project.id, task.id, payload, origin);
+    if (process.argv.includes("--history-window")) {
+      for (let offset = 1; offset <= 51; offset++) {
+        const historical = structuredClone(payload);
+        historical.memory.revision += offset; historical.material.revision = historical.memory.revision;
+        historical.material.materialId = randomUUID();
+        const body = { ...historical.material } as Partial<typeof historical.material>; delete body.materialDigest;
+        historical.material.materialDigest = memoryTransferDigest(body);
+        await saveTaskMemory(owner.id, project.id, task.id, historical, origin);
+      }
+    }
     const child = structuredClone(payload);
     child.memory.id = randomUUID(); child.memory.sessionKey = randomUUID(); child.memory.parentMemoryId = payload.memory.id;
     child.memory.parentReference = { memoryId: payload.memory.id, revision: payload.memory.revision, memoryDigest: memoryTransferDigest(payload.memory) };

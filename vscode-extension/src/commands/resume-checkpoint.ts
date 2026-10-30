@@ -244,6 +244,18 @@ async function resumeCheckpoint(context: vscode.ExtensionContext, requireMemory 
             output?.appendLine("网页暂未收到启动回执；本机执行记录仍保留，请勿重复启动。");
           });
         },
+        onToolEvent: async (event) => {
+          if (!continuation) return;
+          if (!continuedSessionKey) throw new Error("命令事件没有匹配的接续会话，未写入其他会话");
+          const sessions = new LocalSessionStore(context.globalStorageUri.fsPath);
+          try {
+            await sessions.append(continuedSessionKey, { ...event, sourceRef: `agilecampus:cli-tool:${attempt.id}:${event.toolCallId}:${event.kind}` });
+          } catch (error) {
+            await sessions.recordCaptureFailure(continuedSessionKey, "接续 CLI 工具事件未能写入", `agilecampus:cli-tool:${attempt.id}:${event.toolCallId}:${event.kind}`).catch(() => undefined);
+            agentProcess?.terminate();
+            throw error;
+          }
+        },
       });
       agentProcess = process;
       processStarted = true;

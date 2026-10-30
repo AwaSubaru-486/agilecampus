@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildTaskMemoryLink } from "../../../../../../shared/task-memory/links";
-import { compareTaskMemories, exactMemoryParent, memoryParentCandidates, previewTaskMemory, renderTaskMemoryContext, type MemoryPreview, type TaskMemoryVersionView } from "@/lib/task-memory-view";
+import { compareTaskMemories, exactMemoryParent, memoryParentCandidates, previewTaskMemory, renderTaskMemoryContext, readTaskMemoryVersion, selectTaskMemoryVersion, type MemoryPreview, type TaskMemoryVersionView } from "@/lib/task-memory-view";
 import { useMemoryContinuation } from "./use-memory-continuation";
 import { continuationLabels } from "../../../../../../shared/task-memory/continuation-status";
 
 export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, preferredVersionId }: { projectId: string; taskId: string; canWrite: boolean; onContinueInWeb?: (version: TaskMemoryVersionView) => void; preferredVersionId?: string | null }) {
   const [versions, setVersions] = useState<TaskMemoryVersionView[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<{ endpoint: string; id: string | null } | null>(null);
   const [comparisonId, setComparisonId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,7 +27,39 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
   const fileInput = useRef<HTMLInputElement>(null);
   const fileEpoch = useRef(0);
   const endpoint = `/api/projects/${projectId}/tasks/${taskId}/memory`;
-  const selected = versions.find((item) => item.id === (selectedId ?? preferredVersionId)) ?? versions[0];
+  const requestedId = selection?.endpoint === endpoint ? selection.id ?? preferredVersionId : preferredVersionId;
+  const setSelectedId = useCallback((id: string | null) => setSelection({ endpoint, id }), [endpoint]);
+  const selected = selectTaskMemoryVersion(versions, projectId, taskId, requestedId);
+  const hasRequested = !requestedId || Boolean(selected);
+  const reference = selected?.payload.memory.parentReference;
+  const hasExactParent = Boolean(selected && exactMemoryParent(selected, versions));
+
+  useEffect(() => {
+    if (loading || hasRequested || !requestedId) return;
+    const controller = new AbortController();
+    fetch(`${endpoint}?version=${encodeURIComponent(requestedId)}`, { signal: controller.signal, cache: "no-store" }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) throw new Error("指定的记忆版本暂不可读取，请刷新重试；未改用其他版本");
+      const record = readTaskMemoryVersion(data, projectId, taskId);
+      if (record.id !== requestedId) throw new Error("返回了不同的记忆版本");
+      if (!controller.signal.aborted) setVersions((current) => [...current.filter((item) => item.id !== record.id), record]);
+    }).catch((failure) => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "无法读取指定版本"); });
+    return () => controller.abort();
+  }, [endpoint, projectId, taskId, requestedId, hasRequested, loading, reload]);
+
+  useEffect(() => {
+    if (!reference || hasExactParent) return;
+    const controller = new AbortController();
+    const query = new URLSearchParams({ memoryId: reference.memoryId, revision: String(reference.revision), digest: reference.memoryDigest });
+    fetch(`${endpoint}?${query}`, { signal: controller.signal, cache: "no-store" }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) throw new Error("精确父版本暂不可读取，未选择其他版本代替；可刷新重试");
+      const parent = readTaskMemoryVersion(data, projectId, taskId);
+      if (parent.memoryId !== reference.memoryId || parent.revision !== reference.revision || parent.memoryDigest !== reference.memoryDigest) throw new Error("父版本内容校验不匹配");
+      if (!controller.signal.aborted) setVersions((current) => [...current.filter((item) => item.id !== parent.id), parent]);
+    }).catch((failure) => { if (!controller.signal.aborted) setNotice(failure instanceof Error ? failure.message : "无法读取父版本"); });
+    return () => controller.abort();
+  }, [endpoint, projectId, taskId, reference, hasExactParent, reload]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,7 +76,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
     }).catch((failure) => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "无法加载任务记忆"); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [endpoint, reload]);
+  }, [endpoint, reload, setSelectedId]);
 
   useEffect(() => {
     if (!waiting) return;
@@ -129,7 +161,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
         <p role="status" className="font-medium text-ink">{continuation.waitingExpired ? "插件未接收，请重新发起接续" : continuationLabels[continuation.record.state]}</p>
         <p className="mt-1 text-ink-2">接续使用：{executionVersion ? `${executionVersion.title} / r${executionVersion.revision}` : `记忆 ${continuation.record.versionId.slice(0, 8)}（不在当前列表中）`}</p>
         <p className="mt-1 text-ink-2">{new Date(continuation.record.updatedAt).toLocaleTimeString("zh-CN")}{continuation.record.attemptId ? ` · 执行 ${continuation.record.attemptId.slice(0, 8)}` : ""}</p>
-        {executionVersion && executionVersion.id !== selected?.id && <button className="mt-1 min-h-9 underline underline-offset-4" onClick={() => setSelectedId(executionVersion.id)}>查看接续使用的版本</button>}
+        {continuation.record.versionId !== selected?.id && <button className="mt-1 min-h-9 underline underline-offset-4" onClick={() => setSelectedId(continuation.record!.versionId)}>查看接续使用的版本</button>}
         {continuation.paused && <p className="mt-2 text-ink-2">自动刷新已暂停。可刷新查看结果；未收到回执不代表 Agent 已停止。</p>}
         <div className="mt-2 flex flex-wrap gap-x-4">
           {continuation.record.state === "waiting" && !continuation.waitingExpired && <button className="min-h-9 underline underline-offset-4" onClick={() => continuation.open()}>重新打开 VS Code</button>}
@@ -145,7 +177,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
       </div>}
       {continuation.error && <p role="alert" className="mt-3 text-xs text-risk">{continuation.error}<button className="ml-3 min-h-9 underline" onClick={continuation.refresh}>重试读取</button></p>}
       {error ? <div role="alert" className="mt-3 text-sm text-risk">{error}<button className="ml-3 underline" onClick={() => setReload((value) => value + 1)}>重试</button></div>
-        : loading ? <p role="status" className="mt-4 text-sm text-ink-2">正在读取工作记忆…</p>
+        : loading || !hasRequested ? <p role="status" className="mt-4 text-sm text-ink-2">正在读取工作记忆…</p>
         : material && selected ? <>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
             <span>正在查看：{selected.title} / r{selected.revision}</span><span>{selected.creatorName ?? "项目成员"}</span>

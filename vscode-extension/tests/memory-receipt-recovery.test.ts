@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type * as vscode from "vscode";
@@ -47,10 +47,20 @@ async function fixture() {
   // Exercise the same recovery function through the command; keep background timers from racing the assertions.
   context.subscriptions[0].dispose(); disposables.push(...context.subscriptions);
   const retry = () => ui.commands.get("agilecampus.retryMemoryReceipts")!();
-  return { store, address, retry };
+  return { root, store, address, retry };
 }
 
 describe("receipt recovery command identity checks", () => {
+  it("syncs healthy requests despite another corrupt file and reports the corruption without deleting it", async () => {
+    const f = await fixture();
+    const corruptFile = path.join(f.root, "session-memory", "continuation-outbox", `${randomUUID()}.json`);
+    await writeFile(corruptFile, "{broken");
+    await f.retry();
+    expect(ui.send).toHaveBeenCalledTimes(1);
+    expect(ui.infos.at(-1)).toContain("1 个本机回执文件无法读取");
+    expect((await f.store.scanPending(f.address)).addresses).toEqual([]);
+    expect((await f.store.scanPending(f.address)).unreadable).toBe(1);
+  });
   it("retries the original claim and sequence for the bound actor", async () => {
     const f = await fixture(); await f.retry();
     expect(ui.send).toHaveBeenCalledExactlyOnceWith(f.address.projectId, f.address.taskId, { id: f.address.requestId, claimId: f.address.claimId, sequence: 2, state: "checking" });
