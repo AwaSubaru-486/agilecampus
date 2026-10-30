@@ -1,4 +1,4 @@
-import { getProjectView } from "@/lib/project-view";
+import { getProjectPerspective } from "@/lib/project-view";
 import { ProjectViewSwitch } from "./_shared/project-view-switch";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -24,8 +24,8 @@ export default async function ProjectLayout({
   if (!access) notFound();
   const milestones = await listProjectMilestones(session.user.id, projectId);
   const { project, role: actualRole } = access;
-  const role = await getProjectView(actualRole, projectId);
-  const preview = actualRole !== role;
+  const perspective = await getProjectPerspective(actualRole, projectId, session.user.id, project.teamId);
+  const { role, delegated, viewUserName } = perspective;
   const next = milestones.find((m) => m.status === "open");
   return (
     <div className="ac-project-workspace">
@@ -56,8 +56,8 @@ export default async function ProjectLayout({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {actualRole === "admin" && <ProjectViewSwitch projectId={projectId} view={role} />}
-            {role === "teacher" && !preview && (
+            {actualRole === "admin" && <ProjectViewSwitch projectId={projectId} view={role} selection={perspective.selection} members={perspective.members} leaderName={session.user.name ?? "组长"} />}
+            {role === "teacher" && (
               <TeacherEvaluationModal
                 projectId={projectId}
                 projectName={project.name}
@@ -96,7 +96,7 @@ export default async function ProjectLayout({
         </div>
       </header>
       <ProjectNavigation projectId={projectId} role={role} />
-      <div className="ac-project-body">{preview && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">正在预览{role === "student" ? "组员" : "老师"}界面，任务按你本人展示。预览时暂停操作；切回组长即可继续管理，团队角色没有改变。</p>}<fieldset disabled={preview} className="min-w-0"><legend className="sr-only">项目内容</legend>{children}</fieldset></div>
+      <div className="ac-project-body">{delegated && <p role="status" className="mb-5 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-ink-2">当前以{viewUserName}的{role === "student" ? "组员" : "老师"}视角操作。{role === "student" ? "可以直接提交本人任务和交付材料。" : "可以复核组长已审核的成果和审核阶段集成。"}操作将实际保存，并记录由组长代操作；登录账号和团队角色保持原样。</p>}<div className="min-w-0">{children}</div></div>
     </div>
   );
 }

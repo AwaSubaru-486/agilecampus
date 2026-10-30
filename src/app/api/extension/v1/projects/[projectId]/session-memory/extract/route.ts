@@ -36,7 +36,7 @@ export async function POST(req: Request, ctx: Ctx) {
 
     let candidate;
     try {
-      candidate = await extractSessionMemoryCandidate(input, { signal: req.signal });
+      candidate = await extractSessionMemoryCandidate(input, { actorId, signal: req.signal });
     } catch (error) {
       if (error instanceof SessionMemoryExtractionError) {
         const status = error.code === "MODEL_UNAVAILABLE" ? 503 : 422;

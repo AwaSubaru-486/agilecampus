@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
 import { notFound, redirect } from "next/navigation";
+import { getProjectView } from "@/lib/project-view";
 import { auth } from "@/lib/auth";
 import { getProjectForUser } from "@/lib/project";
 import { buildContributionReport, NOT_MEASURABLE } from "@/lib/contribution";
@@ -28,6 +29,7 @@ export default async function RetrospectivePage({
 
   const access = await getProjectForUser(session.user.id, projectId);
   if (!access) notFound();
+  if (await getProjectView(access.role, projectId, session.user.id, access.project.teamId) === "student") redirect(`/projects/${projectId}`);
 
   const report = await buildContributionReport(session.user.id, projectId);
   const { rows, blockerStats, reviewStats, span } = report;

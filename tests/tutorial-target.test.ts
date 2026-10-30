@@ -25,6 +25,15 @@ function root(
 }
 
 describe("任务教程入口恢复", () => {
+  it("只展开定位所需的阶段，保留其他阶段的折叠状态", () => {
+    const firstStage = { tagName: "DETAILS", open: false, parentElement: null };
+    const secondStage = { tagName: "DETAILS", open: false, parentElement: null };
+    const task = (stage: typeof firstStage) => ({ parentElement: stage, getBoundingClientRect: () => ({ width: stage.open ? 280 : 0, height: 48 }) }) as unknown as HTMLElement;
+    const first = task(firstStage);
+    expect(findTutorialTarget(root([first, task(secondStage)]), '[data-tour="console-task"]').element).toBe(first);
+    expect(firstStage.open).toBe(true);
+    expect(secondStage.open).toBe(false);
+  });
   it("自动展开嵌套资料区域，让收纳后的教程目标仍可定位", () => {
     const outer = { tagName: "DETAILS", open: false, parentElement: null };
     const inner = { tagName: "DETAILS", open: false, parentElement: outer };

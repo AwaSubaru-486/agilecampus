@@ -6,13 +6,19 @@ import { userModelConfigs } from "@/db/schema";
 import { AppError } from "./errors";
 
 export const modelConfigSchema = z.object({
-  baseUrl: z.url().max(500).refine(value => {
+  baseUrl: z.url().trim().max(500).refine(value => {
     const url = new URL(value);
     return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
   }, "填写 HTTP 或 HTTPS API 地址，不要包含账号、查询参数或密钥"),
   model: z.string().trim().min(1).max(120),
   apiKey: z.string().trim().max(4096),
 });
+/** Accept either an API base or its chat endpoint without appending the path twice. */
+export function normalizeModelBaseUrl(value: string) {
+  const url = new URL(value.trim());
+  url.pathname = url.pathname.replace(/\/+$/, "").replace(/\/chat\/completions$/i, "");
+  return url.toString().replace(/\/+$/, "");
+}
 function encryptionKey() {
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
   if (!secret) throw new AppError("服务器未配置密钥加密凭据，请联系管理员");
@@ -25,22 +31,27 @@ function encrypt(value: string) {
 }
 function decrypt(value: string) {
   const bytes = Buffer.from(value, "base64");
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), bytes.subarray(0, 12));
+  if (bytes.length < 29) throw new Error("Invalid encrypted model key");
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), bytes.subarray(0, 12), { authTagLength: 16 });
   decipher.setAuthTag(bytes.subarray(-16));
   return Buffer.concat([decipher.update(bytes.subarray(12, -16)), decipher.final()]).toString("utf8");
 }
 export async function getModelConfigStatus(actorId: string) {
   const [row] = await db.select({ baseUrl: userModelConfigs.baseUrl, model: userModelConfigs.model }).from(userModelConfigs).where(eq(userModelConfigs.userId, actorId));
-  return { baseUrl: row?.baseUrl ?? "https://api.deepseek.com", model: row?.model ?? process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash", personal: Boolean(row), ready: Boolean(row || process.env.DEEPSEEK_API_KEY) };
+  return { baseUrl: normalizeModelBaseUrl(row?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com"), model: row?.model ?? process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash", personal: Boolean(row), ready: Boolean(row || process.env.DEEPSEEK_API_KEY) };
 }
 export async function saveModelConfig(actorId: string, input: unknown) {
   const config = modelConfigSchema.parse(input);
   const [existing] = await db.select().from(userModelConfigs).where(eq(userModelConfigs.userId, actorId));
   if (!config.apiKey && !existing) throw new AppError("首次配置请填写 API Key");
-  const values = { baseUrl: config.baseUrl.replace(/\/$/, ""), model: config.model, encryptedKey: config.apiKey ? encrypt(config.apiKey) : existing!.encryptedKey, updatedAt: new Date() };
+  const values = { baseUrl: normalizeModelBaseUrl(config.baseUrl), model: config.model, encryptedKey: config.apiKey ? encrypt(config.apiKey) : existing!.encryptedKey, updatedAt: new Date() };
   await db.insert(userModelConfigs).values({ userId: actorId, ...values }).onConflictDoUpdate({ target: userModelConfigs.userId, set: values });
 }
 export async function getPersonalModelConfig(actorId: string) {
   const [row] = await db.select().from(userModelConfigs).where(eq(userModelConfigs.userId, actorId));
-  return row ? { baseUrl: row.baseUrl, model: row.model, apiKey: decrypt(row.encryptedKey) } : null;
+  if (!row) return null;
+  let apiKey: string;
+  try { apiKey = decrypt(row.encryptedKey); }
+  catch { throw new AppError("个人 API 密钥无法读取，请在 API 配置中重新保存密钥"); }
+  return { baseUrl: normalizeModelBaseUrl(row.baseUrl), model: row.model, apiKey };
 }

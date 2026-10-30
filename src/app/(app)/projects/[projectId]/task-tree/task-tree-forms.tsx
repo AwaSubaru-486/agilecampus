@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { LoadingProgress } from "@/components/loading-progress";
 import {
   generateTreeAction,
   resolveDraftAction,
@@ -73,10 +74,11 @@ export function DeliveryForm({
       </label>
       <div className="flex items-center justify-between gap-2 md:col-span-2">
         <Result state={state} />
-        <button className="ac-btn-ghost" disabled={pending}>
+        <button className="ac-btn-ghost" disabled={pending} aria-busy={pending}>
           {pending ? "登记中..." : "登记交付分支"}
         </button>
       </div>
+      {pending && <LoadingProgress className="md:col-span-2" label="正在登记交付资料…" />}
     </form>
   );
 }
@@ -101,10 +103,11 @@ export function BriefForm({ projectId, tutorial = false, generated = false }: { 
       </label>
       <div className="flex items-center justify-between gap-3">
         <Result state={state} />
-        <button data-tour="task-generate" type="submit" disabled={pending} className="ac-btn">
+        <button data-tour="task-generate" type="submit" disabled={pending} aria-busy={pending} className="ac-btn">
           {pending ? "正在生成..." : tutorial ? "生成教学示例草案" : "AI 生成任务树草案"}
         </button>
       </div>
+      {pending && <LoadingProgress label={tutorial ? "正在准备教学草案…" : "AI 正在生成任务树…"} detail="正在整理需求与阶段任务，完成后会展示草案。" />}
     </form>
   );
 }
@@ -126,6 +129,7 @@ export function DraftActions({
     >
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="draftId" value={draftId} />
+      {pending && <LoadingProgress label="正在处理草案…" />}
       <Result state={state} />
       <button
         name="decision"
@@ -188,10 +192,11 @@ export function IntegrationSubmitForm({
       </label>
       <div className="flex items-center justify-between gap-3 md:col-span-2">
         <Result state={state} />
-        <button className="ac-btn" disabled={pending}>
+        <button className="ac-btn" disabled={pending} aria-busy={pending}>
           {pending ? "提交中..." : "提交集成审核"}
         </button>
       </div>
+      {pending && <LoadingProgress className="md:col-span-2" label="正在提交集成材料…" />}
     </form>
   );
 }
@@ -211,6 +216,7 @@ export function IntegrationReviewForm({
     <form action={action} className="space-y-2 border-t border-stroke pt-3">
       <input type="hidden" name="projectId" value={projectId} />
       <input type="hidden" name="integrationId" value={integrationId} />
+      {pending && <LoadingProgress label="正在保存审核结果…" />}
       <label className="block text-xs text-ink-soft">
         审核意见（退回时必填）
         <input className="ac-field mt-1 w-full" name="note" />

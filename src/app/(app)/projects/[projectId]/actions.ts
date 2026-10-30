@@ -4,6 +4,9 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { submitTaskWithDelivery } from "@/lib/task-submission";
+import { runProjectOperation } from "@/lib/project-operation";
+import { recheckCompletedTask } from "@/lib/task-recheck";
 import {
   claimTask,
   createTask,
@@ -12,7 +15,6 @@ import {
   getTaskDetail,
   reviewTask,
   setTaskSuccessors,
-  submitTask,
   updateTask,
 } from "@/lib/task";
 import { setTaskLabels } from "@/lib/label";
@@ -20,10 +22,20 @@ import { createMilestone, deleteProject, getProjectForUser } from "@/lib/project
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { createEntry, deleteEntry } from "@/lib/entry";
-import { createEvidenceItem, EVIDENCE_LABEL, missingRequiredEvidence } from "@/lib/evidence";
+import { EVIDENCE_LABEL } from "@/lib/evidence";
 import { EVIDENCE_TYPES, type EvidenceType } from "@/lib/handoff";
 
-export type FormState = { error: string } | null;
+export type FormState = { error?: string; ok?: boolean } | null;
+export async function recheckCompletedTaskAction(_previous: UpdateTaskState, data: FormData): Promise<UpdateTaskState> {
+  const session = await auth();
+  if (!session?.user) return { error: "请先登录" };
+  const parsed = z.object({ projectId: z.uuid(), taskId: z.uuid(), decision: z.enum(["accept", "revise"]), note: z.string().trim().max(5000).optional() }).safeParse(Object.fromEntries(data));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  try { await runProjectOperation(session.user.id, parsed.data.projectId, "复核已完成任务", actorId => recheckCompletedTask(actorId, parsed.data.projectId, parsed.data.taskId, parsed.data), { kind: "task", id: parsed.data.taskId }); }
+  catch (error) { if (error instanceof AppError) return { error: error.message }; throw error; }
+  revalidatePath(`/projects/${parsed.data.projectId}`);
+  return { ok: true };
+}
 export type CreateTaskState = { error: string } | { ok: true; revision: string } | null;
 // 更新任务专用：成功回 { ok: true }，供编辑弹窗据以自闭
 export type UpdateTaskState = { error: string } | { ok: true } | null;
@@ -130,16 +142,15 @@ export async function gradeMilestoneAction(
   const parsed = gradeMilestoneSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const access = await getProjectForUser(session.user.id, parsed.data.projectId);
-  if (!access || access.role !== "teacher") {
-    return { error: "只有导师 (Supervisor) 可以进行里程碑评审打分" };
-  }
-
   try {
-    await createEntry(session.user.id, parsed.data.projectId, {
+    await runProjectOperation(session.user.id, parsed.data.projectId, "提交导师评语", async actorId => {
+      const access = await getProjectForUser(actorId, parsed.data.projectId);
+      if (access?.role !== "teacher") throw new ForbiddenError("只有老师可以进行里程碑评审打分");
+      return createEntry(actorId, parsed.data.projectId, {
       type: "feedback",
       title: `[导师评审打分] ${parsed.data.milestoneTitle}：评级 ${parsed.data.grade} (${parsed.data.score}分)`,
       content: parsed.data.comment,
+    });
     });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限提交导师评语" };
@@ -212,7 +223,7 @@ export async function moveTaskAction(input: {
     if (parsed.data.patch.status !== undefined) {
       return { error: "状态不能通过拖拽改变，请使用任务动作推进" };
     }
-    await updateTask(session.user.id, parsed.data.taskId, parsed.data.patch);
+    await runProjectOperation(session.user.id, parsed.data.projectId, "调整任务", actorId => updateTask(actorId, parsed.data.taskId, parsed.data.patch), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限移动任务" };
     if (e instanceof AppError) return { error: e.message };
@@ -262,18 +273,20 @@ export async function updateTaskAction(
     .map(String)
     .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
   try {
-    await updateTask(session.user.id, taskId, {
-      title: patch.title,
-      description: patch.description ?? null,
-      assigneeId: patch.assigneeId ?? null,
-      milestoneId: patch.milestoneId ?? null,
-      startDate: patch.startDate ?? null,
-      dueDate: patch.dueDate ?? null,
-      priority: patch.priority,
-      completionNote: patch.completionNote ?? null,
-    });
-    await setTaskSuccessors(session.user.id, taskId, successorIds);
-    await setTaskLabels(session.user.id, taskId, labelIds);
+    await runProjectOperation(session.user.id, projectId, "修改任务", async actorId => {
+      await updateTask(actorId, taskId, {
+        title: patch.title,
+        description: patch.description ?? null,
+        assigneeId: patch.assigneeId ?? null,
+        milestoneId: patch.milestoneId ?? null,
+        startDate: patch.startDate ?? null,
+        dueDate: patch.dueDate ?? null,
+        priority: patch.priority,
+        completionNote: patch.completionNote ?? null,
+      });
+      await setTaskSuccessors(actorId, taskId, successorIds);
+      await setTaskLabels(actorId, taskId, labelIds);
+    }, { kind: "task", id: taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限修改任务" };
     if (e instanceof AppError) return { error: e.message };
@@ -348,19 +361,23 @@ export async function updateTaskHandoffAction(
     : undefined;
 
   try {
-    const current = await getTaskDetail(session.user.id, taskId);
-    if (current.status === "review" || current.status === "done") {
-      return { error: "已进入验收或已完成的任务不可直接修改交接契约，请先退回修改" };
-    }
+    await runProjectOperation(session.user.id, projectId, "修改交接要求", async actorId => {
+      const current = await getTaskDetail(actorId, taskId);
+      const access = await getProjectForUser(actorId, projectId);
+      if (assigneeId !== undefined && access?.role !== "admin") throw new ForbiddenError("只有组长可以下派任务");
+      if (current.status === "review" || current.status === "done") {
+        throw new AppError("已进入验收或已完成的任务不可直接修改交接契约，请先退回修改");
+      }
 
-    await updateTask(session.user.id, taskId, {
-      ...(assigneeId !== undefined && { assigneeId: assigneeId === "unassigned" ? null : assigneeId }),
-      handoffBrief: handoffBrief ?? null,
-      doneCriteria: criteriaList ?? null,
-      requiredEvidence: evidenceList && evidenceList.length > 0 ? evidenceList : null,
-      responseDueAt: parsedDueDate ?? null,
-      contextPackId: contextPackId && z.uuid().safeParse(contextPackId).success ? contextPackId : null,
-    });
+      await updateTask(actorId, taskId, {
+        ...(assigneeId !== undefined && { assigneeId: assigneeId === "unassigned" ? null : assigneeId }),
+        handoffBrief: handoffBrief ?? null,
+        doneCriteria: criteriaList ?? null,
+        requiredEvidence: evidenceList && evidenceList.length > 0 ? evidenceList : null,
+        responseDueAt: parsedDueDate ?? null,
+        contextPackId: contextPackId && z.uuid().safeParse(contextPackId).success ? contextPackId : null,
+      });
+    }, { kind: "task", id: taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限修改交接要求" };
     if (e instanceof AppError) return { error: e.message };
@@ -430,10 +447,10 @@ export async function claimTaskAction(_prev: FormState, formData: FormData): Pro
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    await claimTask(session.user.id, parsed.data.taskId, {
+    await runProjectOperation(session.user.id, parsed.data.projectId, "认领任务", actorId => claimTask(actorId, parsed.data.taskId, {
       commitmentNote: parsed.data.commitmentNote || "已确认接住并认领任务",
       estimatedHours: parsed.data.estimatedHours,
-    });
+    }), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限认领此任务" };
     if (e instanceof AppError) return { error: e.message };
@@ -469,13 +486,13 @@ export async function createEntryAction(_prev: FormState, formData: FormData): P
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    await createEntry(session.user.id, parsed.data.projectId, {
+    await runProjectOperation(session.user.id, parsed.data.projectId, "添加项目成果与记录", actorId => createEntry(actorId, parsed.data.projectId, {
       type: parsed.data.type,
       title: parsed.data.title,
       content: parsed.data.content,
       url: parsed.data.url,
       taskId: parsed.data.taskId ?? null,
-    });
+    }), parsed.data.taskId ? { kind: "task", id: parsed.data.taskId } : undefined);
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "你没有权限在这里留这条" };
     if (e instanceof AppError) return { error: e.message };
@@ -526,7 +543,7 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    await declineTask(session.user.id, parsed.data.taskId, { reason: parsed.data.reason });
+    await runProjectOperation(session.user.id, parsed.data.projectId, "退回任务认领", actorId => declineTask(actorId, parsed.data.taskId, { reason: parsed.data.reason }), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以接不住" };
     if (e instanceof AppError) return { error: e.message };
@@ -538,9 +555,12 @@ export async function declineTaskAction(_prev: FormState, formData: FormData): P
 }
 
 const submitTaskSchema = z.object({
-  taskId: z.uuid(),
-  projectId: z.uuid(),
-  completionNote: z.string().trim().optional(),
+  taskId: z.uuid(), projectId: z.uuid(), completionNote: z.string().trim().optional(),
+  branchName: z.string().trim().min(1, "请填写任务分支").max(200),
+  headSha: z.string().trim().max(128).optional(),
+  pullRequestUrl: z.string().trim().max(2000).optional(),
+  testSummary: z.string().trim().max(5000).optional(),
+  handoffVersion: z.coerce.number().int().positive("任务版本无效，请重新打开提交窗口"),
 });
 
 export async function submitTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -561,29 +581,11 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
   try {
     // 把必需材料随交付表单一并落库。之前页面只收完成说明，
     // 但 submitTask 会拒绝缺少契约证据的任务，成员因此没有可完成的路径。
-    const missingBeforeSubmit = await missingRequiredEvidence(session.user.id, parsed.data.taskId);
-    const evidenceValues = new Map<EvidenceType, string>();
-    for (const type of missingBeforeSubmit) {
-      const value = String(formData.get(`evidence_${type}`) ?? "").trim();
-      if (!value) {
-        const labels = missingBeforeSubmit.map((missingType) => EVIDENCE_LABEL[missingType]);
-        return { error: `请补充必需交付材料：${labels.join("、")}` };
-      }
-      if (value.length > 8_000) return { error: `${EVIDENCE_LABEL[type]}最多 8000 个字` };
-      evidenceValues.set(type, value);
-    }
-
-    for (const [type, value] of evidenceValues) {
-      await createEvidenceItem(session.user.id, parsed.data.taskId, {
-        type,
-        label: EVIDENCE_LABEL[type],
-        value,
-      });
-    }
-
-    await submitTask(session.user.id, parsed.data.taskId, {
-      completionNote: parsed.data.completionNote || "已完成任务并提交成果物待验收",
-    });
+    const evidence: Partial<Record<EvidenceType, string>> = {};
+    for (const type of EVIDENCE_TYPES) evidence[type] = String(formData.get(`evidence_${type}`) ?? "").trim();
+    await runProjectOperation(session.user.id, parsed.data.projectId, "提交任务成果", actorId => submitTaskWithDelivery(actorId, parsed.data.taskId, {
+      ...parsed.data, completionNote: parsed.data.completionNote || "已完成任务并提交交付材料，待组长审核", evidence,
+    }), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "只有任务负责人本人可以提交" };
     if (e instanceof AppError) {
@@ -600,7 +602,7 @@ export async function submitTaskAction(_prev: FormState, formData: FormData): Pr
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
   revalidatePath("/today");
-  return null;
+  return { ok: true };
 }
 
 const reviewTaskSchema = z.object({
@@ -628,12 +630,12 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    await reviewTask(session.user.id, parsed.data.taskId, {
+    await runProjectOperation(session.user.id, parsed.data.projectId, "验收任务", actorId => reviewTask(actorId, parsed.data.taskId, {
       decision: parsed.data.decision,
       note: parsed.data.note,
-    });
+    }), { kind: "task", id: parsed.data.taskId });
   } catch (e) {
-    if (e instanceof ForbiddenError) return { error: "只有组长或教师可以验收" };
+    if (e instanceof ForbiddenError) return { error: "任务由组长审核，老师可复核已完成成果" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }

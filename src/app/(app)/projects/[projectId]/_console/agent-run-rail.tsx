@@ -10,7 +10,7 @@
  * 不伪造 running 状态。不显示"启动 Agent""恢复执行"等歧义按钮。
  */
 
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import { useState } from "react";
 import { agentRunStatusLabel } from "@/lib/collaboration-console-view";
 import { buildSelectRunHref } from "@/lib/console-navigation";
@@ -164,7 +164,7 @@ export function AgentRunRail({
         </div>
         {hasMoreRuns && (
           <button type="button" disabled={loadingHistory !== null} onClick={() => void loadMore("runs")} className="mt-2 min-h-9 w-full border border-stroke px-2 text-xs text-ink-2 hover:bg-panel-hover disabled:opacity-50">
-            {loadingHistory === "runs" ? "加载中…" : "加载更早的运行记录"}
+            {loadingHistory === "runs" ? <span className="inline-flex items-center gap-2"><span className="ac-loading-dot" aria-hidden />加载中…</span> : "加载更早的运行记录"}
           </button>
         )}
 
@@ -257,7 +257,7 @@ export function AgentRunRail({
         )}
         {hasMoreEvents && (
           <button type="button" disabled={loadingHistory !== null} onClick={() => void loadMore("events")} className="mt-2 min-h-9 w-full border border-stroke px-2 text-xs text-ink-2 hover:bg-panel-hover disabled:opacity-50">
-            {loadingHistory === "events" ? "加载中…" : "加载更早的活动"}
+            {loadingHistory === "events" ? <span className="inline-flex items-center gap-2"><span className="ac-loading-dot" aria-hidden />加载中…</span> : "加载更早的活动"}
           </button>
         )}
         {historyError && <p className="mt-2 text-xs text-risk" role="alert">{historyError}</p>}

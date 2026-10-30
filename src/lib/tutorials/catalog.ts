@@ -1,6 +1,6 @@
 import { buildWelcomeSteps, EMPTY_JOURNEY, type TutorialJourney } from "./example-flow";
 export type TutorialRole = "admin" | "student" | "teacher";
-export type TutorialProject = { id: string; name: string; teamId: string; role: TutorialRole };
+export type TutorialProject = { id: string; name: string; teamId: string; teamName?: string; taskTotal?: number; role: TutorialRole };
 export type TutorialProgress = {
   journey?: TutorialJourney;
   example?: {version:1;phase:number;values:Record<string,string>;events:{phase:number;title:string;at:string}[]};
@@ -32,41 +32,41 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       ...(project ? [step("members", "确认三角色分工", "在成员页找到组长、组员和导师。角色修改入口只对组长开放。", `${team}/members`, "team-members")] : []),
     ] },
     { id: "planning", title: "AI 一键生成任务", category: "任务流程", needsProject: true, roles: ["admin"], description: "输入需求、生成连续任务树、增删与编排任务，再确认发布。", steps: [
-      step("brief", "写下本轮需求", "在项目说明里输入目标和交付要求，至少 10 个字。先练习填写，不会自动调用模型。", `${base}/task-tree#planning`, "task-brief", "input"),
-      step("generate", "找到生成入口", "你准备好后可点击生成。模型配置齐全时会返回草案；教程不会替你调用模型或发布任务。", `${base}/task-tree#planning`, "task-generate"),
-      step("draft", "确认后再发布", "草案以连续任务树展示。点击节点修改分工与验收标准，拖动调整分支；加号新增并可请 AI 完善，减号需二次确认并选择保留后续任务。保存后再发布。", `${base}/task-tree`, "task-drafts"),
+      step("brief", "写下本轮需求", "在项目说明里输入目标和交付要求，至少 10 个字。先练习填写，不会自动调用模型。", `${base}/task-tree?plan=1#planning`, "task-brief", "input"),
+      step("generate", "找到生成入口", "你准备好后可点击生成。模型配置齐全时会返回草案；教程不会替你调用模型或发布任务。", `${base}/task-tree?plan=1#planning`, "task-generate"),
+      step("draft", "确认后再发布", "草案以连续任务树展示。点击节点修改分工与验收标准，拖动调整分支；加号新增并可请 AI 完善，减号需二次确认并选择保留后续任务。保存后再发布。", `${base}/task-tree?plan=1`, "task-drafts"),
     ] },
     { id: "task-tree", title: "连续任务树", category: "任务流程", needsProject: true, description: "沿着连线看前后关系、并行任务与阶段分界。", steps: [
       step("tree", "从左向右读任务树", "连线表示前置关系，同列可以并行，竖虚线分隔阶段。这里沿用草案编排；连线保存在当前浏览器。", `${base}/timeline`, "timeline-tree"),
       step("node", "选择一个任务", "点击高亮任务，查看执行说明、负责人和验收标准。", `${base}/timeline`, "timeline-node", "click"),
-      step("detail", "从规划进入执行", "详情区可打开已发布任务的执行页面。尚未生成任务时，请先完成任务规划课程。", `${base}/timeline`, "timeline-inspector"),
+      step("detail", "从规划进入执行", "任务详情在当前页面弹窗打开，可查看要求与交付资料。尚未生成任务时，请先完成任务规划课程。", `${base}/timeline`, "timeline-inspector"),
     ] },
-    { id: "role-views", title: "组长切换角色视角", category: "任务流程", needsProject: true, roles: ["admin"], description: "依次预览组员和老师的界面，再返回组长。", steps: [
-      { ...step("member", "切换到组员视角", "选择组员（预览），认识执行入口。预览不改变真实角色与权限。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
-      { ...step("teacher", "切换到老师视角", "选择老师（预览），认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
-      { ...step("leader", "返回组长视角", "选择组长，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
+    { id: "role-views", title: "组长切换角色视角", category: "任务流程", needsProject: true, roles: ["admin"], description: "依次切换具体组员和老师的操作视角，再返回组长。", steps: [
+      { ...step("member", "切换到具体组员视角", "选择一位具体组员，查看分配给这位成员的任务。组长可代其操作，记录会保留实际操作者。", base, "project-view-switch", "result"), completion: "data-tour-member-view" },
+      { ...step("teacher", "切换到具体老师视角", "选择一位具体老师，认识评审入口。", base, "project-view-switch", "result"), completion: "data-tour-teacher-view" },
+      { ...step("leader", "返回组长视角", "选择组长本人的选项，回到规划与分工界面。", base, "project-view-switch", "result"), completion: "data-tour-leader-view" },
     ] },
-    { id: "execution", title: "认领与提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
-      step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以认领、报告执行情况或提交成果。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),
+    { id: "execution", title: "直接提交任务", category: "任务流程", needsProject: true, roles: ["admin", "student"], description: "选择任务，确认交接要求，再提交成果。", steps: [
+      step("console", "打开执行工作区", "点击高亮的任务入口。进入任务详情后可以直接提交任务，填写分支和必需交付材料。没有任务时先认识列表，再继续学习流程。", `${work}&panel=list`, "console-task", "click"),
       step("contract", "查看交接与交付", "在高亮执行台里找到负责人、完成条件和证据要求；提交成果会进入待验收，由人审核。", work, "execution-console"),
-      step("delivery", "登记交付材料", "任务树中的执行任务可登记分支、提交和 PR。点击任务可回到执行台；锁定阶段要等前一阶段通过。", `${base}/task-tree`, "stage-tasks"),
+      step("delivery", "登记交付材料", "点击任务节点打开详情，有执行权限时可在弹窗登记交付分支；锁定阶段要等前一阶段通过。", `${base}/timeline`, "timeline-node", "click"),
     ] },
-    { id: "review", title: "任务验收与导师评审", category: "任务流程", needsProject: true, roles: ["admin", "teacher"], description: "检查成果，通过或填写原因退回。", steps: [
-      step("review", "找到待验收任务", "在执行台查看待验收任务及成果证据。组长或导师可以通过或退回。", work, "execution-console"),
-      step("integration", "检查阶段集成", "这里显示集成分支、测试材料和审核记录。非提交者才会看到审核操作；退回必须填写原因。", `${base}/task-tree`, "stage-tasks"),
+    { id: "review", title: "任务验收与老师复核", category: "任务流程", needsProject: true, roles: ["admin", "teacher"], description: "组长验收提交成果，老师复核已完成任务并审核阶段集成。", steps: [
+      step("review", project?.role === "teacher" ? "复核已完成任务" : "找到待验收任务", project?.role === "teacher" ? "成果验收只展示已完成任务，查看成果证据并填写复核意见。" : "在成果验收页查看待审核任务及成果证据，检查后通过或填写原因退回。", project?.role === "teacher" ? work : `${work}&scope=review`, "execution-console"),
+      step("integration", "检查阶段集成", "这里显示集成分支、测试材料和审核记录。非提交者才会看到审核操作；退回必须填写原因。", `${work}&scope=all`, "stage-tasks"),
       ...(project?.role === "teacher" ? [step("evaluation", "打开导师评审", "点击导师评审按钮，查看评分与评语表单。教程只打开表单，不会替你提交评价。", work, "teacher-evaluation", "click"), step("evaluation-close", "退出评审练习", "点击关闭按钮返回项目。只有正式提交才会写入评分与评语。", work, "evaluation-close", "click")] : []),
     ] },
     { id: "iterations", title: "阶段迭代与交接", category: "任务流程", needsProject: true, description: "认识阶段门禁和增量需求。", steps: [
-      step("progress", "找到当前阶段", "进度区显示当前阶段、已验收任务与待处理事项。任务验收和阶段集成是两个不同的关口。", `${base}/task-tree`, "stage-progress"),
-      step("stage", "切换一个阶段", "点击高亮阶段导航，跳到对应任务。下一阶段只有在集成审核通过后才会解锁。", `${base}/task-tree`, "stage-link", "click"),
+      step("progress", "找到当前阶段", "进度区显示当前阶段、已验收任务与待处理事项。任务验收和阶段集成是两个不同的关口。", `${base}/timeline`, "stage-progress"),
+      step("stage", "切换一个阶段", "点击高亮阶段导航，跳到对应任务。下一阶段只有在集成审核通过后才会解锁。", `${base}/timeline`, "stage-link", "click"),
       step("handoff", "查看执行与交接资料", "在执行台查看任务契约、运行记录与交接材料。分支信息是登记材料，网页不会自动合并代码。", work, "execution-console"),
       step("retrospective", "用过程记录复盘", "这里汇总交付、验收、求助与成员贡献。没有活动记录时会显示空状态；数据只反映已登记的过程。", `${base}/retrospective`, "retrospective"),
-      step("activity", "追溯具体动作", "活动流按时间记录认领、提交、验收等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
+      step("activity", "追溯具体动作", "活动流按时间记录提交、审核、复核等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
     ] },
-    { id: "ai", title: "AI 协作与会话分支", category: "协作与沉淀", needsProject: true, description: "进入项目协同室，认识共享会话和人工确认。", steps: [
+    { id: "ai", roles: ["admin", "student"], title: "AI 协作与会话分支", category: "协作与沉淀", needsProject: true, description: "进入项目对话，认识共享会话和人工确认。", steps: [
       step("studio", "进入 Agent 协作", "点击 Agent 协作入口，进入项目协同室。", work, "nav-studio", "click"),
       step("workspace", "找到会话与确认事项", "在高亮协同室中查看任务关联会话、分支与待确认草案。AI 提议需要人工确认才会写入。", `${base}?space=studio`, "ai-workspace"),
-      step("chat", "打开项目会话", "点击项目会话，进入共享会话工作区。", `${base}?space=studio`, "project-chat", "click"),
+      step("chat", "打开项目会话", "AI 助手直接展示项目对话和共享会话工作区。", `${base}?space=studio`, "ai-workspace"),
       step("new-chat", "打开新会话表单", "点击“新会话”，练习设置主题与可见范围。这个动作只打开表单。", `${base}?space=studio&view=chat`, "conversation-toggle", "click"),
       step("chat-title", "写下会话主题", "在亮起的输入框写下本次讨论主题，例如“本轮验收标准”。填写不会创建会话或调用 AI。", `${base}?space=studio&view=chat`, "conversation-title", "input"),
       step("chat-scope", "确认任务与可见范围", "这里可以关联任务，并选择项目成员可见或仅自己可见。正式创建前确认共享范围。", `${base}?space=studio&view=chat`, "conversation-form"),
@@ -74,12 +74,12 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("context-title", "给上下文快照命名", "给这次讨论的资料快照取个名字。快照可以关联任务、里程碑和会话，帮助 AI 获取具体上下文。", `${base}?space=studio&view=chat`, "context-title", "input"),
       step("context", "确认 AI 可以读取哪些资料", "在亮起的区域选择候选来源并预览。正式冻结后，发送消息会使用这份快照；教程不会替你冻结或发送。", `${base}?space=studio&view=chat`, "context-builder"),
     ] },
-    { id: "records", title: "证据、决策与项目档案", category: "协作与沉淀", needsProject: true, description: "把成果和评审留在可追溯的项目记录中。", steps: [
+    { id: "records", roles: ["admin", "teacher"], title: "证据、决策与项目档案", category: "协作与沉淀", needsProject: true, description: "把成果和评审留在可追溯的项目记录中。", steps: [
       step("record", "进入成果记录", "点击成果记录，查看项目文档、交付材料与老师反馈。", work, "nav-record", "click"),
       step("archive", "认识项目档案", "高亮区域汇集成果、证据与决策。需要提交材料时使用页面上的实际操作。", `${base}?space=record`, "project-records"),
       step("library", "查看跨项目资料", "资料库汇集可访问的工程资料，便于查找已有上下文。", "/library", "library"),
     ] },
-    { id: "timeline", title: "时间线与里程碑", category: "项目管理", needsProject: true, description: "查看日期、任务依赖和阶段安排。", steps: [step("timeline", "看一次项目时间线", "在高亮时间线中找到任务日期、里程碑和逾期情况。任务日期来自真实项目数据。", `${base}/timeline?diagram=schedule`, "timeline")] },
+    { id: "timeline", title: "时间线与任务树", category: "项目管理", needsProject: true, description: "查看当前阶段进度、任务依赖和并行分支。", steps: [step("timeline", "看一次项目时间线", "在高亮时间线中查看当前阶段进度和任务树，完成任务显示绿色，点击节点打开详情。", `${base}/timeline`, "timeline")] },
     { id: "risks", title: "风险、求助与协作中心", category: "项目管理", description: "找到风险与求助入口，及时向团队说明阻塞。", steps: [
       step("health", "找到项目风险", "风险页面聚合项目健康情况。没有风险数据时会显示空状态。", "/health", "health"),
       step("help", "打开求助面板", "点击高亮的求助按钮，查看阻塞类型与协助人选择。这里只打开面板，不会自动发送求助。", "/collaboration", "help-button", "click"),
@@ -107,8 +107,8 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id:"welcome",title:"在真实页面做一个示例项目",category:"推荐起点",description:"先配置模型 API，再创建团队与项目，在原有页面练习连续任务树、任务增删和角色切换，再发布、提交与迭代。",
-    steps:buildWelcomeSteps(journey),
+    id:"welcome",title:"跟着汪汪队认识敏捷开发平台",category:"推荐起点",needsProject:true,description:"以现有项目展示成员分工、阶段任务、时间线、三角色界面与成果验收。",
+    steps:buildWelcomeSteps(journey.projectId ? journey : project ? {version:6,teamId:project.teamId,projectId:project.id,role:project.role} : EMPTY_JOURNEY),
   };
-  return [welcome, ...courses];
+  return [welcome, ...courses.map(course => course.id === "iterations" && project?.role === "student" ? { ...course, steps: course.steps.filter(step => !step.route.endsWith("/retrospective") && !step.route.endsWith("/activity")) } : course)];
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingProgress } from "@/components/loading-progress";
+
 /**
  * 交接表单（W04）。
  *
@@ -35,6 +37,7 @@ export function HandoffEditor({
   projectId,
   selectedTask,
   canWrite,
+  canDispatch = false,
   members = [],
   availablePacks = [],
   onClose,
@@ -42,6 +45,7 @@ export function HandoffEditor({
   projectId: string;
   selectedTask: SelectedTaskDetail;
   canWrite: boolean;
+  canDispatch?: boolean;
   members?: MemberSummary[];
   availablePacks?: { id: string; title: string; frozenAt?: string | null }[];
   onClose: () => void;
@@ -116,22 +120,23 @@ export function HandoffEditor({
       {/* 接手人选择 */}
       <div>
         <label htmlFor="assigneeId" className="block text-xs font-medium text-ink-2">
-          接手负责人（人 / Agent）
+          接手组员
         </label>
         <select
           id="assigneeId"
           name="assigneeId"
           defaultValue={selectedTask.assigneeId ?? "unassigned"}
           className="ac-field mt-1 text-sm"
+          disabled={!canDispatch}
         >
           <option value="unassigned">未指派</option>
-          {members.map((m) => (
+          {members.filter(member => member.kind === "human" && member.role === "student").map((m) => (
             <option key={m.id} value={m.id}>
               {m.name} ({m.kind === "agent" ? "Agent" : m.role === "admin" ? "负责人" : "成员"})
             </option>
           ))}
           {/* 若当前负责人不在 members 列表中，保留当前值 */}
-          {selectedTask.assigneeId && !members.some((m) => m.id === selectedTask.assigneeId) && (
+          {selectedTask.assigneeId && !members.some((m) => m.id === selectedTask.assigneeId && m.kind === "human" && m.role === "student") && (
             <option value={selectedTask.assigneeId}>
               {selectedTask.assigneeName ?? selectedTask.assigneeId} (当前)
             </option>
@@ -223,8 +228,7 @@ export function HandoffEditor({
           <label htmlFor="contextPackId" className="block text-xs font-medium text-ink-2">
             绑定交接资料包
           </label>
-          {availablePacks.length > 0 ? (
-            <select
+          <select
               id="contextPackId"
               name="contextPackId"
               defaultValue={selectedTask.contextPackId ?? ""}
@@ -241,20 +245,12 @@ export function HandoffEditor({
                   {selectedTask.contextTitle ?? "当前已绑定资料包"}
                 </option>
               )}
-            </select>
-          ) : (
-            <input
-              type="text"
-              id="contextPackId"
-              name="contextPackId"
-              defaultValue={selectedTask.contextPackId ?? ""}
-              placeholder="暂无冻结包，可输入资料包 UUID"
-              className="ac-field mt-1 text-xs font-mono"
-            />
-          )}
+          </select>
+          {availablePacks.length === 0 && <p className="mt-1 text-[11px] text-ink-3">暂无冻结资料包。关闭编辑后，可在“交接资料”中创建并绑定。</p>}
         </div>
       </div>
 
+      {pending && <LoadingProgress label="正在保存分工与交接要求…" />}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-stroke">
         <button
           type="button"

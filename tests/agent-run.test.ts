@@ -235,7 +235,7 @@ describe("人在环中：agent 交的活仍要人验收", () => {
 
     const { reviewTask } = await import("@/lib/task");
     await expect(reviewTask(agent.userId, t.id, { decision: "accept" })).rejects.toThrow(
-      "只有组长或教师",
+      "任务由组长审核",
     );
   });
 });

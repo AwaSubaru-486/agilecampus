@@ -6,21 +6,25 @@ import type { TaskTreePayload } from "@/lib/task-tree";
 import { emptyDraftPlan, validateDraftPlan, type DraftPlan, type PlanningLink } from "@/lib/draft-planning";
 import { mapWholeTimelinePlan, planningSignature } from "@/lib/timeline-task-tree";
 import { DraftTechTree } from "../task-tree/draft-tech-tree";
+import { TaskSubmissionForm } from "../_shared/task-submit-dialog";
+import type { EvidenceType } from "@/lib/handoff";
+import { LoadingProgress } from "@/components/loading-progress";
+import { usePlanningAnimation } from "../_shared/use-planning-animation";
 
 export type TimelineTreeGroup = {
   id: string; title: string; payload: TaskTreePayload; draftId?: string; draftStageIndex?: number; pending: boolean;
-  links: PlanningLink[]; details: { key: string; taskId: string | null; status: string; owner: string }[];
+  links: PlanningLink[]; details: { handoffVersion?: number; requiredEvidence?: EvidenceType[]; key: string; taskId: string | null; status: string; owner: string; completed?: boolean; completionNote?: string | null; reviewNote?: string | null; dueDate?: string | null; canDeliver?: boolean; delivery?: { branchName: string; testSummary: string | null; pullRequestUrl: string | null } | null }[];
 };
 type Draft = { id: string; payload: TaskTreePayload };
 
 export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, drafts }: { projectId: string; projectName: string; canAnalyse: boolean; groups: TimelineTreeGroup[]; drafts: Draft[] }) {
   const [treeId, setTreeId] = useState(groups.some(group => !group.pending) ? "published" : groups[0]?.draftId ?? "");
   const [selected, setSelected] = useState<string | null>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (selected && dialog.current && !dialog.current.open) dialog.current.showModal(); }, [selected]);
   const [focusStage, setFocusStage] = useState(0);
   const [stored, setStored] = useState<{ signature: string; plan: DraftPlan } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  const controller = useRef<AbortController | null>(null);
+  const { busy, start: analyse, stop } = usePlanningAnimation();
   const visible = groups.filter(group => treeId === "published" ? !group.pending : group.pending && group.draftId === treeId);
   const original = drafts.find(draft => draft.id === treeId)?.payload;
   const payload: TaskTreePayload = { summary: treeId === "published" ? projectName : original?.summary ?? projectName, stages: visible.map(group => group.payload.stages[0]) };
@@ -40,32 +44,8 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
   try { validateDraftPlan(payload, plan); } catch { plan = emptyDraftPlan(payload); invalid = true; }
   const linked = plan.stages.some(stage => stage.links.some(link => link.afterKeys.length));
 
-  async function analyse() {
-    if (controller.current || !canAnalyse || !payload.stages.length) return;
-    const request = new AbortController(); controller.current = request;
-    setBusy(true); setNotice("");
-    try {
-      const response = await fetch("/api/draft-planning", { method: "POST", headers: { "Content-Type": "application/json" }, signal: request.signal,
-        body: JSON.stringify(treeId === "published" ? { mode: "timeline", projectId } : { mode: "plan", projectId, draftId: treeId, payload: original }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "AI 分析没有完成");
-      if (request.signal.aborted) return;
-      if (result.signature && result.signature !== signature) throw new Error("项目任务已经变化，请刷新后重新分析");
-      validateDraftPlan(payload, result.plan);
-      setStored({ signature, plan: result.plan });
-      try { localStorage.setItem(cacheKey, JSON.stringify({ relationVersion: 2, signature: treeId === "published" ? signature : JSON.stringify(original), plan: result.plan })); }
-      catch { setNotice("AI 编排已展示，但浏览器无法保存，请勿关闭此页。"); }
-    } catch (error) {
-      if (!request.signal.aborted) setNotice(error instanceof Error ? error.message : "AI 分析没有完成，请重试");
-    } finally {
-      if (controller.current === request) { controller.current = null; setBusy(false); }
-    }
-  }
-
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      setBusy(false);
-      setNotice("");
       try {
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
         const expected = treeId === "published" ? signature : JSON.stringify(original);
@@ -76,7 +56,7 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
         }
       } catch { /* Stale/corrupt graphs must be recomputed. */ }
       if (treeId === "published") {
-        const recovered = emptyDraftPlan(payload);
+        const recovered = structuredClone(basePlan);
         const covered = new Set<number>();
         for (const draft of drafts) {
           try {
@@ -88,19 +68,19 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
             matches.forEach((item, index) => { recovered.stages[item.index] = { ...mapped.stages.find(stage => stage.stageIndex === index)!, stageIndex: item.index }; covered.add(item.index); });
           } catch { /* Never guess connections for changed tasks. */ }
         }
-        if (covered.size === payload.stages.length && covered.size) {
+        if (covered.size) {
           try {
             validateDraftPlan(payload, recovered);
-            recovered.reviewNote = "已保留发布前在此浏览器保存的编排，可按需要让 AI 再次复核。";
+            recovered.reviewNote = "已保留现有阶段的编排与项目中登记的关系。";
             setStored({ signature, plan: recovered });
             return;
           } catch { /* Fall through to full-project analysis. */ }
         }
       }
-      void analyse();
+      setStored(null);
     });
-    return () => { cancelAnimationFrame(frame); controller.current?.abort(); controller.current = null; };
-    // One analysis for each unchanged complete task set, never per stage or per render.
+    return () => cancelAnimationFrame(frame);
+    // Restore existing annotations only. Opening the page never starts an AI request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, signature, canAnalyse]);
 
@@ -110,7 +90,7 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
   const pendingDrafts = drafts.filter(draft => groups.some(group => group.pending && group.draftId === draft.id));
   return <section className="space-y-4" aria-label="时间线任务树">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <label className="flex items-center gap-3 text-sm">查看任务链<select aria-label="选择任务链" className="ac-field" disabled={busy} value={treeId} onChange={event => { setTreeId(event.target.value); setFocusStage(0); setSelected(null); setStored(null); setNotice(""); }}>
+      <label className="flex items-center gap-3 text-sm">查看任务链<select aria-label="选择任务链" className="ac-field" disabled={busy} value={treeId} onChange={event => { setTreeId(event.target.value); setFocusStage(0); setSelected(null); setStored(null); }}>
         {groups.some(group => !group.pending) && <option value="published">整个项目，已发布任务</option>}
         {pendingDrafts.map((draft, index) => <option key={draft.id} value={draft.id}>待确认草案 {index + 1}：{draft.payload.summary.slice(0, 35)}</option>)}
       </select></label>
@@ -119,15 +99,23 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
       </div>
     </div>
     <p className="text-xs leading-6 text-ink-3">从左向右推进，分支表示并行，连线表示需要的前置成果。竖向虚线划分阶段，跨阶段依赖会继续连线。</p>
-    <nav aria-label="定位任务树阶段" className="flex flex-wrap gap-2">{payload.stages.map((stage, index) => <button type="button" key={index} className={`ac-tech-stage ${focusStage === index ? "is-active" : ""}`} aria-pressed={focusStage === index} onClick={() => setFocusStage(index)}>{index + 1}. {stage.title}</button>)}</nav>
-    {busy && <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-signal"><span className="ac-loading-dot" aria-hidden />AI 正在分析所有阶段的先后与并行关系，并进行第二轮复核…<button type="button" className="ac-btn-ghost" onClick={() => { controller.current?.abort(); controller.current = null; setBusy(false); setNotice("已停止分析，可以稍后重试。"); }}>停止分析</button></div>}
-    {notice && <p role="alert" className="text-sm text-risk">{notice}</p>}
-    {invalid && <p role="alert" className="text-sm text-risk">任务关系存在冲突，已忽略无法采用的编排，请重新分析或核对任务关系。</p>}
-    {!busy && !linked && <p className="text-xs text-ink-3">尚未确认任务先后关系。{canAnalyse ? "请让 AI 分析任务链；分析失败时不会编造连线。" : "请组长先分析任务链。"}</p>}
-    {(!busy || linked) && <DraftTechTree draftId={`${projectId}-${treeId}`} tasks={payload.stages.flatMap(stage => stage.tasks)} plan={{ stageIndex: 0, links: plan.stages.flatMap(stage => stage.links) }} sections={payload.stages.map(stage => ({ title: stage.title, keys: stage.tasks.map(task => task.key) }))} focusStage={focusStage} selectedKey={selected}
+    <nav data-tour="timeline-stages" aria-label="定位任务树阶段" className="flex flex-wrap gap-2">{payload.stages.map((stage, index) => <button data-tour="stage-link" type="button" key={index} className={`ac-tech-stage ${focusStage === index ? "is-active" : ""}`} aria-pressed={focusStage === index} onClick={() => setFocusStage(index)}>{index + 1}. {stage.title}</button>)}</nav>
+    {busy && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-signal"><LoadingProgress className="flex-1 min-w-48" label="AI 正在分析任务链…" detail="动画演示，任务与连线保持原样。" /><button type="button" className="ac-btn-ghost" onClick={stop}>停止分析</button></div>}
+    {invalid && <p role="alert" className="text-sm text-risk">已忽略存在冲突的编排，显示项目已登记的关系。请在草案中核对任务关系。</p>}
+    {!linked && <p className="text-xs text-ink-3">任务按阶段展示，已登记的前置关系会显示连线。</p>}
+    <DraftTechTree key={treeId} draftId={`${projectId}-${treeId}`} tasks={payload.stages.flatMap(stage => stage.tasks)} plan={{ stageIndex: 0, links: plan.stages.flatMap(stage => stage.links) }} sections={payload.stages.map(stage => ({ title: stage.title, keys: stage.tasks.map(task => task.key) }))} focusStage={focusStage} selectedKey={selected}
+      completedKeys={visible.flatMap(group => group.details.filter(item => item.completed).map(item => item.key))}
       members={visible.flatMap(group => group.details).map(item => ({ id: item.key, name: `${item.owner}，${item.status}` }))} disabled readOnly analysed={linked}
-      onSelect={setSelected} onAdd={() => {}} onDelete={() => {}} onConnect={() => {}} />}
+      onSelect={setSelected} onAdd={() => {}} onDelete={() => {}} onConnect={() => {}} />
     {stored?.signature === signature && <details className="text-xs text-ink-3"><summary className="cursor-pointer">查看任务链编排说明</summary><p className="mt-2 leading-6">{plan.reviewNote}</p><p className="mt-2">规划连线保存在当前浏览器，不改变任务执行规则。</p></details>}
-    {task && <aside data-tour="timeline-inspector" className="ac-tech-inspector"><h3 className="font-semibold">{task.title}</h3><p className="mt-2 text-xs text-ink-3">{detail?.owner}，{detail?.status}</p><p className="mt-3 text-sm leading-7">{task.description || "暂无执行说明"}</p><ul className="mt-3 space-y-2 text-sm">{task.doneCriteria.map((text, index) => <li key={index}>✓ {text}</li>)}</ul><p className="mt-3 text-xs text-ink-3">连接理由：{plan.stages.flatMap(stage => stage.links).find(link => link.key === selected)?.reason}</p>{detail?.taskId && <Link className="mt-4 inline-block text-sm text-signal" href={`/projects/${projectId}?space=work&task=${detail.taskId}`}>打开任务详情 →</Link>}</aside>}
+    {task && <dialog ref={dialog} data-tour="timeline-inspector" aria-label={`任务详情：${task.title}`} className="ac-task-dialog" onClose={() => setSelected(null)} onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }}>
+      <header className="sticky top-0 flex items-start justify-between gap-4 border-b border-stroke bg-panel p-5"><div><p className="text-xs text-ink-3">任务详情，{detail?.status}</p><h3 className="mt-2 text-lg font-semibold">{task.title}</h3></div><button type="button" data-tour="timeline-close" className="ac-btn-ghost" aria-label="关闭任务详情" onClick={() => dialog.current?.close()}>关闭 ×</button></header>
+      <div className="space-y-5 p-5"><p className="text-sm text-ink-3">负责人：{detail?.owner}{detail?.dueDate ? `，截止 ${detail.dueDate}` : ""}</p><section><h4 className="text-sm font-semibold">任务目标</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-7">{task.description || "暂无执行说明"}</p></section><section><h4 className="text-sm font-semibold">完成条件</h4><ul className="mt-2 space-y-2 text-sm">{task.doneCriteria.map((text, index) => <li key={index}>□ {text}</li>)}</ul></section>
+      {detail?.completionNote && <section><h4 className="text-sm font-semibold">提交成果</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{detail.completionNote}</p></section>}
+      {detail?.reviewNote && <section><h4 className="text-sm font-semibold">验收意见</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{detail.reviewNote}</p></section>}
+      {detail?.delivery && <section><h4 className="text-sm font-semibold">交付资料</h4><p className="mt-2 break-all text-sm">分支：{detail.delivery.branchName}</p><p className="mt-2 whitespace-pre-wrap text-sm">{detail.delivery.testSummary}</p>{detail.delivery.pullRequestUrl && /^https?:\/\//i.test(detail.delivery.pullRequestUrl) && <a className="mt-2 inline-block text-sm text-signal" href={detail.delivery.pullRequestUrl} target="_blank" rel="noreferrer">查看成果链接 ↗</a>}</section>}
+      {detail?.taskId && detail.canDeliver && <section className="space-y-3"><h4 className="text-sm font-semibold text-signal">提交任务</h4><TaskSubmissionForm key={detail.taskId} projectId={projectId} task={{ ...task, id: detail.taskId, handoffVersion: detail.handoffVersion }} evidenceTypes={detail.requiredEvidence} onSubmitted={() => dialog.current?.close()} /></section>}
+      </div>
+    </dialog>}
   </section>;
 }

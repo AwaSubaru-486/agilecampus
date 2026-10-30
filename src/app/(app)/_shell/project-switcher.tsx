@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "@/components/feedback-link";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { usePathname, useRouter } from "next/navigation";
 
 export type SwitcherProject = { id: string; name: string; teamName: string };
@@ -17,6 +18,7 @@ const PROJECT_IN_PATH = /^\/projects\/([0-9a-f-]{36})/i;
 export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [pending, startTransition] = useTransition();
   const boxRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
@@ -58,16 +60,18 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
 
   return (
     <div ref={boxRef} className="relative">
+      <NavigationProgress active={pending} label="正在切换项目…" />
       <button
         ref={triggerRef}
         type="button"
+        aria-busy={pending}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label="切换项目"
         className="ac-pressable flex min-h-10 max-w-[6.5rem] items-center gap-1 rounded-[var(--radius-control)] px-1.5 py-1 text-xs text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1 sm:max-w-[16rem] sm:gap-1.5 sm:px-2 sm:py-1.5 sm:text-sm"
       >
-        <span className="min-w-0 truncate">{current ? current.name : "选择项目"}</span>
+        <span className="min-w-0 truncate">{pending ? "正在切换…" : current ? current.name : "选择项目"}</span>
         <span aria-hidden className="shrink-0 text-ink-3">
           <span aria-hidden className="ac-icon-chevron" />
         </span>
@@ -104,7 +108,7 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
                     onClick={() => {
                       setOpen(false);
                       setQuery("");
-                      router.push(hrefFor(p.id));
+                      startTransition(() => router.push(hrefFor(p.id)));
                     }}
                     className={`ac-pressable flex min-h-11 w-full flex-col items-start gap-0.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-signal ${
                       p.id === currentProjectId

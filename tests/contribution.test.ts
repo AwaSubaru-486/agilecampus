@@ -94,14 +94,16 @@ describe("贡献记录 —— 全自动，无人填写", () => {
     expect(report.reviewStats).toMatchObject({ accepted: 1, rejected: 1, rejectRate: 50 });
   });
 
-  it("教师验收也计入其参与", async () => {
+  it("组长初审计入参与，教师不能代替初审", async () => {
     const { owner, student, teacher, project } = await scene();
     const t = await createTask(owner.id, project.id, { title: "甲", assigneeId: student.id });
     await submitTask(student.id, t.id, { completionNote: "交了" });
-    await reviewTask(teacher.id, t.id, { decision: "accept" });
+    await expect(reviewTask(teacher.id, t.id, { decision: "accept" })).rejects.toThrow("任务由组长审核");
+    await reviewTask(owner.id, t.id, { decision: "accept" });
 
     const report = await buildContributionReport(owner.id, project.id);
-    expect(rowOf(report, teacher.id).reviewedCount).toBe(1);
+    expect(rowOf(report, teacher.id).reviewedCount).toBe(0);
+    expect(rowOf(report, owner.id).reviewedCount).toBe(1);
   });
 });
 

@@ -5,6 +5,8 @@ import { listProjectTasks } from "@/lib/task";
 import { TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
 import type { TaskStatus } from "@/db/schema";
 import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
+import { queryStageProgress, queryTeamWorkload, queryProjectHelp, getTaskContext } from "./project-context";
+import { listApprovalRequests } from "@/lib/approval";
 
 // 读工具纯函数：权限经底层 lib（listProjectMilestones/listProjectTasks 内部各调 getProjectForUser）
 export async function queryProgress(actorId: string, projectId: string) {
@@ -14,9 +16,10 @@ export async function queryProgress(actorId: string, projectId: string) {
   ]);
   // 显式标注 Record<TaskStatus, number> 与 emptyByStatus 并用：前者保编译期穷尽检查，后者保键随枚举走
   const byStatus: Record<TaskStatus, number> = emptyByStatus();
-  for (const t of ts) byStatus[t.status]++;
+  const leaves = ts.filter(task => !task.isTaskGroup);
+  for (const t of leaves) byStatus[t.status]++;
   return {
-    taskTotal: ts.length,
+    taskTotal: leaves.length,
     byStatus,
     milestoneTotal: ms.length,
     milestones: ms.map((m) => ({
@@ -30,11 +33,13 @@ export async function queryProgress(actorId: string, projectId: string) {
 export async function listTasksFiltered(
   actorId: string,
   projectId: string,
-  filters: { status?: TaskStatus; assigneeId?: string; dueBefore?: string },
+  filters: { status?: TaskStatus; assigneeId?: string; dueBefore?: string; stageId?: string; query?: string },
 ) {
   let list = await listProjectTasks(actorId, projectId);
   if (filters.status) list = list.filter((t) => t.status === filters.status);
   if (filters.assigneeId) list = list.filter((t) => t.assigneeId === filters.assigneeId);
+  if (filters.stageId) list = list.filter(t => t.stageId === filters.stageId);
+  if (filters.query) list = list.filter(t => (t.title + " " + (t.description ?? "")).toLowerCase().includes(filters.query!.toLowerCase()));
   if (filters.dueBefore)
     list = list.filter((t) => t.dueDate !== null && t.dueDate <= filters.dueBefore!);
   return list.map((t) => ({
@@ -44,6 +49,9 @@ export async function listTasksFiltered(
     priority: t.priority,
     dueDate: t.dueDate,
     assigneeName: t.assigneeName,
+    assigneeId: t.assigneeId,
+    stageId: t.stageId,
+    isTaskGroup: t.isTaskGroup,
     handoffBrief: t.handoffBrief,
     doneCriteria: t.doneCriteria,
     requiredEvidence: t.requiredEvidence,
@@ -79,12 +87,36 @@ export async function listMilestonesBrief(actorId: string, projectId: string) {
 }
 
 // AI SDK 工具装配：绑定 actorId/projectId，execute 委托纯函数
-export function buildTools(actorId: string, projectId: string) {
+export function buildTools(actorId: string, projectId: string, conversationId?: string) {
   return {
     query_progress: tool({
       description: "查询该项目进度统计：各状态任务数、里程碑概况。无需参数。",
       inputSchema: z.object({}),
       execute: async () => queryProgress(actorId, projectId),
+    }),
+    query_stage_progress: tool({
+      description: "查询当前执行阶段及各阶段叶子任务验收进度、锁定状态、未登记交付分支与集成审核结果。执行阶段与里程碑不同。",
+      inputSchema: z.object({}), execute: async () => queryStageProgress(actorId, projectId),
+    }),
+    query_team_workload: tool({
+      description: "查询本项目成员的真实角色、分配任务数、未完成数、未接住、逾期和求助数，用于回答我的任务、分工是否均匀和谁需要帮助。数量不代表工时。",
+      inputSchema: z.object({}), execute: async () => queryTeamWorkload(actorId, projectId),
+    }),
+    list_help_requests: tool({
+      description: "查询当前项目未解决的求助，返回谁需要帮助、关联任务、具体需求及等待时间。只读，不替用户发送求助。",
+      inputSchema: z.object({}), execute: async () => queryProjectHelp(actorId, projectId),
+    }),
+    get_task_context: tool({
+      description: "查看一项任务的执行说明、验收标准、当前阶段、前置任务、成果证据、缺失证据和交付分支。只反映登记资料，不代替人工验收。",
+      inputSchema: z.object({ taskId: z.uuid() }), execute: async ({ taskId }) => getTaskContext(actorId, projectId, taskId),
+    }),
+    list_proposals: tool({
+      description: "查询可见的 AI 草案及确认状态，区分待确认、已拒绝、已执行和执行失败；本会话有 id 时仅返回本会话来源的建议。",
+      inputSchema: z.object({}), execute: async () => {
+        const proposals = await listApprovalRequests(actorId, projectId);
+        return proposals.filter(proposal => !conversationId || proposal.sourceConversationId === conversationId).slice(0, 30)
+          .map(proposal => ({ id: proposal.id, tool: proposal.tool, title: proposal.title, status: proposal.status, payload: proposal.payload, error: proposal.error }));
+      },
     }),
     list_tasks: tool({
       description:
@@ -93,6 +125,8 @@ export function buildTools(actorId: string, projectId: string) {
         status: z.enum(TASK_STATUSES).optional(),
         assigneeId: z.string().optional().describe("负责人用户 id"),
         dueBefore: z.string().optional().describe("截止日不晚于此日期（YYYY-MM-DD）"),
+        stageId: z.uuid().optional().describe("执行阶段 id，来自 query_stage_progress"),
+        query: z.string().trim().max(160).optional().describe("任务标题或说明关键词"),
       }),
       execute: async (filters) => listTasksFiltered(actorId, projectId, filters),
     }),

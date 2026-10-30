@@ -51,6 +51,7 @@ export async function raiseBlockerAction(
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  revalidatePath("/collaboration");
   return null;
 }
 
@@ -72,12 +73,13 @@ export async function resolveBlockerAction(
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
   try {
-    await resolveBlocker(session.user.id, parsed.data.blockerId, { note: parsed.data.note });
+    const resolved = await resolveBlocker(session.user.id, parsed.data.blockerId, { note: parsed.data.note });
+    revalidatePath(`/projects/${resolved.projectId}`);
+    revalidatePath("/collaboration");
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "没有权限标记该求助" };
     if (e instanceof AppError) return { error: e.message };
     throw e;
   }
-  revalidatePath(`/projects/${parsed.data.projectId}`);
   return null;
 }

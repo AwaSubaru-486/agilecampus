@@ -7,6 +7,7 @@ import { ContextPackBuilder } from "./context-pack-builder";
 import { ApprovalDetail } from "./approval-detail";
 import type { ApprovalListItem } from "@/lib/approval";
 import { Badge, Button } from "@/components/ui";
+import { LoadingProgress } from "@/components/loading-progress";
 import { TaskMemoryPanel } from "./_console/task-memory-panel";
 
 type Option = { id: string; name: string };
@@ -372,7 +373,7 @@ export function ChatPanel({
             } : undefined} />}
 
           <div className="max-h-[24rem] flex-1 space-y-3 overflow-y-auto p-4">
-            {loadingConversation && <p role="status" className="text-center text-sm text-ink-3">正在加载会话…</p>}
+            {loadingConversation && <LoadingProgress className="rounded-lg border border-stroke bg-panel p-4" label="正在加载会话…" />}
             {!loadingConversation && messages.map((message) => (
               <div key={message.id}>
                 <div className={`border-b border-stroke/80 px-1 pb-4 text-sm ${message.role === "user" ? "pt-2" : "pt-1"}`}>
@@ -398,8 +399,9 @@ export function ChatPanel({
                 )}
               </div>
             ))}
-            {!loadingConversation && messages.length === 0 && (
-              <div className="py-6">
+            {pending && <LoadingProgress className="rounded-lg border border-signal/20 bg-signal-soft/40 p-4" label="正在处理会话…" detail="完成后会自动显示结果。" />}
+            {!loadingConversation && !pending && messages.length === 0 && (
+              <div className="rounded-[var(--radius-control)] border border-stroke bg-sunken/30 p-6">
                 <p className="text-sm font-semibold text-ink">暂无会话消息</p>
                 <p className="mt-1.5 max-w-md text-xs leading-5 text-ink-2">输入任务目标、约束或当前阻塞，开始与 Agent 协作。</p>
               </div>

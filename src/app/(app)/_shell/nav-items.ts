@@ -4,7 +4,7 @@
 //
 // 与旧版的差别不只是换了名字：旧版一级导航是「项目空间 / 风险瞭望 /
 // 团队成员 / 连接与设置」——以「系统有哪些东西」组织；
-// 这里只保留「今日 / 项目 / 协作中心」——以「我现在要做什么」组织。
+// 这里只保留「项目 / 协作中心」与新手教程。
 // 资料库和设置仍保留原路由，但降级到账户菜单，避免把低频配置混入主路径。
 
 export type NavItem = {
@@ -15,7 +15,6 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/today", label: "今日", hint: "跨项目的行动队列" },
   { href: "/projects", label: "项目", hint: "项目脉搏与最近访问" },
   { href: "/collaboration", label: "协作中心", hint: "求助、AI 确认与团队状态" },
   { href: "/tutorials", label: "新手教程", hint: "互动学习与功能教程目录" },

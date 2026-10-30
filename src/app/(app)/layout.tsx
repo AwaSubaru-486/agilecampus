@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <TutorialProvider initialProgress={tutorialProgress} projects={myProjects.flatMap((project) => {
       const membership = memberships.find((item) => item.teamId === project.teamId);
-      return membership ? [{ id: project.id, name: project.name, teamId: project.teamId, role: membership.role }] : [];
+      return membership ? [{ id: project.id, name: project.name, teamId: project.teamId, teamName: project.teamName, taskTotal: project.taskTotal, role: membership.role }] : [];
     })}>
     <div className="min-h-screen">
       <a

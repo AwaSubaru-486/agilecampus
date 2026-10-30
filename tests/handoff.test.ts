@@ -131,7 +131,7 @@ describe("交接契约", () => {
     ).rejects.toThrow("必须以 http:// 或 https:// 开头");
   });
 
-  it("交接契约变化后，旧承诺必须重新确认", async () => {
+  it("交接要求变化后提交窗口需读取最新版本，无需重新认领", async () => {
     const { owner, project } = await scene();
     const task = await createTask(owner.id, project.id, {
       title: "按契约交付",
@@ -145,12 +145,12 @@ describe("交接契约", () => {
     });
     expect(changed.handoffVersion).toBe(2);
     expect(changed.committedHandoffVersion).toBe(1);
-    await expect(submitTask(owner.id, task.id, { completionNote: "已完成" })).rejects.toThrow(
-      "交接契约已更新",
+    await expect(submitTask(owner.id, task.id, { completionNote: "已完成", handoffVersion: 1 })).rejects.toThrow(
+      "任务要求已更新",
     );
 
-    const recommitted = await claimTask(owner.id, task.id, { commitmentNote: "按新版契约补齐测试" });
-    expect(recommitted.committedHandoffVersion).toBe(2);
-    expect((await submitTask(owner.id, task.id, { completionNote: "已完成" })).status).toBe("review");
+    const submitted = await submitTask(owner.id, task.id, { completionNote: "已完成", handoffVersion: 2 });
+    expect(submitted.status).toBe("review");
+    expect(submitted.committedHandoffVersion).toBe(1);
   });
 });

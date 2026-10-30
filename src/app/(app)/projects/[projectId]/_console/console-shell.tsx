@@ -20,8 +20,11 @@ import { NewTaskForm } from "../new-task-form";
 import { TaskList } from "./task-list";
 import { TaskContractPanel } from "./task-contract-panel";
 import { AgentRunRail } from "./agent-run-rail";
+import { LoadingProgress } from "@/components/loading-progress";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 export type TaskRowSummary = {
+  stageId: string | null;
   id: string;
   title: string;
   status: string;
@@ -42,7 +45,10 @@ export type TaskRowSummary = {
 export type ConsoleLayout = "mobile" | "tablet" | "desktop";
 
 export type SelectedTaskDetail = {
+  delivery?: { branchName: string; headSha: string | null; pullRequestUrl: string | null; testSummary: string | null } | null;
   id: string;
+  completionNote?: string | null;
+  reviewNote?: string | null;
   title: string;
   status: string;
   assigneeId: string | null;
@@ -169,6 +175,7 @@ export function ConsoleShell({
   canDeleteTask = false,
   canReview,
   taskRows,
+  stages = [],
   hasMore,
   nextCursor,
   selectedTaskId,
@@ -185,6 +192,7 @@ export function ConsoleShell({
   canDeleteTask?: boolean;
   canReview: boolean;
   taskRows: TaskRowSummary[];
+  stages?: { id: string; title: string }[];
   hasMore: boolean;
   nextCursor: string | null;
   selectedTaskId: string | null;
@@ -242,6 +250,7 @@ export function ConsoleShell({
 
   // 构造当前 NormalizedConsoleParams（仅需筛选参数，用于 buildSelectTaskHref）
   const currentParams: NormalizedConsoleParams = {
+    scope: searchParams.get("scope"),
     space: mode === "studio" ? "studio" : "work",
     task: selectedTaskId,
     conversation: null,
@@ -258,7 +267,7 @@ export function ConsoleShell({
 
   // 列表与详情能并排时，默认选中当前页第一个未完成任务。
   useEffect(() => {
-    if (!selectedTaskId && taskRows.length > 0 && layout !== "mobile" && panel !== "list") {
+    if (mode === "studio" && !selectedTaskId && taskRows.length > 0 && layout !== "mobile" && panel !== "list") {
       const firstPending = taskRows.find((t) => t.status !== "done") ?? taskRows[0];
       router.replace(buildSelectTaskHref(projectId, firstPending.id, currentParams));
     }
@@ -325,7 +334,8 @@ export function ConsoleShell({
 
   return (
     <div ref={consoleRef} aria-busy={isNavigating} className="relative flex min-h-0 w-full flex-col">
-      {isNavigating && <p role="status" className="mb-3 flex items-center gap-2 text-sm text-signal"><span className="ac-loading-dot" aria-hidden />正在切换任务…</p>}
+      <NavigationProgress active={isNavigating} label="正在切换任务…" />
+      {isNavigating && <LoadingProgress className="mb-3" label="正在切换任务…" />}
       {/* 任务列表与详情工作面 */}
       <div className="flex min-h-0 flex-1 divide-x divide-stroke overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
 
@@ -340,6 +350,7 @@ export function ConsoleShell({
           <TaskList
             projectId={projectId}
             taskRows={taskRows}
+            stages={stages}
             hasMore={hasMore}
             nextCursor={nextCursor}
             selectedTaskId={selectedTaskId}

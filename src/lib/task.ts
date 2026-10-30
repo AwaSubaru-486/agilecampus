@@ -68,8 +68,8 @@ export async function requireTaskExecution(
 // 也正是开题报告「组长或教师进行验收或退回」那句的落点。
 export async function requireTaskReview(actorId: string, projectId: string) {
   const access = await requireProjectAccess(actorId, projectId);
-  if (access.role !== "admin" && access.role !== "teacher")
-    throw new ForbiddenError("只有组长或教师可以验收任务");
+  if (access.role !== "admin")
+    throw new ForbiddenError("任务由组长审核，老师可复核已完成成果");
   return access;
 }
 
@@ -259,7 +259,7 @@ export async function updateTask(
           doneCriteria: (patch.doneCriteria ?? task.doneCriteria) as string[] | null,
           requiredEvidence: (patch.requiredEvidence ?? task.requiredEvidence) as HandoffFields["requiredEvidence"],
           responseDueAt: patch.responseDueAt ?? task.responseDueAt,
-          contextPackId: patch.contextPackId ?? task.contextPackId,
+          contextPackId: patch.contextPackId !== undefined ? patch.contextPackId : task.contextPackId,
         })
       : null;
   const sameHandoffValue = (a: unknown, b: unknown) =>
@@ -457,6 +457,7 @@ export async function listProjectTasks(actorId: string, projectId: string) {
       milestoneId: tasks.milestoneId,
       parentTaskId: tasks.parentTaskId,
       isTaskGroup: tasks.isTaskGroup,
+      stageId: tasks.stageId,
       assigneeId: tasks.assigneeId,
       assigneeName: users.name,
       updatedAt: tasks.updatedAt,
@@ -743,31 +744,27 @@ export async function declineTask(actorId: string, taskId: string, input: { reas
 export async function submitTask(
   actorId: string,
   taskId: string,
-  input: { completionNote: string },
+  input: { completionNote: string; handoffVersion?: number },
+  opts?: { tx?: DbTx },
 ) {
-  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  const exec = opts?.tx ?? db;
+  const [task] = await exec.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
   if (task.stageId) {
-    const [stage] = await db.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
+    const [stage] = await exec.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
     if (!stage || stage.status !== "active") throw new AppError("当前阶段尚未解锁，不能提交此任务");
   }
   await requireTaskExecution(actorId, task);
   if (task.status === "review") throw new AppError("该任务已在待验收中");
   if (task.status === "done") throw new AppError("该任务已通过验收，如需改动请先重开");
   if (!input.completionNote.trim()) throw new AppError("请说明这次交付了什么");
-  if (
-    task.committedAt &&
-    task.committedHandoffVersion !== null &&
-    task.committedHandoffVersion !== task.handoffVersion
-  ) {
-    throw new AppError("交接契约已更新，请重新确认你的承诺后再提交");
-  }
-  const missingEvidence = await missingRequiredEvidence(actorId, taskId);
+  if (input.handoffVersion !== undefined && input.handoffVersion !== task.handoffVersion) throw new AppError("任务要求已更新，请重新打开提交窗口");
+  const missingEvidence = await missingRequiredEvidence(actorId, taskId, opts);
   if (missingEvidence.length > 0) {
     throw new AppError(`还缺少必需证据：${missingEvidence.join("、")}`);
   }
 
-  const [updated] = await db
+  const [updated] = await exec
     .update(tasks)
     .set({
       status: "review",
@@ -779,7 +776,7 @@ export async function submitTask(
     .returning();
   if (!updated) throw new AppError("任务不存在");
 
-  await recordEvent(db, {
+  await recordEvent(exec, {
     projectId: task.projectId,
     actorId,
     type: "task_submitted",
@@ -793,12 +790,12 @@ export async function submitTask(
       assigneeId: updated.assigneeId,
     },
   });
-  void notifyTaskSubmitted(updated);
+  if (!opts?.tx) void notifyTaskSubmitted(updated);
   return updated;
 }
 
 // 验收：通过则落 done，退回则回 doing 且计入一次返工。
-// 主体是组长或教师——这是全项目里教师第一次能写。
+// 组长负责初审，教师通过 recheckCompletedTask 复核已完成成果。
 export async function reviewTask(
   actorId: string,
   taskId: string,
@@ -806,11 +803,8 @@ export async function reviewTask(
 ) {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new AppError("任务不存在");
-  const access = await requireTaskReview(actorId, task.projectId);
+  await requireTaskReview(actorId, task.projectId);
   if (task.status !== "review") throw new AppError("该任务不在待验收状态");
-  // 教师若恰好也是这份任务的负责人，就该由组长来判，不能自审自判。
-  // 但组长（admin）作为项目推进总负责人，在自承任务交付后有权闭环验收。
-  if (access.role !== "admin" && task.assigneeId === actorId) throw new AppError("不能验收自己交付的任务");
 
   const accepted = input.decision === "accept";
   // 退回必填理由：没写理由的退回，成员只知道被否了，不知道改什么

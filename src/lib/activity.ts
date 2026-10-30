@@ -1,6 +1,7 @@
 import { db, type DbTx } from "@/db";
 import { activityEvents, type ActivityType } from "@/db/schema";
 import { statusLabel } from "./task-status";
+import { projectOperationContext } from "./project-operation-context";
 
 // 活动流的写入侧。
 //
@@ -28,14 +29,17 @@ export type EventInput = {
 // 若在此 try/catch 掉，业务落库成功而事件缺失，贡献记录便悄悄失真——
 // 那正是「零填写」最不能容忍的失败形态（没人会发现少了什么）。
 export async function recordEvent(exec: Exec, e: EventInput): Promise<void> {
+  const context = projectOperationContext.getStore();
+  const delegated = context?.projectId === e.projectId && context.actingAsId === e.actorId;
   await exec.insert(activityEvents).values({
     projectId: e.projectId,
-    actorId: e.actorId,
+    actorId: delegated ? context.operatorId : e.actorId,
     type: e.type,
     taskId: e.taskId ?? null,
-    summary: e.summary,
-    payload: e.payload ?? null,
+    summary: delegated ? `${e.summary}（组长代${context.actingAsName}操作）` : e.summary,
+    payload: delegated ? { ...e.payload, delegation: { operatorId: context.operatorId, actingAsId: context.actingAsId, actingAsName: context.actingAsName, role: context.role } } : e.payload ?? null,
   });
+  if (delegated) context.recorded = true;
 }
 
 // 摘要措辞集中于此：各处口径一致，且纯函数可直接单测，无需碰库。

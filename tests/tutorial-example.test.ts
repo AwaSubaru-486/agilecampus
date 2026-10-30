@@ -1,26 +1,42 @@
-import { describe,it,expect } from "vitest";
-import { buildWelcomeSteps, EMPTY_JOURNEY, welcomeStepIndex, welcomeResumeIndex } from "@/lib/tutorials/example-flow";
-describe("原页面项目教程路线",()=>{
-  it("从原有团队表单开始，所有项目步骤绑定同一个新建项目，没有独立练习页",()=>{
-    const steps=buildWelcomeSteps({version:5,teamId:"demo-team",projectId:"demo-project",taskId:"first-task"});
-    expect(steps[0].route).toBe("/settings/api");
-    expect(steps).toHaveLength(35);expect(steps[1].route).toBe("/teams");
-    expect(steps[2].route).toBe("/teams/demo-team/members");expect(steps[3].route).toBe("/teams/demo-team/projects");
-    expect(steps.every(step=>!step.route.startsWith("/tutorials/example"))).toBe(true);
-    expect(steps.slice(4,15).every(step=>step.route.startsWith("/projects/demo-project"))).toBe(true);
-    expect(steps[welcomeStepIndex("select")].route).toBe("/projects/demo-project/task-tree");expect(steps[welcomeStepIndex("select")].target).toBe('[data-tour="tutorial-stage-task"]');
-    expect(steps[welcomeStepIndex("claim")].completion).toBe("data-tour-claimed");expect(steps[welcomeStepIndex("submit")].completion).toBe("data-tour-submitted");
-    expect(steps[welcomeStepIndex("submit")].route).toBe("/projects/demo-project?space=work&task=first-task");
-    expect(steps[welcomeStepIndex("review")].action).toBe("explore");expect(steps[welcomeStepIndex("integration")].action).toBe("explore");
+import { describe, it, expect } from "vitest";
+import { buildWelcomeSteps, EMPTY_JOURNEY, welcomeResumeIndex } from "@/lib/tutorials/example-flow";
+import { findShowcaseProject } from "@/lib/tutorials/showcase";
+
+const journey = { version: 6 as const, teamId: "demo-team", projectId: "demo-project", taskId: "first-task", role: "admin" as const };
+describe("汪汪队项目展示路线", () => {
+  it("使用同一已有项目，查看即可学习，没有创建、发布或交付门槛", () => {
+    const steps = buildWelcomeSteps(journey);
+    expect(steps[0].route).toBe("/tutorials");
+    expect(steps[1].route).toBe("/teams/demo-team/members");
+    expect(steps.filter(step => step.route.startsWith("/projects/")).every(step => step.route.startsWith("/projects/demo-project"))).toBe(true);
+    expect(steps.some(step => ["team", "project", "generate", "publish", "claim", "submit"].includes(step.id))).toBe(false);
+    expect(steps.filter(step => step.action === "result").every(step => step.target === '[data-tour="project-view-switch"]')).toBe(true);
+    expect(steps.find(step => step.id === "select")?.route).toBe("/projects/demo-project?space=work&scope=all&task=first-task&panel=list");
+    expect(steps.find(step => step.id === "delivery")?.action).toBe("explore");
+    expect(new Set(steps.map(step => step.id)).size).toBe(steps.length);
   });
-  it("初次启动无需已存在的项目与角色，第一步在原创建表单等待实际操作",()=>{
-    const first=buildWelcomeSteps(EMPTY_JOURNEY)[0];
-    expect(first.target).toBe('[data-tour="api-config"]');expect(first.action).toBe("result");
-    expect(first.route).toBe("/settings/api");expect(new Set(buildWelcomeSteps(EMPTY_JOURNEY).map(step=>step.id)).size).toBe(35);
+  it("按照真实角色显示课程，组员不进入记录，老师不进入执行和 AI", () => {
+    const member = buildWelcomeSteps({ ...journey, role: "student" });
+    const teacher = buildWelcomeSteps({ ...journey, role: "teacher" });
+    expect(member.some(step => ["records", "activity", "assignments", "member-view", "review"].includes(step.id))).toBe(false);
+    expect(teacher.some(step => ["select", "delivery", "ai", "board", "member-view"].includes(step.id))).toBe(false);
+    expect(teacher.some(step => step.id === "integration")).toBe(true);
+    expect(member.find(step => step.id === "select")?.route).not.toContain("scope=all");
   });
-  it("暂停后从稳定的任务树重新进入编辑练习",()=>{
-    expect(welcomeResumeIndex(welcomeStepIndex("add-name"))).toBe(welcomeStepIndex("draft"));
-    expect(welcomeResumeIndex(welcomeStepIndex("delete-check"))).toBe(welcomeStepIndex("draft"));
-    expect(welcomeResumeIndex(welcomeStepIndex("claim"))).toBe(welcomeStepIndex("claim"));
+  it("刷新后重新打开任务小界面，其他步骤从原位置恢复", () => {
+    for (const role of ["admin", "student", "teacher"] as const) {
+      const current = { ...journey, role };
+      const steps = buildWelcomeSteps(current);
+      const index = (id: string) => steps.findIndex(step => step.id === id);
+      expect(welcomeResumeIndex(index("timeline-detail"), current)).toBe(index("timeline-node"));
+      expect(welcomeResumeIndex(index("timeline-close"), current)).toBe(index("timeline-node"));
+      expect(welcomeResumeIndex(index("stages"), current)).toBe(index("stages"));
+    }
+    expect(buildWelcomeSteps(EMPTY_JOURNEY)[0].target).toBe('[data-tour="tutorial-showcase"]');
+  });
+  it("只在可访问的汪汪队项目中选择有任务的一份，不误选同名空项目", () => {
+    const project = { id: "full", name: "敏捷开发平台", teamId: "team", teamName: "汪汪队", role: "admin" as const, taskTotal: 42 };
+    expect(findShowcaseProject([{ ...project, id: "empty", taskTotal: 0 }, { ...project, id: "other", teamName: "其他团队", taskTotal: 99 }, project])?.id).toBe("full");
+    expect(findShowcaseProject([{ ...project, teamName: "其他团队" }])).toBeNull();
   });
 });

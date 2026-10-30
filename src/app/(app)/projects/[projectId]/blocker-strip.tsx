@@ -77,7 +77,7 @@ function BlockerRow({ projectId, blocker }: { projectId: string; blocker: Blocke
         </p>
       )}
       {blocker.detail && (
-        <p className="mt-0.5 text-xs leading-5 text-ink-3">{blocker.detail}</p>
+        <details className="mt-1 text-xs text-ink-3"><summary className="w-fit cursor-pointer py-2">求助说明与工作断点</summary><p className="whitespace-pre-wrap break-words leading-5">{blocker.detail}</p></details>
       )}
 
       <form action={formAction} className="mt-2.5 flex flex-wrap items-center gap-2">

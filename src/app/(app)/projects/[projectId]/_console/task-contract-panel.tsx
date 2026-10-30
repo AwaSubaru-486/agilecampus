@@ -12,23 +12,23 @@
  */
 
 import { useState, useActionState } from "react";
-import Link from "next/link";
+import Link from "@/components/feedback-link";
+import { LoadingProgress } from "@/components/loading-progress";
 import { useRouter } from "next/navigation";
 import {
-  claimTaskAction,
-  declineTaskAction,
-  submitTaskAction,
   reviewTaskAction,
   deleteTaskAction,
   type FormState,
 } from "../actions";
-import { isAwaitingResponse, isInFlight, isInReview } from "@/lib/task-status";
+import { isInFlight, isInReview } from "@/lib/task-status";
 import { HandoffEditor } from "./handoff-editor";
+import { TaskSubmitDialog } from "../_shared/task-submit-dialog";
+import { TaskRecheckForm } from "../_shared/task-recheck-form";
 import { EvidenceList } from "./evidence-list";
 import { TaskConversations } from "./task-conversations";
 import { TaskMemoryPanel } from "./task-memory-panel";
+import { ExtensionEntry, TaskMaterialBinding, TaskMemoryEntry } from "./task-material-controls";
 import {
-  RequiredEvidenceFields,
   missingRequiredEvidenceTypes,
 } from "../_shared/required-evidence-fields";
 import type {
@@ -143,43 +143,21 @@ export function TaskContractPanel({
   if (!selectedTask) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-sm text-ink-3">
-        加载中…
+        <LoadingProgress className="max-w-sm" label="正在读取任务详情…" />
       </div>
     );
   }
 
   const task = selectedTask;
   const isMine = Boolean(actorId && task.assigneeId === actorId);
-  const versionMatch =
-    task.committedHandoffVersion !== null &&
-    task.handoffVersion !== null &&
-    task.committedHandoffVersion === task.handoffVersion;
-
-  // 动作权限计算
-  const canClaim =
-    canWrite &&
-    isInFlight(task.status) &&
-    ((canReview && !task.assigneeId) || (isMine && (!task.committedAt || !versionMatch)));
-  const awaiting = isAwaitingResponse(
-    task.status,
-    task.assigneeId,
-    task.committedAt ? new Date(task.committedAt) : null,
-    task.committedHandoffVersion,
-    task.handoffVersion,
-  );
-  const canDecline = canWrite && isMine && awaiting;
-  const canSubmit =
-    canWrite && isMine &&
-    isInFlight(task.status) &&
-    Boolean(task.committedAt) &&
-    versionMatch;
+  const canSubmit = canWrite && isMine && isInFlight(task.status);
   const missingEvidenceTypes = missingRequiredEvidenceTypes(
     task.requiredEvidence,
     task.evidence.map((item) => item.type),
   );
   const isAdmin = canWrite && canReview;
   const canReviewThis =
-    canReview && isInReview(task.status) && (isAdmin || !isMine);
+    isAdmin && isInReview(task.status);
 
   return (
     <div data-tour="tutorial-task-detail" data-tour-claimed={task.committedAt ? "true" : "false"} data-tour-submitted={isInReview(task.status) || task.status === "done" ? "true" : "false"} className="flex flex-col gap-0">
@@ -243,6 +221,7 @@ export function TaskContractPanel({
             </button>
           </div>
         </details>
+        {canWrite && canReview && task.status !== "done" && task.status !== "review" && <button type="button" className="ac-btn-ghost" onClick={() => setEditingHandoff(!editingHandoff)}>{editingHandoff ? "取消分工" : "下派任务 / 调整分工"}</button>}
       </div>
 
       <TaskMemoryPanel key={task.id} projectId={projectId} taskId={task.id} canWrite={canWrite} />
@@ -259,8 +238,8 @@ export function TaskContractPanel({
             className="border border-stroke bg-sunken px-3 py-2 text-sm text-ink-soft"
           >
             {isMine
-              ? "已提交，不能验收自己提交的任务；请由其他组长或教师处理。"
-              : "当前账号无验收权限；请由组长或教师处理。"}
+              ? "已提交，不能验收自己提交的任务；请由组长处理。"
+              : "任务由组长审核，老师可复核已完成成果。"}
           </p>
         )}
 
@@ -270,6 +249,7 @@ export function TaskContractPanel({
             projectId={projectId}
             selectedTask={task}
             canWrite={canWrite}
+            canDispatch={isAdmin}
             members={members}
             availablePacks={task.availablePacks}
             onClose={() => setEditingHandoff(false)}
@@ -356,44 +336,10 @@ export function TaskContractPanel({
           ) : (
             <Empty text="尚未绑定交接资料" />
           )}
+          <TaskMaterialBinding key={task.id + ":" + (task.contextPackId ?? "")} projectId={projectId} task={task} canWrite={canWrite} />
         </Section>
 
-        {/* 认领与接手状态 */}
-        {task.status !== "review" && task.status !== "done" && (
-          <Section label="认领状态">
-            {task.committedAt ? (
-              <div className="text-sm text-ink">
-                已认领
-                <span className="ml-1 text-xs text-ink-3">
-                  （
-                  {task.committedHandoffVersion === null ? (
-                    <>
-                      <span>认领时版本未记录</span>
-                      <span className="text-caution">，请重新确认交接契约</span>
-                    </>
-                  ) : (
-                    <>
-                      契约版本 v{task.committedHandoffVersion}
-                      {!versionMatch && (
-                        <span className="text-caution">
-                          ，交接契约已更新至 v{task.handoffVersion}，需重新确认
-                        </span>
-                      )}
-                    </>
-                  )}
-                  ）
-                </span>
-              </div>
-            ) : (
-              <div className="text-sm text-ink-3">
-                未认领
-                <span className="ml-1 text-xs">
-                  （当前契约版本 v{task.handoffVersion}）
-                </span>
-              </div>
-            )}
-          </Section>
-        )}
+        {task.delivery && <Section label="交付材料"><div className="space-y-2 rounded-xl border border-stroke p-4 text-sm"><p>任务分支：<strong>{task.delivery.branchName}</strong></p>{task.delivery.headSha && <p className="break-all">提交 SHA：{task.delivery.headSha}</p>}{task.delivery.testSummary && <p className="whitespace-pre-wrap">测试摘要：{task.delivery.testSummary}</p>}{task.delivery.pullRequestUrl && /^https?:\/\//i.test(task.delivery.pullRequestUrl) && <a href={task.delivery.pullRequestUrl} target="_blank" rel="noreferrer" className="text-signal hover:underline">查看 PR 成果链接 ↗</a>}</div></Section>}
 
         {/* 看清要求与证据后，再完成当前阶段的任务动作。 */}
         {(task.evidence.length > 0 ||
@@ -405,87 +351,11 @@ export function TaskContractPanel({
           </Section>
         )}
 
-        {canClaim && (
-          <div className="space-y-2">
-            <ActionFormBlock
-              title={
-                task.committedAt ? "确认更新后的任务要求" : "认领任务"
-              }
-              action={claimTaskAction}
-              projectId={projectId}
-              taskId={task.id}
-              submitLabel={
-                task.committedAt
-                  ? "确认更新后的要求"
-                  : "确认认领"
-              }
-              successMessage="任务已认领"
-            >
-              <textarea
-                name="commitmentNote"
-                rows={2}
-                aria-label="执行计划"
-                placeholder="写一句你的执行承诺或计划（选填，默认：已确认接住并认领任务）"
-                className="ac-field text-sm"
-              />
-              <input
-                type="number"
-                name="estimatedHours"
-                step="0.5"
-                min="0.5"
-                max="999"
-                placeholder="预估工时（小时，可选）"
-                className="ac-field text-xs"
-              />
-            </ActionFormBlock>
-          </div>
-        )}
+        {canSubmit && <TaskSubmitDialog key={task.id} projectId={projectId} task={task} evidenceTypes={missingEvidenceTypes} />}
 
-        {canDecline && (
-          <details className="ac-disclosure">
-            <summary>说明原因并退回任务</summary>
-            <div className="ac-disclosure-body">
-              <ActionFormBlock
-                title="退回任务"
-                action={declineTaskAction}
-                projectId={projectId}
-                taskId={task.id}
-                submitLabel="退回并说明原因"
-                successMessage="任务已退回"
-              >
-                <textarea
-                  name="reason"
-                  required
-                  rows={2}
-                  aria-label="退回原因"
-                  placeholder="说明为什么接不住或需要协调什么（必填）"
-                  className="ac-field text-sm"
-                />
-              </ActionFormBlock>
-            </div>
-          </details>
-        )}
-
-        {canSubmit && (
-          <ActionFormBlock
-            title="提交成果"
-            action={submitTaskAction}
-            projectId={projectId}
-            taskId={task.id}
-            submitLabel="提交待验收"
-            successMessage="成果已提交，等待验收"
-          >
-            <textarea
-              name="completionNote"
-              rows={2}
-              aria-label="交付说明"
-              placeholder="说明交付成果与测试说明（选填，默认：已完成任务并提交成果物待验收）"
-              className="ac-field text-sm"
-            />
-            <RequiredEvidenceFields types={missingEvidenceTypes} />
-          </ActionFormBlock>
-        )}
-
+        {task.completionNote && <Section label="提交成果"><p className="whitespace-pre-wrap text-sm leading-6">{task.completionNote}</p></Section>}
+        {task.reviewNote && <Section label="验收与复核意见"><p className="whitespace-pre-wrap text-sm leading-6">{task.reviewNote}</p></Section>}
+        {canReview && !canWrite && task.status === "done" && !isMine && <TaskRecheckForm key={task.id} projectId={projectId} taskId={task.id} />}
         {canReviewThis && (
           <div className="space-y-2">
             <ActionFormBlock
@@ -638,14 +508,15 @@ export function TaskContractPanel({
             </div>
           ) : (
             <p className="text-xs text-ink-3">
-              暂无并行尝试记录。在 VS Code
-              插件中接收交接后，即可创建主线或并行分支尝试并回传执行回执。
+              暂无已登记到平台的接续回执。
             </p>
           )}
+          <ExtensionEntry parallel />
         </Section>
 
         {/* 有效项目记忆（B05） */}
         <Section label="项目规则与经验">
+          <TaskMemoryEntry key={task.id} projectId={projectId} taskId={task.id} canAdd={canWrite || canReview} />
           {task.memories && task.memories.length > 0 ? (
             <div className="space-y-2">
               {task.memories.map((mem) => (
@@ -696,7 +567,30 @@ export function TaskContractPanel({
           )}
         </Section>
 
-
+        {/* 检查点共享与接续契约（W07/B01） */}
+        <details className="group rounded border border-stroke bg-sunken/30 text-xs">
+          <summary className="cursor-pointer px-3 py-2 font-medium text-ink-2 hover:text-ink select-none flex items-center justify-between">
+            <span>检查点共享与接续契约（VS Code 插件）</span>
+            <span className="text-ink-3 group-open:rotate-180 transition-transform">
+              ▼
+            </span>
+          </summary>
+          <div className="border-t border-stroke px-3 py-2.5 space-y-2 text-ink-2 leading-relaxed">
+            <p>
+              在 VS Code 插件中发布检查点、选择接收成员，并检查代码基线和工作区状态。
+            </p>
+            <p>
+              <strong className="text-ink">接续流转机制：</strong>
+              发起交接 → 接收人核对 Git 基线与工作区状态 →
+              登记接续尝试和测试结果 → 由组长或教师审核。
+            </p>
+            <p className="text-ink-3">
+              提示：Handoff
+              接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
+            </p>
+            <ExtensionEntry />
+          </div>
+        </details>
       </div>
     </div>
   );
@@ -721,7 +615,7 @@ function Section({
   ) {
     return (
       <details className="ac-disclosure">
-        <summary>{label}</summary>
+        <summary>{label}<span className="float-right ml-3 text-xs font-normal text-ink-3">{label === "交接资料" ? "查看 / 绑定" : label === "有效项目记忆" ? "查看 / 添加" : label === "会话与分支" ? "打开会话" : label === "并行接续尝试" ? "查看 / 配置" : ""}</span></summary>
         <div className="ac-disclosure-body">{children}</div>
       </details>
     );
@@ -781,7 +675,7 @@ function ActionFormBlock({
       <h4 className="text-xs font-semibold uppercase tracking-wide text-ink">
         {title}
       </h4>
-      <form action={formAction} className="space-y-2">
+      <form action={formAction} aria-busy={pending} className="space-y-2">
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="taskId" value={taskId} />
         {children}
@@ -801,6 +695,7 @@ function ActionFormBlock({
             <span>✓</span> {success}
           </p>
         )}
+        {pending && <LoadingProgress label="正在处理任务…" />}
         <button
           type="submit"
           disabled={pending}

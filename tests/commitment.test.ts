@@ -159,27 +159,26 @@ describe("reviewTask —— 验收", () => {
     expect(u.reviewedAt).not.toBeNull();
   });
 
-  // teacher 在本项目里唯一的写入能力，正是开题报告那句「组长或教师进行验收或退回」
-  it("教师可通过", async () => {
+  // 初审由组长负责，老师仅复核已完成成果。
+  it("教师不能替代组长初审", async () => {
     const { teacher, t } = await pending();
-    const u = await reviewTask(teacher.id, t.id, { decision: "accept" });
-    expect(u.status).toBe("done");
+    await expect(reviewTask(teacher.id, t.id, { decision: "accept" })).rejects.toThrow("任务由组长审核");
   });
 
   it("学生验收不了", async () => {
     const { other, t } = await pending();
     await expect(reviewTask(other.id, t.id, { decision: "accept" })).rejects.toThrow(
-      "只有组长或教师可以验收",
+      "任务由组长审核",
     );
   });
 
   // 教师既干活又当验收时，不能自己给自己盖章——否则「验收」二字形同虚设
-  it("不能验收自己交付的任务", async () => {
+  it("任务由组长审核", async () => {
     const { owner, teacher, project } = await scene();
     const t = await createTask(owner.id, project.id, { title: "甲", assigneeId: teacher.id });
     await submitTask(owner.id, t.id, { completionNote: "组长代提交" });
     await expect(reviewTask(teacher.id, t.id, { decision: "accept" })).rejects.toThrow(
-      "不能验收自己交付的任务",
+      "任务由组长审核",
     );
     // 换别人来判就通得过
     const u = await reviewTask(owner.id, t.id, { decision: "accept" });

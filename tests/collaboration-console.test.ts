@@ -55,6 +55,29 @@ describe("协同执行台只读投影", () => {
     expect(await listConsoleTasks(owner.id, project.id)).toEqual({ items: [], hasMore: false, nextCursor: null, canReview: true });
   });
 
+  it("具体组员的我的任务在分页前筛选，并拒绝跨人复用游标或非组长请求", async () => {
+    const { owner, member, team, project } = await scene();
+    const otherMember = await createUser({ email: "console-other-member@test.local", password: "password123", name: "另一个组员" });
+    await joinTeam(otherMember.id, team.inviteCode);
+    const outsider = await createUser({ email: "console-outside-preview@test.local", password: "password123", name: "外组" });
+    await db.insert(tasks).values([
+      ...Array.from({ length: 55 }, (_, i) => ({ projectId: project.id, title: `组长任务 ${i}`, assigneeId: owner.id })),
+      { projectId: project.id, title: "组员任务 1", assigneeId: member.id },
+      { projectId: project.id, title: "组员任务 2", assigneeId: member.id },
+      { projectId: project.id, title: "另一个人的任务", assigneeId: otherMember.id },
+    ]);
+    const first = await listConsoleTasks(owner.id, project.id, { scope: "mine", mineAssigneeId: member.id, limit: 1 });
+    expect(first.items[0].assigneeId).toBe(member.id);
+    expect(first.hasMore).toBe(true);
+    const rest = await listConsoleTasks(owner.id, project.id, { scope: "mine", mineAssigneeId: member.id, limit: 1, cursor: first.nextCursor! });
+    expect(rest.items[0].assigneeId).toBe(member.id);
+    expect(rest.items[0].id).not.toBe(first.items[0].id);
+    await expect(listConsoleTasks(owner.id, project.id, { scope: "mine", mineAssigneeId: otherMember.id, cursor: first.nextCursor! })).rejects.toThrow("分页游标无效");
+    expect((await listConsoleTasks(owner.id, project.id, { scope: "mine", mineAssigneeId: otherMember.id })).items.map(item => item.title)).toEqual(["另一个人的任务"]);
+    await expect(listConsoleTasks(member.id, project.id, { scope: "mine", mineAssigneeId: otherMember.id })).rejects.toThrow("记录不存在或无权访问");
+    await expect(listConsoleTasks(owner.id, project.id, { scope: "mine", mineAssigneeId: outsider.id })).rejects.toThrow("记录不存在或无权访问");
+  });
+
   it("即使有两个项目的权限，也不能交叉读取任务或运行", async () => {
     const { owner, team, project } = await scene();
     const other = await createProject(owner.id, team.id, { name: "项目 B" });

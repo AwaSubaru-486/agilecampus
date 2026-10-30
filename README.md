@@ -110,6 +110,22 @@ npm run dev
 
 测试：`npm test`
 
+### 本机日常使用（Windows）
+
+双击 `start-local.cmd` 或执行 `npm run local`，默认在 `http://127.0.0.1:3106` 启动正式运行模式。首次启动或源码、配置变化后自动编译；没有变化时复用构建与已有服务，页面访问时不再编译。日志位于 `.runtime/`。
+
+```powershell
+npm run local                        # 日常使用，自动检查构建并打开网页
+npm run local -- -Rebuild             # 强制重新编译并启动
+npm run local -- -Mode development    # 修改代码，使用 Turbopack 热更新
+```
+
+`npm run dev` 默认使用 Turbopack；`npm run dev:webpack` 保留兼容入口。同一端口只替换当前项目的服务，其他应用占用端口时直接报错。启动器使用现有数据库配置，不初始化或重置数据。
+
+手动运行可执行 `npm run build` 后 `npm run start`（默认端口 3106，可附加 `-- -p 其他端口`）。构建会补齐 standalone 所需的 public 与静态文件，启动前检测过期构建。修改代码后须重新编译，或使用开发模式。
+
+启动脚本回归：`node --test tests/production-runtime.test.mjs`。
+
 ### 生成演示项目
 
 如果需要看到与仓库截图一致的「赤壁演习 · 智能问答系统」演示项目，在数据库建表后执行：

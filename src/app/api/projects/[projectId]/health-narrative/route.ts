@@ -21,7 +21,7 @@ export async function POST(req: Request, ctx: Ctx) {
 
   try {
     const { issues } = await getProjectHealth(session.user.id, parsed.data);
-    const text = await narrateHealth(issues, "本项目");
+    const text = await narrateHealth(issues, "本项目", { actorId: session.user.id });
     return NextResponse.json({ narrative: text });
   } catch (e) {
     return mapAgentError(e, "[/api/projects/health-narrative]");

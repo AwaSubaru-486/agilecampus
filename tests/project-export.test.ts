@@ -3,6 +3,7 @@ import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject, getProjectForUser } from "@/lib/project";
 import { claimTask, createTask, reviewTask, submitTask } from "@/lib/task";
+import { recheckCompletedTask } from "@/lib/task-recheck";
 import { createEvidenceItem } from "@/lib/evidence";
 import { createEntry } from "@/lib/entry";
 import { createDecision, resolveDecision } from "@/lib/decision";
@@ -45,7 +46,11 @@ describe("项目档案导出", () => {
       value: "52 tests passed",
     });
     await submitTask(owner.id, task.id, { completionNote: "接口已完成" });
-    await reviewTask(reviewer.id, task.id, { decision: "accept", note: "证据完整" });
+    await expect(reviewTask(reviewer.id, task.id, { decision: "accept", note: "证据完整" })).rejects.toThrow("组长审核");
+    await reviewTask(owner.id, task.id, { decision: "accept", note: "证据完整" });
+    const rechecked = await recheckCompletedTask(reviewer.id, project.id, task.id, { decision: "accept", note: "导出资料已复核" });
+    expect(rechecked.status).toBe("done");
+    expect(rechecked.reviewNote).toContain("导出资料已复核");
     await createEntry(owner.id, project.id, {
       type: "deliverable",
       title: "接口文档",

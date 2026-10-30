@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/feedback-link";
 import { listProjectAgents } from "@/lib/agent-member";
 import { listBusyTaskIds } from "@/lib/agent-run";
 import { applyFilters, type BoardFilters } from "@/lib/board-filters";
@@ -13,6 +13,7 @@ import { NewTaskForm } from "../new-task-form";
 import { ExecutionConsole } from "../_console/execution-console";
 import type { NormalizedConsoleParams } from "@/lib/console-navigation";
 import { PROJECT_ROLE_WORKSPACE } from "@/lib/project-role-workspace";
+import { StageIntegrationPanel } from "../_shared/stage-integration-panel";
 
 // 工作：任务如何拆分与流转。
 //
@@ -22,6 +23,7 @@ import { PROJECT_ROLE_WORKSPACE } from "@/lib/project-role-workspace";
 
 export async function WorkSpace({
   actorId,
+  viewUserId = actorId,
   projectId,
   teamId,
   role,
@@ -29,8 +31,10 @@ export async function WorkSpace({
   selectedTaskId,
   view,
   normalized,
+  canAct = true,
 }: {
   actorId: string;
+  viewUserId?: string;
   projectId: string;
   teamId: string;
   role: "admin" | "teacher" | "student";
@@ -41,6 +45,7 @@ export async function WorkSpace({
   view?: string | null;
   /** W02: 完整规范化参数，传给执行台 */
   normalized?: NormalizedConsoleParams;
+  canAct?: boolean;
 }) {
   const viewHref = (board: boolean) => {
     const params = new URLSearchParams({ space: "work" });
@@ -51,13 +56,14 @@ export async function WorkSpace({
     params.set(board ? "view" : "panel", board ? "board" : "list");
     return `/projects/${projectId}?${params.toString()}`;
   };
-  const heading = normalized?.scope === "all" ? "全部任务" : PROJECT_ROLE_WORKSPACE[role].work;
-  const canWrite = role === "admin" || role === "student";
-  const canReview = role === "admin" || role === "teacher";
-  const canCreateTask = role === "admin";
+  const acceptance = role === "admin" && ["review", "completed"].includes(normalized?.scope ?? "");
+  const heading = acceptance ? "成果验收" : role === "teacher" ? PROJECT_ROLE_WORKSPACE[role].work : normalized?.scope === "all" ? role === "admin" ? "分工" : "全部任务" : PROJECT_ROLE_WORKSPACE[role].work;
+  const canWrite = canAct && (role === "admin" || role === "student");
+  const canReview = canAct && (role === "admin" || role === "teacher");
+  const canCreateTask = canAct && role === "admin";
 
   // 看板模式：需要完整任务数据
-  if (view === "board") {
+  if (view === "board" && role !== "teacher" && !acceptance) {
     const [projectTasks, projectMilestones, members, dependencies, teamLabels, projectAgents, busyTaskIds] =
       await Promise.all([
         listProjectTasks(actorId, projectId),
@@ -70,7 +76,7 @@ export async function WorkSpace({
       ]);
 
     const agentStatusById = Object.fromEntries(projectAgents.map((a) => [a.userId, a.status]));
-    const scopedTasks = role === "student" && normalized?.scope !== "all" ? projectTasks.filter(task => task.assigneeId === actorId) : role === "teacher" && normalized?.scope !== "all" ? projectTasks.filter(task => task.status === "review" && task.assigneeId !== actorId) : projectTasks;
+    const scopedTasks = normalized?.scope !== "all" ? projectTasks.filter(task => task.assigneeId === viewUserId) : projectTasks;
     const visibleTasks = applyFilters(scopedTasks, filters, today());
     const members_ = members;
     const projectMilestones_ = projectMilestones;
@@ -143,7 +149,7 @@ export async function WorkSpace({
           }))}
           canWrite={canWrite}
           canReview={canReview}
-          currentUserId={actorId}
+          currentUserId={viewUserId}
           members={members_}
           milestones={projectMilestones_.map((m) => ({ id: m.id, name: m.title }))}
           allTasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
@@ -174,20 +180,23 @@ export async function WorkSpace({
     <section data-tour="execution-console" className="flex flex-col gap-3">
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><h2 className="text-lg font-semibold text-ink">{heading}</h2><p className="mt-1 text-sm text-ink-3">{normalized?.scope === "all" ? "查看全项目任务和历史；操作入口仍遵循你的项目角色。" : role === "teacher" ? "先对照标准检查证据，再通过或填写退回意见。" : role === "student" ? "这里只列出分配给你的任务；打开后确认要求并交付。" : "检查分工、处理交接与验收，推进团队任务。"}</p></div>
-        <nav aria-label="任务视图" className="ac-view-switch !mt-0">
+        <div><h2 className="text-lg font-semibold text-ink">{heading}</h2><p className="mt-1 text-sm text-ink-3">{acceptance ? "查看组员提交的交付材料，通过审核或退回修改；已审核成果可交由老师复核。" : role === "teacher" ? "只展示已完成任务供复核，下方同时审核阶段集成材料。" : normalized?.scope === "all" ? role === "admin" ? "选择任务，在任务资料与管理中指定组员、完成要求和交付期限。" : "查看全项目任务和历史。" : role === "student" ? "这里只列出分配给你的任务；打开后确认要求并交付。" : "检查分工、处理交接与验收，推进团队任务。"}</p></div>
+        {role !== "teacher" && !acceptance && <nav aria-label="任务视图" className="ac-view-switch !mt-0">
           <Link href={viewHref(false)} aria-current="page">列表</Link>
           <Link href={viewHref(true)}>看板</Link>
-        </nav>
+        </nav>}
       </div>
 
+      {acceptance && <nav aria-label="成果验收队列" className="ac-view-switch"><Link href={`/projects/${projectId}?space=work&scope=review&panel=list`} aria-current={normalized?.scope === "review" ? "page" : undefined}>待审核</Link><Link href={`/projects/${projectId}?space=work&scope=completed&panel=list`} aria-current={normalized?.scope === "completed" ? "page" : undefined}>已审核</Link></nav>}
       {/* 执行台：三栏交接工作面 */}
       <ExecutionConsole
         actorId={actorId}
+        viewUserId={viewUserId}
         projectId={projectId}
         role={role}
         normalized={defaultNormalized}
       />
+      {(role === "teacher" || role === "admin" && (normalized?.scope === "all" || acceptance)) && <StageIntegrationPanel actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} canAct={canAct} />}
     </section>
   );
 }

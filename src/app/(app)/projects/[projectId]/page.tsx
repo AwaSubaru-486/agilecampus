@@ -1,4 +1,4 @@
-import { getProjectView } from "@/lib/project-view";
+import { getProjectPerspective } from "@/lib/project-view";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
@@ -10,6 +10,7 @@ import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
 import { RecordSpace } from "./_record/record-space";
+import { MemberBoard } from "./_shared/member-board";
 import { ProjectRoleHome } from "./_shared/project-role-home";
 import { isProjectHome } from "@/lib/project-role-workspace";
 
@@ -50,9 +51,11 @@ export default async function ProjectPage({
   if (!access) notFound();
 
   const { project } = access;
-  const role = await getProjectView(access.role, projectId);
   const actorId = session.user.id;
-  if (isProjectHome(sp)) return <ProjectRoleHome actorId={actorId} projectId={projectId} role={role} />;
+  const { role, viewUserId, preview } = await getProjectPerspective(access.role, projectId, actorId, project.teamId);
+  if (isProjectHome(sp)) return role !== "teacher" && !(role === "admin" && sp.view === "manage")
+    ? <MemberBoard actorId={actorId} viewUserId={viewUserId} projectId={projectId} />
+    : <ProjectRoleHome actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} />;
 
   // 归一化所有参数：live→work，非法→work，带会话/审批→studio。
   // 数组参数取第一项；规范化结果幂等，不产生重定向循环。
@@ -66,6 +69,8 @@ export default async function ProjectPage({
   if (needsRedirect(rawParams, normalized)) {
     redirect(`/projects/${projectId}?${serializeConsoleParams(normalized)}`);
   }
+
+  if (space === "record" && role === "student") redirect(`/projects/${projectId}`);
 
   const canWrite = role === "admin" || role === "student";
 
@@ -96,10 +101,12 @@ export default async function ProjectPage({
       {space === "work" && (
         <WorkSpace
           actorId={actorId}
+          viewUserId={viewUserId}
           projectId={projectId}
           teamId={project.teamId}
           role={role}
           filters={filters}
+          canAct={!preview}
           selectedTaskId={taskId}
           view={typeof sp.view === "string" ? sp.view : null}
           normalized={normalized}
@@ -107,6 +114,7 @@ export default async function ProjectPage({
       )}
 
       {space === "studio" && (
+        <fieldset disabled={preview} className="min-w-0">
         <StudioSpace
           forceNewConversation={sp.new === "1"}
           actorId={actorId}
@@ -119,6 +127,7 @@ export default async function ProjectPage({
           view={typeof sp.view === "string" ? sp.view : null}
           normalized={normalized}
         />
+        </fieldset>
       )}
 
       {space === "record" && (

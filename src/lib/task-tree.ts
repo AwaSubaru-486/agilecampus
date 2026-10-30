@@ -2,7 +2,7 @@ import { enqueueStageHandoffs } from "./task-notifications";
 import { and, asc, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { generateText, type LanguageModel } from "ai";
 import { z } from "zod";
-import { db } from "@/db";
+import { db, type DbTx } from "@/db";
 import {
   projectBriefs,
   stageIntegrations,
@@ -102,7 +102,7 @@ export async function generateTaskTreeDraft(
 export async function generateTutorialTaskTreeDraft(actorId:string,projectId:string,content:string) {
   await requireTreeAdmin(actorId,projectId);
   const progress=await getTutorialProgress(actorId);
-  if(progress.journey?.projectId!==projectId) throw new ForbiddenError();
+  if(progress.journey?.version!==5 || progress.journey.projectId!==projectId) throw new ForbiddenError();
   const briefText=content.trim();
   if(briefText.length<10 || briefText.length>20000) throw new AppError("项目说明需填写 10 至 20000 个字");
   const payload=taskTreePayloadSchema.parse({
@@ -245,7 +245,8 @@ export async function getTaskTree(actorId: string, projectId: string) {
       id: tasks.id, stageId: tasks.stageId, parentTaskId: tasks.parentTaskId, title: tasks.title,
       isTaskGroup: tasks.isTaskGroup,
       description: tasks.description, status: tasks.status, priority: tasks.priority,
-      assigneeId: tasks.assigneeId, assigneeName: users.name, doneCriteria: tasks.doneCriteria,
+      completionNote: tasks.completionNote, reviewNote: tasks.reviewNote, dueDate: tasks.dueDate,
+      assigneeId: tasks.assigneeId, assigneeName: users.name, doneCriteria: tasks.doneCriteria, handoffVersion: tasks.handoffVersion, requiredEvidence: tasks.requiredEvidence,
     }).from(tasks).leftJoin(users, eq(tasks.assigneeId, users.id)).where(eq(tasks.projectId, projectId)).orderBy(asc(tasks.sortOrder)),
     db.select().from(taskTreeDrafts).where(and(eq(taskTreeDrafts.projectId, projectId), eq(taskTreeDrafts.status, "pending"))).orderBy(desc(taskTreeDrafts.createdAt)),
     db.select().from(stageIntegrations).where(inArray(stageIntegrations.stageId, db.select({ id: taskStages.id }).from(taskStages).where(eq(taskStages.projectId, projectId)))).orderBy(desc(stageIntegrations.createdAt)),
@@ -254,19 +255,22 @@ export async function getTaskTree(actorId: string, projectId: string) {
   return { stages, tasks: rows, drafts: drafts.map((draft) => ({ ...draft, payload: taskTreePayloadSchema.parse(draft.payload) })), integrations, deliveries };
 }
 
-export async function submitTaskDelivery(actorId: string, taskId: string, input: { branchName: string; headSha?: string; pullRequestUrl?: string; testSummary?: string }) {
-  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
-  if (!task || !task.stageId) throw new AppError("任务不属于任务树阶段");
+export async function submitTaskDelivery(actorId: string, taskId: string, input: { branchName: string; headSha?: string; pullRequestUrl?: string; testSummary?: string }, opts?: { tx?: DbTx }) {
+  const exec = opts?.tx ?? db;
+  const [task] = await exec.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new AppError("任务不存在");
   const access = await requireProject(actorId, task.projectId);
   if (access.role === "teacher") throw new ForbiddenError("导师不能登记执行成果");
   if (task.isTaskGroup) throw new AppError("请在执行任务上登记交付分支");
   if (access.role !== "admin" && task.assigneeId !== actorId) throw new ForbiddenError("只有任务负责人可以登记交付分支");
-  const [stage] = await db.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
-  if (!stage || stage.status !== "active") throw new AppError("当前阶段不能登记交付分支");
+    if (task.stageId) {
+      const [stage] = await exec.select({ status: taskStages.status }).from(taskStages).where(eq(taskStages.id, task.stageId));
+      if (!stage || stage.status !== "active") throw new AppError("当前阶段不能登记交付分支");
+  }
   const branchName = input.branchName.trim();
   if (!branchName) throw new AppError("请填写任务分支");
   if (input.pullRequestUrl && !/^https?:\/\//i.test(input.pullRequestUrl.trim())) throw new AppError("PR 地址格式不正确");
-  const [delivery] = await db.insert(taskDeliveries).values({
+  const [delivery] = await exec.insert(taskDeliveries).values({
     taskId, branchName, headSha: input.headSha?.trim() || null,
     pullRequestUrl: input.pullRequestUrl?.trim() || null,
     testSummary: input.testSummary?.trim() || null, submittedById: actorId,
