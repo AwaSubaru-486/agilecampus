@@ -6,6 +6,7 @@ import type { WorkCheckpoint } from "../checkpoints/types";
 import type { RepositorySnapshot } from "../git/repository-service";
 import type { WorkspaceBinding } from "../workspace/binding-store";
 import { createWorkspaceApi } from "./checkpoint-support";
+import { inspectReceptionCode, renderReceptionCodeCheck } from "../memory/reception-check";
 
 /** Adds the memory library to the existing launcher without creating another Agent runner. */
 export async function selectContinuationMemory(
@@ -51,7 +52,8 @@ export async function selectContinuationMemory(
     workspaceReady: repository !== null, workspaceClean: repository !== null && !repository.dirty,
     workspaceBlockers: repository?.recoveryBlockers ?? [],
   });
-  const preview = await vscode.workspace.openTextDocument({ language: "plaintext", content: continuation.report });
+  const codeCheck = await inspectReceptionCode(repository?.rootPath ?? sourceWorkspace, choice.record.material.baseSha, repository?.headSha ?? null);
+  const preview = await vscode.workspace.openTextDocument({ language: "plaintext", content: `${renderReceptionCodeCheck(codeCheck)}\n\n${continuation.report}` });
   await vscode.window.showTextDocument(preview, { preview: true });
   if (!continuation.resume.ready) throw new Error(`记忆接续未通过：${continuation.resume.blockers.join("；")}`);
   return continuation;

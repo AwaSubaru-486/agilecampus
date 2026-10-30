@@ -103,7 +103,7 @@ describe("memory extraction input", () => {
     const second = { ...first, snapshotId: randomUUID(), createdAt: "2026-10-05T13:00:00.000Z" };
     const a = prepareExtractionInput(first);
     const b = prepareExtractionInput(second);
-    const changedPolicy = prepareExtractionInput(first, { promptVersion: "memory-extract-v2" });
+    const changedPolicy = prepareExtractionInput(first, { promptVersion: "memory-extract-v3" });
     expect(a.inputDigest).toBe(b.inputDigest);
     expect(a.inputDigest).not.toBe(changedPolicy.inputDigest);
   });

@@ -12,7 +12,7 @@ import {
 } from "./types";
 import { redactSensitiveText } from "./redaction";
 
-const DEFAULT_PROMPT_VERSION = "memory-extract-v1";
+const DEFAULT_PROMPT_VERSION = "memory-extract-v2";
 const MAX_SERIALIZED_INPUT_BYTES = 2 * 1024 * 1024;
 const MAX_MODEL_EVENTS = 500;
 

@@ -19,6 +19,7 @@ import { selectContinuationMemory } from "./memory-continuation";
 import { inheritedMemoryEvent, parseContinuationRequest } from "../memory/continuation";
 import { LocalSessionStore } from "../session-memory/local-store";
 import type { ContinuationObserver } from "../memory/continuation-reporter";
+import { inspectReceptionCode, renderReceptionCodeCheck } from "../memory/reception-check";
 
 const activeLaunchKeys = new Set<string>();
 const activeAttemptIds = new Set<string>();
@@ -110,7 +111,14 @@ async function resumeCheckpoint(context: vscode.ExtensionContext, requireMemory 
 
     const initial = await readFreshInput(context, binding, workdir, checkpoint);
     let preflight = evaluateHandoffPreflight({ ...initial, materialSummary: checkpoint.artifacts.map(({ kind, byteLength }) => ({ kind, byteLength })), confirmedChangedTask: false });
-    if (preflight.status === "blocked") { await showBlockers(preflight.blockers); return; }
+    if (preflight.status === "blocked") {
+      if (initial.repository && initial.repository.headSha !== checkpoint.repository.headSha) {
+        const check = await inspectReceptionCode(workdir, checkpoint.repository.headSha, initial.repository.headSha);
+        const document = await vscode.workspace.openTextDocument({ language: "plaintext", content: renderReceptionCodeCheck(check) });
+        await vscode.window.showTextDocument(document, { preview: true });
+      }
+      await showBlockers(preflight.blockers); return;
+    }
     if (preflight.status === "needs-confirmation") {
       await showTaskChanges(checkpoint, preflight);
       const changedConsent = await vscode.window.showWarningMessage("任务要求、负责人或版本与检查点不同。要按当前服务端要求尝试吗？", { modal: true }, "按当前要求继续");

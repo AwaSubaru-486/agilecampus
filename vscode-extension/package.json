@@ -2,7 +2,7 @@
   "name": "agilecampus-vscode",
   "displayName": "AgileCampus",
   "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "publisher": "agilecampus",
   "license": "MIT",

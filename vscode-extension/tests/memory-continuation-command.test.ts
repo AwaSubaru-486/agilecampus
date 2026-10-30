@@ -145,4 +145,15 @@ describe("memory continuation through the existing Agent command", () => {
     expect(ui.documents.join("\n")).toContain("未提交或未跟踪改动");
     expect(await new AttemptStore(f.storageRoot).list()).toEqual([]);
   });
+
+  it("shows committed file differences even when the earlier checkpoint preflight blocks launch", async () => {
+    const f = await fixture();
+    await writeFile(path.join(f.workspacePath, "search.ts"), "// committed change\n");
+    f.git("add", "search.ts");
+    f.git("-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "commit", "-m", "changed baseline");
+    await ui.commands.get("agilecampus.continueTaskMemory")!();
+    expect(ui.launches).toHaveLength(0);
+    expect(ui.documents.join("\n")).toContain('变动文件："search.ts"');
+    expect(await new AttemptStore(f.storageRoot).list()).toEqual([]);
+  });
 });

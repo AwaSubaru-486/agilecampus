@@ -16,14 +16,14 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
-function preparedInput() {
+function preparedInput(promptVersion: "memory-extract-v1" | "memory-extract-v2" = "memory-extract-v2") {
   const projectId = randomUUID(); const taskId = randomUUID(); const sessionKey = randomUUID();
   const callId = randomUUID(); const resultId = randomUUID();
   const core = {
     schemaVersion: 1 as const,
     scope: { serverOrigin: "http://localhost:3000/", projectId, taskId, sessionKey },
     snapshotId: randomUUID(), captureDigest: sha256("capture"),
-    promptVersion: "memory-extract-v1" as const, budgetVersion: "memory-input-v1" as const, redactionVersion: "redaction-v2" as const,
+    promptVersion, budgetVersion: "memory-input-v1" as const, redactionVersion: "redaction-v2" as const,
     fromSequence: 1, toSequence: 2, capturedEventIds: [callId, resultId], gapEventIds: [],
     captureCompleteness: "unknown" as const, captureFailureCount: 0,
     events: [
@@ -44,9 +44,10 @@ describe("session memory model boundary", () => {
       const user = await createUser({ name: "提炼者", email: "extract@api.test", password: "password123" });
       await saveModelConfig(user.id, { baseUrl: "https://extract.test/v1", model: "personal-memory-model", apiKey: "test-memory-key" });
       const candidate = { goal: [], constraints: [], completed: [], remaining: [], decisions: [], rejectedApproaches: [], blockers: [], nextActions: [], tests: [] };
-      let sentModel = ""; let sentUrl = "";
+      let sentModel = ""; let sentUrl = ""; let sentMessages = "";
       vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)); sentModel = body.model; sentUrl = String(input);
+        sentMessages = JSON.stringify(body.messages);
         return new Response(JSON.stringify({ id: "memory-test", object: "chat.completion", created: 1, model: body.model,
           choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify(candidate) }, finish_reason: "stop" }],
           usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 } }), { headers: { "Content-Type": "application/json" } });
@@ -54,10 +55,12 @@ describe("session memory model boundary", () => {
       const result = await extractSessionMemoryCandidate(preparedInput(), { actorId: user.id });
       expect(sentUrl).toBe("https://extract.test/v1/chat/completions");
       expect(sentModel).toBe("personal-memory-model"); expect(result.model).toBe(sentModel);
+      expect(sentMessages).toContain("不能证明当前已完成或已重新测试");
     } finally { vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
   });
   it("accepts only a matching, ordered, budget-scoped request", () => {
     expect(preparedExtractionRequestSchema.parse(preparedInput()).events).toHaveLength(2);
+    expect(preparedExtractionRequestSchema.parse(preparedInput("memory-extract-v1")).promptVersion).toBe("memory-extract-v1");
     const invalid = preparedInput();
     invalid.events = [invalid.events[1], invalid.events[0]];
     invalid.capturedEventIds = invalid.events.map((event) => event.id);

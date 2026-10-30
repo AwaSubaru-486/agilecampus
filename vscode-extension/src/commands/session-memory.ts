@@ -14,6 +14,7 @@ import type { DraftCategory, DraftItem, DraftTest, MemoryDraftV1, MemoryScope, P
 import { GitRefLockStore } from "../attempts/git-ref-lock";
 import { AttemptStore } from "../attempts/store";
 import { inheritedParentMemoryReference } from "../memory/continuation";
+import { renderIterationReview } from "../memory/iteration-review";
 import { getLocalOnlyRepositoryId, selectBoundWorkspace, type BoundWorkspace } from "./checkpoint-support";
 
 const CATEGORY_LABELS: Record<DraftCategory, string> = {
@@ -25,7 +26,7 @@ const CATEGORIES = Object.keys(CATEGORY_LABELS) as DraftCategory[];
 type ReviewChoice =
   | { kind: "item"; category: DraftCategory; entry: DraftItem }
   | { kind: "test"; entry: DraftTest }
-  | { kind: "action"; action: "add-item" | "add-test" | "accept" | "pause" };
+  | { kind: "action"; action: "iteration-review" | "add-item" | "add-test" | "accept" | "pause" };
 type ReviewQuickPickItem = vscode.QuickPickItem & { choice: ReviewChoice };
 
 export function registerSessionMemoryCommands(context: vscode.ExtensionContext): void {
@@ -138,6 +139,15 @@ async function reviewDraft(
   store: MemoryDraftStore,
 ): Promise<void> {
   let draft = initial;
+  async function showIterationReview() {
+    const records = await new MemoryArtifactStore(context.globalStorageUri.fsPath).listReceivedExports(draft.scope);
+    const ref = draft.parentReference;
+    const parent = ref ? records.find((record) => record.memory.id === ref.memoryId && record.memory.revision === ref.revision &&
+      sha256(stableStringify(record.memory)) === ref.memoryDigest)?.memory : undefined;
+    const document = await vscode.workspace.openTextDocument({ language: "plaintext", content: renderIterationReview(draft, snapshot, parent) });
+    await vscode.window.showTextDocument(document, { preview: true });
+  }
+  await showIterationReview();
   while (true) {
     const choices: ReviewQuickPickItem[] = [];
     for (const category of CATEGORIES) for (const entry of draft.items[category]) {
@@ -151,6 +161,7 @@ async function reviewDraft(
       description: `${entry.origin === "human" ? "人工" : "AI"} · ${entry.support}${entry.exitCode === null ? " · 无退出码" : ` · exit ${entry.exitCode}`} · 出处 ${entry.evidenceRefs.length}`,
       detail: entry.command });
     choices.push(
+      { choice: { kind: "action", action: "iteration-review" }, label: "查看本轮迭代结果", description: "对照精确父版本，核对进展、阻塞与测试出处" },
       { choice: { kind: "action", action: "add-item" }, label: "＋ 添加记忆条目", description: "人工补充会标记来源" },
       { choice: { kind: "action", action: "add-test" }, label: "＋ 添加测试记录", description: "必须明确测试出处与证据类型" },
       { choice: { kind: "action", action: "accept" }, label: "接受此版本并生成接班材料", description: `当前草稿 r${draft.revision}；接受后不可原地修改` },
@@ -163,6 +174,7 @@ async function reviewDraft(
     const choice = selectedChoice?.choice;
     if (!choice || choice.kind === "action" && choice.action === "pause") return;
     if (choice.kind === "action") {
+      if (choice.action === "iteration-review") { await showIterationReview(); continue; }
       if (choice.action === "add-item") {
         if (draft.status === "accepted") { void vscode.window.showInformationMessage("已接受版本不可修改；请另建新提炼版本。"); continue; }
         draft = await addItem(draft, snapshot, store);
