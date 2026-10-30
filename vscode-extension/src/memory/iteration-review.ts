@@ -10,6 +10,7 @@ export function renderIterationReview(draft: MemoryDraftV1, snapshot: Extraction
       parent.revision !== reference.revision || sha256(stableStringify(parent)) !== reference.memoryDigest ||
       parent.projectId !== draft.scope.projectId || parent.taskId !== draft.scope.taskId)) throw new Error("迭代总结的父记忆版本不匹配");
   const active = (category: keyof MemoryDraftV1["items"]) => draft.items[category].filter((item) => item.disposition === "active");
+  const eventsById = new Map(snapshot.events.map((event) => [event.id, event]));
   const lines = ["本轮迭代结果 · 待人工核对", `当前草稿：${draft.memoryId} / r${draft.revision}`,
     `代码：${snapshot.headSha}${snapshot.dirtyExcluded ? "（未提交改动未包含在基线中）" : ""}`,
     `来源：事件 ${snapshot.fromSequence}–${snapshot.toSequence}；采集缺口 ${snapshot.gapEventIds.length}；预算遗漏/截断 ${draft.inputCoverage.omissions.length}`];
@@ -19,7 +20,10 @@ export function renderIterationReview(draft: MemoryDraftV1, snapshot: Extraction
     const before = new Set(parent?.[category].filter((item) => item.disposition === "active").map((item) => item.text) ?? []);
     lines.push("", `${parent ? "新增" : "当前"}${label}：`);
     const items = active(category).filter((item) => !parent || !before.has(item.text));
-    lines.push(...(items.length ? items.map((item) => `${JSON.stringify(item.text)} [${item.support}；出处 ${item.evidenceRefs.join(", ") || "未关联"}]`) : ["无新增记录"]));
+    lines.push(...(items.length ? items.map((item) => {
+      const inheritedOnly = item.evidenceRefs.length > 0 && item.evidenceRefs.every((id) => eventsById.get(id)?.sourceRef.startsWith("agilecampus:inherited-memory:"));
+      return `${JSON.stringify(item.text)} [${item.support}；出处 ${item.evidenceRefs.join(", ") || "未关联"}${inheritedOnly ? "；仅有继承摘要依据，未验证本轮进展" : ""}]`;
+    }) : ["无新增记录"]));
   }
   if (parent) {
     const after = new Set(active("blockers").map((item) => item.text));

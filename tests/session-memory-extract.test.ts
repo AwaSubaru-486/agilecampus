@@ -16,7 +16,7 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value) ?? "null";
 }
 
-function preparedInput(promptVersion: "memory-extract-v1" | "memory-extract-v2" = "memory-extract-v2") {
+function preparedInput(promptVersion: "memory-extract-v1" | "memory-extract-v2" | "memory-extract-v3" = "memory-extract-v3") {
   const projectId = randomUUID(); const taskId = randomUUID(); const sessionKey = randomUUID();
   const callId = randomUUID(); const resultId = randomUUID();
   const core = {
@@ -56,11 +56,13 @@ describe("session memory model boundary", () => {
       expect(sentUrl).toBe("https://extract.test/v1/chat/completions");
       expect(sentModel).toBe("personal-memory-model"); expect(result.model).toBe(sentModel);
       expect(sentMessages).toContain("不能证明当前已完成或已重新测试");
+      expect(sentMessages).toContain("contextRole=inherited-memory");
     } finally { vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
   });
   it("accepts only a matching, ordered, budget-scoped request", () => {
     expect(preparedExtractionRequestSchema.parse(preparedInput()).events).toHaveLength(2);
     expect(preparedExtractionRequestSchema.parse(preparedInput("memory-extract-v1")).promptVersion).toBe("memory-extract-v1");
+    expect(preparedExtractionRequestSchema.parse(preparedInput("memory-extract-v2")).promptVersion).toBe("memory-extract-v2");
     const invalid = preparedInput();
     invalid.events = [invalid.events[1], invalid.events[0]];
     invalid.capturedEventIds = invalid.events.map((event) => event.id);
@@ -101,5 +103,17 @@ describe("session memory model boundary", () => {
     const input = preparedInput();
     input.events[0] = { ...input.events[0], toolCallId: "" };
     expect(() => preparedExtractionRequestSchema.parse(input)).toThrow("工具事件必须有非空的调用 ID");
+  });
+
+  it("does not upgrade inherited summaries to captured facts on either side of the API", () => {
+    const input = preparedExtractionRequestSchema.parse(preparedInput());
+    const inherited = { id: randomUUID(), sequence: 3, kind: "user" as const, text: "historical completed work", contextRole: "inherited-memory" as const, wasTruncated: false, originalTextBytes: 25 };
+    input.events.push(inherited); input.capturedEventIds.push(inherited.id); input.toSequence = 3;
+    const candidate = { goal: [], constraints: [], completed: [{ text: "work completed", evidenceRefs: [inherited.id], support: "captured" }], remaining: [], decisions: [], rejectedApproaches: [], blockers: [], nextActions: [], tests: [] };
+    expect(() => validateCandidateEvidence(candidate, input)).toThrow("仅引用继承摘要");
+    expect(() => validateMemoryCandidate({ ...candidate, model: "test", inputTokens: 1, outputTokens: 1 }, input)).toThrow("仅引用继承摘要");
+    candidate.completed[0].support = "reported";
+    expect(validateCandidateEvidence(candidate, input).completed).toHaveLength(1);
+    expect(() => preparedExtractionRequestSchema.parse({ ...input, promptVersion: "memory-extract-v2" })).toThrow("只适用于 v3");
   });
 });

@@ -8,6 +8,16 @@ function response(status: number, body: unknown) {
 }
 
 describe("AgileCampus API client", () => {
+  it("requests one exact shared parent with its digest and keeps the PAT out of the URL", async () => {
+    let seen = "";
+    const fetcher = vi.fn(async (url: RequestInfo | URL) => { seen = String(url); return response(200, { payload: {} }); }) as unknown as typeof fetch;
+    const client = new AgileCampusApiClient("http://localhost:3000", async () => "ac_parent_token", fetcher);
+    await client.getSharedTaskMemoryByReference("project", "task", { memoryId: "memory", revision: 7, memoryDigest: "a".repeat(64) });
+    const url = new URL(seen);
+    expect(url.pathname).toBe("/api/projects/project/tasks/task/memory");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ memoryId: "memory", revision: "7", digest: "a".repeat(64) });
+    expect(seen).not.toContain("ac_parent_token");
+  });
   it("retries a lost claim response with one claim id, so another window cannot reuse the request", async () => {
     const bodies: Array<{ claimId: string; id: string; versionId: string }> = [];
     const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {

@@ -44,6 +44,7 @@ export type PreparedEventV1 = {
   id: string;
   sequence: number;
   kind: NormalizedEventV1["kind"];
+  contextRole?: "inherited-memory";
   text: string;
   toolCallId?: string;
   command?: string;

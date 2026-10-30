@@ -36,6 +36,9 @@ function validateItem(value: unknown, events: Map<string, PreparedEventV1>): Can
     throw new MemoryCandidateError("INVALID_EVIDENCE", "记忆条目内容或来源引用无效");
   }
   if (new Set(value.evidenceRefs as string[]).size !== value.evidenceRefs.length) throw new MemoryCandidateError("INVALID_CANDIDATE", "记忆条目重复引用来源");
+  if (value.support === "captured" && (value.evidenceRefs as string[]).every((id) => events.get(id)?.contextRole === "inherited-memory")) {
+    throw new MemoryCandidateError("INHERITED_ONLY_EVIDENCE", "仅引用继承摘要的条目不能标记为 captured");
+  }
   return { text: value.text.trim(), evidenceRefs: value.evidenceRefs as string[], support: value.support as CandidateItem["support"] };
 }
 

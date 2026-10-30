@@ -12,7 +12,7 @@ import {
 } from "./types";
 import { redactSensitiveText } from "./redaction";
 
-const DEFAULT_PROMPT_VERSION = "memory-extract-v2";
+const DEFAULT_PROMPT_VERSION = "memory-extract-v3";
 const MAX_SERIALIZED_INPUT_BYTES = 2 * 1024 * 1024;
 const MAX_MODEL_EVENTS = 500;
 
@@ -62,7 +62,12 @@ export function prepareExtractionInput(
       omissions.push({ eventId: item.event.id, sequence: item.event.sequence, reason: "budget", originalTextBytes: item.originalBytes });
       continue;
     }
-    const base = preparedBase(item.event, item.command, item.toolCallId, item.paths);
+    const base = {
+      ...preparedBase(item.event, item.command, item.toolCallId, item.paths),
+      ...(promptVersion === "memory-extract-v3" && item.event.kind === "user" &&
+        /^agilecampus:inherited-memory:[0-9a-f-]{36}:[0-9a-f-]{36}$/i.test(item.event.sourceRef)
+        ? { contextRole: "inherited-memory" as const } : {}),
+    };
     const baseBytes = Buffer.byteLength(JSON.stringify({ ...base, text: "", wasTruncated: false, originalTextBytes: item.originalBytes }));
     if (baseBytes + serializedBytes > MAX_SERIALIZED_INPUT_BYTES) {
       omissions.push({ eventId: item.event.id, sequence: item.event.sequence, reason: "budget", originalTextBytes: item.originalBytes });

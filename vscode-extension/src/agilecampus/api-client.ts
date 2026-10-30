@@ -277,6 +277,11 @@ export class AgileCampusApiClient {
     return this.request<unknown>(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory?version=${encodeURIComponent(versionId)}`);
   }
 
+  async getSharedTaskMemoryByReference(projectId: string, taskId: string, reference: { memoryId: string; revision: number; memoryDigest: string }): Promise<unknown> {
+    const query = new URLSearchParams({ memoryId: reference.memoryId, revision: String(reference.revision), digest: reference.memoryDigest });
+    return this.request<unknown>(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory?${query}`);
+  }
+
   async claimTaskMemoryContinuation(projectId: string, taskId: string, id: string, versionId: string): Promise<{ claimId: string }> {
     const claimId = crypto.randomUUID();
     const claim = () => this.request<unknown>(`api/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/memory/continuations`, {

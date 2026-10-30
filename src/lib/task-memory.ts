@@ -4,6 +4,7 @@ import { taskMemoryVersions, tasks, users } from "@/db/schema";
 import { memoryTransferDigest, parseMemoryHandoffExport } from "../../shared/task-memory/transfer";
 import { getProjectForUser } from "./project";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "./errors";
+import type { MemoryParentReferenceV1 } from "../../shared/session-memory/types";
 
 async function requireTask(actorId: string, projectId: string, taskId: string) {
   if (!await getProjectForUser(actorId, projectId)) throw new ForbiddenError("无权访问此项目");
@@ -59,5 +60,17 @@ export async function getTaskMemoryVersion(actorId: string, projectId: string, t
     eq(taskMemoryVersions.id, versionId), eq(taskMemoryVersions.projectId, projectId), eq(taskMemoryVersions.taskId, taskId),
   ));
   if (!record) throw new NotFoundError("此任务中没有该记忆版本");
+  return record;
+}
+
+/** Exact lookup is independent of the latest-50 history window. */
+export async function getTaskMemoryByReference(actorId: string, projectId: string, taskId: string, reference: MemoryParentReferenceV1) {
+  await requireTask(actorId, projectId, taskId);
+  const [record] = await db.select().from(taskMemoryVersions).where(and(
+    eq(taskMemoryVersions.projectId, projectId), eq(taskMemoryVersions.taskId, taskId),
+    eq(taskMemoryVersions.memoryId, reference.memoryId), eq(taskMemoryVersions.revision, reference.revision),
+  ));
+  if (!record) throw new NotFoundError("此任务中没有该精确记忆版本");
+  if (memoryTransferDigest(record.payload.memory) !== reference.memoryDigest) throw new ConflictError("记忆内容校验不一致，未选择其他版本代替");
   return record;
 }

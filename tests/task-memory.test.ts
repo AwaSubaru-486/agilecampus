@@ -7,7 +7,7 @@ import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
 import { createTask } from "@/lib/task";
-import { saveTaskMemory, listTaskMemoryVersions, getTaskMemoryVersion } from "@/lib/task-memory";
+import { saveTaskMemory, listTaskMemoryVersions, getTaskMemoryVersion, getTaskMemoryByReference } from "@/lib/task-memory";
 import { memoryTransferDigest } from "../shared/task-memory/transfer";
 import { previewTaskMemory, renderTaskMemoryContext } from "@/lib/task-memory-view";
 import { createContinuationFixture } from "../vscode-extension/tests/fixtures/session-memory/continuation-fixture";
@@ -119,6 +119,39 @@ describe("web and extension continuation receipts", () => {
 });
 
 describe("shared task memory web workflow", () => {
+  it("retrieves an older exact parent outside the history window and enforces PAT, membership, scope and digest", async () => {
+    const f = await scene();
+    const first = await saveTaskMemory(f.owner.id, f.project.id, f.task.id, f.payload, "http://localhost:3000");
+    const firstRevision = f.payload.memory.revision;
+    for (let revision = firstRevision + 1; revision <= firstRevision + 51; revision++) {
+      const payload = structuredClone(f.payload);
+      payload.memory.revision = revision; payload.material.revision = revision; payload.material.materialId = randomUUID();
+      const body = { ...payload.material } as Partial<typeof payload.material>; delete body.materialDigest;
+      payload.material.materialDigest = memoryTransferDigest(body);
+      await saveTaskMemory(f.owner.id, f.project.id, f.task.id, payload, "http://localhost:3000");
+    }
+    expect((await listTaskMemoryVersions(f.member.id, f.project.id, f.task.id)).some((row) => row.id === first.id)).toBe(false);
+    const reference = { memoryId: f.payload.memory.id, revision: firstRevision, memoryDigest: memoryTransferDigest(f.payload.memory) };
+    expect((await getTaskMemoryByReference(f.member.id, f.project.id, f.task.id, reference)).id).toBe(first.id);
+    await expect(getTaskMemoryByReference(f.outsider.id, f.project.id, f.task.id, reference)).rejects.toThrow("无权");
+    const token = await createApiToken(f.member.id, "exact parent test");
+    const query = new URLSearchParams({ memoryId: reference.memoryId, revision: String(firstRevision), digest: reference.memoryDigest });
+    const get = (suffix = "", pat = token.token) => GET(new Request(`${f.url}?${query}${suffix}`, { headers: { Authorization: `Bearer ${pat}` } }), f.ctx);
+    const result = await get();
+    expect(result.status).toBe(200); expect(result.headers.get("cache-control")).toBe("private, no-store");
+    expect((await result.json()).id).toBe(first.id);
+    expect((await get("&version=" + first.id)).status).toBe(400);
+    expect((await get("&revision=2")).status).toBe(400);
+    expect((await get("", "ac_invalid")).status).toBe(401);
+    const outsiderToken = await createApiToken(f.outsider.id, "outsider parent test");
+    expect((await get("", outsiderToken.token)).status).toBe(403);
+    const otherTask = await createTask(f.owner.id, f.project.id, { title: "Unrelated task" });
+    const otherUrl = f.url.replace(f.task.id, otherTask.id);
+    expect((await GET(new Request(`${otherUrl}?${query}`, { headers: { Authorization: `Bearer ${token.token}` } }), { params: Promise.resolve({ projectId: f.project.id, taskId: otherTask.id }) })).status).toBe(404);
+    query.set("digest", "f".repeat(64)); expect((await get()).status).toBe(409);
+    query.set("revision", "999"); expect((await get()).status).toBe(404);
+    query.delete("digest"); expect((await get()).status).toBe(400);
+  });
   it("saves once, reloads from Postgres and preserves exact immutable versions", async () => {
     const f = await scene();
     const first = await saveTaskMemory(f.owner.id, f.project.id, f.task.id, f.payload, "http://localhost:3000");

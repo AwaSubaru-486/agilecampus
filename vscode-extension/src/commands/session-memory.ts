@@ -15,6 +15,7 @@ import { GitRefLockStore } from "../attempts/git-ref-lock";
 import { AttemptStore } from "../attempts/store";
 import { inheritedParentMemoryReference } from "../memory/continuation";
 import { renderIterationReview } from "../memory/iteration-review";
+import { resolveIterationParent } from "../memory/iteration-parent";
 import { getLocalOnlyRepositoryId, selectBoundWorkspace, type BoundWorkspace } from "./checkpoint-support";
 
 const CATEGORY_LABELS: Record<DraftCategory, string> = {
@@ -99,7 +100,7 @@ async function extractSessionMemory(context: vscode.ExtensionContext, request?: 
     if (!draft) throw new Error("记忆候选没有成功保存；可使用同一会话重新尝试");
     if (draft.snapshotId !== snapshot.snapshotId) void vscode.window.showInformationMessage("已找到完全相同输入的本机记忆版本，本次没有再次调用模型。");
     else void vscode.window.showInformationMessage(`AI 候选已保存为本机草稿（${draft.provenance.model}）。原始会话记录未上传；请逐条核对出处后接受。`);
-    await reviewDraft(context, draft, draftSnapshot, drafts);
+    await reviewDraft(context, draft, draftSnapshot, drafts, selected);
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "会话记忆提炼失败");
   }
@@ -126,7 +127,7 @@ async function reviewSavedDraft(context: vscode.ExtensionContext): Promise<void>
     if (!selectedDraft) return;
     const snapshots = new MemorySnapshotStore(context.globalStorageUri.fsPath);
     const snapshot = await snapshots.loadSnapshot(selectedDraft.draft.snapshotId, scope);
-    await reviewDraft(context, selectedDraft.draft, snapshot, drafts);
+    await reviewDraft(context, selectedDraft.draft, snapshot, drafts, selected);
   } catch (error) {
     void vscode.window.showErrorMessage(error instanceof Error ? error.message : "无法载入本机记忆草稿");
   }
@@ -137,14 +138,23 @@ async function reviewDraft(
   initial: MemoryDraftV1,
   snapshot: Awaited<ReturnType<MemorySnapshotStore["loadSnapshot"]>>,
   store: MemoryDraftStore,
+  selected: BoundWorkspace,
 ): Promise<void> {
   let draft = initial;
   async function showIterationReview() {
-    const records = await new MemoryArtifactStore(context.globalStorageUri.fsPath).listReceivedExports(draft.scope);
-    const ref = draft.parentReference;
-    const parent = ref ? records.find((record) => record.memory.id === ref.memoryId && record.memory.revision === ref.revision &&
-      sha256(stableStringify(record.memory)) === ref.memoryDigest)?.memory : undefined;
-    const document = await vscode.workspace.openTextDocument({ language: "plaintext", content: renderIterationReview(draft, snapshot, parent) });
+    const result = await resolveIterationParent(new MemoryArtifactStore(context.globalStorageUri.fsPath), draft.scope, draft.parentReference, async (reference) => {
+      // Recheck the selected workspace and identity before caching a shared parent in this actor's library.
+      if (await workspaceScopeHash(selected.folder.uri.fsPath) !== draft.scope.workspaceScope ||
+          new URL(selected.binding.serverOrigin).toString() !== draft.scope.serverOrigin || selected.binding.projectId !== draft.scope.projectId) throw new Error("工作区绑定已变化");
+      const api = createApi(context, selected);
+      return vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "AgileCampus：读取继承的精确父版本", cancellable: false }, async () => {
+        const actor = await api.getCurrentActor();
+        if (sha256(`agilecampus-actor-v1\0${draft.scope.serverOrigin}\0${actor.id}`) !== draft.scope.actorScope) throw new Error("当前账号已变化");
+        return api.getSharedTaskMemoryByReference(draft.scope.projectId, draft.scope.taskId, reference);
+      });
+    });
+    const content = [result.notice, renderIterationReview(draft, snapshot, result.parent)].filter(Boolean).join("\n\n");
+    const document = await vscode.workspace.openTextDocument({ language: "plaintext", content });
     await vscode.window.showTextDocument(document, { preview: true });
   }
   await showIterationReview();

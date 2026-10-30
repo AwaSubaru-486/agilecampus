@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { authenticateBearer } from "@/lib/extension-auth";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
-import { getTaskMemoryVersion, listTaskMemoryVersions, saveTaskMemory } from "@/lib/task-memory";
+import { getTaskMemoryByReference, getTaskMemoryVersion, listTaskMemoryVersions, saveTaskMemory } from "@/lib/task-memory";
 
 type Context = { params: Promise<{ projectId: string; taskId: string }> };
 const scopeSchema = z.object({ projectId: z.uuid(), taskId: z.uuid() });
@@ -24,7 +24,19 @@ export async function GET(request: Request, context: Context) {
     const actorId = await actor(request);
     if (!actorId) return NextResponse.json({ error: "请先登录或连接插件" }, { status: 401, headers });
     const { projectId, taskId } = scopeSchema.parse(await context.params);
-    const versionId = new URL(request.url).searchParams.get("version");
+    const params = new URL(request.url).searchParams;
+    const lookupKeys = ["version", "memoryId", "revision", "digest"];
+    if (lookupKeys.some((key) => params.getAll(key).length > 1)) throw new AppError("记忆查询参数重复");
+    const versionId = params.get("version");
+    const hasReference = ["memoryId", "revision", "digest"].some((key) => params.has(key));
+    if (params.has("version") && hasReference) throw new AppError("不能混用版本 ID 与精确记忆引用");
+    if (hasReference) {
+      const reference = z.object({ memoryId: z.uuid(), revision: z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().positive().safe()), memoryDigest: z.string().regex(/^[0-9a-f]{64}$/i) }).parse({
+        memoryId: params.get("memoryId"), revision: params.get("revision"), memoryDigest: params.get("digest"),
+      });
+      return NextResponse.json(await getTaskMemoryByReference(actorId, projectId, taskId, reference), { headers });
+    }
+    if (params.has("version") && !versionId) throw new AppError("记忆版本 ID 不能为空");
     if (versionId) {
       const version = await getTaskMemoryVersion(actorId, projectId, taskId, z.uuid().parse(versionId));
       return NextResponse.json(version, { headers });

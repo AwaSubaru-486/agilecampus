@@ -62,6 +62,9 @@ describe("iteration review", () => {
     const uncertain = renderIterationReview(f.draft, f.snapshot, parent);
     expect(uncertain).toContain("未延续的失败记录");
     expect(uncertain).toContain("存在不确定的记忆条目");
+    f.snapshot.events[0].sourceRef = `agilecampus:inherited-memory:${randomUUID()}:${randomUUID()}`;
+    f.draft.items.completed[0].evidenceRefs = [f.snapshot.events[0].id];
+    expect(renderIterationReview(f.draft, f.snapshot, parent)).toContain("仅有继承摘要依据，未验证本轮进展");
     parent.revision += 1;
     expect(() => renderIterationReview(f.draft, f.snapshot, parent)).toThrow("父记忆版本不匹配");
   });

@@ -32,6 +32,20 @@ function event(sessionKey: string, sequence: number, text: string) {
 }
 
 describe("memory extraction input", () => {
+  it("labels inherited injection as history without dropping failed approaches or claiming new evidence", () => {
+    const sessionKey = randomUUID();
+    const inherited = { ...event(sessionKey, 1, "historical failure: caching returned stale data"), kind: "user" as const,
+      sourceRef: `agilecampus:inherited-memory:${randomUUID()}:${randomUUID()}` };
+    const source = snapshot([inherited, event(sessionKey, 2, "new investigation")]);
+    const prepared = prepareExtractionInput(source);
+    expect(prepared.promptVersion).toBe("memory-extract-v3");
+    expect(prepared.events[0].contextRole).toBe("inherited-memory");
+    expect(prepared.events[0].text).toContain("historical failure");
+    expect(prepared.events[1].contextRole).toBeUndefined();
+    expect(JSON.stringify(prepared)).not.toContain(inherited.sourceRef);
+    const old = prepareExtractionInput(source, { promptVersion: "memory-extract-v2" });
+    expect(old.events[0].contextRole).toBeUndefined(); expect(old.inputDigest).not.toBe(prepared.inputDigest);
+  });
   it("redacts likely credentials from text and commands without changing the source snapshot", () => {
     const source = event(randomUUID(), 1, "synthetic API_KEY=never-share-this-secret-123456 and sk-abcdefghijklmnopqrstuvwxyz123456");
     const sourceSnapshot = snapshot([source]);
@@ -103,7 +117,7 @@ describe("memory extraction input", () => {
     const second = { ...first, snapshotId: randomUUID(), createdAt: "2026-10-05T13:00:00.000Z" };
     const a = prepareExtractionInput(first);
     const b = prepareExtractionInput(second);
-    const changedPolicy = prepareExtractionInput(first, { promptVersion: "memory-extract-v3" });
+    const changedPolicy = prepareExtractionInput(first, { promptVersion: "memory-extract-v4" });
     expect(a.inputDigest).toBe(b.inputDigest);
     expect(a.inputDigest).not.toBe(changedPolicy.inputDigest);
   });
