@@ -16,6 +16,7 @@ import { ProjectViewProvider } from "./views/project-view-provider";
 import { registerSessionMemoryCommands } from "./commands/session-memory";
 import { registerImportMemoryHandoffCommand } from "./commands/import-memory-handoff";
 import { registerTaskMemoryLinks } from "./commands/task-memory-link";
+import { registerMemoryReceiptRecovery } from "./commands/memory-receipt-recovery";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ProjectViewProvider(context.extensionUri, context);
@@ -39,6 +40,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerSessionMemoryCommands(context);
   registerImportMemoryHandoffCommand(context);
   registerTaskMemoryLinks(context);
+  registerMemoryReceiptRecovery(context);
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.connect", () => provider.connect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disconnect", () => provider.disconnect()));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.selectProject", () => provider.selectProject()));

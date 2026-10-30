@@ -2,7 +2,7 @@
   "name": "agilecampus-vscode",
   "displayName": "AgileCampus",
   "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "publisher": "agilecampus",
   "license": "MIT",
@@ -14,6 +14,7 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
+    "onCommand:agilecampus.retryMemoryReceipts",
     "onUri",
     "onView:agilecampus.projectView",
     "onStartupFinished",
@@ -53,6 +54,10 @@
       }
     },
     "commands": [
+      {
+        "command": "agilecampus.retryMemoryReceipts",
+        "title": "AgileCampus: 重试同步接续回执"
+      },
       {
         "command": "agilecampus.openProject",
         "title": "AgileCampus: 打开项目"

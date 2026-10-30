@@ -22,6 +22,8 @@ import { GET, POST } from "@/app/api/projects/[projectId]/tasks/[taskId]/memory/
 import { claimMemoryContinuation, createMemoryContinuation, getMemoryContinuation, reportMemoryContinuation } from "@/lib/task-memory-continuation";
 import { GET as progressGET, POST as progressPOST, PATCH as progressPATCH } from "@/app/api/projects/[projectId]/tasks/[taskId]/memory/continuations/route";
 import { createApiToken } from "@/lib/api-token";
+import { ReceiptOutbox } from "../vscode-extension/src/memory/receipt-outbox";
+import { createDurableContinuationReporter } from "../vscode-extension/src/memory/continuation-reporter";
 
 const roots: string[] = [];
 beforeEach(async () => { await resetDb(); vi.mocked(auth).mockReset(); });
@@ -52,6 +54,33 @@ describe("web and extension continuation receipts", () => {
     await createMemoryContinuation(f.owner.id, f.project.id, f.task.id, id, memory.id);
     return { ...f, memory, id };
   }
+  it("replays durable plugin receipts through the real PAT API after lost responses and a restart", async () => {
+    const f = await prepared();
+    const claim = await claimMemoryContinuation(f.owner.id, f.project.id, f.task.id, f.id, f.memory.id);
+    const token = await createApiToken(f.owner.id, "durable receipt test");
+    const root = await mkdtemp(path.join(tmpdir(), "agile-receipt-api-")); roots.push(root);
+    const address = { serverOrigin: "http://localhost:3000/", projectId: f.project.id, taskId: f.task.id,
+      requestId: f.id, versionId: f.memory.id, claimId: claim.claimId, actorScope: "a".repeat(64), workspaceScope: "b".repeat(64) };
+    let loseResponses = false;
+    const send = async (sequence: number, progress: Parameters<typeof reportMemoryContinuation>[6]) => {
+      const result = await progressPATCH(new Request(f.url + "/continuations", { method: "PATCH", headers: { Authorization: `Bearer ${token.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ operation: "report", id: f.id, claimId: claim.claimId, sequence, ...progress }) }), f.ctx);
+      if (result.status !== 200) throw new Error(`receipt status ${result.status}`);
+      if (loseResponses) throw new Error("synthetic lost response");
+    };
+    const report = await createDurableContinuationReporter(new ReceiptOutbox(root), address, send);
+    await report({ state: "checking" }); await report({ state: "awaiting_confirmation" });
+    const attemptId = randomUUID();
+    await report({ state: "launching", attemptId });
+    loseResponses = true;
+    await expect(report({ state: "running", attemptId, sessionConfirmed: true })).rejects.toThrow("lost response");
+    await expect(report({ state: "finished", attemptId })).rejects.toThrow("lost response");
+    loseResponses = false;
+    expect(await new ReceiptOutbox(root).flush(address, send)).toBe(2);
+    const record = await getMemoryContinuation(f.owner.id, f.project.id, f.task.id, f.id);
+    expect(record).toMatchObject({ state: "finished", sequence: 6, attemptId });
+    expect(record?.events.map((event) => event.state)).toEqual(["waiting", "received", "checking", "awaiting_confirmation", "launching", "running", "finished"]);
+  });
   it("keeps creation idempotent and gives exactly one competing extension the claim", async () => {
     const f = await prepared();
     const same = await createMemoryContinuation(f.owner.id, f.project.id, f.task.id, f.id, f.memory.id);

@@ -2,7 +2,7 @@
 
 ## 工作记忆与 Agent 接续（2026-10-30）
 
-最新插件为 [AgileCampus 0.1.6](vscode-extension/agilecampus-memory-parent-0.1.6.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
+最新插件为 [AgileCampus 0.1.7](vscode-extension/agilecampus-memory-outbox-0.1.7.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
 
 使用入口：项目 → 分工与执行 → 选择任务 → 当前工作记忆。
 
@@ -12,6 +12,7 @@
 - 会话结束后，按执行记录整理准确的本机会话，审核后保存下一份断点。
 - 代码基线变化时，插件列出实际变动文件；会话审核先展示本轮迭代结果，对照精确父版本核对进展、阻塞与测试出处。见[接班核对与迭代总结](docs/reviews/memory-core/2026-10-30-iteration-review.md)。
 - 父版本不在本机时，可按精确引用从当前项目读取并校验，不受最近 50 条历史限制；提炼输入标记历史注入，防止仅凭继承摘要把旧结论升级为本轮执行证据。见[父版本恢复与历史证据](docs/reviews/memory-core/2026-10-30-parent-recovery.md)。
+- 接续回执先写入本机队列，断网或重启后按原序号补传；插件命令“重试同步接续回执”可手动重试。见[回执持久化与恢复](docs/reviews/memory-core/2026-10-30-receipt-outbox.md)。
 - “带此断点求助”生成可编辑说明；协作中心可以回查自己的求助及工作断点。
 
 部署需要同步数据库 schema（首次安装按下文 `npm run db:push` 操作）。增量迁移见 [记忆版本](scripts/migrations/2026-10-26-task-memory-versions.sql) 和 [接续回执](scripts/migrations/2026-10-26-task-memory-continuations.sql)，两份均需应用。插件和网页应一起升级。

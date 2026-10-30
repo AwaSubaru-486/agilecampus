@@ -9,7 +9,8 @@ import { sha256, workspaceScopeHash } from "../memory/input-snapshot";
 import { readRepositorySnapshot } from "../git/repository-service";
 import { CheckpointStore } from "../checkpoints/store";
 import { createWorkspaceApi, getLocalOnlyRepositoryId, selectBoundWorkspace } from "./checkpoint-support";
-import { createContinuationReporter, type ContinuationObserver } from "../memory/continuation-reporter";
+import { createDurableContinuationReporter, type ContinuationObserver } from "../memory/continuation-reporter";
+import { ReceiptOutbox } from "../memory/receipt-outbox";
 
 export function registerTaskMemoryLinks(context: vscode.ExtensionContext): void {
   let active = false;
@@ -67,7 +68,9 @@ export function registerTaskMemoryLinks(context: vscode.ExtensionContext): void 
         }
         if (request.requestId) {
           const { claimId } = await api.claimTaskMemoryContinuation(request.projectId, request.taskId, request.requestId, request.versionId!);
-          report = createContinuationReporter((sequence, progress) => api.reportTaskMemoryContinuation(request.projectId, request.taskId, {
+          report = await createDurableContinuationReporter(new ReceiptOutbox(context.globalStorageUri.fsPath), {
+            ...scope, requestId: request.requestId, versionId: request.versionId!, claimId,
+          }, (sequence, progress) => api.reportTaskMemoryContinuation(request.projectId, request.taskId, {
             id: request.requestId!, claimId, sequence, ...progress,
           }));
           await report({ state: "checking" });
