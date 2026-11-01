@@ -110,7 +110,7 @@ export function HomeSpace({ data }: { data: HomeView }) {
     const image = background.cloneNode(true) as SVGSVGElement;
     image.setAttribute("xmlns", ns);
     const paper = document.createElementNS(ns, "rect");
-    paper.setAttribute("width", "960"); paper.setAttribute("height", "600"); paper.setAttribute("fill", "#edf0e4");
+    paper.setAttribute("width", "960"); paper.setAttribute("height", "600"); paper.setAttribute("fill", "#edf5f1");
     image.insertBefore(paper, image.firstChild);
     sceneRef.current.querySelectorAll<HTMLElement>("[data-photo-object]").forEach(element => {
       const art = element.querySelector("svg")?.cloneNode(true) as SVGSVGElement | undefined;
@@ -125,10 +125,10 @@ export function HomeSpace({ data }: { data: HomeView }) {
       image.appendChild(art);
       if (isPet) {
         const label = document.createElementNS(ns, "text"); label.setAttribute("x", String(left)); label.setAttribute("y", String(top + 31));
-        label.setAttribute("text-anchor", "middle"); label.setAttribute("font-size", "12"); label.setAttribute("fill", "#4b6254"); label.textContent = element.dataset.petName ?? ""; image.appendChild(label);
+        label.setAttribute("text-anchor", "middle"); label.setAttribute("font-size", "12"); label.setAttribute("fill", "#4d6570"); label.textContent = element.dataset.petName ?? ""; image.appendChild(label);
       }
     });
-    const caption = document.createElementNS(ns, "text"); caption.setAttribute("x", "46"); caption.setAttribute("y", "57"); caption.setAttribute("font-size", "22"); caption.setAttribute("fill", "#4b6254");
+    const caption = document.createElementNS(ns, "text"); caption.setAttribute("x", "46"); caption.setAttribute("y", "57"); caption.setAttribute("font-size", "22"); caption.setAttribute("fill", "#4d6570");
     caption.textContent = `${courtyard ? team?.name + "的庭院" : home.title} · ${new Date().toLocaleDateString("zh-CN")}`; image.appendChild(caption);
     const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(image)], { type: "image/svg+xml;charset=utf-8" }));
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = "家园合影.svg"; anchor.click();
@@ -137,10 +137,10 @@ export function HomeSpace({ data }: { data: HomeView }) {
   }
 
   return <div className={s.page}>
-    <div className={s.heading}>
-      <div><p className={s.eyebrow}><Mark name="leaf" /> 给生活留一点空地</p><h1>家园<span>把小日子，过成喜欢的样子。</span></h1></div>
-      <span className={s.headerNote}>一起工作，也一起晒晒太阳。</span>
-    </div>
+    <header className={`ac-page-header ${s.heading}`}>
+      <div><h1>家园</h1><p>布置自己的空间，带伙伴与队友相聚。</p></div>
+      <span className={s.headerNote}><Mark name="leaf" />我的伙伴：{data.ownPet.name}</span>
+    </header>
     <div className={s.navigation}>
       <nav aria-label="家园区域" className={s.tabs}>
         {([{ view: "mine", label: "我的家园", icon: "home" }, { view: "courtyard", label: "团队庭院", icon: "leaf" }, { view: "members", label: "成员家园", icon: "friends" }] as const).map(tab => <button key={tab.view} type="button" onClick={() => navigate(tab.view === "mine" ? "/home" : `/home?view=${tab.view}${teamQuery}`)} aria-current={data.view === tab.view ? "page" : undefined}><Mark name={tab.icon} />{tab.label}</button>)}
@@ -153,7 +153,7 @@ export function HomeSpace({ data }: { data: HomeView }) {
     {data.view === "members" && !own && <div className={s.visitBanner}><span>正在拜访{data.ownerName}的家</span><button onClick={() => navigate(`/home?view=members${teamQuery}`)}>返回成员列表 ↗</button></div>}
 
     {data.view === "members" && own ? <section className={s.neighborhood}>
-      <p className={s.eyebrow}>NEIGHBORHOOD / 去朋友家坐坐</p><h2>敲敲门，和邻居打个招呼。</h2><p>同一个团队里的小小世界，每一间都有自己的模样。</p>
+      <h2>成员家园</h2><p>访问同团队成员开放的家园，看看伙伴们的日常。</p>
       {data.members.length === 0 ? <div className={s.empty}><Mark name="friends" /><h3>{team ? "邻居们还在来的路上" : "先加入一个团队吧"}</h3><p>{team ? "邀请团队成员来开启家园，就能互相串门了。" : "加入团队后，就能拜访队友和使用共享庭院。"}</p><Link className="ac-btn-ghost" href="/teams">前往我的团队 →</Link></div> : <div className={s.memberGrid}>{data.members.map(member => <article key={member.id} className={s.memberCard}>
         <div className={s.memberIllustration}>{member.pet ? <PetAvatar pet={member.pet} /> : <Mark name="home" />}<span>{member.visitable ? "欢迎做客" : "暂未开放"}</span></div>
         <h3>{member.visitable ? member.title : `${member.name}的家园`}</h3><p>{member.name}{member.pet ? `，${member.pet.name}的主人` : ""}</p>
@@ -161,9 +161,9 @@ export function HomeSpace({ data }: { data: HomeView }) {
       </article>)}</div>}
     </section> : courtyard && !team ? <div className={s.empty}><Mark name="leaf" /><h2>庭院，等大家一起开启。</h2><p>加入一个团队，就能带伙伴到共享庭院相聚。</p><Link className="ac-btn" href="/teams">前往我的团队 →</Link></div> : <div className={s.workspace}>
       <section className={s.gardenCard} aria-label={courtyard ? "团队共享庭院" : "家园场景"}>
-        <div className={s.sceneHeader}><div><p>{courtyard ? "大家的小小会客厅" : own ? "HOME, SWEET HOME" : `${data.ownerName}的小小世界`}</p><h2>{courtyard ? `${team?.name}的庭院` : home.title}</h2></div><span className={s.pill}><i />{courtyard ? `${residents.length} 位伙伴在庭院` : home.visibility === "team" ? "欢迎队友来访" : "仅自己可见"}</span></div>
+        <div className={s.sceneHeader}><div><p>{courtyard ? "大家的小小会客厅" : own ? "我的空间" : `${data.ownerName}的小小世界`}</p><h2>{courtyard ? `${team?.name}的庭院` : home.title}</h2></div><span className={s.pill}><i />{courtyard ? `${residents.length} 位伙伴在庭院` : home.visibility === "team" ? "欢迎队友来访" : "仅自己可见"}</span></div>
         <div ref={sceneRef} className={`${s.scene} ${s[courtyard ? "meadow" : home.theme]} ${editing ? s.editing : ""}`}>
-          <div className={s.sceneLabel}>{courtyard ? "PUBLIC GARDEN" : "A LITTLE PLACE OF YOUR OWN"}<span>{courtyard ? "在这里，不用着急。" : "今天也适合发会儿呆。"}</span></div>
+          <div className={s.sceneLabel}><Mark name="leaf" />{courtyard ? "共享空间" : THEMES.find(theme => theme.id === home.theme)?.name}</div>
           <GardenBackdrop courtyard={courtyard} />
           {editing && <div className={s.grid} aria-label="家具摆放网格">{Array.from({ length: 60 }, (_, i) => <button key={i} aria-label={`放到第${Math.floor(i / 10) + 1}行第${i % 10 + 1}列`} onClick={() => place(i % 10, Math.floor(i / 10))} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); place(i % 10, Math.floor(i / 10), e.dataTransfer.getData("text/plain")); }} />)}</div>}
           {furniture.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} title={FURNITURE[item.kind].name} aria-label={`${FURNITURE[item.kind].name}${editing ? "，选择后可移动" : ""}`} aria-pressed={editing ? selected === item.id : undefined} draggable={editing} onDragStart={e => { setSelected(item.id); e.dataTransfer.setData("text/plain", item.id); }} onClick={() => editing ? setSelected(item.id) : setNotice({ text: `${FURNITURE[item.kind].name}：${item.kind === "bed" ? "软软的，适合做个好梦。" : item.kind === "pond" ? "坐一会儿，听听水声。" : "小小的物件，也是生活的心意。"}` })} onKeyDown={event => { if (!editing) return; const move = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[event.key]; if (move) { event.preventDefault(); place(Math.max(0, Math.min(9, item.x + move[0])), Math.max(0, Math.min(5, item.y + move[1])), item.id); } }} className={`${s.furniture} ${selected === item.id && editing ? s.selected : ""}`} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span style={{ transform: item.flipped ? "scaleX(-1)" : undefined }}><FurnitureArt kind={item.kind} /></span></button>)}
@@ -175,28 +175,27 @@ export function HomeSpace({ data }: { data: HomeView }) {
             </button>;
           })}
           {!editing && residents.length === 0 && <div className={s.away}>{courtyard ? "庭院很安静，带你的伙伴来玩吧。" : own ? `${data.ownPet.name}去团队庭院玩啦。` : "小伙伴出门玩啦，坐坐等它吧。"}</div>}
-          <span className={s.sceneStamp}>AGILECAMPUS / LITTLE THINGS, BIG JOY</span>
         </div>
-        <div className={s.sceneFooter}><span>{editing ? "选中家具后点网格移动，也可以拖动或使用方向键。" : courtyard ? "伙伴的位置每 15 秒更新；在场不代表主人在线。" : home.welcome || "门前有风，院里有你。"}</span><div>{!editing && <><button onClick={() => { setGathered(false); setWander(x => x + 1); setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />{gathered ? "保存合影" : "一起合影"}</button></>}{own && !editing && <button className={s.editButton} onClick={beginEditing}><Mark name="edit" />布置家园</button>}</div></div>
+        <div className={s.sceneFooter}><span>{editing ? "选中家具后点网格移动，也可以拖动或使用方向键。" : courtyard ? "伙伴的位置每 15 秒更新；在场不代表主人在线。" : home.welcome || "门前有风，院里有你。"}</span><div>{!editing && <><button onClick={() => { setGathered(false); setWander(x => x + 1); setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />{gathered ? "保存合影" : "一起合影"}</button></>}{own && !editing && <button className={`ac-btn ${s.editButton}`} onClick={beginEditing}><Mark name="edit" />布置家园</button>}</div></div>
       </section>
 
       <aside className={s.sidePanel}>
-        {editing ? <><div className={s.panelHeading}><span className={s.eyebrow}>MAKE IT YOURS</span><h3>把喜欢的，放进家里。</h3></div>
+        {editing ? <><div className={s.panelHeading}><h3>家园设置</h3><p>调整布置、来访权限和伙伴。</p></div>
           <label className={s.field}>家园名字<input value={draft.title} maxLength={30} onChange={e => setDraft({ ...draft, title: e.target.value })} /></label>
           <label className={s.field}>留给来客的话<textarea value={draft.welcome} maxLength={100} rows={2} onChange={e => setDraft({ ...draft, welcome: e.target.value })} /></label>
           <fieldset className={s.themePicker}><legend>小院氛围</legend>{THEMES.map(theme => <button key={theme.id} type="button" aria-label={theme.name} aria-pressed={draft.theme === theme.id} title={theme.name} onClick={() => setDraft({ ...draft, theme: theme.id })}><i style={{ background: theme.color }} />{theme.name}</button>)}</fieldset>
           <label className={s.field}>来访设置<select value={draft.visibility} onChange={e => setDraft({ ...draft, visibility: e.target.value as HomeProfile["visibility"] })}><option value="team">允许同团队成员来访</option><option value="private">仅自己可见</option></select></label>
           <div className={s.petSettings}><label className={s.field}>伙伴名字<input value={draft.pet.name} maxLength={16} onChange={e => setDraft({ ...draft, pet: { ...draft.pet, name: e.target.value } })} /></label><div className={s.petChoices}>{(["cat", "bunny", "dog"] as const).map(kind => <button key={kind} aria-label={kind === "cat" ? "小猫" : kind === "bunny" ? "兔子" : "小狗"} aria-pressed={draft.pet.kind === kind} onClick={() => setDraft({ ...draft, pet: { ...draft.pet, kind } })}><PetAvatar pet={{ name: "", kind }} /></button>)}</div></div>
           <div className={s.saveActions}><button className="ac-btn" disabled={pending || !draft.title.trim() || !draft.pet.name.trim()} onClick={save}>{pending ? "正在保存…" : "保存布置"}</button><button className="ac-btn-ghost" disabled={pending} onClick={() => { setEditing(false); setSelected(null); setNotice(null); }}>取消</button></div>
-        </> : <><div className={s.panelHeading}><span className={s.eyebrow}>YOUR LITTLE COMPANION</span><h3>今天，也有它陪你。</h3></div><div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPetTeamId ? "正在团队庭院玩耍" : "在自己的小院休息"}</p><span>家园体验伙伴</span></div>
+        </> : <><div className={s.panelHeading}><h3>我的伙伴</h3><p>在家休息，或去庭院与队友相聚。</p></div><div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPetTeamId ? "正在团队庭院玩耍" : "在自己的小院休息"}</p><span>家园体验伙伴</span></div>
           {courtyard ? <button className="ac-btn" disabled={pending} onClick={() => movePet(data.ownPetTeamId === data.teamId ? null : data.teamId)}>{pending ? "稍等一下…" : data.ownPetTeamId === data.teamId ? "带伙伴回家" : "带伙伴来庭院"}</button> : own && data.ownPetTeamId ? <button className="ac-btn" disabled={pending} onClick={() => movePet(null)}>{pending ? "稍等一下…" : "叫伙伴回家"}</button> : own ? <button className="ac-btn-ghost" disabled={!data.teamId || pending} onClick={async () => { await movePet(data.teamId); }}>{data.teamId ? "送伙伴去团队庭院 ↗" : "加入团队后可以出门玩"}</button> : <button className="ac-btn-ghost" onClick={() => navigate("/home")}>回到我的家园 ↗</button>}
           <div className={s.smallNote}><Mark name="leaf" /><p>{courtyard ? "每个人都可以带自己的伙伴来这里。碰个面，一起留张合影。" : "家里的每一件小物，都可以有自己的位置。慢慢布置，不用着急。"}</p></div>
           <div className={s.neighborLink}><span>下一站</span><button onClick={() => navigate(courtyard ? `/home?view=members${teamQuery}` : `/home?view=courtyard${teamQuery}`)}>{courtyard ? "去朋友家串门" : "去公共庭院走走"}<span>↗</span></button></div>
         </>}
       </aside>
 
-      {editing && <section className={s.catalog}><div className={s.catalogHeading}><div><p className={s.eyebrow}>THE LITTLE COLLECTION</p><h3>小物件，大欢喜。</h3></div><span>{draft.furniture.length} / 24 件家具</span></div><div className={s.furnitureList}>{(Object.keys(FURNITURE) as FurnitureKind[]).map(kind => <button key={kind} onClick={() => addFurniture(kind)} title={`添加${FURNITURE[kind].name}`}><span><FurnitureArt kind={kind} /></span><strong>{FURNITURE[kind].name}</strong><small>{FURNITURE[kind].category} <b>＋</b></small></button>)}</div>{selectedItem && <div className={s.selectionBar}><span>已选：{FURNITURE[selectedItem.kind].name}</span><button onClick={() => setDraft({ ...draft, furniture: draft.furniture.map(item => item.id === selected ? { ...item, flipped: !item.flipped } : item) })}>左右翻转</button><button onClick={() => { setDraft({ ...draft, furniture: draft.furniture.filter(item => item.id !== selected) }); setSelected(null); }}>收纳家具</button></div>}</section>}
+      {editing && <section className={s.catalog}><div className={s.catalogHeading}><div><h3>家具</h3><p>选择家具添加到场景，再调整摆放位置。</p></div><span>{draft.furniture.length} / 24 件家具</span></div><div className={s.furnitureList}>{(Object.keys(FURNITURE) as FurnitureKind[]).map(kind => <button key={kind} onClick={() => addFurniture(kind)} title={`添加${FURNITURE[kind].name}`}><span><FurnitureArt kind={kind} /></span><strong>{FURNITURE[kind].name}</strong><small>{FURNITURE[kind].category} <b>＋</b></small></button>)}</div>{selectedItem && <div className={s.selectionBar}><span>已选：{FURNITURE[selectedItem.kind].name}</span><button onClick={() => setDraft({ ...draft, furniture: draft.furniture.map(item => item.id === selected ? { ...item, flipped: !item.flipped } : item) })}>左右翻转</button><button onClick={() => { setDraft({ ...draft, furniture: draft.furniture.filter(item => item.id !== selected) }); setSelected(null); }}>收纳家具</button></div>}</section>}
     </div>}
-    <footer className={s.pageFooter}><span>一处可以慢下来的地方。</span><span>你的家园会一直保留，下次见。</span></footer>
+    <footer className={s.pageFooter}><span>家园布局保存后可跨设备查看。</span><span>伙伴在场不代表成员在线。</span></footer>
   </div>;
 }

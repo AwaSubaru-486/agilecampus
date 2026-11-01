@@ -41,26 +41,26 @@ export function FurnitureArt({ kind }: { kind: FurnitureKind }) {
 export function GardenBackdrop({ courtyard = false }: { courtyard?: boolean }) {
   return <svg data-backdrop viewBox="0 0 960 600" fill="none" aria-hidden="true">
     <ellipse cx="490" cy="537" rx="405" ry="34" fill="#49775e14" />
-    <path d="M68 335Q110 214 343 234Q543 196 797 259Q924 293 899 425Q868 563 601 557L269 546Q65 530 51 420Q45 373 68 335" fill="#a6bd91" />
-    <path d="M74 328Q116 222 345 244Q543 207 794 268Q912 302 886 418Q855 549 600 544L270 534Q78 519 64 414Q59 369 74 328" fill="#c7d5ac" />
-    <path d="M138 415Q289 385 430 423Q565 462 746 421" stroke="#dfe2bd" strokeWidth="57" strokeLinecap="round" />
-    <path d="M685 318Q666 370 616 405" stroke="#e5dfc0" strokeWidth="47" strokeLinecap="round" />
-    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => <g key={i} transform={`translate(${100 + i * 88} ${290 - Math.sin(i) * 10})`}><path d="M0 0V-42L6-50L12-42V0" fill="#f6edda" /><path d="M12-30H87M12-12H87" stroke="#e9dfc9" strokeWidth="7" /></g>)}
+    <path d="M68 335Q110 214 343 234Q543 196 797 259Q924 293 899 425Q868 563 601 557L269 546Q65 530 51 420Q45 373 68 335" fill="#9ebfb0" />
+    <path d="M74 328Q116 222 345 244Q543 207 794 268Q912 302 886 418Q855 549 600 544L270 534Q78 519 64 414Q59 369 74 328" fill="#d0e5da" />
+    <path d="M138 415Q289 385 430 423Q565 462 746 421" stroke="#e6eeeb" strokeWidth="57" strokeLinecap="round" />
+    <path d="M685 318Q666 370 616 405" stroke="#e2ece7" strokeWidth="47" strokeLinecap="round" />
+    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => <g key={i} transform={`translate(${100 + i * 88} ${290 - Math.sin(i) * 10})`}><path d="M0 0V-42L6-50L12-42V0" fill="#f4f8f7" /><path d="M12-30H87M12-12H87" stroke="#dce7e2" strokeWidth="7" /></g>)}
     <g transform="translate(593 112)">
       <ellipse cx="112" cy="221" rx="132" ry="20" fill="#69816222" />
-      <path d="M9 95L112 31L218 95V212H9Z" fill="#f5e7cd" />
-      <path d="M144 68L218 95V212L144 225Z" fill="#e2cdb0" />
-      <path d="M-7 99L107 16L234 96L212 112L108 44L10 113Z" fill="#b87d72" />
-      <path d="M12 89L107 28L214 94M32 89L108 41L190 93" stroke="#d39a87" strokeWidth="4" strokeLinecap="round" />
-      <path d="M165 51V13H186V67" fill="#b99c85" /><path d="M160 13H190V22H160Z" fill="#d9bea1" />
-      <rect x="73" y="122" width="55" height="94" rx="25" fill="#739a87" /><path d="M83 169H118M101 130V208" stroke="#96b3a0" strokeWidth="3" /><circle cx="116" cy="171" r="3" fill="#e8d3a0" />
-      <path d="M25 124H57V166H25Z" fill="#c0d5cd" stroke="#d7b58b" strokeWidth="6" /><path d="M41 126V164M26 145H56" stroke="#fff0d6" strokeWidth="3" />
-      <path d="M159 128H193V169H159Z" fill="#b0c7bc" stroke="#c9aa82" strokeWidth="5" /><path d="M176 130V167M161 148H192" stroke="#f4e4c8" strokeWidth="3" />
-      <path d="M62 216H140L147 228H55Z" fill="#bda88a" /><path d="M51 228H151L158 239H45Z" fill="#d1be9e" />
+      <path d="M9 95L112 31L218 95V212H9Z" fill="#f8fbfb" />
+      <path d="M144 68L218 95V212L144 225Z" fill="#d8e4e6" />
+      <path d="M-7 99L107 16L234 96L212 112L108 44L10 113Z" fill="#345e68" />
+      <path d="M12 89L107 28L214 94M32 89L108 41L190 93" stroke="#57808a" strokeWidth="4" strokeLinecap="round" />
+      <path d="M165 51V13H186V67" fill="#7c9398" /><path d="M160 13H190V22H160Z" fill="#b4c7c9" />
+      <rect x="73" y="122" width="55" height="94" rx="25" fill="#428b7c" /><path d="M83 169H118M101 130V208" stroke="#7ab0a0" strokeWidth="3" /><circle cx="116" cy="171" r="3" fill="#e8d3a0" />
+      <path d="M25 124H57V166H25Z" fill="#c0d5cd" stroke="#8eacae" strokeWidth="6" /><path d="M41 126V164M26 145H56" stroke="#f8fbfb" strokeWidth="3" />
+      <path d="M159 128H193V169H159Z" fill="#b0c7bc" stroke="#86a3a7" strokeWidth="5" /><path d="M176 130V167M161 148H192" stroke="#eef6f4" strokeWidth="3" />
+      <path d="M62 216H140L147 228H55Z" fill="#a1b4b3" /><path d="M51 228H151L158 239H45Z" fill="#bfcecb" />
       <ellipse cx="35" cy="198" rx="17" ry="9" fill="#789e79" /><path d="M22 198H49L45 219H26Z" fill="#c99378" /><circle cx="34" cy="185" r="13" fill="#8aad83" />
     </g>
-    <g transform="translate(111 173)"><path d="M40 77V151" stroke="#a98c67" strokeWidth="15" /><path d="M41 118L19 89M42 105L64 75" stroke="#a98c67" strokeWidth="6" /><path d="M3 85Q-20 51 3 31Q3 1 39 8Q65-10 81 17Q110 26 94 58Q106 88 73 103Q38 118 3 85" fill="#83a78b" /><path d="M1 48Q0 20 33 24" stroke="#a1bb95" strokeWidth="11" strokeLinecap="round" /></g>
-    <g transform="translate(805 226) scale(.65)"><path d="M40 77V151" stroke="#a98c67" strokeWidth="15" /><path d="M3 85Q-20 51 3 31Q3 1 39 8Q65-10 81 17Q110 26 94 58Q106 88 73 103Q38 118 3 85" fill="#93ac85" /></g>
+    <g transform="translate(111 173)"><path d="M40 77V151" stroke="#9a8972" strokeWidth="15" /><path d="M41 118L19 89M42 105L64 75" stroke="#9a8972" strokeWidth="6" /><path d="M3 85Q-20 51 3 31Q3 1 39 8Q65-10 81 17Q110 26 94 58Q106 88 73 103Q38 118 3 85" fill="#75a797" /><path d="M1 48Q0 20 33 24" stroke="#a4c7b6" strokeWidth="11" strokeLinecap="round" /></g>
+    <g transform="translate(805 226) scale(.65)"><path d="M40 77V151" stroke="#9a8972" strokeWidth="15" /><path d="M3 85Q-20 51 3 31Q3 1 39 8Q65-10 81 17Q110 26 94 58Q106 88 73 103Q38 118 3 85" fill="#94b9a7" /></g>
     {[ [92, 402], [260, 282], [430, 520], [826, 462], [742, 507], [340, 317], [177, 493] ].map(([x,y], i) => <g key={i} transform={`translate(${x} ${y})`}><path d="M0 0L-3-7M1 0L5-9M2 0L8-4" stroke="#96ad7c" strokeWidth="2" strokeLinecap="round" />{i % 2 === 0 && <><circle cx="-4" cy="-10" r="3" fill="#f9e5b1" /><circle cx="8" cy="-10" r="3" fill="#eee6cb" /></>}</g>)}
     {courtyard && <g transform="translate(362 191)"><path d="M0 90V-8M174 90V-8M-8-8H182" stroke="#aa8b6e" strokeWidth="8" strokeLinecap="round" /><path d="M34-5V60M139-5V60" stroke="#d0b69a" strokeWidth="3" /><path d="M25 60H148L143 72H30Z" fill="#ba946a" /><path d="M0 9Q88-17 174 9" stroke="#7eaa8c" strokeWidth="7" />{[20, 50, 80, 110, 145].map(x => <circle key={x} cx={x} cy="6" r="4" fill="#f3dc9d" />)}</g>}
     <g fill="#fff" opacity=".65"><path d="M220 90Q200 75 217 62Q223 38 246 51Q273 41 280 62Q303 66 296 83Q265 95 220 90" /><path d="M438 57Q426 45 442 37Q451 20 466 31Q485 27 491 42Q508 44 501 55Z" /></g>
