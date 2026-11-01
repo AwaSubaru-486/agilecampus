@@ -1,4 +1,5 @@
 const paths = {
+  home: "M3 11L12 3l9 8 M5 10v11h14V10 M9 21v-7h6v7",
   today: "M4 5h16v15H4z M8 3v4 M16 3v4 M4 10h16 M8 14h3 M8 17h6",
   projects: "M3 7h7l2 2h9v11H3z M3 7V4h7l2 3",
   collaboration:
