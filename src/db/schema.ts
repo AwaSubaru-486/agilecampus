@@ -12,6 +12,7 @@ import {
   boolean,
   index,
   jsonb,
+  check,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -20,6 +21,7 @@ import { sql } from "drizzle-orm";
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
 import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 import { ENTRY_TYPES } from "@/lib/entry-labels";
+import { ITERATION_STATUSES, type IterationTask } from "@/lib/iteration-types";
 import { taskMemoryVersions } from "./schema-task-memory";
 import type { TutorialProgress } from "@/lib/tutorials/catalog";
 
@@ -108,6 +110,33 @@ export const projects = pgTable(
   },
   (t) => [index("projects_team_idx").on(t.teamId)],
 );
+
+export const projectIterations = pgTable("project_iterations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  version: text("version").notNull(),
+  title: text("title").notNull(),
+  goal: text("goal").notNull().default(""),
+  releaseNotes: text("release_notes").notNull().default(""),
+  status: text("status", { enum: ITERATION_STATUSES }).notNull().default("planned"),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  releasedAt: timestamp("released_at"),
+  taskSnapshot: jsonb("task_snapshot").$type<IterationTask[] | null>(),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("project_iterations_version_unique").on(t.projectId, t.version),
+  index("project_iterations_project_idx").on(t.projectId, t.createdAt),
+  check("project_iterations_status_check", sql`${t.status} in ('planned', 'active', 'released')`),
+  check("project_iterations_dates_check", sql`${t.startDate} is null or ${t.endDate} is null or ${t.startDate} <= ${t.endDate}`),
+]);
+
+export const iterationTasks = pgTable("iteration_tasks", {
+  iterationId: uuid("iteration_id").notNull().references(() => projectIterations.id, { onDelete: "cascade" }),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.iterationId, t.taskId] }), index("iteration_tasks_task_idx").on(t.taskId)]);
 
 export const milestones = pgTable(
   "milestones",
