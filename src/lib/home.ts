@@ -3,10 +3,17 @@ import { z } from "zod";
 import { db } from "@/db";
 import { homeProfiles, teamMembers, teams, users } from "@/db/schema";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "./errors";
-import { homeSaveSchema, STARTER_FURNITURE, type HomeView } from "./home-contract";
+import { DEFAULT_HOME_PET, homeSaveSchema, STARTER_FURNITURE, type HomePet, type HomePetDisplay, type HomeView } from "./home-contract";
+import { listHomePets, requireHomePet, resolveHomePet } from "./pets/home-pet-provider";
+
+async function displayPet(ownerId: string, saved: HomePet): Promise<HomePetDisplay> {
+  const definition = saved.petId ? await resolveHomePet(ownerId, saved.petId) : null;
+  return { ...saved, name: definition?.name ?? (saved.petId ? "桌宠暂不可用" : "未选择桌宠"), definition,
+    status: definition ? "ready" : saved.petId ? "unavailable" : "unbound" };
+}
 
 export async function ensureHome(actorId: string) {
-  await db.insert(homeProfiles).values({ ownerId: actorId, furniture: STARTER_FURNITURE }).onConflictDoNothing();
+  await db.insert(homeProfiles).values({ ownerId: actorId, furniture: STARTER_FURNITURE, pet: DEFAULT_HOME_PET }).onConflictDoNothing();
   const [home] = await db.select().from(homeProfiles).where(eq(homeProfiles.ownerId, actorId));
   if (!home) throw new NotFoundError("家园不存在");
   return home;
@@ -40,23 +47,28 @@ export async function getHomeView(actorId: string, options: { view?: string; own
     home = neighbor.home;
     ownerName = neighbor.name;
   }
+  const members = await Promise.all(roster.filter(m => m.id !== actorId).map(async m => ({
+    id: m.id, name: m.name, title: m.home?.visibility === "team" ? m.home.title : "暂未开放",
+    visitable: Boolean(m.home && m.home.visibility === "team"),
+    pet: m.home?.visibility === "team" ? await displayPet(m.id, m.home.pet) : null,
+  })));
+  const candidates = view === "courtyard" ? roster.filter(m => m.home?.petTeamId === group?.id).map(m => ({ ownerId: m.id, ownerName: m.name, pet: m.home!.pet }))
+    : home.petTeamId ? [] : [{ ownerId: home.ownerId, ownerName, pet: home.pet }];
+  const residents = await Promise.all(candidates.map(async resident => ({ ...resident, pet: await displayPet(resident.ownerId, resident.pet) })));
   return {
     actorId, view, home, ownerName, teams: groups, teamId: group?.id ?? null,
-    ownPet: own.pet, ownPetTeamId: own.petTeamId,
-    members: roster.filter(m => m.id !== actorId).map(m => ({
-      id: m.id, name: m.name, title: m.home?.visibility === "team" ? m.home.title : "暂未开放",
-      visitable: Boolean(m.home && m.home.visibility === "team"),
-      pet: m.home?.visibility === "team" ? m.home.pet : null,
-    })),
-    residents: view === "courtyard" ? roster.filter(m => m.home?.petTeamId === group?.id).map(m => ({ ownerId: m.id, ownerName: m.name, pet: m.home!.pet }))
-      : home.petTeamId ? [] : [{ ownerId: home.ownerId, ownerName, pet: home.pet }],
+    ownPet: await displayPet(actorId, own.pet), ownPetTeamId: own.petTeamId,
+    availablePets: await listHomePets(actorId), members,
+    residents: residents.filter(resident => resident.pet.status === "ready"),
   };
 }
 
 export async function saveHome(actorId: string, input: unknown) {
   const settings = homeSaveSchema.parse(input);
   await ensureHome(actorId);
-  const { revision, ...values } = settings;
+  const { revision, title, welcome, theme, visibility, furniture } = settings;
+  // Pet binding is managed separately; a layout save must never overwrite it.
+  const values = { title, welcome, theme, visibility, furniture };
   const [updated] = await db.update(homeProfiles).set({ ...values, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date() })
     .where(and(eq(homeProfiles.ownerId, actorId), eq(homeProfiles.revision, revision))).returning();
   if (!updated) throw new ConflictError("家园已在其他页面更新，请刷新后再布置");
@@ -64,7 +76,12 @@ export async function saveHome(actorId: string, input: unknown) {
 }
 
 export async function moveHomePet(actorId: string, teamId: string | null) {
-  await ensureHome(actorId);
+  const home = await ensureHome(actorId);
+  // Always allow recall, including a deleted pet or a user who has left the team.
+  if (teamId) {
+    if (!home.pet.petId) throw new AppError("请先选择一只桌宠");
+    await requireHomePet(actorId, home.pet.petId);
+  }
   if (teamId) {
     const [membership] = await db.select({ id: teamMembers.id }).from(teamMembers)
       .where(and(eq(teamMembers.userId, actorId), eq(teamMembers.teamId, teamId)));
@@ -72,5 +89,15 @@ export async function moveHomePet(actorId: string, teamId: string | null) {
   }
   const [updated] = await db.update(homeProfiles).set({ petTeamId: teamId, updatedAt: new Date() })
     .where(eq(homeProfiles.ownerId, actorId)).returning();
+  return updated;
+}
+
+export async function selectHomePet(actorId: string, petId: string | null) {
+  await ensureHome(actorId);
+  const pet = petId ? await requireHomePet(actorId, petId) : null;
+  const [updated] = await db.update(homeProfiles).set({
+    pet: pet ? { name: pet.name, kind: "placeholder", petId: pet.id } : DEFAULT_HOME_PET,
+    petTeamId: null, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date(),
+  }).where(eq(homeProfiles.ownerId, actorId)).returning();
   return updated;
 }

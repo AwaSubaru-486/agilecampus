@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "vscode-extension", "agilecampus-master", ".local", "source-download"]
+  "exclude": ["node_modules", "vscode-extension", "agilecampus-master", ".local", "source-download", "AgileCampus_项目交付包_2026-11-02"]
 }
