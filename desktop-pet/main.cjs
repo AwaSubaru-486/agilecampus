@@ -118,7 +118,17 @@ function fitWindow() {
   win.setBounds(clampBounds(bounds, area));
 }
 function showPet() { fitWindow(); win.showInactive(); win.setAlwaysOnTop(true, 'floating'); updateTray(); }
-async function openHome(courtyard = false) { await shell.openExternal(config.origin + (courtyard ? '/home?view=courtyard' : '/home')); }
+async function openHome(courtyard = false) {
+  try {
+    await shell.openExternal(config.origin + (courtyard ? '/home?view=courtyard' : '/home'));
+  } catch {
+    payload.message = '未能打开浏览器，请手动访问家园网页。'; publish();
+  } finally {
+    // Opening the browser transfers foreground ownership on Windows. Restore the
+    // companion without taking keyboard focus away from the browser.
+    if (!quitting && win && !win.isDestroyed()) showPet();
+  }
+}
 async function quitApp() {
   if (quitting) return;
   quitting = true; clearTimeout(timer);
@@ -127,6 +137,7 @@ async function quitApp() {
 }
 function resizePet(width, height) {
   win.setBounds({ ...win.getBounds(), width, height }); fitWindow();
+  config.bounds = win.getBounds(); void saveConfig().catch(() => {});
 }
 async function loadDemo() {
   clearTimeout(timer);
@@ -212,7 +223,7 @@ else {
       else app.setAsDefaultProtocolClient(SCHEME);
     }
     const area = screen.getPrimaryDisplay().workArea;
-    const bounds = clampBounds(config.bounds ?? { width: 240, height: 280, x: area.x + area.width - 280, y: area.y + area.height - 320 }, area);
+    const bounds = clampBounds(config.bounds ?? { width: 180, height: 220, x: area.x + area.width - 220, y: area.y + area.height - 260 }, area);
     win = new BrowserWindow({ ...bounds, frame: false, transparent: true, backgroundColor: '#00000000', alwaysOnTop: true, skipTaskbar: true,
       resizable: false, fullscreenable: false, hasShadow: false, show: false,
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
@@ -222,6 +233,9 @@ else {
     win.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     win.webContents.on('context-menu', () => Menu.buildFromTemplate(menuItems()).popup({ window: win }));
     win.on('close', event => { if (!quitting) { event.preventDefault(); win.hide(); updateTray(); void heartbeat().catch(() => {}); } });
+    win.on('blur', () => {
+      if (!quitting && win.isVisible()) win.setAlwaysOnTop(true, 'floating');
+    });
     win.on('moved', () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { config.bounds = win.getBounds(); void saveConfig().catch(() => {}); }, 400); });
     screen.on('display-removed', fitWindow);
     const trusted = event => event.sender === win.webContents && event.senderFrame?.url === pathToFileURL(page).href;
