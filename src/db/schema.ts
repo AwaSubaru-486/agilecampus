@@ -99,6 +99,23 @@ export const homeProfiles = pgTable("home_profiles", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, t => [index("home_profiles_pet_team_idx").on(t.petTeamId)]);
 
+// Dedicated, read-only pet sessions: never reuse a project-wide Personal API Token.
+export const desktopPetConnections = pgTable("desktop_pet_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pairingHash: text("pairing_hash").notNull().unique(),
+  pairingExpiresAt: timestamp("pairing_expires_at").notNull(),
+  sessionHash: text("session_hash").unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  status: text("status").notNull().default("pending"),
+  lastSeenAt: timestamp("last_seen_at"),
+  command: text("command").$type<"show" | "hide" | "quit">().notNull().default("show"),
+  commandSequence: integer("command_sequence").notNull().default(0),
+  ackSequence: integer("ack_sequence").notNull().default(0),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [index("desktop_pet_user_idx").on(t.userId, t.createdAt)]);
+
 export const projectStatusEnum = pgEnum("project_status", ["active", "archived"]);
 export const milestoneStatusEnum = pgEnum("milestone_status", ["open", "done"]);
 export const taskStatusEnum = pgEnum("task_status", TASK_STATUSES);

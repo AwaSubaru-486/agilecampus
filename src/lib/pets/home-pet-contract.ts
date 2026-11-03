@@ -33,4 +33,6 @@ export type HomePetAction = "idle" | "greet";
 export type HomePetProvider = {
   listOwned: (ownerId: string) => Promise<HomePetDefinition[]>;
   getOwned: (ownerId: string, petId: string) => Promise<HomePetDefinition | null>;
+  /** Optional reader for protected assets. The desktop gateway supplies its verified ownerId. */
+  readAssetOwned?: (ownerId: string, petId: string) => Promise<{ bytes: Uint8Array; mimeType: string } | null>;
 };

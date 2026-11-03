@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FURNITURE, type FurnitureKind, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
 import { FurnitureArt, GardenBackdrop } from "./home-art";
 import { HomePetAvatar as PetAvatar } from "@/components/pets/home-pet-avatar";
+import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
 import s from "./home.module.css";
 
 const THEMES = [{ id: "meadow", name: "日光空间", color: "#b8ceab" }, { id: "sunset", name: "暖色空间", color: "#e8b9a2" }, { id: "moonlight", name: "静谧空间", color: "#929fbc" }] as const;
@@ -222,6 +223,7 @@ export function HomeSpace({ data }: { data: HomeView }) {
             <button className="ac-btn-ghost" disabled={pending || selectedPetId === (data.ownPet.petId ?? "")} onClick={bindPet}>{pending ? "正在应用…" : "应用桌宠"}</button>
           </div>
           {courtyard ? <button className="ac-btn" disabled={pending || (data.ownPet.status !== "ready" && data.ownPetTeamId !== data.teamId)} onClick={() => movePet(data.ownPetTeamId === data.teamId ? null : data.teamId)}>{pending ? "稍等一下…" : data.ownPetTeamId === data.teamId ? "带伙伴回家" : "带伙伴来庭院"}</button> : own && data.ownPetTeamId ? <button className="ac-btn" disabled={pending} onClick={() => movePet(null)}>{pending ? "稍等一下…" : "叫伙伴回家"}</button> : own ? <button className="ac-btn-ghost" disabled={!data.teamId || pending || data.ownPet.status !== "ready"} onClick={async () => { await movePet(data.teamId); }}>{data.teamId ? "送伙伴去团队庭院 ↗" : "加入团队后可以出门玩"}</button> : <button className="ac-btn-ghost" onClick={() => navigate("/home")}>回到我的家园 ↗</button>}
+          <DesktopCompanionControl />
           <div className={s.smallNote}><Mark name="leaf" /><p>{courtyard ? "选择桌宠后，可以进入团队庭院并与其他成员的桌宠合影。" : "先布置喜欢的空间，选择桌宠后就能邀请它入住。"}</p></div>
           <div className={s.neighborLink}><span>下一站</span><button onClick={() => navigate(courtyard ? `/home?view=members${teamQuery}` : `/home?view=courtyard${teamQuery}`)}>{courtyard ? "去朋友家串门" : "去公共庭院走走"}<span>↗</span></button></div>
         </>}

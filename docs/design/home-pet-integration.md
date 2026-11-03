@@ -69,3 +69,9 @@ const appearance = {
 桌宠负责人优先只改来源适配器及自己的模块；如要改变契约，先同步此文档和契约测试。家园 UI 不 import 桌宠创建页面或桌面运行时；桌宠模块不必改家具、家园权限或任务代码。统一渲染组件为 `src/components/pets/home-pet-avatar.tsx`，场景只传入 idle/greet 动作。
 
 这里的家园/庭院位置是网页区域记录，不等于桌面程序的位置或在线状态。跨桌面状态同步、进食/睡眠、自主互动和资源上传不在本轮实现范围内。
+
+## 独立桌面显示（2026-11-03）
+
+已新增独立 desktop-pet 客户端，复用 getOwned 与本契约的图片/精灵图定义。它只同步本人当前选择的桌宠，不修改家园或庭院位置。完整使用和权限说明见 [桌面客户端](../../desktop-pet/README.md)。
+
+如资源需鉴权，实现可选的 `readAssetOwned(ownerId, petId): Promise<{ bytes: Uint8Array; mimeType: string } | null>`。家园网页仍使用原图片 URL；桌面网关调用此方法读取受限图片，不传递网页登录 Cookie 或项目 PAT。公共 public/pets 资源有安全文件读取兜底。客户端不支持以脚本、远程 HTML 或外部 URL 自定义渲染；交付资源应为透明背景位图或规则图集。

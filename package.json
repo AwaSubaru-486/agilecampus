@@ -3,6 +3,10 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
+    "pet:dev": "npm --prefix desktop-pet start",
+    "pet:install": "npm --prefix desktop-pet ci",
+    "pet:build": "npm --prefix desktop-pet run build",
+    "pet:test": "npm --prefix desktop-pet test",
     "dev": "next dev --turbopack",
     "dev:webpack": "next dev --webpack",
     "build": "node scripts/production-runtime.mjs build",
