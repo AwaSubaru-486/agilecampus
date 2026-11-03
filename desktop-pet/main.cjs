@@ -11,7 +11,7 @@ let win, tray, timer, saveTimer, quitting = false, busy = false;
 let config = { origin: 'http://127.0.0.1:3000', token: null, expiresAt: null, bounds: null };
 let payload = { connected: false, status: 'offline', name: '', message: '在家园点击“开启桌面陪伴”连接当前账号。' };
 let assetCache = { key: '', fetchedAt: 0, data: null };
-let failures = 0, lastAck = 0, connecting = false;
+let failures = 0, lastAck = 0, connecting = false, demoMode = false;
 const storeFile = () => path.join(app.getPath('userData'), 'connection.json');
 
 function publish() { if (win && !win.isDestroyed()) win.webContents.send('pet:state', payload); }
@@ -63,11 +63,11 @@ async function request(endpoint, options = {}) {
   return response;
 }
 async function heartbeat(status = win?.isVisible() ? 'visible' : 'hidden') {
-  if (!config.token) return;
+  if (!config.token || demoMode) return;
   await request('/api/home/desktop/state', { method: 'POST', body: JSON.stringify({ status, ackSequence: lastAck }) });
 }
 async function poll() {
-  if (busy || quitting || !config.token) return;
+  if (busy || quitting || demoMode || !config.token) return;
   busy = true;
   try {
     const response = await request('/api/home/desktop/state');
@@ -108,7 +108,7 @@ async function poll() {
     publish();
   } finally {
     busy = false;
-    if (!quitting && config.token) timer = setTimeout(poll, Math.min(30000, 5000 * 2 ** Math.min(failures, 3)));
+    if (!quitting && !demoMode && config.token) timer = setTimeout(poll, Math.min(30000, 5000 * 2 ** Math.min(failures, 3)));
   }
 }
 function fitWindow() {
@@ -128,8 +128,25 @@ async function quitApp() {
 function resizePet(width, height) {
   win.setBounds({ ...win.getBounds(), width, height }); fitWindow();
 }
+async function loadDemo() {
+  clearTimeout(timer);
+  while (busy) await new Promise(resolve => setTimeout(resolve, 25));
+  clearTimeout(timer);
+  if (config.token && !demoMode) await heartbeat('hidden').catch(() => {});
+  demoMode = true;
+  try {
+    const filename = app.isPackaged ? path.join(__dirname, 'ui', 'assets', 'demo-qing-bot.png') : path.join(__dirname, '..', 'public', 'pets', 'demo', 'qing-bot.png');
+    const bytes = await fs.readFile(filename);
+    payload = { connected: false, status: 'demo', name: '小青（演示）', message: '',
+      appearance: { type: 'image', width: 1214, height: 1295 }, asset: `data:image/png;base64,${bytes.toString('base64')}` };
+  } catch { payload = { connected: false, status: 'demo', name: '', message: '演示素材未安装，请使用最新客户端。' }; }
+  publish(); showPet();
+}
 function menuItems() {
   return [
+    { label: '体验演示桌宠：小青', click: () => void loadDemo() },
+    ...(demoMode && config.token ? [{ label: '恢复已连接桌宠', click: () => { demoMode = false; void poll(); } }] : []),
+    { type: 'separator' },
     { label: '打开我的家园', click: () => void openHome() },
     { label: '前往团队庭院', click: () => void openHome(true) },
     { type: 'separator' },
@@ -169,6 +186,7 @@ async function connect(value) {
     const response = await fetch(link.origin + '/api/home/desktop/pair', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(8000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket: link.ticket }) });
     const result = JSON.parse((await limitedBody(response, 8192)).toString());
     if (!response.ok || !/^acpet_[A-Za-z0-9_-]{43}$/.test(result.token)) throw new Error(result.error ?? '连接失败，请重新生成邀请');
+    demoMode = false;
     config = { ...config, origin: link.origin, token: result.token, expiresAt: result.expiresAt }; lastAck = 0;
     assetCache = { key: '', fetchedAt: 0, data: null };
     await saveConfig().catch(() => {}); showPet(); await poll();
@@ -179,14 +197,9 @@ async function connect(value) {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.setName('AgileCampus Pet');
-  app.on('second-instance', (_event, args) => { const link = args.find(value => value.startsWith(`${SCHEME}://`)); if (link) void connect(link); else if (win) showPet(); });
+  app.on('second-instance', (_event, args) => { const link = args.find(value => value.startsWith(`${SCHEME}://`)); if (args.includes('--demo')) void loadDemo(); else if (link) void connect(link); else if (win) showPet(); });
   app.on('open-url', (event, url) => { event.preventDefault(); if (win) void connect(url); });
   app.whenReady().then(async () => {
-    if (process.argv.includes('--unregister')) {
-      if (process.defaultApp) app.removeAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(__dirname)]);
-      else app.removeAsDefaultProtocolClient(SCHEME);
-      quitting = true; app.quit(); return;
-    }
     if (process.argv.includes('--unregister')) {
       if (process.defaultApp) app.removeAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(__dirname)]);
       else app.removeAsDefaultProtocolClient(SCHEME);
@@ -230,8 +243,8 @@ else {
     tray = new Tray(icon()); tray.setToolTip('AgileCampus 桌面陪伴'); tray.on('double-click', showPet); updateTray();
     await win.loadFile(page); showPet();
     const link = process.argv.find(value => value.startsWith(`${SCHEME}://`));
-    if (link) await connect(link); else if (config.token) await poll();
-    if (testMode) globalThis.desktopPetTest = { connect, poll, showPet, getWindow: () => win, getPayload: () => payload, quit: quitApp,
+    if (process.argv.includes('--demo')) await loadDemo(); else if (link) await connect(link); else if (config.token) await poll();
+    if (testMode) globalThis.desktopPetTest = { connect, poll, showPet, loadDemo, getWindow: () => win, getPayload: () => payload, quit: quitApp,
       secureRoundTrip: async value => { const stored = await encryptToken(safeStorage, value); return { mode: stored.encryption, match: await decryptToken(safeStorage, stored) === value, containsPlainText: JSON.stringify(stored).includes(value) }; },
     };
   });

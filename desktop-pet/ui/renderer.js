@@ -18,8 +18,9 @@ function draw(time = 0) {
 function render(state) {
   if (!state) return;
   current = state;
+  document.getElementById('widget').classList.toggle('demo', state.status === 'demo');
   document.getElementById('name').textContent = state.name ?? '';
-  document.getElementById('hint').textContent = state.offline ? '暂时离线，正在重连' : '';
+  document.getElementById('hint').textContent = state.status === 'demo' ? '演示模式，不关联账号' : state.offline ? '暂时离线，正在重连' : '';
   document.getElementById('message').textContent = state.message ?? '';
   document.getElementById('empty-title').textContent = state.connected ? '等待桌宠入住' : '桌面陪伴';
   const key = (state.asset ?? '') + JSON.stringify(state.appearance);

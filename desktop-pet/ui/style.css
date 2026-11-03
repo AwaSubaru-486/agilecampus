@@ -11,4 +11,5 @@ canvas{display:block;max-width:100%;max-height:100%;object-fit:contain;filter:dr
 #empty[hidden]{display:none}.slot{display:block;margin:0 auto 5px;color:#6d9488;font-size:31px}strong{font-size:14px}#message{font-size:12px;line-height:1.7;color:#647a85;margin:8px 0 12px}#name{font-size:12px;margin:7px 0 0;padding:4px 10px;border-radius:12px;background:#ffffffed;color:#4d6570;border:1px solid #dce6eb;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#name:empty{display:none}
 #hint{font-size:10px;margin:4px 0;color:#4d6570;background:#ffffffde;border-radius:6px;padding:2px 5px;max-width:100%;text-align:center}#hint:empty{display:none}
 #speech{position:absolute;top:36px;background:#fff;border:1px solid #dce6eb;border-radius:12px;padding:8px 12px;font-size:12px;box-shadow:0 3px 10px #1d353912;z-index:3}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.demo canvas{animation:demo-float 3s ease-in-out infinite}@keyframes demo-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
