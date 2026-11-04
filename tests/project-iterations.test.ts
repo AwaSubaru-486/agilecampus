@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 const request = vi.hoisted(() => ({ userId: undefined as string | undefined, view: undefined as string | undefined }));
@@ -6,13 +5,13 @@ vi.mock("@/lib/auth", () => ({ auth: async () => request.userId ? { user: { id: 
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => request.view ? { value: request.view } : undefined }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { db } from "@/db";
-import { activityEvents, projectIterations, tasks } from "@/db/schema";
+import { activityEvents, iterationTasks, tasks } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject } from "@/lib/project";
 import { createTask } from "@/lib/task";
-import { changeIterationStatus, listProjectIterations, saveProjectIteration } from "@/lib/project-iterations";
-import { changeIterationStatusAction, saveIterationAction } from "@/app/(app)/projects/[projectId]/iterations/actions";
+import { changeIterationStatus, listProjectIterations, saveProjectIteration, saveIterationExecution } from "@/lib/project-iterations";
+import { changeIterationStatusAction, saveIterationAction, saveIterationExecutionAction } from "@/app/(app)/projects/[projectId]/iterations/actions";
 import { resetDb } from "./helpers";
 
 beforeEach(async () => { await resetDb(); request.userId = undefined; request.view = undefined; });
@@ -25,102 +24,128 @@ async function scene() {
   await joinTeam(member.id, team.inviteCode); await joinTeam(teacher.id, team.inviteCode);
   await updateMemberRole(owner.id, team.id, teacher.id, "teacher");
   const project = await createProject(owner.id, team.id, { name: "版本测试项目" });
-  const task = await createTask(owner.id, project.id, { title: "登录功能", assigneeId: member.id });
+  const task = await createTask(owner.id, project.id, { title: "开发细节任务", assigneeId: member.id });
   return { owner, member, teacher, outsider, team, project, task };
 }
-const input = { version: "v1.0.0", title: "首个可用版本", goal: "完成核心流程", startDate: "2026-11-01", endDate: "2026-11-15", releaseNotes: "新增登录功能" };
+const input = { version: "v1.0.0", title: "团队协作首版", goal: "让团队共同管理项目成果", startDate: "2026-11-01", endDate: "2026-11-15", features: [{ name: "团队协作", summary: "成员可以共享项目资料和成果。", change: "added" as const }] };
+const execution = { executionNotes: "已完成主要场景的使用体验调整。", validationNotes: "用组长和组员身份验证共享流程，结果正常。", releaseNotes: "支持团队共享项目资料与成果。", releaseUrl: "https://example.com/releases/v1" };
+async function start(f: Awaited<ReturnType<typeof scene>>) {
+  const created = await saveProjectIteration(f.owner.id, f.project.id, input);
+  return changeIterationStatus(f.owner.id, f.project.id, created.id, "start", created.updatedAt.toISOString());
+}
+async function publish(f: Awaited<ReturnType<typeof scene>>) {
+  const active = await start(f);
+  const saved = await saveIterationExecution(f.owner.id, f.project.id, active.id, active.updatedAt.toISOString(), execution);
+  return changeIterationStatus(f.owner.id, f.project.id, saved.id, "release", saved.updatedAt.toISOString());
+}
 
-describe("项目版本迭代", () => {
-  it("创建计划并保存任务关联，成员和老师可读取真实进度", async () => {
+describe("以功能模块推进版本迭代", () => {
+  it("版本保存模块变化，成员和老师可查看，不返回任务安排", async () => {
     const f = await scene();
-    const iteration = await saveProjectIteration(f.owner.id, f.project.id, { ...input, version: " V1.0.0 ", taskIds: [f.task.id, f.task.id] });
-    expect(iteration.status).toBe("planned"); expect(iteration.version).toBe("v1.0.0");
+    const created = await saveProjectIteration(f.owner.id, f.project.id, { ...input, version: " V1.0.0 " });
+    expect(created).toMatchObject({ status: "planned", version: "v1.0.0" });
     for (const actor of [f.member, f.teacher]) {
-      const rows = await listProjectIterations(actor.id, f.project.id);
-      expect(rows[0]).toMatchObject({ goal: input.goal, tasks: [{ id: f.task.id, status: "todo", assigneeName: "组员" }] });
+      const [row] = await listProjectIterations(actor.id, f.project.id);
+      expect(row.features).toEqual([expect.objectContaining(input.features[0])]);
+      expect(row).not.toHaveProperty("tasks");
     }
-    await db.update(tasks).set({ status: "review" }).where(eq(tasks.id, f.task.id));
-    expect((await listProjectIterations(f.owner.id, f.project.id))[0].tasks[0].status).toBe("review");
   });
-  it("成员和老师不能管理迭代，项目外用户不能读取", async () => {
-    const f = await scene();
-    const iteration = await saveProjectIteration(f.owner.id, f.project.id, input);
+  it("成员和老师不能管理版本、记录推进或发布，项目外用户不能读取", async () => {
+    const f = await scene(); const active = await start(f);
     for (const actor of [f.member, f.teacher, f.outsider]) {
       await expect(saveProjectIteration(actor.id, f.project.id, input)).rejects.toThrow("组长");
-      await expect(changeIterationStatus(actor.id, f.project.id, iteration.id, "start", iteration.updatedAt.toISOString())).rejects.toThrow("组长");
+      await expect(saveIterationExecution(actor.id, f.project.id, active.id, active.updatedAt.toISOString(), execution)).rejects.toThrow("组长");
+      await expect(changeIterationStatus(actor.id, f.project.id, active.id, "release", active.updatedAt.toISOString())).rejects.toThrow("组长");
     }
     await expect(listProjectIterations(f.outsider.id, f.project.id)).rejects.toThrow();
   });
-  it("禁止跨项目任务、任务分组和非法日期，失败时不留下迭代", async () => {
+  it("规划、推进和发布都不创建、分配或修改任务，也不受任务验收状态影响", async () => {
+    const f = await scene(); const before = await db.select().from(tasks);
+    const released = await publish(f);
+    expect(released.status).toBe("released");
+    expect(await db.select().from(tasks)).toEqual(before);
+    expect(await db.select().from(iterationTasks)).toEqual([]);
+    const events = await db.select().from(activityEvents).where(eq(activityEvents.type, "project_updated"));
+    expect(events.every(event => event.taskId === null)).toBe(true);
+  });
+  it("保留旧任务关联但不把技术任务名称转换成功能模块", async () => {
+    const f = await scene(); const created = await saveProjectIteration(f.owner.id, f.project.id, input);
+    await db.insert(iterationTasks).values({ iterationId: created.id, taskId: f.task.id });
+    const [row] = await listProjectIterations(f.member.id, f.project.id);
+    expect(row.features.map(feature => feature.name)).toEqual(["团队协作"]);
+    expect(JSON.stringify(row)).not.toContain("开发细节任务");
+    await publish({ ...f, project: await createProject(f.owner.id, f.team.id, { name: "另一个项目" }) });
+    expect(await db.select().from(iterationTasks)).toHaveLength(1);
+  });
+  it("校验模块名称、变化说明、重复模块和有效日期", async () => {
     const f = await scene();
-    const other = await createProject(f.owner.id, f.team.id, { name: "其他项目" });
-    const foreign = await createTask(f.owner.id, other.id, { title: "不能串项目" });
-    for (const taskId of [foreign.id, randomUUID()]) await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, taskIds: [taskId] })).rejects.toThrow("当前项目");
-    await db.update(tasks).set({ isTaskGroup: true }).where(eq(tasks.id, f.task.id));
-    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, taskIds: [f.task.id] })).rejects.toThrow("普通任务");
-    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, endDate: "2026-10-01" })).rejects.toThrow("结束日期");
-    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, startDate: "2026-02-30" })).rejects.toThrow();
+    for (const value of [
+      { ...input, features: [{ ...input.features[0], name: "" }] },
+      { ...input, features: [{ ...input.features[0], summary: "" }] },
+      { ...input, features: [input.features[0], input.features[0]] },
+      { ...input, endDate: "2026-10-01" }, { ...input, startDate: "2026-02-30" },
+    ]) await expect(saveProjectIteration(f.owner.id, f.project.id, value)).rejects.toThrow();
     expect(await listProjectIterations(f.owner.id, f.project.id)).toEqual([]);
   });
-  it("版本号在项目内唯一，不影响其他项目", async () => {
-    const f = await scene();
-    await saveProjectIteration(f.owner.id, f.project.id, input);
-    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, version: "V1.0.0" })).rejects.toThrow("相同版本号");
-    const other = await createProject(f.owner.id, f.team.id, { name: "其他项目" });
-    await expect(saveProjectIteration(f.owner.id, other.id, input)).resolves.toMatchObject({ version: input.version });
+  it("草稿可先保存，但开始迭代必须明确目标和功能范围", async () => {
+    const f = await scene(); const draft = await saveProjectIteration(f.owner.id, f.project.id, { version: "v0.1", title: "待规划" });
+    await expect(changeIterationStatus(f.owner.id, f.project.id, draft.id, "start", draft.updatedAt.toISOString())).rejects.toThrow("目标和功能模块");
+    const active = await start(f);
+    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, features: [] }, { id: active.id, updatedAt: active.updatedAt.toISOString() })).rejects.toThrow("保留目标和功能模块");
   });
-  it("编辑保存目标、周期和任务范围，拒绝过期编辑及跨项目修改", async () => {
-    const f = await scene();
-    const created = await saveProjectIteration(f.owner.id, f.project.id, { ...input, taskIds: [f.task.id] });
+  it("只能基于同项目的已发布版本规划，且不复制旧模块为本轮新增功能", async () => {
+    const f = await scene(); const released = await publish(f);
+    const next = await saveProjectIteration(f.owner.id, f.project.id, { version: "v1.1", title: "完善协作", baseIterationId: released.id });
+    expect(next.features).toEqual([]); expect(next.baseIterationId).toBe(released.id);
+    const other = await createProject(f.owner.id, f.team.id, { name: "其他项目" });
+    await expect(saveProjectIteration(f.owner.id, other.id, { ...input, baseIterationId: released.id })).rejects.toThrow("当前项目已发布");
+    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, version: "v2", baseIterationId: next.id })).rejects.toThrow("已发布");
+  });
+  it("版本号在项目内唯一，编辑冲突和跨项目写入都会被拒绝", async () => {
+    const f = await scene(); const created = await saveProjectIteration(f.owner.id, f.project.id, input);
+    await expect(saveProjectIteration(f.owner.id, f.project.id, { ...input, version: "V1.0.0" })).rejects.toThrow("相同版本号");
     const edit = { id: created.id, updatedAt: created.updatedAt.toISOString() };
-    await saveProjectIteration(f.owner.id, f.project.id, { ...input, goal: "调整目标", taskIds: [] }, edit);
-    expect((await listProjectIterations(f.owner.id, f.project.id))[0]).toMatchObject({ goal: "调整目标", tasks: [] });
+    await saveProjectIteration(f.owner.id, f.project.id, { ...input, goal: "调整目标" }, edit);
     await expect(saveProjectIteration(f.owner.id, f.project.id, input, edit)).rejects.toThrow("已被更新");
     const other = await createProject(f.owner.id, f.team.id, { name: "其他项目" });
     await expect(saveProjectIteration(f.owner.id, other.id, input, edit)).rejects.toThrow();
   });
-  it("只能按计划、进行中、已发布推进，待验收任务不能发布", async () => {
-    const f = await scene();
-    const created = await saveProjectIteration(f.owner.id, f.project.id, { ...input, taskIds: [f.task.id] });
-    await expect(changeIterationStatus(f.owner.id, f.project.id, created.id, "release", created.updatedAt.toISOString())).rejects.toThrow("先开始");
-    const active = await changeIterationStatus(f.owner.id, f.project.id, created.id, "start", created.updatedAt.toISOString());
-    await db.update(tasks).set({ status: "review" }).where(eq(tasks.id, f.task.id));
-    await expect(changeIterationStatus(f.owner.id, f.project.id, active.id, "release", active.updatedAt.toISOString())).rejects.toThrow("验收完成");
-    expect((await listProjectIterations(f.owner.id, f.project.id))[0].status).toBe("active");
-    expect((await db.select().from(tasks).where(eq(tasks.id, f.task.id)))[0].status).toBe("review");
+  it("发布必须已有验证结果与发布说明，历史功能和说明随后保持不变", async () => {
+    const f = await scene(); const active = await start(f);
+    await expect(changeIterationStatus(f.owner.id, f.project.id, active.id, "release", active.updatedAt.toISOString())).rejects.toThrow("验证结果和版本说明");
+    const saved = await saveIterationExecution(f.owner.id, f.project.id, active.id, active.updatedAt.toISOString(), execution);
+    const released = await changeIterationStatus(f.owner.id, f.project.id, saved.id, "release", saved.updatedAt.toISOString());
+    await expect(saveProjectIteration(f.owner.id, f.project.id, input, { id: released.id, updatedAt: released.updatedAt.toISOString() })).rejects.toThrow("已归档");
+    await expect(saveIterationExecution(f.owner.id, f.project.id, released.id, released.updatedAt.toISOString(), execution)).rejects.toThrow("已归档");
+    const [row] = await listProjectIterations(f.member.id, f.project.id);
+    expect(row).toMatchObject({ status: "released", ...execution, features: [expect.objectContaining(input.features[0])] });
   });
-  it("发布冻结任务记录，后续重开、改名或删除任务不改写历史", async () => {
-    const f = await scene();
-    const created = await saveProjectIteration(f.owner.id, f.project.id, { ...input, taskIds: [f.task.id] });
-    const active = await changeIterationStatus(f.owner.id, f.project.id, created.id, "start", created.updatedAt.toISOString());
-    await db.update(tasks).set({ status: "done" }).where(eq(tasks.id, f.task.id));
-    const released = await changeIterationStatus(f.owner.id, f.project.id, active.id, "release", active.updatedAt.toISOString());
-    await db.update(tasks).set({ status: "doing", title: "后续修改" }).where(eq(tasks.id, f.task.id));
-    expect((await listProjectIterations(f.member.id, f.project.id))[0]).toMatchObject({ status: "released", releaseNotes: input.releaseNotes, tasks: [{ title: "登录功能", status: "done" }] });
-    await db.delete(tasks).where(eq(tasks.id, f.task.id));
-    expect((await listProjectIterations(f.member.id, f.project.id))[0].tasks).toHaveLength(1);
-    await expect(saveProjectIteration(f.owner.id, f.project.id, input, { id: released.id, updatedAt: released.updatedAt.toISOString() })).rejects.toThrow("历史记录");
-    const events = await db.select().from(activityEvents);
-    expect(events.some(event => event.summary?.includes("发布迭代"))).toBe(true);
+  it("推进记录仅在开始后可写，拒绝脚本链接和过期提交", async () => {
+    const f = await scene(); const draft = await saveProjectIteration(f.owner.id, f.project.id, input);
+    await expect(saveIterationExecution(f.owner.id, f.project.id, draft.id, draft.updatedAt.toISOString(), execution)).rejects.toThrow("先开始");
+    const active = await changeIterationStatus(f.owner.id, f.project.id, draft.id, "start", draft.updatedAt.toISOString());
+    await expect(saveIterationExecution(f.owner.id, f.project.id, active.id, active.updatedAt.toISOString(), { ...execution, releaseUrl: "javascript:alert(1)" })).rejects.toThrow();
+    await saveIterationExecution(f.owner.id, f.project.id, active.id, active.updatedAt.toISOString(), execution);
+    await expect(saveIterationExecution(f.owner.id, f.project.id, active.id, active.updatedAt.toISOString(), execution)).rejects.toThrow("已被更新");
   });
-  it("并发开始请求只成功一次，防止重复状态和活动", async () => {
-    const f = await scene();
-    const created = await saveProjectIteration(f.owner.id, f.project.id, input);
+  it("并发开始只记录一次，服务端校验登录及代理视角", async () => {
+    const f = await scene(); const created = await saveProjectIteration(f.owner.id, f.project.id, input);
     const results = await Promise.allSettled([1, 2].map(() => changeIterationStatus(f.owner.id, f.project.id, created.id, "start", created.updatedAt.toISOString())));
     expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter(result => result.status === "rejected")).toHaveLength(1);
-  });
-  it("服务端操作校验登录和视角，组长代组员时仍不能管理迭代", async () => {
-    const f = await scene();
-    const form = new FormData(); form.set("projectId", f.project.id); form.set("version", "v2.0.0"); form.set("title", "第二版");
+    const form = new FormData(); form.set("projectId", f.project.id); form.set("version", "v2"); form.set("title", "下一版"); form.set("features", JSON.stringify(input.features));
     expect(await saveIterationAction(form)).toEqual({ error: "请先登录" });
     request.userId = f.owner.id; request.view = `student:${f.member.id}`;
     expect(await saveIterationAction(form)).toMatchObject({ error: expect.stringContaining("组长") });
     request.view = "admin";
     expect(await saveIterationAction(form)).toEqual({ ok: true });
-    const row = (await listProjectIterations(f.owner.id, f.project.id))[0];
     request.userId = f.member.id;
-    expect(await changeIterationStatusAction({ projectId: f.project.id, iterationId: row.id, updatedAt: row.updatedAt, action: "start" })).toMatchObject({ error: expect.stringContaining("组长") });
-    expect((await db.select().from(projectIterations))[0].status).toBe("planned");
+    expect(await changeIterationStatusAction({ projectId: f.project.id, iterationId: created.id, updatedAt: created.updatedAt.toISOString(), action: "start" })).toMatchObject({ error: expect.stringContaining("组长") });
+  });
+  it("推进表单的保存操作保留模块范围并拒绝越权字段", async () => {
+    const f = await scene(); const active = await start(f); request.userId = f.owner.id;
+    const form = new FormData(); for (const [key, value] of Object.entries({ projectId: f.project.id, iterationId: active.id, updatedAt: active.updatedAt.toISOString(), ...execution, status: "released", features: "[]" })) form.set(key, value);
+    expect(await saveIterationExecutionAction(form)).toEqual({ ok: true });
+    const [row] = await listProjectIterations(f.owner.id, f.project.id);
+    expect(row).toMatchObject({ status: "active", ...execution }); expect(row.features).toHaveLength(1);
   });
 });
