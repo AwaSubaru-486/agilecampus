@@ -11,13 +11,9 @@ import { PendingActionBadge } from "./_shell/pending-action-badge";
 import { TopWorkbar } from "./_shell/top-workbar";
 import { StuckButton } from "./stuck-button";
 import { TaskNotificationInbox } from "./_shell/task-notification-inbox";
+import { WebDeskPet } from "./_shell/web-desk-pet";
 
 // 应用骨架。Commit 2/13 起由「左侧永久导航」改为「顶部工作带」。
-//
-// 工作带取代了旧侧栏，但**发布出去的能力一个没少**：
-// 换项目、进各一级页、看账户、退出，四件事都在。
-// 唯一暂时保留的是悬浮求助入口——按计划 §7，它要等「协作」页
-// 验收之后才撤，免得功能先没、替代的还没上。
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -28,8 +24,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getTutorialProgress(session.user.id),
   ]);
 
-  // 只把有权访问的项目交给切换器。过滤在服务端做完，
-  // 客户端拿到的这份 props 里根本不存在无权项目。
   const switcherProjects = myProjects.map((p) => ({
     id: p.id,
     name: p.name,
@@ -57,8 +51,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </main>
 
+      {/* 悬浮求助入口 */}
       <StuckButton projects={switcherProjects.map((p) => ({ id: p.id, name: p.name }))} />
       <TaskNotificationInbox key={session.user.id} userId={session.user.id} />
+
+      {/* 网页常驻浮动桌宠 (纯像素风格 · 拖拽交互 · 消息与预警联动) */}
+      <WebDeskPet />
     </div>
     </TutorialProvider>
   );
