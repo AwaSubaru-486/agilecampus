@@ -6,6 +6,7 @@ import { NAV_ITEMS, activeNavHref } from "./nav-items";
 import { AccountMenu } from "./account-menu";
 import { ProjectSwitcher, type SwitcherProject } from "./project-switcher";
 import { WorkspaceIcon } from "@/components/workspace-icon";
+import { DeskPetToggle } from "./desk-pet-toggle";
 
 export function TopWorkbar({
   userName,
@@ -131,6 +132,9 @@ export function TopWorkbar({
           <Link href="/settings/api" data-tour="nav-api" className={"ac-nav-item " + (pathname === "/settings/api" ? "is-active" : "")} aria-current={pathname === "/settings/api" ? "page" : undefined}>
             <WorkspaceIcon name="settings" /><span className={collapsed ? "sr-only" : ""}>API 配置</span>
           </Link>
+          <div className="pt-2 px-1 pb-1">
+            <DeskPetToggle />
+          </div>
           <div className="ac-navigation-support">
             <p className="ac-nav-label">团队与资料</p>
             <Link
