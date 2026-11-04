@@ -50,7 +50,7 @@ export async function GET() {
   // 3. 读取当前登录用户的网站通知与任务预警
   let notifications: Array<{ id: string; title: string; text: string }> = [];
   let overdueTasks: Array<{ id: string; title: string; dueDate?: string | null }> = [];
-  let recentCompletedTasks: Array<{ id: string; title: string }> = [];
+  const recentCompletedTasks: Array<{ id: string; title: string }> = [];
 
   try {
     const session = await auth();
@@ -82,7 +82,7 @@ export async function GET() {
         dueDate: t.dueDate,
       }));
     }
-  } catch (err) {
+  } catch {
     // 忽略未登录或未就绪状态
   }
 
