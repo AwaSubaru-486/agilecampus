@@ -1,0 +1,14 @@
+{
+  "name": "agilecampus-desktop-pet",
+  "productName": "AgileCampus Pet",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "node start.cjs",
+    "test": "node --test test/*.test.cjs",
+    "build": "node build.cjs"
+  },
+  "devDependencies": { "electron": "45.2.1" },
+  "allowScripts": { "electron": true }
+}

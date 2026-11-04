@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>AgileCampus 桌面陪伴</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <main id="widget">
+    <div class="toolbar" data-interactive><button data-action="home" title="打开我的家园" aria-label="打开我的家园">⌂</button><button data-action="menu" title="更多操作" aria-label="更多操作">⋯</button><button data-action="hide" title="暂时隐藏（可从系统托盘恢复）" aria-label="暂时隐藏">−</button></div>
+    <div id="pet-body" tabindex="0" role="button" aria-label="拖动桌宠，点击打招呼"><canvas id="pet" hidden></canvas><div id="empty" data-interactive><span class="slot">⌂</span><strong id="empty-title">桌面陪伴</strong><p id="message">在家园开启桌面陪伴。</p><button data-action="home">打开家园</button></div></div>
+    <div id="speech" hidden>你好呀 ♡</div><p id="name"></p><p id="hint"></p>
+  </main><script src="renderer.js"></script>
+</body></html>

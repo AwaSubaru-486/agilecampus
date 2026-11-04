@@ -22,6 +22,7 @@ import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 import { ENTRY_TYPES } from "@/lib/entry-labels";
 import { taskMemoryVersions } from "./schema-task-memory";
 import type { TutorialProgress } from "@/lib/tutorials/catalog";
+import type { HomeFurniture, HomePet } from "@/lib/home-contract";
 
 export const teamRoleEnum = pgEnum("team_role", ["admin", "teacher", "student"]);
 export type TeamRole = (typeof teamRoleEnum.enumValues)[number];
@@ -83,6 +84,37 @@ export const teamMembers = pgTable(
   },
   (t) => [uniqueIndex("team_members_team_user_unique").on(t.teamId, t.userId)],
 );
+
+// Home state is independent of project progress, task acceptance and model credentials.
+export const homeProfiles = pgTable("home_profiles", {
+  ownerId: uuid("owner_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("我的小小家园"),
+  welcome: text("welcome").notNull().default("欢迎来坐坐，和小伙伴一起歇一会儿。"),
+  theme: text("theme").$type<"meadow" | "sunset" | "moonlight">().notNull().default("meadow"),
+  visibility: text("visibility").$type<"team" | "private">().notNull().default("team"),
+  furniture: jsonb("furniture").$type<HomeFurniture[]>().notNull().default([]),
+  pet: jsonb("pet").$type<HomePet>().notNull().default({ name: "团子", kind: "cat" }),
+  petTeamId: uuid("pet_team_id").references(() => teams.id, { onDelete: "set null" }),
+  revision: integer("revision").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, t => [index("home_profiles_pet_team_idx").on(t.petTeamId)]);
+
+// Dedicated, read-only pet sessions: never reuse a project-wide Personal API Token.
+export const desktopPetConnections = pgTable("desktop_pet_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pairingHash: text("pairing_hash").notNull().unique(),
+  pairingExpiresAt: timestamp("pairing_expires_at").notNull(),
+  sessionHash: text("session_hash").unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  status: text("status").notNull().default("pending"),
+  lastSeenAt: timestamp("last_seen_at"),
+  command: text("command").$type<"show" | "hide" | "quit">().notNull().default("show"),
+  commandSequence: integer("command_sequence").notNull().default(0),
+  ackSequence: integer("ack_sequence").notNull().default(0),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [index("desktop_pet_user_idx").on(t.userId, t.createdAt)]);
 
 export const projectStatusEnum = pgEnum("project_status", ["active", "archived"]);
 export const milestoneStatusEnum = pgEnum("milestone_status", ["open", "done"]);

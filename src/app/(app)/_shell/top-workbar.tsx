@@ -120,6 +120,7 @@ export function TopWorkbar({
                   item.href.slice(1) as
                     | "projects"
                     | "collaboration"
+                    | "home"
                     | "tutorials"
                 }
               />

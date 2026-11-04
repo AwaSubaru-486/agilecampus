@@ -17,6 +17,7 @@ export type NavItem = {
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/projects", label: "项目", hint: "项目脉搏与最近访问" },
   { href: "/collaboration", label: "协作中心", hint: "求助、AI 确认与团队状态" },
+  { href: "/home", label: "家园", hint: "我的家园、伙伴与团队庭院" },
   { href: "/tutorials", label: "新手教程", hint: "互动学习与功能教程目录" },
 ] as const;
 
