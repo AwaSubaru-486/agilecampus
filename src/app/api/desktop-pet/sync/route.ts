@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
 import { auth } from "@/lib/auth";
 import { listTaskNotifications } from "@/lib/task-notifications";
 import { db } from "@/db";
@@ -7,17 +8,11 @@ import { and, eq, lte, ne } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
 
-function getProjectRoot(): string {
-  const cwd = process.cwd();
-  if (cwd.includes(".next")) {
-    return path.resolve(cwd.split(".next")[0]);
-  }
-  return cwd;
-}
 
 export async function GET() {
-  const projectRoot = getProjectRoot();
-  const runtimeDir = path.resolve(projectRoot, ".runtime");
+  const actor = await webPetActor();
+  if (actor instanceof Response) return actor;
+  const runtimeDir = webPetRuntime(actor);
   if (!fs.existsSync(runtimeDir)) {
     fs.mkdirSync(runtimeDir, { recursive: true });
   }
@@ -92,5 +87,5 @@ export async function GET() {
     notifications,
     overdueTasks,
     recentCompletedTasks,
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }

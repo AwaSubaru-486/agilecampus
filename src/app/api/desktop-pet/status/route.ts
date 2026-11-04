@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
+import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
 import path from "path";
 import fs from "fs";
 
-function getProjectRoot(): string {
-  const cwd = process.cwd();
-  if (cwd.includes(".next")) {
-    return path.resolve(cwd.split(".next")[0]);
-  }
-  return cwd;
-}
 
 export async function GET() {
-  const root = getProjectRoot();
+  const actor = await webPetActor();
+  if (actor instanceof Response) return actor;
+  const root = webPetRuntime(actor);
 
   // 读取当前配置
-  const configFile = path.resolve(root, ".runtime", "desk-pet-config.json");
+  const configFile = path.resolve(root, "desk-pet-config.json");
   let config = {
     preset: "puppy", // "puppy" | "pacman" | "nailong" | "custom"
     name: "线条小狗",
@@ -28,7 +24,7 @@ export async function GET() {
   }
 
   // 读取最近的桌宠回复记录
-  const repliesFile = path.resolve(root, ".runtime", "desk-pet-replies.json");
+  const repliesFile = path.resolve(root, "desk-pet-replies.json");
   let replies: Array<{ id: string; text: string; time: string }> = [];
   if (fs.existsSync(repliesFile)) {
     try {
@@ -39,5 +35,5 @@ export async function GET() {
   return NextResponse.json({
     config,
     recentReplies: replies.slice(-10).reverse(),
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
