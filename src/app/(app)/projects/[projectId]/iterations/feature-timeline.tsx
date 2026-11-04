@@ -21,9 +21,12 @@ export function FeatureTimeline({ releases, openVersion }: { releases: Iteration
             <span className={styles.versionDot} aria-hidden />
           </div>
           <ul className={styles.featureSpine} aria-label={`${version.version} 已实现的功能模块`}>
-            {version.features.map(feature => <li key={feature.id} className={styles.featureBranch}>
-              <div className={styles.featureCard}><span className={`${styles.changeLabel} ${styles[feature.change]}`}>{FEATURE_CHANGE_LABELS[feature.change]}</span><h3>{feature.name}</h3><p>{feature.summary}</p></div>
-            </li>)}
+            {version.features.map(feature => {
+              const previous = ordered.slice(0, index).reverse().find(row => row.features.some(item => item.id === feature.id || item.name.toLowerCase() === feature.name.toLowerCase()));
+              return <li key={feature.id} className={styles.featureBranch}>
+                <div className={styles.featureCard}><span className={`${styles.changeLabel} ${styles[feature.change]}`}>{FEATURE_CHANGE_LABELS[feature.change]}</span><h3>{feature.name}</h3><p>{feature.summary}</p>{previous && <button className={styles.featureLineage} onClick={() => openVersion(previous)}>接续 {previous.version} 的同一模块 ↗</button>}</div>
+              </li>;
+            })}
             {!version.features.length && <li className={styles.featureBranch}><div className={styles.legacyNote}>该历史版本尚未记录模块级功能。<button onClick={() => openVersion(version)}>查看原有版本说明 →</button></div></li>}
           </ul>
         </li>)}

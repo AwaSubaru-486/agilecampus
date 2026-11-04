@@ -10,8 +10,10 @@ import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject } from "@/lib/project";
 import { createTask } from "@/lib/task";
-import { changeIterationStatus, listProjectIterations, saveProjectIteration, saveIterationExecution } from "@/lib/project-iterations";
-import { changeIterationStatusAction, saveIterationAction, saveIterationExecutionAction } from "@/app/(app)/projects/[projectId]/iterations/actions";
+import { changeIterationStatus, listProjectIterations, saveProjectIteration, saveIterationExecution, continueIteration, saveIterationWorkspace } from "@/lib/project-iterations";
+import { changeIterationStatusAction, saveIterationAction, saveIterationExecutionAction, continueIterationAction, saveWorkspaceAction } from "@/app/(app)/projects/[projectId]/iterations/actions";
+import { iterationModules } from "@/lib/iteration-modules";
+import { randomUUID } from "node:crypto";
 import { resetDb } from "./helpers";
 
 beforeEach(async () => { await resetDb(); request.userId = undefined; request.view = undefined; });
@@ -148,4 +150,77 @@ describe("以功能模块推进版本迭代", () => {
     const [row] = await listProjectIterations(f.owner.id, f.project.id);
     expect(row).toMatchObject({ status: "active", ...execution }); expect(row.features).toHaveLength(1);
   });
+});
+
+
+describe("在完整模块快照上继续开发", () => {
+  it("继承旧模块身份；只把实际变化加入演进图；下一轮继承成果与断点", async () => {
+    const f = await scene(); const first = await publish(f);
+    const next = await continueIteration(f.owner.id, f.project.id, first.id);
+    expect(next.features).toEqual([]);
+    expect(next.moduleSnapshot).toHaveLength(1);
+    const original = next.moduleSnapshot![0];
+    const capability = { ...original, summary: "成员可以共享资料，并搜索历史成果。", resultUrl: "https://example.com/demo", context: "保留共享权限；下一步检查搜索体验。" };
+    const beforeTasks = await db.select().from(tasks);
+    const saved = await saveIterationWorkspace(f.owner.id, f.project.id, next.id, next.updatedAt.toISOString(), { version: next.version, title: "共享能力更完整", modules: [capability], executionNotes: "继续检查窄屏体验", publish: true });
+    expect(saved.features).toEqual([expect.objectContaining({ id: original.id, change: "improved" })]);
+    expect(saved.validationNotes).toBe("");
+    const third = await continueIteration(f.owner.id, f.project.id, saved.id);
+    expect(third.moduleSnapshot).toEqual([capability]);
+    expect(third.executionNotes).toBe("继续检查窄屏体验");
+    expect(third.features).toEqual([]);
+    expect(await db.select().from(tasks)).toEqual(beforeTasks);
+    expect(await db.select().from(iterationTasks)).toEqual([]);
+    await expect(saveIterationWorkspace(f.owner.id, f.project.id, saved.id, saved.updatedAt.toISOString(), { version: saved.version, title: saved.title, modules: [] })).rejects.toThrow("已归档");
+  });
+  it("保持未修改模块；改回原样取消本轮差异；备注不伪装成功能交付", async () => {
+    const f = await scene(); const first = await publish(f); const next = await continueIteration(f.owner.id, f.project.id, first.id);
+    const modules = next.moduleSnapshot!;
+    const values = { version: next.version, title: next.title, modules: modules.map(capability => ({ ...capability, context: "尚在探索" })) };
+    const saved = await saveIterationWorkspace(f.owner.id, f.project.id, next.id, next.updatedAt.toISOString(), values);
+    expect(saved.features).toEqual([]);
+    await expect(saveIterationWorkspace(f.owner.id, f.project.id, saved.id, saved.updatedAt.toISOString(), { ...values, publish: true })).rejects.toThrow("尚无功能变化");
+    await expect(saveIterationWorkspace(f.owner.id, f.project.id, saved.id, saved.updatedAt.toISOString(), { ...values, modules: [] })).rejects.toThrow("继承的模块");
+  });
+  it("首轮无需目标与复盘表；新增模块后可直接保存版本", async () => {
+    const f = await scene(); const next = await continueIteration(f.owner.id, f.project.id, null);
+    const capability = { id: randomUUID(), name: "活动广场", summary: "浏览校园活动。", resultUrl: "", context: "" };
+    const saved = await saveIterationWorkspace(f.owner.id, f.project.id, next.id, next.updatedAt.toISOString(), { version: "v0.1.0", title: "看见活动", modules: [capability], publish: true });
+    expect(saved.status).toBe("released"); expect(saved.features[0].change).toBe("added");
+  });
+  it("越权、跨项目基准、不安全链接、并发覆盖都被拒绝", async () => {
+    const f = await scene(); const first = await publish(f);
+    const other = await createProject(f.owner.id, f.team.id, { name: "其他项目" });
+    await expect(continueIteration(f.owner.id, other.id, first.id)).rejects.toThrow("当前项目");
+    const next = await continueIteration(f.owner.id, f.project.id, first.id);
+    const values = { version: next.version, title: next.title, modules: next.moduleSnapshot! };
+    await expect(continueIteration(f.member.id, f.project.id, first.id)).rejects.toThrow("组长");
+    await expect(saveIterationWorkspace(f.member.id, f.project.id, next.id, next.updatedAt.toISOString(), values)).rejects.toThrow("组长");
+    await expect(saveIterationWorkspace(f.owner.id, f.project.id, next.id, next.updatedAt.toISOString(), { ...values, modules: values.modules.map(capability => ({ ...capability, resultUrl: "javascript:alert(1)" })) })).rejects.toThrow();
+    const results = await Promise.allSettled([1, 2].map(() => saveIterationWorkspace(f.owner.id, f.project.id, next.id, next.updatedAt.toISOString(), values)));
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+  });
+  it("双击继续开发不会创建两个相同基准工作区，旧版本按模块名接续身份", async () => {
+    const f = await scene(); const first = await publish(f);
+    const rows = await Promise.all([1, 2].map(() => continueIteration(f.owner.id, f.project.id, first.id)));
+    expect(rows[0].id).toBe(rows[1].id);
+    const oldNext = await saveProjectIteration(f.owner.id, f.project.id, { ...input, version: "v2", baseIterationId: first.id, features: [{ ...input.features[0], summary: "同一模块继续完善。" }] });
+    const views = await listProjectIterations(f.owner.id, f.project.id);
+    const modules = iterationModules(views.find(row => row.id === oldNext.id), views);
+    expect(modules).toHaveLength(1); expect(modules[0].id).toBe(first.features[0].id);
+  });
+});
+
+
+it("新工作区操作沿用登录和代理视角权限", async () => {
+  const f = await scene();
+  expect(await continueIterationAction({ projectId: f.project.id, baseId: null })).toEqual({ error: "请先登录" });
+  request.userId = f.owner.id; request.view = `student:${f.member.id}`;
+  expect(await continueIterationAction({ projectId: f.project.id, baseId: null })).toMatchObject({ error: expect.stringContaining("组长") });
+  request.view = "admin";
+  const result = await continueIterationAction({ projectId: f.project.id, baseId: null });
+  expect(result).toHaveProperty("id");
+  const [row] = await listProjectIterations(f.owner.id, f.project.id);
+  request.view = `student:${f.member.id}`;
+  expect(await saveWorkspaceAction({ projectId: f.project.id, iterationId: row.id, updatedAt: row.updatedAt, version: row.version, title: row.title, modules: [] })).toMatchObject({ error: expect.stringContaining("组长") });
 });

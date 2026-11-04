@@ -7,6 +7,7 @@ import { AppError, ConflictError, ForbiddenError, isUniqueViolation } from "./er
 import { getProjectForUser } from "./project";
 import { recordEvent } from "./activity";
 import { FEATURE_CHANGES, type IterationView } from "./iteration-types";
+import { iterationModules, moduleChanges } from "./iteration-modules";
 
 const featureSchema = z.object({
   id: z.uuid().default(() => randomUUID()),
@@ -54,6 +55,7 @@ export async function listProjectIterations(actorId: string, projectId: string):
     id: row.id, version: row.version, title: row.title, goal: row.goal, releaseNotes: row.releaseNotes,
     status: row.status, startDate: row.startDate, endDate: row.endDate, baseIterationId: row.baseIterationId,
     features: row.features, executionNotes: row.executionNotes, validationNotes: row.validationNotes, releaseUrl: row.releaseUrl,
+    moduleSnapshot: row.moduleSnapshot,
     createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), releasedAt: row.releasedAt?.toISOString() ?? null,
   }));
 }
@@ -65,6 +67,7 @@ export async function saveProjectIteration(actorId: string, projectId: string, i
     return await db.transaction(async tx => {
       await requireManager(tx, actorId, projectId);
       const current = edit ? await editableIteration(tx, projectId, edit.id, edit.updatedAt) : null;
+      if (current && current.moduleSnapshot !== null) throw new AppError("请在当前开发版本中修改模块");
       if (current?.status === "active" && (!values.goal || !values.features.length)) throw new AppError("进行中的迭代需要保留目标和功能模块");
       if (values.baseIterationId) {
         const [base] = await tx.select({ id: projectIterations.id }).from(projectIterations).where(and(eq(projectIterations.id, values.baseIterationId), eq(projectIterations.projectId, projectId), eq(projectIterations.status, "released")));
@@ -99,8 +102,10 @@ export async function changeIterationStatus(actorId: string, projectId: string, 
     const current = await editableIteration(tx, projectId, iterationId, expectedUpdatedAt);
     if (action === "start" && current.status !== "planned") throw new AppError("只有计划中的迭代可以开始");
     if (action === "release" && current.status !== "active") throw new AppError("请先开始迭代，再发布");
-    if (!current.goal.trim() || !current.features.length) throw new AppError("请先明确本版目标和功能模块");
-    if (action === "release" && (!current.validationNotes.trim() || !current.releaseNotes.trim())) throw new AppError("发布前请保存验证结果和版本说明");
+    if (current.moduleSnapshot === null) {
+      if (!current.goal.trim() || !current.features.length) throw new AppError("请先明确本版目标和功能模块");
+      if (action === "release" && (!current.validationNotes.trim() || !current.releaseNotes.trim())) throw new AppError("发布前请保存验证结果和版本说明");
+    } else if (action === "release" && !current.features.length) throw new AppError("本轮尚无功能变化，继续修改后再保存版本");
     const now = new Date();
     const [saved] = await tx.update(projectIterations).set({ status: action === "start" ? "active" : "released", updatedAt: now,
       ...(action === "release" ? { releasedAt: now } : {}),
@@ -108,4 +113,66 @@ export async function changeIterationStatus(actorId: string, projectId: string, 
     await recordEvent(tx, { projectId, actorId, type: "project_updated", summary: `${action === "start" ? "开始" : "发布"}迭代「${saved.version} · ${saved.title}」`, payload: { iterationId, version: saved.version, action: action === "start" ? "iteration_started" : "iteration_released" } });
     return saved;
   });
+}
+
+const moduleSchema = z.object({
+  id: z.uuid(), name: z.string().trim().min(1).max(60), summary: z.string().trim().min(1, "请写一句当前模块能做什么").max(500),
+  resultUrl: z.union([z.literal(""), z.url({ protocol: /^https?$/ }).max(2000)]).default(""),
+  context: z.string().trim().max(5000).default(""),
+});
+export const workspaceInputSchema = z.object({
+  modules: z.array(moduleSchema).max(100), executionNotes: z.string().trim().max(10000).default(""),
+  version: z.string().trim().min(1).max(40).transform(value => value.toLowerCase()),
+  title: z.string().trim().min(1).max(120), publish: z.boolean().default(false),
+}).refine(value => new Set(value.modules.map(item => item.id)).size === value.modules.length && new Set(value.modules.map(item => item.name.toLowerCase())).size === value.modules.length, "模块标识和名称不能重复");
+
+export async function continueIteration(actorId: string, projectId: string, baseId: string | null, existingId?: string) {
+  return db.transaction(async tx => {
+    await requireManager(tx, actorId, projectId);
+    const rows = await tx.select().from(projectIterations).where(eq(projectIterations.projectId, projectId));
+    if (existingId) {
+      const current = rows.find(row => row.id === existingId && row.status !== "released");
+      if (!current) throw new AppError("版本不存在或已保存为历史版本");
+      if (current.moduleSnapshot !== null && current.status === "active") return current;
+      const [saved] = await tx.update(projectIterations).set({ moduleSnapshot: iterationModules(current, rows), status: "active", updatedAt: new Date() }).where(eq(projectIterations.id, current.id)).returning();
+      return saved;
+    }
+    const base = rows.find(row => row.id === baseId && row.status === "released");
+    if (baseId && !base) throw new AppError("只能接着当前项目的已保存版本开发");
+    const existing = rows.find(row => row.status === "active" && row.baseIterationId === baseId);
+    if (existing) return existing;
+    const match = base?.version.match(/^v?(\d+)\.(\d+)(?:\.(\d+))?$/);
+    const prefix = match ? `v${match[1]}.${Number(match[2]) + 1}` : "v0.1";
+    let version = `${prefix}.0`, suffix = 0;
+    while (rows.some(row => row.version === version)) version = `${prefix}.${++suffix}`;
+    const [saved] = await tx.insert(projectIterations).values({ projectId, createdById: actorId, baseIterationId: baseId, version, title: "继续完善项目", status: "active", moduleSnapshot: iterationModules(base, rows), executionNotes: base?.executionNotes ?? "", releaseUrl: base?.releaseUrl ?? "" }).returning();
+    await recordEvent(tx, { projectId, actorId, type: "project_updated", summary: `接着 ${base?.version ?? "空白项目"} 继续开发`, payload: { iterationId: saved.id, action: "iteration_continued" } });
+    return saved;
+  });
+}
+
+export async function saveIterationWorkspace(actorId: string, projectId: string, iterationId: string, updatedAt: string, input: z.input<typeof workspaceInputSchema>) {
+  const parsed = workspaceInputSchema.safeParse(input);
+  if (!parsed.success) throw new AppError(parsed.error.issues[0].message);
+  const values = parsed.data;
+  try {
+    return await db.transaction(async tx => {
+      await requireManager(tx, actorId, projectId);
+      const current = await editableIteration(tx, projectId, iterationId, updatedAt);
+      const rows = await tx.select().from(projectIterations).where(eq(projectIterations.projectId, projectId));
+      const baseline = iterationModules(rows.find(row => row.id === current.baseIterationId), rows);
+      if (baseline.some(module => !values.modules.some(item => item.id === module.id))) throw new AppError("继承的模块需要保留，请在原模块上继续修改");
+      const features = moduleChanges(values.modules, baseline);
+      if (values.publish && !features.length) throw new AppError("本轮尚无功能变化，继续修改后再保存版本");
+      const now = new Date();
+      const [saved] = await tx.update(projectIterations).set({ moduleSnapshot: values.modules, features, executionNotes: values.executionNotes, version: values.version, title: values.title,
+        status: values.publish ? "released" : "active", ...(values.publish ? { releasedAt: now, releaseNotes: features.map(item => `${item.name}：${item.summary}`).join("\n") } : {}), updatedAt: now,
+      }).where(eq(projectIterations.id, current.id)).returning();
+      await recordEvent(tx, { projectId, actorId, type: "project_updated", summary: `${values.publish ? "保存版本" : "保存开发修改"}「${saved.version}」`, payload: { iterationId, action: values.publish ? "iteration_released" : "iteration_workspace_saved" } });
+      return saved;
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) throw new AppError("此项目已存在相同版本号，请使用新的版本号");
+    throw error;
+  }
 }
