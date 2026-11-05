@@ -12,10 +12,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   let data;
-  try { data = await getHomeView(session.user.id, await searchParams); }
+  try {
+    const { team } = await searchParams;
+    data = await getHomeView(session.user.id, { view: "courtyard", team });
+  }
   catch (error) {
     if (!(error instanceof AppError)) throw error;
-    return <div className={styles.unavailable}><span>⌂</span><h1>这次还不能进门</h1><p>{error.message}</p><Link className="ac-btn" href="/home">回到我的家园</Link></div>;
+    return <div className={styles.unavailable}><span>⌂</span><h1>暂时无法进入庭院</h1><p>{error.message}</p><Link className="ac-btn" href="/home">返回团队庭院</Link></div>;
   }
   return <HomeSpace key={`${data.view}:${data.home.ownerId}:${data.teamId}`} data={data} />;
 }
