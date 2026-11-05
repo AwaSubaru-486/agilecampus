@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
@@ -139,14 +139,14 @@ export function HomeSpace({ data }: { data: HomeView }) {
           <GardenBackdrop courtyard />
           {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
           {seats.map((seat, index) => {
-            const left = 25 + index % 3 * 25, top = 46 + Math.floor(index / 3) * 22;
+            const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
             const occupied = Boolean(seat?.working && seat.pet?.status === "ready");
-            return <div key={seat?.ownerId ?? index} className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
+            const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
+            return <Fragment key={seat?.ownerId ?? index}><div className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={bubble === seat?.ownerId} /></div>
               {occupied && seat?.pet && <button className={s.seatedPet} aria-label={`${seat.ownerName}正在工作，点击与${seat.pet.name}打招呼`} onClick={() => setBubble(seat.ownerId)} />}
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
-              <span className={s.seatLabel}>{seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位"}</span>
-            </div>;
+            </div><span className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={label}>{label}</span></Fragment>;
           })}
         </div>
         {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
