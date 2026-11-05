@@ -23,10 +23,10 @@
 .scene{position:relative;width:100%;aspect-ratio:960/600;isolation:isolate;overflow:hidden;background:linear-gradient(180deg,#f3f8fa,#edf5f1)}
 .scene>svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .workstation{position:absolute;width:20%;aspect-ratio:160/125;transform:translateX(-50%)}
-.seatBack{position:absolute;left:38%;top:10%;width:24%;height:37%;border-radius:9px;background:#afc4c2;z-index:1}
-.deskArt{position:absolute;inset:0;z-index:3;pointer-events:none}.deskArt svg{width:100%;height:100%}
-.seatedPet{position:absolute;left:29%;top:-8%;width:34%;height:62%;z-index:2;padding:0;border:0;background:transparent;cursor:pointer}
-.seatedPet>svg{width:100%;height:100%;clip-path:inset(0 0 20% 0)}.seatedPet .speech{top:-15px;left:50%;font-size:10px;white-space:normal;min-width:100px;z-index:5}
+.deskArt{position:absolute;inset:0;z-index:3;pointer-events:none}.deskArt>svg{width:100%;height:100%}
+.seatedPet{position:absolute;left:27%;top:6%;width:36%;height:43%;z-index:4;padding:0;border:0;border-radius:45%;background:transparent;cursor:pointer}
+.seatedPet:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px}
+.workSpeech{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);width:140px;padding:8px 10px;border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-panel);box-shadow:var(--shadow-panel);font-size:11px;z-index:5}
 .seatLabel{position:absolute;top:89%;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;max-width:115%;overflow:hidden;text-overflow:ellipsis;background:#fffffff0;border:1px solid var(--color-stroke);border-radius:6px;padding:2px 5px;color:var(--color-ink-3)}
 .workstation[data-occupied="true"] .seatLabel{color:var(--color-signal);border-color:var(--color-signal-ring)}
 .seatPages{display:flex;gap:16px;align-items:center;justify-content:center;padding:10px;font-size:12px;color:var(--color-ink-3)}

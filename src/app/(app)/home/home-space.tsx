@@ -142,12 +142,9 @@ export function HomeSpace({ data }: { data: HomeView }) {
             const left = 25 + index % 3 * 25, top = 46 + Math.floor(index / 3) * 22;
             const occupied = Boolean(seat?.working && seat.pet?.status === "ready");
             return <div key={seat?.ownerId ?? index} className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
-              <div className={s.seatBack} />
-              {occupied && seat?.pet && <button className={s.seatedPet} data-photo-object="pet" data-pet-name={seat.pet.name} data-photo-left={left - 2} data-photo-top={top + 5} aria-label={`${seat.ownerName}正在工作，点击与${seat.pet.name}打招呼`} onClick={() => setBubble(seat.ownerId)}>
-                <PetAvatar pet={seat.pet} action={bubble === seat.ownerId ? "greet" : "idle"} />
-                {bubble === seat.ownerId && <span className={s.speech}>加油，一起完成今天的工作！</span>}
-              </button>}
-              <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} /></div>
+              <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={bubble === seat?.ownerId} /></div>
+              {occupied && seat?.pet && <button className={s.seatedPet} aria-label={`${seat.ownerName}正在工作，点击与${seat.pet.name}打招呼`} onClick={() => setBubble(seat.ownerId)} />}
+              {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
               <span className={s.seatLabel}>{seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位"}</span>
             </div>;
           })}

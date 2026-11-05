@@ -1,12 +1,20 @@
 import { useId } from "react";
 import type { FurnitureKind } from "@/lib/home-contract";
+import type { HomePetDisplay } from "@/lib/home-contract";
+import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
 
 /** Architectural space and modular objects; independent of the pet renderer. */
-export function WorkstationArt({ occupied = false }: { occupied?: boolean }) {
+export function WorkstationArt({ occupied = false, pet, greeting = false }: { occupied?: boolean; pet?: HomePetDisplay; greeting?: boolean }) {
   return <svg viewBox="0 0 160 125" fill="none" aria-hidden="true">
     <ellipse cx="80" cy="112" rx="64" ry="9" fill="#244d5510" />
+    <path d="M72 68V100M55 105L72 99L89 105" stroke="#78958f" strokeWidth="3" strokeLinecap="round" />
+    <rect x="48" y="11" width="48" height="48" rx="13" fill="#86a8a0" />
+    <rect x="52" y="15" width="40" height="34" rx="10" fill="#a9c1ba" />
+    <path d="M48 50H96L102 67H42Z" fill="#799c91" />
+    {occupied && pet && <svg x="43" y="8" width="58" height="64" viewBox="0 0 100 84" overflow="hidden" data-seated-pet><HomePetAvatar pet={pet} seated action={greeting ? "greet" : "idle"} /></svg>}
     <path d="M27 72V106M132 72V106" stroke="#8ba7a5" strokeWidth="6" />
     <path d="M17 61L128 54L147 75L35 84Z" fill="#e8f0ef" stroke="#c3d5d3" />
+    {occupied && <path d="M43 60L88 57L99 63L54 67Z" fill="#72998d" opacity=".14" />}
     <path d="M17 61V68L35 91V84Z" fill="#b8cfca" />
     <path d="M35 84L147 75V82L35 91Z" fill="#95b6ae" />
     <rect x="91" y="28" width="38" height="27" rx="3" fill="#54747b" />
