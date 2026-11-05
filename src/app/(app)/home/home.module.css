@@ -29,6 +29,12 @@
 .workSpeech{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);width:140px;padding:8px 10px;border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-panel);box-shadow:var(--shadow-panel);font-size:11px;z-index:5}
 .seatLabel{position:absolute;top:89%;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;max-width:115%;overflow:hidden;text-overflow:ellipsis;background:#fffffff0;border:1px solid var(--color-stroke);border-radius:6px;padding:2px 5px;color:var(--color-ink-3)}
 .workstation[data-occupied="true"] .seatLabel{color:var(--color-signal);border-color:var(--color-signal-ring)}
+.typingBody{transform-box:fill-box;transform-origin:50% 85%;animation:typing-body 2.8s ease-in-out infinite}
+.typingKey{animation:typing-key .72s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.typingCursor{animation:typing-cursor 1.2s steps(1,end) infinite}
+@keyframes typing-body{0%,65%,100%{transform:translateY(0) rotate(0deg)}12%,36%{transform:translateY(.8px) rotate(.6deg)}24%,48%{transform:translateY(.2px) rotate(-.5deg)}}
+@keyframes typing-key{0%,55%,100%{opacity:.65;transform:translateY(0)}20%,35%{opacity:1;transform:translateY(.8px);fill:#69ac93}}
+@keyframes typing-cursor{0%,49%{opacity:1}50%,100%{opacity:0}}
 .seatPages{display:flex;gap:16px;align-items:center;justify-content:center;padding:10px;font-size:12px;color:var(--color-ink-3)}
 .seatPages button{padding:4px 8px;border:1px solid var(--color-stroke);border-radius:6px}.seatPages button:disabled{opacity:.4}
 .meadow{background:linear-gradient(180deg,#f3f8fa,#edf5f1)}

@@ -2,6 +2,7 @@ import { useId } from "react";
 import type { FurnitureKind } from "@/lib/home-contract";
 import type { HomePetDisplay } from "@/lib/home-contract";
 import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
+import s from "./home.module.css";
 
 /** Architectural space and modular objects; independent of the pet renderer. */
 export function WorkstationArt({ occupied = false, pet, greeting = false }: { occupied?: boolean; pet?: HomePetDisplay; greeting?: boolean }) {
@@ -11,7 +12,9 @@ export function WorkstationArt({ occupied = false, pet, greeting = false }: { oc
     <rect x="48" y="11" width="48" height="48" rx="13" fill="#86a8a0" />
     <rect x="52" y="15" width="40" height="34" rx="10" fill="#a9c1ba" />
     <path d="M48 50H96L102 67H42Z" fill="#799c91" />
-    {occupied && pet && <svg x="43" y="8" width="58" height="64" viewBox="0 0 100 84" overflow="hidden" data-seated-pet><HomePetAvatar pet={pet} seated action={greeting ? "greet" : "idle"} /></svg>}
+    {occupied && pet && <g className={greeting ? undefined : s.typingBody} data-typing-body={!greeting}>
+      <svg x="43" y="8" width="58" height="64" viewBox="0 0 100 84" overflow="hidden" data-seated-pet><HomePetAvatar pet={pet} seated action={greeting ? "greet" : "idle"} /></svg>
+    </g>}
     <path d="M27 72V106M132 72V106" stroke="#8ba7a5" strokeWidth="6" />
     <path d="M17 61L128 54L147 75L35 84Z" fill="#e8f0ef" stroke="#c3d5d3" />
     {occupied && <path d="M43 60L88 57L99 63L54 67Z" fill="#72998d" opacity=".14" />}
@@ -21,7 +24,12 @@ export function WorkstationArt({ occupied = false, pet, greeting = false }: { oc
     <rect x="95" y="32" width="30" height="19" rx="1" fill={occupied ? "#b7e5d6" : "#d4e1e2"} />
     <path d="M109 55V62M101 63H118" stroke="#73978f" strokeWidth="3" strokeLinecap="round" />
     <path d="M99 39H118M99 44H111" stroke={occupied ? "#589d87" : "#a1b8ba"} strokeWidth="2" />
-    <path d="M78 70L101 68L106 73L82 76Z" fill="#b5ccc6" />
+    <path d="M57 67L88 64L99 70L67 74Z" fill="#b5ccc6" />
+    <g data-typing-keys={occupied && Boolean(pet)}>
+      {[0, 1, 2, 3, 4, 5].map(index => <path key={index} className={occupied && pet && !greeting ? s.typingKey : undefined} style={{ animationDelay: `${index * -.13}s` }} d={`M${62 + index * 4} ${67.5 - index * .35}l2.5 -.2 2 1.4 -2.5 .2Z`} fill="#f3faf6" />)}
+      <path d="M69 71L87 69.5" stroke="#e1eee7" strokeWidth="1.3" strokeLinecap="round" />
+    </g>
+    {occupied && pet && <path className={s.typingCursor} d="M113 44H116" stroke="#448b75" strokeWidth="1.5" />}
     <rect x="36" y="53" width="13" height="15" rx="3" fill="#88b8a2" />
     <path d="M49 56H52V62H49" stroke="#88b8a2" strokeWidth="2" />
   </svg>;
