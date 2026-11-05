@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), saveHome: vi.fn(), moveHomePet: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), saveHome: vi.fn(), moveHomePet: vi.fn(), setHomeWorking: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ auth: mocks.auth }));
-vi.mock("@/lib/home", () => ({ saveHome: mocks.saveHome, moveHomePet: mocks.moveHomePet }));
+vi.mock("@/lib/home", () => ({ saveHome: mocks.saveHome, moveHomePet: mocks.moveHomePet, setHomeWorking: mocks.setHomeWorking }));
 import { POST } from "@/app/api/home/route";
 
 function request(origin = "http://127.0.0.1:3000") {
@@ -11,6 +11,12 @@ function request(origin = "http://127.0.0.1:3000") {
   });
 }
 describe("家园浏览器写入接口", () => {
+  it("工作状态仅写入当前登录成员，忽略伪造 ownerId", async () => {
+    mocks.setHomeWorking.mockResolvedValue({ workingTeamId: null });
+    const response = await POST(new Request("http://localhost:3000/api/home", { method: "POST", body: JSON.stringify({ operation: "work", teamId: null, ownerId: "someone-else" }) }));
+    expect(response.status).toBe(200);
+    expect(mocks.setHomeWorking).toHaveBeenCalledWith("owner", null);
+  });
   beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue({ user: { id: "owner" } }); mocks.moveHomePet.mockResolvedValue({ ownerId: "owner", petTeamId: null }); });
   it("使用请求 Host 校验来源，允许浏览器 127.0.0.1 与 Next 内部 localhost 的正常请求", async () => {
     expect((await POST(request())).status).toBe(200);

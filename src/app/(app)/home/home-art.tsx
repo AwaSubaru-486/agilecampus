@@ -2,6 +2,23 @@ import { useId } from "react";
 import type { FurnitureKind } from "@/lib/home-contract";
 
 /** Architectural space and modular objects; independent of the pet renderer. */
+export function WorkstationArt({ occupied = false }: { occupied?: boolean }) {
+  return <svg viewBox="0 0 160 125" fill="none" aria-hidden="true">
+    <ellipse cx="80" cy="112" rx="64" ry="9" fill="#244d5510" />
+    <path d="M27 72V106M132 72V106" stroke="#8ba7a5" strokeWidth="6" />
+    <path d="M17 61L128 54L147 75L35 84Z" fill="#e8f0ef" stroke="#c3d5d3" />
+    <path d="M17 61V68L35 91V84Z" fill="#b8cfca" />
+    <path d="M35 84L147 75V82L35 91Z" fill="#95b6ae" />
+    <rect x="91" y="28" width="38" height="27" rx="3" fill="#54747b" />
+    <rect x="95" y="32" width="30" height="19" rx="1" fill={occupied ? "#b7e5d6" : "#d4e1e2"} />
+    <path d="M109 55V62M101 63H118" stroke="#73978f" strokeWidth="3" strokeLinecap="round" />
+    <path d="M99 39H118M99 44H111" stroke={occupied ? "#589d87" : "#a1b8ba"} strokeWidth="2" />
+    <path d="M78 70L101 68L106 73L82 76Z" fill="#b5ccc6" />
+    <rect x="36" y="53" width="13" height="15" rx="3" fill="#88b8a2" />
+    <path d="M49 56H52V62H49" stroke="#88b8a2" strokeWidth="2" />
+  </svg>;
+}
+
 export function FurnitureArt({ kind }: { kind: FurnitureKind }) {
   return <svg viewBox="0 0 100 110" fill="none" aria-hidden="true">
     <rect x="13" y="88" width="76" height="12" rx="6" fill="#1d353910" />

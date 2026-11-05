@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { homeProfiles, teamMembers, users } from "@/db/schema";
 import { createTeam, joinTeam } from "@/lib/team";
-import { ensureHome, getHomeView, moveHomePet, saveHome, selectHomePet } from "@/lib/home";
+import { ensureHome, getHomeView, moveHomePet, saveHome, selectHomePet, setHomeWorking } from "@/lib/home";
 import { homeSaveSchema } from "@/lib/home-contract";
 import { ConflictError, ForbiddenError } from "@/lib/errors";
 import { resetDb } from "./helpers";
@@ -23,6 +23,31 @@ async function setup() {
 }
 
 describe("家园：保存、访问与伙伴所在位置", () => {
+  it("工作状态独立于庭院位置，开始才入座，结束后保留空工位", async () => {
+    const { owner, neighbor, team } = await setup();
+    await moveHomePet(owner.id, team.id);
+    const view = () => getHomeView(neighbor.id, { view: "courtyard", team: team.id });
+    expect((await view()).workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: false, pet: null });
+    await setHomeWorking(owner.id, team.id);
+    const working = await view();
+    expect(working.workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: true, pet: { status: "ready" } });
+    await setHomeWorking(owner.id, null);
+    expect((await view()).workstations.map(s => s.ownerId)).toEqual(working.workstations.map(s => s.ownerId));
+    expect((await view()).workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: false, pet: null });
+  });
+
+  it("仅本团队成员可开工，清除桌宠会结束工作，离队后仍能结束", async () => {
+    const { owner, stranger, team } = await setup();
+    await expect(setHomeWorking(stranger.id, team.id)).rejects.toBeInstanceOf(ForbiddenError);
+    await setHomeWorking(owner.id, team.id);
+    await selectHomePet(owner.id, null);
+    expect((await ensureHome(owner.id)).workingTeamId).toBeNull();
+    await expect(setHomeWorking(owner.id, team.id)).rejects.toThrow("请先选择");
+    await selectHomePet(owner.id, `pet:${owner.id}`);
+    await setHomeWorking(owner.id, team.id);
+    await db.delete(teamMembers).where(and(eq(teamMembers.userId, owner.id), eq(teamMembers.teamId, team.id)));
+    await expect(setHomeWorking(owner.id, null)).resolves.toMatchObject({ workingTeamId: null });
+  });
   beforeEach(async () => {
     await resetDb();
     vi.clearAllMocks();

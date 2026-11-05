@@ -4,14 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
-import { FurnitureArt, GardenBackdrop } from "./home-art";
+import { FurnitureArt, GardenBackdrop, WorkstationArt } from "./home-art";
 import { HomePetAvatar as PetAvatar } from "@/components/pets/home-pet-avatar";
 import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
 import s from "./home.module.css";
 
 const COURTYARD_FURNITURE: HomeFurniture[] = [
-  { id: "yard-pond", kind: "pond", x: 2, y: 3, flipped: false },
-  { id: "yard-picnic", kind: "picnic", x: 6, y: 4, flipped: false },
   { id: "yard-lamp", kind: "lamp", x: 8, y: 1, flipped: false },
   { id: "yard-flowers", kind: "flowers", x: 0, y: 1, flipped: false },
 ];
@@ -37,12 +35,16 @@ export function HomeSpace({ data }: { data: HomeView }) {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
-  const [gathered, setGathered] = useState(false);
-  const [wander, setWander] = useState(0);
+  const [seatPage, setSeatPage] = useState(0);
   const [selectedPetId, setSelectedPetId] = useState(data.ownPet.petId ?? "");
   const sceneRef = useRef<HTMLDivElement>(null);
   const team = data.teams.find(t => t.id === data.teamId);
-  const residents = data.residents;
+  const residents = data.workstations.filter(seat => seat.working && seat.pet?.status === "ready");
+  const pageCount = Math.max(1, Math.ceil(data.workstations.length / 6));
+  const currentPage = Math.min(seatPage, pageCount - 1);
+  const seats = Array.from({ length: 6 }, (_, index) => data.workstations[currentPage * 6 + index] ?? null);
+  const workingHere = data.ownWorkingTeamId === data.teamId;
+  const workingElsewhere = Boolean(data.ownWorkingTeamId && !workingHere);
 
   useEffect(() => {
     const timer = setInterval(() => { if (!document.hidden) router.refresh(); }, 15000);
@@ -54,11 +56,11 @@ export function HomeSpace({ data }: { data: HomeView }) {
     return () => clearTimeout(timer);
   }, [bubble]);
 
-  async function movePet(teamId: string | null) {
+  async function changeWork(teamId: string | null) {
     setPending(true); setNotice(null);
     try {
-      await mutate({ operation: "move", teamId });
-      setNotice({ text: teamId ? `${data.ownPet.name}已经去庭院啦。` : `${data.ownPet.name}已经离开庭院。` }); router.refresh();
+      await mutate({ operation: "work", teamId });
+      setNotice({ text: teamId ? "已开始工作，桌宠已经在工位就座。" : "已结束工作，桌宠已离开工位。" }); router.refresh();
     } catch (error) { setNotice({ text: error instanceof Error ? error.message : "暂时无法出门，请稍后重试。", error: true }); }
     finally { setPending(false); }
   }
@@ -75,9 +77,7 @@ export function HomeSpace({ data }: { data: HomeView }) {
   }
 
   async function photograph() {
-    setGathered(true);
-    setNotice({ text: "伙伴们集合啦。再点“保存合影”，把这一刻带回家。" });
-    if (!gathered || !sceneRef.current) return;
+    if (!sceneRef.current) return;
     const ns = "http://www.w3.org/2000/svg";
     const background = sceneRef.current.querySelector<SVGSVGElement>("[data-backdrop]")!;
     const image = background.cloneNode(true) as SVGSVGElement;
@@ -88,12 +88,12 @@ export function HomeSpace({ data }: { data: HomeView }) {
     sceneRef.current.querySelectorAll<HTMLElement>("[data-photo-object]").forEach(element => {
       const art = element.querySelector("svg")?.cloneNode(true) as SVGSVGElement | undefined;
       if (!art) return;
-      const left = Number.parseFloat(element.style.left) * 9.6;
-      const top = Number.parseFloat(element.style.top) * 6;
+      const left = Number(element.dataset.photoLeft ?? Number.parseFloat(element.style.left)) * 9.6;
+      const top = Number(element.dataset.photoTop ?? Number.parseFloat(element.style.top)) * 6;
       const isPet = element.dataset.photoObject === "pet";
-      const width = isPet ? 72 : 88;
-      art.setAttribute("x", String(left - width / 2)); art.setAttribute("y", String(top - (isPet ? 60 : 76)));
-      art.setAttribute("width", String(width)); art.setAttribute("height", isPet ? "80" : "97");
+      const width = isPet ? (element.dataset.photoLeft ? 76 : 72) : element.dataset.photoLeft ? 202 : 88;
+      art.setAttribute("x", String(left - width / 2)); art.setAttribute("y", String(top - (isPet ? 60 : element.dataset.photoLeft ? 145 : 76)));
+      art.setAttribute("width", String(width)); art.setAttribute("height", isPet ? "80" : element.dataset.photoLeft ? "158" : "97");
       if (element.dataset.flipped === "true") art.setAttribute("transform", `translate(${left * 2} 0) scale(-1 1)`);
       image.appendChild(art);
       if (isPet) {
@@ -133,25 +133,31 @@ export function HomeSpace({ data }: { data: HomeView }) {
     {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
     {!team ? <div className={s.empty}><Mark name="leaf" /><h2>庭院，等大家一起开启。</h2><p>加入一个团队，就能带伙伴到共享庭院相聚。</p><Link className="ac-btn" href="/teams">前往我的团队 →</Link></div> : <div className={s.workspace}>
       <section className={s.gardenCard} aria-label="团队共享庭院">
-        <div className={s.sceneHeader}><div><p>大家的小小会客厅</p><h2>{team.name}的庭院</h2></div><span className={s.pill}><i />{residents.length} 位伙伴在庭院</span></div>
+        <div className={s.sceneHeader}><div><p>团队共享办公室</p><h2>{team.name}的庭院</h2></div><span className={s.pill}><i />{data.workstations.filter(seat => seat.working).length} 位成员工作中</span></div>
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>
           <div className={s.sceneLabel}><Mark name="leaf" />共享空间</div>
           <GardenBackdrop courtyard />
           {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
-          {residents.map((resident, index) => {
-            const left = gathered ? 35 + index % 6 * 7 : 39 + ((index * 13 + wander * 7) % 34);
-            const top = gathered ? 78 + Math.floor(index / 6) * 9 : 67 + index % 3 * 7;
-            return <button key={resident.ownerId} data-photo-object="pet" data-pet-name={resident.pet.name} className={`${s.pet} ${gathered ? s.posed : ""}`} style={{ left: `${left}%`, top: `${top}%`, zIndex: 12 + index }} aria-label={`${resident.ownerName}的伙伴${resident.pet.name}，点击打招呼`} onClick={() => setBubble(resident.ownerId)}>
-              {bubble === resident.ownerId && <span className={s.speech}>♡ {resident.pet.name}向你打招呼！</span>}<PetAvatar pet={resident.pet} action={bubble === resident.ownerId ? "greet" : "idle"} /><span className={s.petName}>{resident.pet.name}</span>
-            </button>;
+          {seats.map((seat, index) => {
+            const left = 25 + index % 3 * 25, top = 46 + Math.floor(index / 3) * 22;
+            const occupied = Boolean(seat?.working && seat.pet?.status === "ready");
+            return <div key={seat?.ownerId ?? index} className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
+              <div className={s.seatBack} />
+              {occupied && seat?.pet && <button className={s.seatedPet} data-photo-object="pet" data-pet-name={seat.pet.name} data-photo-left={left - 2} data-photo-top={top + 5} aria-label={`${seat.ownerName}正在工作，点击与${seat.pet.name}打招呼`} onClick={() => setBubble(seat.ownerId)}>
+                <PetAvatar pet={seat.pet} action={bubble === seat.ownerId ? "greet" : "idle"} />
+                {bubble === seat.ownerId && <span className={s.speech}>加油，一起完成今天的工作！</span>}
+              </button>}
+              <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} /></div>
+              <span className={s.seatLabel}>{seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位"}</span>
+            </div>;
           })}
-          {residents.length === 0 && <div className={s.away}>暂无桌宠在场，选择桌宠后可带它进入庭院。</div>}
         </div>
-        <div className={s.sceneFooter}><span>伙伴的位置每 15 秒更新；在场不代表主人在线。</span><div><button onClick={() => { setGathered(false); setWander(x => x + 1); setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />{gathered ? "保存合影" : "一起合影"}</button></div></div>
+        {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
+        <div className={s.sceneFooter}><span>手动开始工作后入座，结束工作后离座。每 15 秒同步。</span><div><button onClick={() => { setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />保存合影</button></div></div>
       </section>
       <aside className={s.sidePanel}>
         <div className={s.panelHeading}><h3>我的桌宠</h3><p>选择自己的桌宠，带它与团队伙伴相聚。</p></div>
-        <div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPet.status === "unavailable" ? "原桌宠暂不可用，可重新选择" : data.ownPet.status === "unbound" ? "自定义桌宠开放后，可在此选择" : data.ownPetTeamId === data.teamId ? "在当前团队庭院" : data.ownPetTeamId ? "在其他团队庭院" : "尚未进入庭院"}</p><span>{data.ownPet.status === "ready" ? "已关联桌宠" : "等待选择桌宠"}</span></div>
+        <div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPet.status === "unavailable" ? "原桌宠暂不可用，可重新选择" : data.ownPet.status === "unbound" ? "自定义桌宠开放后，可在此选择" : workingHere ? "工作中 · 已在工位就座" : workingElsewhere ? "正在其他团队工作" : "休息中 · 工位空闲"}</p><span>{data.ownPet.status === "ready" ? "已关联桌宠" : "等待选择桌宠"}</span></div>
         <div className={s.petBinding}>
           <label className={s.field}>选择桌宠<select aria-label="选择桌宠" value={selectedPetId} disabled={pending || (!data.availablePets.length && !data.ownPet.petId)} onChange={event => setSelectedPetId(event.target.value)}>
             <option value="">{data.availablePets.length ? "暂不展示桌宠" : "暂无可选桌宠"}</option>
@@ -160,11 +166,12 @@ export function HomeSpace({ data }: { data: HomeView }) {
           </select></label>
           <button className="ac-btn-ghost" disabled={pending || selectedPetId === (data.ownPet.petId ?? "")} onClick={bindPet}>{pending ? "正在应用…" : "应用桌宠"}</button>
         </div>
-        <button className="ac-btn" disabled={pending || (data.ownPet.status !== "ready" && data.ownPetTeamId !== data.teamId)} onClick={() => movePet(data.ownPetTeamId === data.teamId ? null : data.teamId)}>{pending ? "稍等一下…" : data.ownPetTeamId === data.teamId ? "离开庭院" : "带伙伴来庭院"}</button>
+        <button className="ac-btn" disabled={pending || (data.ownPet.status !== "ready" && !data.ownWorkingTeamId)} onClick={() => changeWork(workingHere || workingElsewhere ? null : data.teamId)}>{pending ? "正在更新…" : workingHere || workingElsewhere ? "结束工作" : "开始工作"}</button>
+        <p className={s.integrationHint}>开始后会持续显示工作中，关闭网页不会自动结束。休息时请点击“结束工作”。</p>
         <DesktopCompanionControl />
-        <div className={s.smallNote}><Mark name="leaf" /><p>选择桌宠后，可以进入团队庭院并与其他成员的桌宠合影。</p></div>
+        <div className={s.smallNote}><Mark name="leaf" /><p>选择桌宠后点击“开始工作”，它就会在你的工位上陪你工作。</p></div>
       </aside>
     </div>}
-    <footer className={s.pageFooter}><span>团队共享庭院，让伙伴们在这里相聚。</span><span>伙伴在场不代表成员在线。</span></footer>
+    <footer className={s.pageFooter}><span>团队共享庭院，让伙伴们在这里相聚。</span><span>工作状态由成员手动设置。</span></footer>
   </div>;
 }

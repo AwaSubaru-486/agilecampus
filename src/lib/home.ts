@@ -33,7 +33,7 @@ export async function getHomeView(actorId: string, options: { view?: string; own
   const view = options.view === "courtyard" ? "courtyard" : options.view === "members" ? "members" : "mine";
   const roster = group ? await db.select({ id: users.id, name: users.name, home: homeProfiles }).from(teamMembers)
     .innerJoin(users, eq(users.id, teamMembers.userId)).leftJoin(homeProfiles, eq(homeProfiles.ownerId, users.id))
-    .where(and(eq(teamMembers.teamId, group.id), eq(users.kind, "human"))).orderBy(users.createdAt) : [];
+    .where(and(eq(teamMembers.teamId, group.id), eq(users.kind, "human"))).orderBy(users.createdAt, users.id) : [];
   let home = own;
   const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, actorId));
   let ownerName = actor?.name ?? "我";
@@ -59,6 +59,12 @@ export async function getHomeView(actorId: string, options: { view?: string; own
     actorId, view, home, ownerName, teams: groups, teamId: group?.id ?? null,
     ownPet: await displayPet(actorId, own.pet), ownPetTeamId: own.petTeamId,
     availablePets: await listHomePets(actorId), members,
+    ownWorkingTeamId: own.workingTeamId,
+    workstations: await Promise.all(roster.map(async member => ({
+      ownerId: member.id, ownerName: member.name,
+      working: member.home?.workingTeamId === group?.id,
+      pet: member.home?.workingTeamId === group?.id && member.home ? await displayPet(member.id, member.home.pet) : null,
+    }))),
     residents: residents.filter(resident => resident.pet.status === "ready"),
   };
 }
@@ -97,7 +103,22 @@ export async function selectHomePet(actorId: string, petId: string | null) {
   const pet = petId ? await requireHomePet(actorId, petId) : null;
   const [updated] = await db.update(homeProfiles).set({
     pet: pet ? { name: pet.name, kind: "placeholder", petId: pet.id } : DEFAULT_HOME_PET,
-    petTeamId: null, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date(),
+    petTeamId: null, workingTeamId: null, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date(),
   }).where(eq(homeProfiles.ownerId, actorId)).returning();
+  return updated;
+}
+
+/** Explicit work declaration, independent of task status and courtyard visits. */
+export async function setHomeWorking(actorId: string, teamId: string | null) {
+  const home = await ensureHome(actorId);
+  if (teamId) {
+    const [membership] = await db.select({ id: teamMembers.id }).from(teamMembers)
+      .where(and(eq(teamMembers.userId, actorId), eq(teamMembers.teamId, teamId)));
+    if (!membership) throw new ForbiddenError("只能在自己的团队开始工作");
+    if (!home.pet.petId) throw new AppError("请先选择一只桌宠");
+    await requireHomePet(actorId, home.pet.petId);
+  }
+  const [updated] = await db.update(homeProfiles).set({ workingTeamId: teamId, updatedAt: new Date() })
+    .where(eq(homeProfiles.ownerId, actorId)).returning();
   return updated;
 }

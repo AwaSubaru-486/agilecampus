@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { AppError, ConflictError, ForbiddenError } from "@/lib/errors";
-import { moveHomePet, saveHome } from "@/lib/home";
+import { moveHomePet, saveHome, setHomeWorking } from "@/lib/home";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -15,6 +15,10 @@ export async function POST(request: Request) {
   if (origin && origin !== `${url.protocol}//${authority}`) return Response.json({ error: "请求来源无效" }, { status: 403 });
   try {
     const body = await request.json();
+    if (body.operation === "work") {
+      const destination = z.object({ teamId: z.uuid().nullable() }).parse(body);
+      return Response.json({ home: await setHomeWorking(session.user.id, destination.teamId) });
+    }
     if (body.operation === "save") return Response.json({ home: await saveHome(session.user.id, body.settings) });
     if (body.operation === "move") {
       const destination = z.object({ teamId: z.uuid().nullable() }).parse(body);
