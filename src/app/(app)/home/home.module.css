@@ -15,6 +15,7 @@
 .error{background:var(--color-risk-soft);border-color:var(--color-risk-soft);color:var(--color-risk)}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:20px;align-items:start}
 .workspace.officeWorkspace{display:block}
+@media(min-width:801px){.workspace.officeWorkspace{width:92%;max-width:1280px;margin-inline:auto}}
 .petDrawer{position:fixed;inset:0 0 0 auto;margin:0;padding:0;width:min(380px,100vw);max-width:100vw;height:100dvh;max-height:100dvh;border:0;background:var(--color-panel);color:var(--color-ink);overflow-y:auto;box-shadow:-12px 0 40px #15383e20}
 .petDrawer::backdrop{background:#16343940;backdrop-filter:blur(2px)}
 .blackboardTrigger{position:absolute;left:11.25%;top:25.5%;width:19.8%;height:12.2%;z-index:2;border:2px solid transparent;border-radius:5px;background:transparent;cursor:pointer}
