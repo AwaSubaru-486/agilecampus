@@ -38,6 +38,7 @@ export function HomeSpace({ data }: { data: HomeView }) {
   const [seatPage, setSeatPage] = useState(0);
   const [selectedPetId, setSelectedPetId] = useState(data.ownPet.petId ?? "");
   const sceneRef = useRef<HTMLDivElement>(null);
+  const petDrawerRef = useRef<HTMLDialogElement>(null);
   const team = data.teams.find(t => t.id === data.teamId);
   const residents = data.workstations.filter(seat => seat.working && seat.pet?.status === "ready");
   const pageCount = Math.max(1, Math.ceil(data.workstations.length / 6));
@@ -124,14 +125,14 @@ export function HomeSpace({ data }: { data: HomeView }) {
   return <div className={s.page}>
     <header className={`ac-page-header ${s.heading}`}>
       <div><h1>家园</h1><p>带上你的桌宠，在团队庭院与队友相聚。</p></div>
-      <span className={s.headerNote}><Mark name="leaf" />我的伙伴：{data.ownPet.name}</span>
+      <button className="ac-btn-ghost" aria-haspopup="dialog" onClick={() => petDrawerRef.current?.showModal()}>我的桌宠 ↗</button>
     </header>
     <div className={s.navigation}>
       <h2>团队庭院</h2>
       {data.teams.length > 0 && <select aria-label="选择团队" value={data.teamId ?? ""} disabled={pending} onChange={event => router.push(`/home?team=${event.target.value}`)}>{data.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
     </div>
     {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
-    {!team ? <div className={s.empty}><Mark name="leaf" /><h2>庭院，等大家一起开启。</h2><p>加入一个团队，就能带伙伴到共享庭院相聚。</p><Link className="ac-btn" href="/teams">前往我的团队 →</Link></div> : <div className={s.workspace}>
+    {!team ? <div className={s.empty}><Mark name="leaf" /><h2>庭院，等大家一起开启。</h2><p>加入一个团队，就能带伙伴到共享庭院相聚。</p><Link className="ac-btn" href="/teams">前往我的团队 →</Link></div> : <div className={`${s.workspace} ${s.officeWorkspace}`}>
       <section className={s.gardenCard} aria-label="团队共享庭院">
         <div className={s.sceneHeader}><div><p>团队共享办公室</p><h2>{team.name}的庭院</h2></div><span className={s.pill}><i />{data.workstations.filter(seat => seat.working).length} 位成员工作中</span></div>
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>
@@ -144,7 +145,7 @@ export function HomeSpace({ data }: { data: HomeView }) {
             const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
             return <Fragment key={seat?.ownerId ?? index}><div className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={bubble === seat?.ownerId} /></div>
-              {occupied && seat?.pet && <button className={s.seatedPet} aria-label={`${seat.ownerName}正在工作，点击与${seat.pet.name}打招呼`} onClick={() => setBubble(seat.ownerId)} />}
+              {occupied && seat?.pet && <button className={s.seatedPet} aria-haspopup="dialog" aria-label={`${seat.ownerName}的桌宠${seat.pet.name}，打开我的桌宠面板`} onClick={() => petDrawerRef.current?.showModal()} />}
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
             </div><span className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={label}>{label}</span></Fragment>;
           })}
@@ -152,8 +153,11 @@ export function HomeSpace({ data }: { data: HomeView }) {
         {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
         <div className={s.sceneFooter}><span>手动开始工作后入座，结束工作后离座。每 15 秒同步。</span><div><button onClick={() => { setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />保存合影</button></div></div>
       </section>
-      <aside className={s.sidePanel}>
-        <div className={s.panelHeading}><h3>我的桌宠</h3><p>选择自己的桌宠，带它与团队伙伴相聚。</p></div>
+    </div>}
+    <dialog ref={petDrawerRef} className={s.petDrawer} aria-labelledby="pet-drawer-title" onClick={event => { if (event.target === event.currentTarget) petDrawerRef.current?.close(); }}>
+      <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
+        <div className={s.drawerHeading}><div className={s.panelHeading}><h3 id="pet-drawer-title">我的桌宠</h3><p>选择自己的桌宠，带它与团队伙伴相聚。</p></div><button className="ac-btn-ghost" aria-label="关闭我的桌宠面板" onClick={() => petDrawerRef.current?.close()}>×</button></div>
+        {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
         <div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPet.status === "unavailable" ? "原桌宠暂不可用，可重新选择" : data.ownPet.status === "unbound" ? "自定义桌宠开放后，可在此选择" : workingHere ? "工作中 · 已在工位就座" : workingElsewhere ? "正在其他团队工作" : "休息中 · 工位空闲"}</p><span>{data.ownPet.status === "ready" ? "已关联桌宠" : "等待选择桌宠"}</span></div>
         <div className={s.petBinding}>
           <label className={s.field}>选择桌宠<select aria-label="选择桌宠" value={selectedPetId} disabled={pending || (!data.availablePets.length && !data.ownPet.petId)} onChange={event => setSelectedPetId(event.target.value)}>
@@ -163,12 +167,12 @@ export function HomeSpace({ data }: { data: HomeView }) {
           </select></label>
           <button className="ac-btn-ghost" disabled={pending || selectedPetId === (data.ownPet.petId ?? "")} onClick={bindPet}>{pending ? "正在应用…" : "应用桌宠"}</button>
         </div>
-        <button className="ac-btn" disabled={pending || (data.ownPet.status !== "ready" && !data.ownWorkingTeamId)} onClick={() => changeWork(workingHere || workingElsewhere ? null : data.teamId)}>{pending ? "正在更新…" : workingHere || workingElsewhere ? "结束工作" : "开始工作"}</button>
+        <button className="ac-btn" disabled={pending || (!team && !data.ownWorkingTeamId) || (data.ownPet.status !== "ready" && !data.ownWorkingTeamId)} onClick={() => changeWork(workingHere || workingElsewhere ? null : data.teamId)}>{pending ? "正在更新…" : workingHere || workingElsewhere ? "结束工作" : "开始工作"}</button>
         <p className={s.integrationHint}>开始后会持续显示工作中，关闭网页不会自动结束。休息时请点击“结束工作”。</p>
         <DesktopCompanionControl />
         <div className={s.smallNote}><Mark name="leaf" /><p>选择桌宠后点击“开始工作”，它就会在你的工位上陪你工作。</p></div>
-      </aside>
-    </div>}
+      </div>
+    </dialog>
     <footer className={s.pageFooter}><span>团队共享庭院，让伙伴们在这里相聚。</span><span>工作状态由成员手动设置。</span></footer>
   </div>;
 }
