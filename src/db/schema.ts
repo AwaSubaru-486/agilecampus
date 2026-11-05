@@ -96,6 +96,7 @@ export const homeProfiles = pgTable("home_profiles", {
   pet: jsonb("pet").$type<HomePet>().notNull().default({ name: "团子", kind: "cat" }),
   petTeamId: uuid("pet_team_id").references(() => teams.id, { onDelete: "set null" }),
   workingTeamId: uuid("working_team_id").references(() => teams.id, { onDelete: "set null" }),
+  workingProjectId: uuid("working_project_id").references(() => projects.id, { onDelete: "set null" }),
   revision: integer("revision").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, t => [index("home_profiles_pet_team_idx").on(t.petTeamId)]);

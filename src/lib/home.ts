@@ -5,6 +5,7 @@ import { homeProfiles, teamMembers, teams, users } from "@/db/schema";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "./errors";
 import { DEFAULT_HOME_PET, homeSaveSchema, STARTER_FURNITURE, type HomePet, type HomePetDisplay, type HomeView } from "./home-contract";
 import { listHomePets, requireHomePet, resolveHomePet } from "./pets/home-pet-provider";
+import { getProjectForUser } from "./project";
 
 async function displayPet(ownerId: string, saved: HomePet): Promise<HomePetDisplay> {
   const definition = saved.petId ? await resolveHomePet(ownerId, saved.petId) : null;
@@ -24,7 +25,11 @@ async function myTeams(actorId: string) {
     .innerJoin(teamMembers, eq(teamMembers.teamId, teams.id)).where(eq(teamMembers.userId, actorId)).orderBy(teams.createdAt);
 }
 
-export async function getHomeView(actorId: string, options: { view?: string; owner?: string; team?: string } = {}): Promise<HomeView> {
+export async function getHomeView(actorId: string, options: { view?: string; owner?: string; team?: string; projectId?: string } = {}): Promise<HomeView> {
+  if (options.projectId) {
+    const access = await getProjectForUser(actorId, options.projectId);
+    if (!access || access.project.teamId !== options.team) throw new ForbiddenError("只能进入有权限的项目办公室");
+  }
   if (options.owner && !z.uuid().safeParse(options.owner).success) throw new AppError("家园地址无效");
   const own = await ensureHome(actorId);
   const groups = await myTeams(actorId);
@@ -60,10 +65,11 @@ export async function getHomeView(actorId: string, options: { view?: string; own
     ownPet: await displayPet(actorId, own.pet), ownPetTeamId: own.petTeamId,
     availablePets: await listHomePets(actorId), members,
     ownWorkingTeamId: own.workingTeamId,
+    ownWorkingProjectId: own.workingProjectId,
     workstations: await Promise.all(roster.map(async member => ({
       ownerId: member.id, ownerName: member.name,
-      working: member.home?.workingTeamId === group?.id,
-      pet: member.home?.workingTeamId === group?.id && member.home ? await displayPet(member.id, member.home.pet) : null,
+      working: member.home?.workingTeamId === group?.id && (!options.projectId || member.home?.workingProjectId === options.projectId),
+      pet: member.home?.workingTeamId === group?.id && (!options.projectId || member.home?.workingProjectId === options.projectId) && member.home ? await displayPet(member.id, member.home.pet) : null,
     }))),
     residents: residents.filter(resident => resident.pet.status === "ready"),
   };
@@ -103,14 +109,18 @@ export async function selectHomePet(actorId: string, petId: string | null) {
   const pet = petId ? await requireHomePet(actorId, petId) : null;
   const [updated] = await db.update(homeProfiles).set({
     pet: pet ? { name: pet.name, kind: "placeholder", petId: pet.id } : DEFAULT_HOME_PET,
-    petTeamId: null, workingTeamId: null, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date(),
+    petTeamId: null, workingTeamId: null, workingProjectId: null, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date(),
   }).where(eq(homeProfiles.ownerId, actorId)).returning();
   return updated;
 }
 
 /** Explicit work declaration, independent of task status and courtyard visits. */
-export async function setHomeWorking(actorId: string, teamId: string | null) {
+export async function setHomeWorking(actorId: string, teamId: string | null, projectId?: string) {
   const home = await ensureHome(actorId);
+  if (projectId && teamId) {
+    const access = await getProjectForUser(actorId, projectId);
+    if (!access || access.project.teamId !== teamId) throw new ForbiddenError("只能在有权限的项目开始工作");
+  }
   if (teamId) {
     const [membership] = await db.select({ id: teamMembers.id }).from(teamMembers)
       .where(and(eq(teamMembers.userId, actorId), eq(teamMembers.teamId, teamId)));
@@ -118,7 +128,7 @@ export async function setHomeWorking(actorId: string, teamId: string | null) {
     if (!home.pet.petId) throw new AppError("请先选择一只桌宠");
     await requireHomePet(actorId, home.pet.petId);
   }
-  const [updated] = await db.update(homeProfiles).set({ workingTeamId: teamId, updatedAt: new Date() })
+  const [updated] = await db.update(homeProfiles).set({ workingTeamId: teamId, workingProjectId: teamId ? projectId ?? null : null, updatedAt: new Date() })
     .where(eq(homeProfiles.ownerId, actorId)).returning();
   return updated;
 }

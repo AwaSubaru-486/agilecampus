@@ -43,6 +43,7 @@ export type HomeView = {
   residents: HomeResident[]; ownPet: HomePetDisplay; ownPetTeamId: string | null;
   availablePets: HomePetDefinition[];
   ownWorkingTeamId: string | null;
+  ownWorkingProjectId: string | null;
   workstations: { ownerId: string; ownerName: string; working: boolean; pet: HomePetDisplay | null }[];
 };
 export const STARTER_FURNITURE: HomeFurniture[] = [

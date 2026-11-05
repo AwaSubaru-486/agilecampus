@@ -16,8 +16,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (body.operation === "work") {
-      const destination = z.object({ teamId: z.uuid().nullable() }).parse(body);
-      return Response.json({ home: await setHomeWorking(session.user.id, destination.teamId) });
+      const destination = z.object({ teamId: z.uuid().nullable(), projectId: z.uuid().optional() }).parse(body);
+      return Response.json({ home: destination.projectId ? await setHomeWorking(session.user.id, destination.teamId, destination.projectId) : await setHomeWorking(session.user.id, destination.teamId) });
     }
     if (body.operation === "save") return Response.json({ home: await saveHome(session.user.id, body.settings) });
     if (body.operation === "move") {

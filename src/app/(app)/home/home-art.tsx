@@ -49,7 +49,7 @@ export function FurnitureArt({ kind }: { kind: FurnitureKind }) {
   </svg>;
 }
 
-export function GardenBackdrop({ courtyard = false }: { courtyard?: boolean }) {
+export function GardenBackdrop({ courtyard = false, taskBoard = false }: { courtyard?: boolean; taskBoard?: boolean }) {
   const id = useId().replace(/:/g, "");
   return <svg data-backdrop viewBox="0 0 960 600" fill="none" aria-hidden="true">
     <defs>
@@ -72,9 +72,7 @@ export function GardenBackdrop({ courtyard = false }: { courtyard?: boolean }) {
     <path d="M550 168L600 148M550 188L654 147M749 197L823 168" stroke="#edf7f7" strokeWidth="8" opacity=".3" />
     <rect x="657" y="200" width="5" height="30" rx="2" fill="#edf4f1" />
     <rect x="536" y="274" width="304" height="9" rx="2" fill="#90acad" />
-    <rect x="111" y="156" width="184" height="67" rx="5" fill="#f8fbfc" stroke="#ccdcdc" />
-    <rect x="128" y="173" width="11" height="31" rx="2" fill="#25836d" />
-    <path d="M151 180H231M151 193H206" stroke="#b6caca" strokeWidth="5" strokeLinecap="round" />
+    {taskBoard ? <g><rect x="108" y="153" width="190" height="73" rx="5" fill="#88a69c" /><rect x="113" y="158" width="180" height="63" rx="3" fill="#315a52" /><text x="130" y="184" fill="#edf5ef" fontSize="17" fontWeight="600">我的任务</text><text x="130" y="207" fill="#bbd5c8" fontSize="11">点击查看任务 →</text><path d="M249 176H277M249 185H269" stroke="#a5c2b2" strokeWidth="2" strokeLinecap="round" /></g> : <><rect x="111" y="156" width="184" height="67" rx="5" fill="#f8fbfc" stroke="#ccdcdc" /><rect x="128" y="173" width="11" height="31" rx="2" fill="#25836d" /><path d="M151 180H231M151 193H206" stroke="#b6caca" strokeWidth="5" strokeLinecap="round" /></>}
     <rect x="112" y="247" width="183" height="32" rx="4" fill="#c4d5d1" />
     <rect x="120" y="235" width="167" height="17" rx="4" fill="#649582" />
     {Array.from({length:7},(_,i)=><path key={i} d={`M${128+i*23} 239L${122+i*23} 214L${136+i*23} 201L${145+i*23} 222L${140+i*23} 239Z`} fill={i%2 ? "#83ad97" : "#60937d"} />)}
