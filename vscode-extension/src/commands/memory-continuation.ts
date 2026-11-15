@@ -6,7 +6,7 @@ import type { WorkCheckpoint } from "../checkpoints/types";
 import type { RepositorySnapshot } from "../git/repository-service";
 import type { WorkspaceBinding } from "../workspace/binding-store";
 import { createWorkspaceApi } from "./checkpoint-support";
-import { inspectReceptionCode, renderReceptionCodeCheck } from "../memory/reception-check";
+import { inspectReceptionCode, renderReceptionCodeCheck, renderReceptionMemoryReview, type ReceptionCodeCheck } from "../memory/reception-check";
 
 /** Adds the memory library to the existing launcher without creating another Agent runner. */
 export async function selectContinuationMemory(
@@ -52,8 +52,18 @@ export async function selectContinuationMemory(
     workspaceReady: repository !== null, workspaceClean: repository !== null && !repository.dirty,
     workspaceBlockers: repository?.recoveryBlockers ?? [],
   });
-  const codeCheck = await inspectReceptionCode(repository?.rootPath ?? sourceWorkspace, choice.record.material.baseSha, repository?.headSha ?? null);
-  const preview = await vscode.workspace.openTextDocument({ language: "plaintext", content: `${renderReceptionCodeCheck(codeCheck)}\n\n${continuation.report}` });
+  const codeCheck: ReceptionCodeCheck = repository && sha256(repository.key) === choice.record.material.repositoryKeyHash
+    ? await inspectReceptionCode(repository.rootPath, choice.record.material.baseSha, repository.headSha)
+    : { status: "unavailable", paths: [], omitted: 0, reason: "请打开与此记忆匹配的仓库" };
+  const preview = await vscode.workspace.openTextDocument({
+    language: "plaintext",
+    content: [
+      continuation.resume.ready ? "接班检查通过，仍需确认后启动。" : "接班检查未通过，未启动 Agent。",
+      renderReceptionMemoryReview(codeCheck, choice.record.material),
+      renderReceptionCodeCheck(codeCheck),
+      continuation.report,
+    ].join("\n\n"),
+  });
   await vscode.window.showTextDocument(preview, { preview: true });
   if (!continuation.resume.ready) throw new Error(`记忆接续未通过：${continuation.resume.blockers.join("；")}`);
   return continuation;

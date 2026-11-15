@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createContinuationFixture } from "./fixtures/session-memory/continuation-fixture";
-import { inspectReceptionCode, renderReceptionCodeCheck } from "../src/memory/reception-check";
+import { inspectReceptionCode, renderReceptionCodeCheck, renderReceptionMemoryReview } from "../src/memory/reception-check";
 import { renderIterationReview } from "../src/memory/iteration-review";
 import { sha256, stableStringify } from "../src/memory/input-snapshot";
 
@@ -22,6 +22,23 @@ async function fixture() {
 }
 
 describe("code reception check", () => {
+  it("prioritizes literal changed path mentions without clearing unlinked claims or running tests", () => {
+    const material = {
+      completed: ["已实现 src/search.ts。", "无关 other/src/search.ts", "另一个 src/search.tsx"],
+      decisions: [], blockers: [], nextActions: [],
+      rejectedApproaches: ["试过 ./src/legacy.ts，因权限失败"],
+      tests: [{ command: "npm test -- ./src/search.ts", exitCode: 0, evidenceRefs: [], support: "reported" as const }],
+    };
+    const review = renderReceptionMemoryReview({ status: "changed", paths: ["src/search.ts", "src/legacy.ts"], omitted: 2 }, material);
+    expect(review).toContain("已实现 src/search.ts");
+    expect(review).toContain("因权限失败");
+    expect(review).toContain("历史测试（未重跑）");
+    expect(review).toContain("变动路径列表不完整");
+    expect(review).toContain("未命中的条目仍待核对");
+    expect(review).not.toContain("other/src/search.ts");
+    expect(review).not.toContain("src/search.tsx");
+    expect(renderReceptionMemoryReview({ status: "unavailable", paths: [], omitted: 0 }, material)).toContain("不能判断");
+  });
   it("reads real changed paths including rename sides without modifying HEAD or working files", async () => {
     const f = await fixture();
     expect((await inspectReceptionCode(f.workspacePath, f.repository.headSha, f.repository.headSha)).status).toBe("same");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { buildTaskMemoryLink } from "../../../../../../shared/task-memory/links";
 import { compareTaskMemories, exactMemoryParent, memoryParentCandidates, previewTaskMemory, renderTaskMemoryContext, readTaskMemoryVersion, selectTaskMemoryVersion, type MemoryPreview, type TaskMemoryVersionView } from "@/lib/task-memory-view";
 import { useMemoryContinuation } from "./use-memory-continuation";
@@ -8,6 +8,8 @@ import { continuationLabels } from "../../../../../../shared/task-memory/continu
 
 export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, preferredVersionId }: { projectId: string; taskId: string; canWrite: boolean; onContinueInWeb?: (version: TaskMemoryVersionView) => void; preferredVersionId?: string | null }) {
   const [versions, setVersions] = useState<TaskMemoryVersionView[]>([]);
+  const [latestId, setLatestId] = useState<string | null>(null);
+  const [opened, setOpened] = useState<{ endpoint: string; id: string } | null>(null);
   const [selection, setSelection] = useState<{ endpoint: string; id: string | null } | null>(null);
   const [comparisonId, setComparisonId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -21,13 +23,15 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
   const [consent, setConsent] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const continuation = useMemoryContinuation(projectId, taskId);
+  const dialogTitleId = useId();
   const syncBaseline = useRef<string | null | undefined>(undefined);
   const dialog = useRef<HTMLDialogElement>(null);
   const saveTrigger = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const fileEpoch = useRef(0);
   const endpoint = `/api/projects/${projectId}/tasks/${taskId}/memory`;
-  const requestedId = selection?.endpoint === endpoint ? selection.id ?? preferredVersionId : preferredVersionId;
+  const requestedId = (selection?.endpoint === endpoint ? selection.id : null) ?? preferredVersionId ??
+    (opened?.endpoint === endpoint ? opened.id : null);
   const setSelectedId = useCallback((id: string | null) => setSelection({ endpoint, id }), [endpoint]);
   const selected = selectTaskMemoryVersion(versions, projectId, taskId, requestedId);
   const hasRequested = !requestedId || Boolean(selected);
@@ -68,15 +72,18 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
       if (!response.ok) throw new Error(data.error || "无法加载任务记忆");
       if (!Array.isArray(data.versions)) throw new Error("记忆列表格式错误，请重试");
       if (controller.signal.aborted) return;
-      setVersions(data.versions); setError("");
+      setVersions(data.versions); setLatestId(data.versions[0]?.id ?? null); setError("");
+      const firstId = data.versions[0]?.id;
+      if (firstId) setOpened((current) => current?.endpoint === endpoint ? current : { endpoint, id: firstId });
       if (syncBaseline.current !== undefined && data.versions.length && data.versions[0].id !== syncBaseline.current) {
-        setSelectedId(data.versions[0].id);
-        syncBaseline.current = undefined; setWaiting(false); setNotice("工作记忆已同步到此任务"); dialog.current?.close();
+        // The list alone cannot tell whether this upload came from this plugin window or a teammate.
+        syncBaseline.current = undefined; setWaiting(false);
+        setNotice("有新断点。请核对作者和版本，确认是否为你刚同步的断点。");
       }
     }).catch((failure) => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "无法加载任务记忆"); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [endpoint, reload, setSelectedId]);
+  }, [endpoint, reload]);
 
   useEffect(() => {
     if (!waiting) return;
@@ -90,6 +97,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
 
   function openSave() {
     fileEpoch.current += 1;
+    setNotice("");
     if (fileInput.current) fileInput.current.value = "";
     setFileError(""); setPreview(null); setFileContent(""); setConsent(false);
     dialog.current?.showModal();
@@ -100,7 +108,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
       const link = buildTaskMemoryLink({ action, serverOrigin: window.location.origin, projectId, taskId });
       window.location.assign(link);
       setNotice("已请求打开 VS Code，请在插件中核对并确认；此时尚未启动 Agent。");
-      if (action === "publish") { syncBaseline.current = versions[0]?.id ?? null; setWaiting(true); }
+      if (action === "publish") { syncBaseline.current = latestId; setWaiting(true); }
     } catch (failure) { setNotice(failure instanceof Error ? failure.message : "无法打开 VS Code"); }
   }
   async function chooseFile(file?: File) {
@@ -144,25 +152,40 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
   const baseline = versions.find((version) => version.id === comparisonId && version.id !== selected?.id);
   const changes = selected && baseline ? compareTaskMemories(selected, baseline) : [];
   return (
-    <section aria-labelledby={`task-memory-${taskId}`} className="border-b border-stroke px-6 py-5" data-testid="task-memory-panel">
+    <section aria-labelledby={`task-memory-${taskId}`} className="min-w-0 border-b border-stroke px-4 py-5 sm:px-6" data-testid="task-memory-panel">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id={`task-memory-${taskId}`} className="text-sm font-semibold text-ink">当前工作记忆</h3>
         <div className="flex flex-wrap items-center gap-2">
-          {canWrite && <button ref={saveTrigger} className="ac-btn-ghost !min-h-9 !text-xs" onClick={openSave}>保存断点</button>}
-          <button className="ac-btn !min-h-9 !text-xs" disabled={!selected || Boolean(error) || !onContinueInWeb && (!continuation.ready || continuation.pending || continuation.active)} onClick={() => {
-            if (onContinueInWeb && selected) { onContinueInWeb(selected); setNotice(`已选择记忆 r${selected.revision}，将在发送下一条消息时交给网页 Agent`); }
-            else openVsCode("continue");
-          }}>{onContinueInWeb ? "载入记忆继续对话" : continuation.pending ? "正在发起接续…" : continuation.active ? "接续处理中" : "在 VS Code 继续工作"}</button>
-          <button type="button" className="ac-btn-ghost !min-h-9 !text-xs" onClick={() => setReload((value) => value + 1)} aria-label="刷新工作记忆">刷新</button>
+          {canWrite && <button ref={saveTrigger} className="ac-btn-ghost !min-h-11 !text-xs" onClick={openSave}>保存断点</button>}
+          <button type="button" className="ac-btn-ghost !min-h-11 !text-xs" onClick={() => setReload((value) => value + 1)} aria-label="刷新工作记忆">刷新</button>
         </div>
       </div>
+      {material && selected && !error && !loading && <div className="mt-2 border-y border-stroke py-4">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h4 className="min-w-0 break-words text-base font-semibold text-ink" title={selected.title}>{selected.title}</h4>
+          <code className="text-xs text-ink-2">r{selected.revision}</code>
+          <span className="text-xs text-ink-2">{selected.creatorName ?? "项目成员"}</span>
+          <time className="text-xs tabular-nums text-ink-2" dateTime={selected.createdAt}>{new Date(selected.createdAt).toLocaleString("zh-CN")}</time>
+          {latestId && latestId !== selected.id && <button className="min-h-11 text-xs underline underline-offset-4" onClick={() => setSelectedId(latestId)}>查看最新断点</button>}
+        </div>
+        <dl className="mt-3 text-sm"><MemoryRow label="接下来做" items={material.nextActions} empty="未记录下一步，先核对任务要求" /></dl>
+        {material.dirtyExcluded && <p className="mt-3 text-xs text-caution">上次未提交的代码不在这份断点里。接班前请和交接人确认。</p>}
+        <p className="mt-3 text-xs text-ink-2">代码基线 <code>{material.baseSha.slice(0, 10)}</code></p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button className="ac-btn !min-h-11 !text-xs" disabled={!onContinueInWeb && (!continuation.ready || continuation.pending || continuation.active)} onClick={() => {
+            if (onContinueInWeb && selected) { onContinueInWeb(selected); setNotice(`已选择记忆 r${selected.revision}，将在发送下一条消息时交给网页 Agent`); }
+            else openVsCode("continue");
+          }}>{onContinueInWeb ? "载入此断点继续对话" : !continuation.ready ? "正在读取接续进度…" : continuation.pending ? "正在发起接续…" : continuation.active ? "已有接续请求" : "在 VS Code 接着做"}</button>
+        </div>
+      </div>}
       {notice && <p role="status" className="mt-3 text-xs leading-relaxed text-ink-2">{notice}</p>}
       {continuation.record && <div className="mt-3 border-y border-stroke py-3 text-xs" aria-label="插件接续进度">
         <p role="status" className="font-medium text-ink">{continuation.waitingExpired ? "插件未接收，请重新发起接续" : continuationLabels[continuation.record.state]}</p>
         <p className="mt-1 text-ink-2">接续使用：{executionVersion ? `${executionVersion.title} / r${executionVersion.revision}` : `记忆 ${continuation.record.versionId.slice(0, 8)}（不在当前列表中）`}</p>
-        <p className="mt-1 text-ink-2">{new Date(continuation.record.updatedAt).toLocaleTimeString("zh-CN")}{continuation.record.attemptId ? ` · 执行 ${continuation.record.attemptId.slice(0, 8)}` : ""}</p>
+        <p className="mt-1 text-ink-2">最后回执：<time dateTime={continuation.record.updatedAt}>{new Date(continuation.record.updatedAt).toLocaleString("zh-CN")}</time></p>
         {continuation.record.versionId !== selected?.id && <button className="mt-1 min-h-9 underline underline-offset-4" onClick={() => setSelectedId(continuation.record!.versionId)}>查看接续使用的版本</button>}
-        {continuation.paused && <p className="mt-2 text-ink-2">自动刷新已暂停。可刷新查看结果；未收到回执不代表 Agent 已停止。</p>}
+        {continuation.receiptQuiet && <p role="status" className="mt-2 text-ink-2">暂未收到新回执。请先查看原 VS Code 窗口和工作区，不要重复启动。Agent 可能仍在运行。</p>}
+        {continuation.paused && !continuation.waitingExpired && <p className="mt-2 text-ink-2">自动刷新已暂停。可手动刷新接续进度。</p>}
         <div className="mt-2 flex flex-wrap gap-x-4">
           {continuation.record.state === "waiting" && !continuation.waitingExpired && <button className="min-h-9 underline underline-offset-4" onClick={() => continuation.open()}>重新打开 VS Code</button>}
           <button className="min-h-9 underline underline-offset-4" onClick={continuation.refresh}>刷新接续进度</button>
@@ -179,16 +202,10 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
       {error ? <div role="alert" className="mt-3 text-sm text-risk">{error}<button className="ml-3 underline" onClick={() => setReload((value) => value + 1)}>重试</button></div>
         : loading || !hasRequested ? <p role="status" className="mt-4 text-sm text-ink-2">正在读取工作记忆…</p>
         : material && selected ? <>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
-            <span>正在查看：{selected.title} / r{selected.revision}</span><span>{selected.creatorName ?? "项目成员"}</span>
-            <time dateTime={selected.createdAt}>{new Date(selected.createdAt).toLocaleString("zh-CN")}</time>
-            <span>代码 <code>{material.baseSha.slice(0, 10)}</code></span>
-          </div>
           <dl className="mt-4 space-y-3 text-sm">
             <MemoryRow label="已完成" items={material.completed} empty="未记录完成项" />
             <MemoryRow label="当前阻塞" items={material.blockers} empty="未记录阻塞" />
-            <MemoryRow label="已失败方法" items={material.rejectedApproaches} empty="未记录失败方法" />
-            <MemoryRow label="下一步" items={material.nextActions} empty="未记录下一步，接续前需核对任务要求" />
+            {material.rejectedApproaches.length > 0 && <MemoryRow label="试过未成功" items={material.rejectedApproaches} />}
           </dl>
           <details className="mt-4 border-t border-stroke pt-3">
             <summary className="cursor-pointer text-xs text-ink-2">接班核对要求</summary>
@@ -220,8 +237,9 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
               {material.baseSha !== baseline.payload.material.baseSha && <p className="text-xs text-ink-2">代码基线变化：<code>{baseline.payload.material.baseSha.slice(0, 10)}</code> → <code>{material.baseSha.slice(0, 10)}</code></p>}
             </div>}
           </details>}
-          <div className="mt-4 border-t border-stroke pt-3 text-xs text-ink-2" aria-label="记忆继承来源">
-            <p>来源会话 <code>{selected.payload.memory.sessionKey.slice(0, 8)}</code></p>
+          <details className="mt-4 border-t border-stroke pt-3 text-xs text-ink-2">
+            <summary className="cursor-pointer">继承来源</summary>
+            <p className="mt-3">来源会话 <code>{selected.payload.memory.sessionKey.slice(0, 8)}</code></p>
             {selected.payload.memory.parentReference ? <>
               <p className="mt-2">继承版本：<code>{selected.payload.memory.parentReference.memoryId.slice(0, 8)}</code> / r{selected.payload.memory.parentReference.revision}</p>
               {exactParent ? <button className="min-h-9 underline underline-offset-4" onClick={() => setSelectedId(exactParent.id)}>查看继承的版本（内容校验匹配）</button> : <p className="mt-1">当前列表中没有内容校验匹配的父版本，无法确认来源内容。</p>}
@@ -229,8 +247,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
               <p className="mt-2">继承自记忆 <code>{selected.payload.memory.parentMemoryId.slice(0, 8)}</code>；未记录父版本修订号。</p>
               {parentVersions.length ? <div className="mt-1 flex flex-wrap gap-x-4">{parentVersions.map((parent) => <button key={parent.id} className="min-h-9 underline underline-offset-4" onClick={() => setSelectedId(parent.id)}>查看父记忆：{parent.title} / r{parent.revision}</button>)}</div> : <p className="mt-1">父记忆不在当前列表中，暂不可查看。</p>}
             </> : <p className="mt-2">未记录继承来源</p>}
-          </div>
-          {material.dirtyExcluded && <p className="mt-3 text-xs text-caution">此版本未包含发送端的未提交代码，接续前需补齐。</p>}
+          </details>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
             {canWrite && <button className="min-h-9 text-ink-2 underline underline-offset-4" onClick={() => window.dispatchEvent(new CustomEvent("agilecampus:request-help", { detail: { projectId, taskId, versionId: selected.id } }))}>带此断点求助</button>}
             {onContinueInWeb && <button disabled={!continuation.ready || continuation.pending || continuation.active} onClick={() => openVsCode("continue")} className="min-h-9 text-ink-2 underline underline-offset-4 disabled:opacity-50">{continuation.active ? "插件接续处理中" : "在 VS Code 继续工作"}</button>}
@@ -254,12 +271,13 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
             </button>)}</div>
           </details>}
         </> : <div className="mt-4 text-sm leading-relaxed text-ink-2"><p>尚未保存工作记忆</p><p className="mt-1 text-xs">完成一段工作后，保存 Agent 的进度、失败方法和下一步，供自己或队友接续。</p>{canWrite && <button onClick={openSave} className="mt-3 min-h-9 text-xs font-medium text-ink underline underline-offset-4">保存第一个断点</button>}</div>}
-      <dialog ref={dialog} onClose={() => saveTrigger.current?.focus()} onCancel={(event) => { if (saving) event.preventDefault(); }} className="m-auto w-[min(36rem,calc(100vw-2rem))] max-h-[85dvh] overflow-y-auto border border-stroke bg-panel p-0 text-ink backdrop:bg-black/40">
-        <div className="flex items-center justify-between border-b border-stroke px-5 py-4"><h4 className="font-semibold">保存工作断点</h4><button aria-label="关闭保存断点" disabled={saving} className="ac-btn-ghost !min-h-9 !text-xs" onClick={() => dialog.current?.close()}>关闭</button></div>
+      <dialog ref={dialog} aria-labelledby={dialogTitleId} onClose={() => saveTrigger.current?.focus()} onCancel={(event) => { if (saving) event.preventDefault(); }} className="m-auto w-[min(36rem,calc(100vw-2rem))] max-h-[85dvh] overflow-y-auto border border-stroke bg-panel p-0 text-ink backdrop:bg-black/40">
+        <div className="flex items-center justify-between border-b border-stroke px-5 py-4"><h4 id={dialogTitleId} className="font-semibold">保存工作断点</h4><button aria-label="关闭保存断点" disabled={saving} className="ac-btn-ghost !min-h-11 !text-xs" onClick={() => dialog.current?.close()}>关闭</button></div>
         <div className="space-y-5 p-5">
           <div><h5 className="text-sm font-medium">从 VS Code 同步</h5><p className="mt-1 text-xs leading-relaxed text-ink-2">在插件中选择这项任务已确认的记忆版本。只同步整理后的记忆，不上传原始对话或代码。</p>
-            <button disabled={waiting} onClick={() => openVsCode("publish")} className="ac-btn mt-3 !min-h-10 !text-xs">{waiting ? "等待插件同步…" : "打开 VS Code 选择记忆"}</button>
-            {waiting && <p role="status" className="mt-2 text-xs text-ink-2">请在插件中确认同步；收到新版本后此页会自动更新。</p>}
+            <button disabled={waiting} onClick={() => openVsCode("publish")} className="ac-btn mt-3 !min-h-11 !text-xs">{waiting ? "等待插件同步…" : "打开 VS Code 选择记忆"}</button>
+            {waiting && <p role="status" className="mt-2 text-xs text-ink-2">请在插件中确认同步。</p>}
+            {notice && <p role="status" className="mt-2 text-xs text-ink-2">{notice}</p>}
           </div>
           <div className="border-t border-stroke pt-4"><label htmlFor={`memory-file-${taskId}`} className="block text-sm font-medium">或导入接班文件</label><p id={`memory-file-help-${taskId}`} className="mt-1 text-xs text-ink-2">选择插件导出的接班 JSON，最大 2 MiB。</p>
             <input ref={fileInput} id={`memory-file-${taskId}`} type="file" accept=".json,application/json" aria-invalid={Boolean(fileError)} aria-describedby={`memory-file-help-${taskId}${fileError ? ` memory-file-error-${taskId}` : ""}`} disabled={saving} onChange={(event) => void chooseFile(event.target.files?.[0])} className="mt-3 block w-full text-xs file:mr-3 file:border file:border-stroke file:bg-sunken file:px-3 file:py-2 file:text-ink" />
@@ -273,5 +291,5 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
   );
 }
 function MemoryRow({ label, items, empty = "未记录" }: { label: string; items: string[]; empty?: string }) {
-  return <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3"><dt className="text-ink-2">{label}</dt><dd className="min-w-0 space-y-1 break-words whitespace-pre-wrap text-ink">{items.length ? items.map((item, index) => <p key={index}>{item}</p>) : <span className="text-ink-2">{empty}</span>}</dd></div>;
+  return <div className="grid gap-1 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:gap-3"><dt className="text-ink-2">{label}</dt><dd className="min-w-0 space-y-1 break-words whitespace-pre-wrap text-ink">{items.length ? items.map((item, index) => <p key={index}>{item}</p>) : <span className="text-ink-2">{empty}</span>}</dd></div>;
 }

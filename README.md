@@ -4,7 +4,7 @@
 
 模块验收入口：[功能、演示步骤与测试边界](docs/reviews/memory-core/2026-10-30-module-delivery.md)。
 
-最新插件为 [AgileCampus 0.1.8](vscode-extension/agilecampus-memory-delivery-0.1.8.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
+最新插件为 [AgileCampus 0.1.9](vscode-extension/agilecampus-memory-reception-0.1.9.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
 
 使用入口：项目 → 分工与执行 → 选择任务 → 当前工作记忆。
 

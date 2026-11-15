@@ -13,6 +13,17 @@ export const continuationLabels: Record<ContinuationState, string> = {
   failed: "接续失败，请查看插件的核对结果", cancelled: "已在插件中取消", unknown: "执行结果待核对，请查看插件记录",
 };
 export function isContinuationTerminal(state: ContinuationState) { return ["finished", "failed", "cancelled", "unknown"].includes(state); }
+export const continuationWaitingLimitMs = 10 * 60_000;
+export const continuationReceiptQuietMs = 2 * 60_000;
+
+// Timing changes the advice we show, not the authoritative execution state.
+export function continuationTiming(record: ContinuationView | null, now: number) {
+  return {
+    waitingExpired: record?.state === "waiting" && now - Date.parse(record.createdAt) >= continuationWaitingLimitMs,
+    receiptQuiet: Boolean(record && record.state !== "waiting" && !isContinuationTerminal(record.state) &&
+      now - Date.parse(record.updatedAt) >= continuationReceiptQuietMs),
+  };
+}
 export function canTransitionContinuation(from: ContinuationState, to: ContinuationState) {
   const next: Record<ContinuationState, readonly ContinuationState[]> = {
     waiting: ["received"], received: ["checking", "failed", "cancelled"],
