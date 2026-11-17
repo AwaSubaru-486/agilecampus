@@ -154,7 +154,7 @@ export function TaskMemoryPanel({ projectId, taskId, canWrite, onContinueInWeb, 
   return (
     <section aria-labelledby={`task-memory-${taskId}`} className="min-w-0 border-b border-stroke px-4 py-5 sm:px-6" data-testid="task-memory-panel">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id={`task-memory-${taskId}`} className="text-sm font-semibold text-ink">当前工作记忆</h3>
+        <h3 id={`task-memory-${taskId}`} data-tour="task-memory-handoff" className="text-sm font-semibold text-ink">当前工作记忆</h3>
         <div className="flex flex-wrap items-center gap-2">
           {canWrite && <button ref={saveTrigger} className="ac-btn-ghost !min-h-11 !text-xs" onClick={openSave}>保存断点</button>}
           <button type="button" className="ac-btn-ghost !min-h-11 !text-xs" onClick={() => setReload((value) => value + 1)} aria-label="刷新工作记忆">刷新</button>

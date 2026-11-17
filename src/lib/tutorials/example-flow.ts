@@ -71,6 +71,9 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
       step("records", "查看成果与记录", "组长和老师可以查看项目成果、证据与决策。这里展示实际记录；没有登记的材料会显示空状态。", `${base}?space=record`, "project-records"),
       step("activity", "追溯任务分配与交付", "活动记录保存了任务分配、认领、提交和验收等动作，可用于查找过程和复盘。", `${base}/activity`, "activity"),
     ] : []),
-    step("finish", "按功能继续学习", "主线已介绍项目中的角色、阶段与交付流程。下方目录可单独学习具体功能，默认使用同一个展示项目。", "/tutorials", "tutorial-directory"),
+    ...(role !== "teacher" && journey.taskId ? [
+      step("memory-handoff", "从队友的断点接着做", "找到「当前工作记忆」。交接人用 VS Code 整理并确认要共享的断点；接手人先核对版本、阻塞和下一步，再在 VS Code 检查代码后确认启动。没保存过时这里为空，教程不会替你共享记忆或启动 Agent。", detail, "task-memory-handoff"),
+    ] : []),
+    step("finish", "按功能继续学习", "下方目录可单独学习具体功能，默认使用同一个展示项目。", "/tutorials", "tutorial-directory"),
   ];
 }

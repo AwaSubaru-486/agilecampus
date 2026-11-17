@@ -23,6 +23,17 @@ describe("汪汪队项目展示路线", () => {
     expect(teacher.some(step => step.id === "integration")).toBe(true);
     expect(member.find(step => step.id === "select")?.route).not.toContain("scope=all");
   });
+  it("在真实任务上只读引导断点交接，不要求上传或启动插件", () => {
+    for (const role of ["admin", "student"] as const) {
+      const steps = buildWelcomeSteps({ ...journey, role });
+      expect(steps.at(-2)).toMatchObject({ id: "memory-handoff", action: "explore", target: '[data-tour="task-memory-handoff"]' });
+      expect(steps.at(-2)?.route).toContain("task=first-task");
+      expect(steps.at(-1)?.id).toBe("finish");
+    }
+    for (const item of [{ ...journey, role: "teacher" as const }, { ...journey, taskId: null }]) {
+      expect(buildWelcomeSteps(item).some(step => step.id === "memory-handoff")).toBe(false);
+    }
+  });
   it("刷新后重新打开任务小界面，其他步骤从原位置恢复", () => {
     for (const role of ["admin", "student", "teacher"] as const) {
       const current = { ...journey, role };
