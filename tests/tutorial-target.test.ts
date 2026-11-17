@@ -25,6 +25,23 @@ function root(
 }
 
 describe("任务教程入口恢复", () => {
+  it.each(["conversation-title", "conversation-form"])("从关闭状态恢复 %s，重新定位不会反向关闭表单", (name) => {
+    let expanded = false;
+    const target = element();
+    const disclosure = { ...element(), getAttribute: () => String(expanded), click: vi.fn(() => { expanded = !expanded; }) };
+    const doc = {
+      querySelectorAll: () => expanded ? [target] : [],
+      querySelector: (selector: string) => selector === '[data-tour="conversation-toggle"][aria-expanded="false"]' && !expanded ? disclosure : null,
+    } as unknown as Pick<Document, "querySelectorAll" | "querySelector">;
+    expect(findTutorialTarget(doc, `[data-tour="${name}"]`).element).toBeNull();
+    expect(findTutorialTarget(doc, `[data-tour="${name}"]`).element).toBe(target);
+    expect(disclosure.click).toHaveBeenCalledOnce();
+  });
+  it("会话打开与收起分别核对真实状态，不把一次点击当作完成", () => {
+    const course = buildTutorialCourses(null).find(item => item.id === "ai")!;
+    expect(course.steps.find(item => item.id === "new-chat")).toMatchObject({ action: "result", completion: "data-tour-conversation-open" });
+    expect(course.steps.find(item => item.id === "chat-close")).toMatchObject({ action: "result", completion: "data-tour-conversation-closed" });
+  });
   it("只展开定位所需的阶段，保留其他阶段的折叠状态", () => {
     const firstStage = { tagName: "DETAILS", open: false, parentElement: null };
     const secondStage = { tagName: "DETAILS", open: false, parentElement: null };

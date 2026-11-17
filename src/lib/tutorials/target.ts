@@ -17,6 +17,12 @@ export function findTutorialTarget(root: TutorialDocument, selector: string) {
     }
     if (visible(candidate)) return { element: candidate, emptyTaskList: false };
   }
+  if (selector === '[data-tour="conversation-title"]' || selector === '[data-tour="conversation-form"]') {
+    // These targets are unmounted when closed. Only activate the explicitly
+    // marked disclosure button, never a form submit button.
+    const toggle = root.querySelector<HTMLButtonElement>('[data-tour="conversation-toggle"][aria-expanded="false"]');
+    if (toggle && visible(toggle) && !toggle.disabled && toggle.getAttribute("aria-expanded") === "false") toggle.click();
+  }
   if (selector === '[data-tour="console-task"]') {
     // Completed tasks are deliberately collapsed in the normal work area.
     const toggle = root.querySelector<HTMLButtonElement>('[data-tour="console-completed-toggle"]');

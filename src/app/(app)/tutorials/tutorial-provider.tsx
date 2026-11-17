@@ -1,5 +1,5 @@
 "use client";
-import { tutorialStepRoute } from "@/lib/tutorials/route";
+import { tutorialReopenStep, tutorialStepRoute } from "@/lib/tutorials/route";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -8,7 +8,6 @@ import { buildTutorialCourses, type CourseId, type TutorialCourse, type Tutorial
 import type { TutorialCommand } from "@/lib/tutorials/progress";
 import { saveTutorialProgress } from "./actions";
 import { findTutorialTarget } from "@/lib/tutorials/target";
-import { welcomeResumeIndex } from "@/lib/tutorials/example-flow";
 import { findShowcaseProject } from "@/lib/tutorials/showcase";
 import { NavigationProgress } from "@/components/navigation-progress";
 
@@ -67,6 +66,8 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const stepRoute = step?.route;
   const stepTarget = step?.target;
   const stepAction = step?.action;
+  const reopenIndex = course && active ? tutorialReopenStep(course.steps, active.step) : null;
+  const needsReopen = reopenIndex !== null && reopenIndex !== active?.step;
   const globalNavigation = stepTarget === '[data-tour="nav-today"]' || stepTarget === '[data-tour="nav-projects"]';
   const rect = locatedKey === stepKey ? measuredRect : null;
   const fulfilled = actionKey === stepKey && actionDone;
@@ -104,7 +105,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     if (!selected || selected.needsProject && !selectedProject || selected.roles && (!selectedProject || !selected.roles.includes(selectedProject.role))) {
       setError("此课程需要可访问的项目和对应角色。请选择项目后重新开始。"); return;
     }
-    const index = saved ? id === "welcome" ? welcomeResumeIndex(saved.step, progress.journey) : Math.min(saved.step, selected.steps.length - 1) : 0;
+    const index = saved ? tutorialReopenStep(selected.steps, Math.min(saved.step, selected.steps.length - 1)) : 0;
     if (await persist(id === "welcome" && !resume ? {type:"restart-example"} : { type: "save", courseId: id, step: index, projectId: id === "welcome" ? progress.journey?.projectId ?? null : selectedProject?.id ?? null })) {
       setProjectId(selectedProject?.id ?? "");
       readyKey.current = "";
@@ -129,6 +130,19 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     } else {
       await persist({ type: "save", courseId: course.id, step: Math.max(0, active.step + (back ? -1 : 1)), projectId: course.id === "welcome" ? progress.journey?.projectId ?? null : project?.id ?? null });
     }
+  }
+
+  function retryTarget() {
+    if (!course || !active || !step) return;
+    if (needsReopen && reopenIndex !== null) {
+      void persist({ type: "save", courseId: course.id, step: reopenIndex, projectId: active.projectId });
+      return;
+    }
+    setMissing(false);
+    setRetry((value) => value + 1);
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    const destination = tutorialStepRoute(step.route, current);
+    if (destination !== current) router.push(destination);
   }
 
   useEffect(() => {
@@ -161,13 +175,15 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       const expected = new URL(stepRoute, window.location.origin);
       const current = new URL(window.location.href);
       if (current.pathname !== expected.pathname || [...expected.searchParams].some(([key, value]) => current.searchParams.get(key) !== value)) {
+        located = null; setRect(null);
         if (!fulfilled && Date.now() - started > 8000) setMissing(true);
         return;
       }
       const resolved = findTutorialTarget(document, stepTarget);
       const element = resolved.element;
-      if (stepAction === "result" && element?.getAttribute(step?.completion ?? "data-tour-complete") === "true") {
-        setActionKey(stepKey); setFulfilled(true);
+      if (stepAction === "result") {
+        const complete = element?.getAttribute(step?.completion ?? "data-tour-complete") === "true";
+        if (complete !== fulfilled) { setActionKey(stepKey); setFulfilled(complete); }
       }
       setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
       // Route changes close the mobile drawer asynchronously. Keep requesting
@@ -176,6 +192,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         window.dispatchEvent(new Event("agilecampus:tutorial-navigation"));
       }
       if (!element) {
+        located = null; setRect(null);
         if (!fulfilled && Date.now() - started > 5000) setMissing(true);
         return;
       }
@@ -315,14 +332,14 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           </div>
           <p className="mt-3 text-xs text-ink-3">步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}</p>
           <h2 id="tutorial-step-title" className="mt-1 text-lg font-semibold text-ink">{step?.title ?? "先选择可用的项目"}</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "当前任务列表为空。任务发布后会出现在这里，点击任务即可查看交接要求与提交入口。现在可以继续认识执行流程，无需先创建任务。" : missing ? "此页暂时没有对应入口，可能尚未创建任务或阶段。先在项目中完成准备，再返回本课继续。" : step?.instruction}</p>
+          <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "当前任务列表为空。任务发布后会出现在这里，点击任务即可查看交接要求与提交入口。现在可以继续认识执行流程，无需先创建任务。" : missing ? needsReopen ? "这个面板还没打开。回到打开面板的步骤，打开后就能继续。" : "暂未找到这一步需要的入口。可以重新定位，也可以暂停后再继续。" : step?.instruction}</p>
           <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
-            {fulfilled ? "✓ 操作完成！可以进入下一步。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "入口暂未就绪，可重新定位或暂停后继续" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.action === "result" ? "请完成亮起区域的操作，保存成功后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "试着操作亮起的区域，再继续"}
+            {fulfilled ? "操作完成，可以继续。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "尚未定位到入口" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.completion === "data-tour-conversation-open" ? "展开会话表单后继续" : step?.completion === "data-tour-conversation-closed" ? "收起会话表单后继续" : step?.action === "result" ? "完成亮起区域的操作后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "查看高亮区域后继续"}
           </p>
           {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-2 bg-panel pt-2">
             <button className="ac-btn-ghost" disabled={pending || !active?.step} onClick={() => void advance(true)}>上一步</button>
-            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={() => { if (course?.id === "welcome" && active && welcomeResumeIndex(active.step, progress.journey) !== active.step) { void persist({ type: "save", courseId: "welcome", step: welcomeResumeIndex(active.step, progress.journey), projectId: progress.journey?.projectId ?? null }); } else { setRetry((value) => value + 1); router.push(step?.route ?? "/tutorials"); } }}>{course?.id === "welcome" && active && welcomeResumeIndex(active.step, progress.journey) !== active.step ? "重新打开任务详情" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
+            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={retryTarget}>{needsReopen ? "返回打开面板" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
           </div>
         </div>
       </div>, portalRoot ?? document.body)}

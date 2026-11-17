@@ -1,4 +1,5 @@
 import type { TutorialStep, TutorialRole } from "./catalog";
+import { tutorialReopenStep } from "./route";
 
 export type TutorialJourney = {
   version: 4 | 5 | 6;
@@ -17,9 +18,7 @@ export function welcomeStepIndex(id: string) {
 
 // A native task dialog closes on reload; resume at its opening action.
 export function welcomeResumeIndex(index: number, journey: TutorialJourney = EMPTY_JOURNEY) {
-  const steps = buildWelcomeSteps(journey);
-  return ["timeline-detail", "timeline-close"].includes(steps[index]?.id)
-    ? steps.findIndex(step => step.id === "timeline-node") : index;
+  return tutorialReopenStep(buildWelcomeSteps(journey), index);
 }
 
 export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {

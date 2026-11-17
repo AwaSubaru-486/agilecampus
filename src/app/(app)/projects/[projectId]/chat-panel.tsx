@@ -281,6 +281,9 @@ export function ChatPanel({
             type="button"
             onClick={() => setCreating((value) => !value)}
             data-tour="conversation-toggle"
+            aria-expanded={creating}
+            data-tour-conversation-open={creating}
+            data-tour-conversation-closed={!creating}
             variant="ink"
             size="sm"
           >
