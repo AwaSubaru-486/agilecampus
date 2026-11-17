@@ -10,7 +10,7 @@ import { LiveSpace } from "./_live/live-space";
 import { WorkSpace } from "./_work/work-space";
 import { StudioSpace } from "./_studio/studio-space";
 import { RecordSpace } from "./_record/record-space";
-import { MemberBoard } from "./_shared/member-board";
+import { ProjectOffice } from "./_shared/project-office";
 import { ProjectRoleHome } from "./_shared/project-role-home";
 import { isProjectHome } from "@/lib/project-role-workspace";
 
@@ -53,9 +53,9 @@ export default async function ProjectPage({
   const { project } = access;
   const actorId = session.user.id;
   const { role, viewUserId, preview } = await getProjectPerspective(access.role, projectId, actorId, project.teamId);
-  if (isProjectHome(sp)) return role !== "teacher" && !(role === "admin" && sp.view === "manage")
-    ? <MemberBoard actorId={actorId} viewUserId={viewUserId} projectId={projectId} />
-    : <ProjectRoleHome actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} />;
+  if (isProjectHome(sp)) return (role === "admin" || role === "teacher") && sp.view === "manage"
+    ? <ProjectRoleHome actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} />
+    : <ProjectOffice actorId={actorId} viewUserId={viewUserId} projectId={projectId} teamId={project.teamId} name={project.name} canAct={!preview} />;
 
   // 归一化所有参数：live→work，非法→work，带会话/审批→studio。
   // 数组参数取第一项；规范化结果幂等，不产生重定向循环。

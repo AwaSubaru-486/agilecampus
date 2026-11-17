@@ -28,7 +28,8 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
       taskId: search.get("task") ?? undefined,
     });
   const tabs = [
-    { id: "home", title: role === "teacher" ? workspace.title : "看板", href: base, tour: "nav-home" },
+    { id: "home", title: "办公室", href: base, tour: "nav-home" },
+    ...(role === "teacher" ? [{ id: "manage", title: workspace.title, href: `${base}?space=home&view=manage`, tour: "nav-manage" }] : []),
     ...(role === "admin" ? [{ id: "manage", title: "项目推进台", href: `${base}?space=home&view=manage`, tour: "nav-manage" }, { id: "assignment", title: "分工", href: `${base}?space=work&scope=all&panel=list`, tour: "nav-assignment" }] : []),
     {
       id: "work",

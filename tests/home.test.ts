@@ -5,9 +5,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { homeProfiles, teamMembers, users } from "@/db/schema";
 import { createTeam, joinTeam } from "@/lib/team";
-import { ensureHome, getHomeView, moveHomePet, saveHome, selectHomePet } from "@/lib/home";
+import { ensureHome, getHomeView, moveHomePet, saveHome, selectHomePet, setHomeWorking } from "@/lib/home";
 import { homeSaveSchema } from "@/lib/home-contract";
 import { ConflictError, ForbiddenError } from "@/lib/errors";
+import { createProject } from "@/lib/project";
 import { resetDb } from "./helpers";
 
 async function setup() {
@@ -23,6 +24,46 @@ async function setup() {
 }
 
 describe("家园：保存、访问与伙伴所在位置", () => {
+  it("办公室的开工状态隔离到具体项目，并校验项目与团队归属", async () => {
+    const { owner, neighbor, stranger, team } = await setup();
+    const first = await createProject(owner.id, team.id, { name: "第一项目" });
+    const second = await createProject(owner.id, team.id, { name: "第二项目" });
+    await setHomeWorking(owner.id, team.id, first.id);
+    const firstView = await getHomeView(neighbor.id, { view: "courtyard", team: team.id, projectId: first.id });
+    const secondView = await getHomeView(neighbor.id, { view: "courtyard", team: team.id, projectId: second.id });
+    expect(firstView.workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: true, pet: { status: "ready" } });
+    expect(secondView.workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: false, pet: null });
+    await expect(getHomeView(stranger.id, { view: "courtyard", team: team.id, projectId: first.id })).rejects.toBeInstanceOf(ForbiddenError);
+    const otherTeam = await createTeam(owner.id, "另一个团队");
+    await expect(setHomeWorking(owner.id, otherTeam.id, first.id)).rejects.toBeInstanceOf(ForbiddenError);
+    await setHomeWorking(owner.id, null, first.id);
+    expect((await ensureHome(owner.id)).workingProjectId).toBeNull();
+  });
+  it("工作状态独立于庭院位置，开始才入座，结束后保留空工位", async () => {
+    const { owner, neighbor, team } = await setup();
+    await moveHomePet(owner.id, team.id);
+    const view = () => getHomeView(neighbor.id, { view: "courtyard", team: team.id });
+    expect((await view()).workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: false, pet: null });
+    await setHomeWorking(owner.id, team.id);
+    const working = await view();
+    expect(working.workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: true, pet: { status: "ready" } });
+    await setHomeWorking(owner.id, null);
+    expect((await view()).workstations.map(s => s.ownerId)).toEqual(working.workstations.map(s => s.ownerId));
+    expect((await view()).workstations.find(s => s.ownerId === owner.id)).toMatchObject({ working: false, pet: null });
+  });
+
+  it("仅本团队成员可开工，清除桌宠会结束工作，离队后仍能结束", async () => {
+    const { owner, stranger, team } = await setup();
+    await expect(setHomeWorking(stranger.id, team.id)).rejects.toBeInstanceOf(ForbiddenError);
+    await setHomeWorking(owner.id, team.id);
+    await selectHomePet(owner.id, null);
+    expect((await ensureHome(owner.id)).workingTeamId).toBeNull();
+    await expect(setHomeWorking(owner.id, team.id)).rejects.toThrow("请先选择");
+    await selectHomePet(owner.id, `pet:${owner.id}`);
+    await setHomeWorking(owner.id, team.id);
+    await db.delete(teamMembers).where(and(eq(teamMembers.userId, owner.id), eq(teamMembers.teamId, team.id)));
+    await expect(setHomeWorking(owner.id, null)).resolves.toMatchObject({ workingTeamId: null });
+  });
   beforeEach(async () => {
     await resetDb();
     vi.clearAllMocks();
