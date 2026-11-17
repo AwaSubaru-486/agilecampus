@@ -12,7 +12,8 @@ export const continuationLabels: Record<ContinuationState, string> = {
   running: "Agent 已接收记忆并开始工作", finished: "本次会话已结束，成果待核对",
   failed: "接续失败，请查看插件的核对结果", cancelled: "已在插件中取消", unknown: "执行结果待核对，请查看插件记录",
 };
-export function isContinuationTerminal(state: ContinuationState) { return ["finished", "failed", "cancelled", "unknown"].includes(state); }
+export const terminalContinuationStates = ["finished", "failed", "cancelled", "unknown"] as const;
+export function isContinuationTerminal(state: ContinuationState) { return terminalContinuationStates.some(value => value === state); }
 export const continuationWaitingLimitMs = 10 * 60_000;
 export const continuationReceiptQuietMs = 2 * 60_000;
 

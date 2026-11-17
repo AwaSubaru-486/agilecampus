@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { taskMemoryContinuations } from "@/db/schema";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
@@ -92,6 +95,35 @@ describe("web and extension continuation receipts", () => {
     expect(await getMemoryContinuation(f.owner.id, f.project.id, f.task.id)).not.toHaveProperty("claimId");
     await expect(claimMemoryContinuation(f.member.id, f.project.id, f.task.id, f.id, f.memory.id)).rejects.toThrow("同一账号");
     await expect(getMemoryContinuation(f.outsider.id, f.project.id, f.task.id, f.id)).rejects.toThrow("无权");
+  });
+  it("serializes creation across browser tabs without blocking another teammate", async () => {
+    const f = await scene();
+    const { id: versionId } = await saveTaskMemory(f.owner.id, f.project.id, f.task.id, f.payload, "http://localhost:3000");
+    const create = (actorId: string, id: string) => createMemoryContinuation(actorId, f.project.id, f.task.id, id, versionId);
+    const ids = [randomUUID(), randomUUID()];
+    const results = await Promise.allSettled(ids.map(id => create(f.owner.id, id)));
+    const success = results.filter(result => result.status === "fulfilled");
+    expect(success).toHaveLength(1);
+    const current = success[0].value;
+    expect(await create(f.owner.id, current.id)).toEqual(current);
+    await expect(create(f.owner.id, randomUUID())).rejects.toThrow("已有接续请求");
+    await expect(create(f.member.id, randomUUID())).resolves.toMatchObject({ state: "waiting" });
+    const claim = await claimMemoryContinuation(f.owner.id, f.project.id, f.task.id, current.id, versionId);
+    await expect(create(f.owner.id, randomUUID())).rejects.toThrow("已有接续请求");
+    await reportMemoryContinuation(f.owner.id, f.project.id, f.task.id, current.id, claim.claimId, 2, { state: "cancelled" });
+    await expect(create(f.owner.id, randomUUID())).resolves.toMatchObject({ state: "waiting" });
+  });
+  it("lets an expired, unclaimed request be replaced but never claimed alongside its replacement", async () => {
+    const f = await prepared();
+    await db.update(taskMemoryContinuations).set({ createdAt: new Date(Date.now() - 600_000) }).where(eq(taskMemoryContinuations.id, f.id));
+    const replacement = randomUUID();
+    const [old, next] = await Promise.allSettled([
+      claimMemoryContinuation(f.owner.id, f.project.id, f.task.id, f.id, f.memory.id),
+      createMemoryContinuation(f.owner.id, f.project.id, f.task.id, replacement, f.memory.id),
+    ]);
+    expect(old.status).toBe("rejected");
+    expect(next.status).toBe("fulfilled");
+    expect(await getMemoryContinuation(f.owner.id, f.project.id, f.task.id)).toMatchObject({ id: replacement, state: "waiting" });
   });
   it("requires ordered receipts and a real-session assertion before running; persists exact version and history", async () => {
     const f = await prepared();
