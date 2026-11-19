@@ -1,3 +1,4 @@
+import { readWebPetConfig } from "@/lib/pets/web-pet-config";
 import { NextResponse } from "next/server";
 import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
 import path from "path";
@@ -10,18 +11,7 @@ export async function GET() {
   const root = webPetRuntime(actor);
 
   // 读取当前配置
-  const configFile = path.resolve(root, "desk-pet-config.json");
-  let config = {
-    preset: "puppy", // "puppy" | "pacman" | "nailong" | "custom"
-    name: "线条小狗",
-    customImageUrl: "",
-    soundEnabled: true,
-  };
-  if (fs.existsSync(configFile)) {
-    try {
-      config = { ...config, ...JSON.parse(fs.readFileSync(configFile, "utf8")) };
-    } catch {}
-  }
+  const config = await readWebPetConfig(actor);
 
   // 读取最近的桌宠回复记录
   const repliesFile = path.resolve(root, "desk-pet-replies.json");

@@ -1,3 +1,4 @@
+import { readWebPetConfig } from "@/lib/pets/web-pet-config";
 import { NextResponse } from "next/server";
 import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
 import { auth } from "@/lib/auth";
@@ -18,18 +19,7 @@ export async function GET() {
   }
 
   // 1. 读取当前桌宠配置
-  const configFile = path.resolve(runtimeDir, "desk-pet-config.json");
-  let config = {
-    preset: "puppy", // "puppy" | "pacman" | "nailong" | "custom"
-    name: "线条小狗",
-    customImageUrl: "",
-    soundEnabled: true,
-  };
-  if (fs.existsSync(configFile)) {
-    try {
-      config = { ...config, ...JSON.parse(fs.readFileSync(configFile, "utf8")) };
-    } catch {}
-  }
+  const config = await readWebPetConfig(actor);
 
   // 2. 读取并消费待触发的手动/测试事件队列
   const eventsFile = path.resolve(runtimeDir, "desk-pet-events.json");

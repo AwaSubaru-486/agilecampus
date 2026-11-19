@@ -1,3 +1,5 @@
+import { saveWebPetConfig } from "@/lib/pets/web-pet-config";
+import { bindWebPetToHome } from "@/lib/home";
 import { NextResponse } from "next/server";
 import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
 import path from "path";
@@ -8,11 +10,12 @@ export async function POST(req: Request) {
   const actor = await webPetActor(req);
   if (actor instanceof Response) return actor;
   const raw = await req.text();
-  if (Buffer.byteLength(raw) > 32768) return NextResponse.json({ error: "请求过大" }, { status: 413 });
+  if (Buffer.byteLength(raw) > 3 * 1024 * 1024) return NextResponse.json({ error: "请求过大" }, { status: 413 });
   let body;
   try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "请求格式无效" }, { status: 400 });
   const { action, config, event, message } = body;
+  if (action !== "update-config" && Buffer.byteLength(raw) > 32768) return NextResponse.json({ error: "请求过大" }, { status: 413 });
   const runtimeDir = webPetRuntime(actor);
   if (!fs.existsSync(runtimeDir)) {
     fs.mkdirSync(runtimeDir, { recursive: true });
@@ -20,15 +23,13 @@ export async function POST(req: Request) {
 
   // 1. 更新网页桌宠配置（形象切换：线条小狗 / 吃豆人 / 奶龙 / 自定义立绘）
   if (action === "update-config" && config) {
-    const configFile = path.resolve(runtimeDir, "desk-pet-config.json");
-    let currentConfig = {};
-    if (fs.existsSync(configFile)) {
-      try {
-        currentConfig = JSON.parse(fs.readFileSync(configFile, "utf8"));
-      } catch {}
+    let newConfig;
+    try {
+      newConfig = await saveWebPetConfig(actor, config);
+      await bindWebPetToHome(actor);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "桌宠设置保存失败" }, { status: 400 });
     }
-    const newConfig = { ...currentConfig, ...config };
-    fs.writeFileSync(configFile, JSON.stringify(newConfig, null, 2), "utf8");
 
     return NextResponse.json({
       ok: true,

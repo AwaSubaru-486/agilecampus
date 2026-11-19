@@ -6,6 +6,7 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError } from "./errors
 import { DEFAULT_HOME_PET, homeSaveSchema, STARTER_FURNITURE, type HomePet, type HomePetDisplay, type HomeView } from "./home-contract";
 import { listHomePets, requireHomePet, resolveHomePet } from "./pets/home-pet-provider";
 import { getProjectForUser } from "./project";
+import { webPetId } from "./pets/web-pet-config";
 
 async function displayPet(ownerId: string, saved: HomePet): Promise<HomePetDisplay> {
   const definition = saved.petId ? await resolveHomePet(ownerId, saved.petId) : null;
@@ -111,6 +112,15 @@ export async function selectHomePet(actorId: string, petId: string | null) {
     pet: pet ? { name: pet.name, kind: "placeholder", petId: pet.id } : DEFAULT_HOME_PET,
     petTeamId: null, workingTeamId: null, workingProjectId: null, revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date(),
   }).where(eq(homeProfiles.ownerId, actorId)).returning();
+  return updated;
+}
+
+/** Bind the web companion without interrupting an existing office work session. */
+export async function bindWebPetToHome(actorId: string) {
+  await ensureHome(actorId);
+  const pet = await requireHomePet(actorId, webPetId(actorId));
+  const [updated] = await db.update(homeProfiles).set({ pet: { name: pet.name, kind: "placeholder", petId: pet.id },
+    revision: sql`${homeProfiles.revision} + 1`, updatedAt: new Date() }).where(eq(homeProfiles.ownerId, actorId)).returning();
   return updated;
 }
 

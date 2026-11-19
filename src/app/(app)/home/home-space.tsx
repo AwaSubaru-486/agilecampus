@@ -36,7 +36,7 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [seatPage, setSeatPage] = useState(0);
-  const [selectedPetId, setSelectedPetId] = useState(data.ownPet.petId ?? "");
+  const [selectedPetId, setSelectedPetId] = useState(data.ownPet.petId ?? data.availablePets.find(pet => pet.id.startsWith("web:"))?.id ?? "");
   const sceneRef = useRef<HTMLDivElement>(null);
   const petDrawerRef = useRef<HTMLDialogElement>(null);
   const taskBoardRef = useRef<HTMLDialogElement>(null);
@@ -51,7 +51,9 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
 
   useEffect(() => {
     const timer = setInterval(() => { if (!document.hidden) router.refresh(); }, 15000);
-    return () => clearInterval(timer);
+    const refresh = () => router.refresh();
+    window.addEventListener("agilecampus:pet-updated", refresh);
+    return () => { clearInterval(timer); window.removeEventListener("agilecampus:pet-updated", refresh); };
   }, [router]);
   useEffect(() => {
     if (!bubble) return;
@@ -162,6 +164,8 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
         <div className={s.drawerHeading}><div className={s.panelHeading}><h3 id="pet-drawer-title">我的桌宠</h3><p>选择自己的桌宠，带它与团队伙伴相聚。</p></div><button className="ac-btn-ghost" aria-label="关闭我的桌宠面板" onClick={() => petDrawerRef.current?.close()}>×</button></div>
         {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
         <div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPet.status === "unavailable" ? "原桌宠暂不可用，可重新选择" : data.ownPet.status === "unbound" ? "自定义桌宠开放后，可在此选择" : workingHere ? "工作中 · 已在工位就座" : workingElsewhere ? project ? "正在其他项目工作" : "正在其他团队工作" : "休息中 · 工位空闲"}</p><span>{data.ownPet.status === "ready" ? "已关联桌宠" : "等待选择桌宠"}</span></div>
+        {canAct && <button className="ac-btn-ghost" onClick={() => { petDrawerRef.current?.close(); window.dispatchEvent(new CustomEvent("agilecampus:deskpet-event", { detail: { type: "open-settings" } })); }}>装扮网页桌宠 · 同步到办公室</button>}
+        <p className={s.integrationHint}>网页桌宠换装或改名后，会同步到这里；工位工作状态保持不变。</p>
         <div className={s.petBinding}>
             <label className={s.field}>选择桌宠<select aria-label="选择桌宠" value={selectedPetId} disabled={!canAct || pending || (!data.availablePets.length && !data.ownPet.petId)} onChange={event => setSelectedPetId(event.target.value)}>
             <option value="">{data.availablePets.length ? "暂不展示桌宠" : "暂无可选桌宠"}</option>

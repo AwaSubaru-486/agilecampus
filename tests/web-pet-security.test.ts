@@ -26,7 +26,7 @@ describe("网页桌宠合并安全边界", () => {
   });
   it("以账号隔离目录，账号字符串不能改变目录结构", () => {
     expect(webPetRuntime("alice")).not.toBe(webPetRuntime("bob"));
-    expect(webPetRuntime("../../other")).toMatch(/web-pets\/[a-f0-9]{64}$/);
+    expect(webPetRuntime("../../other").replaceAll("\\", "/")).toMatch(/web-pets\/[a-f0-9]{64}$/);
   });
   it("拒绝无效或过大的请求体", async () => {
     for (const body of ["null", "[]", "{"]) expect((await control(request(body))).status).toBe(400);
