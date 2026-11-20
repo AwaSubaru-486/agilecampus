@@ -20,6 +20,8 @@
 .petDrawer::backdrop{background:#16343940;backdrop-filter:blur(2px)}
 .blackboardTrigger{position:absolute;left:11.25%;top:22.3333%;width:19.8%;height:10.5%;z-index:2;border:2px solid transparent;border-radius:5px;background:transparent;cursor:pointer}
 .blackboardTrigger:hover,.blackboardTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px;background:#ffffff0a}
+.mobileTaskSummary{display:none}
+@media(max-width:800px){.mobileTaskSummary{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;padding:12px;font-size:12px;border-top:1px solid var(--color-stroke);color:var(--color-ink-2);background:var(--color-panel);cursor:pointer}.mobileTaskSummary strong,.mobileTaskSummary span:last-child{color:var(--color-signal)}}
 .taskBoardDialog{width:min(1100px,94vw);max-width:94vw;max-height:85dvh;margin:auto;padding:0;border:1px solid var(--color-stroke);border-radius:var(--radius-panel);background:var(--color-panel);color:var(--color-ink);overflow:auto;box-shadow:var(--shadow-panel)}
 .taskBoardDialog::backdrop{background:#16343960;backdrop-filter:blur(2px)}
 .taskBoardContent{padding:clamp(16px,3vw,28px)}.taskBoardContent>.drawerHeading{margin-bottom:24px}.taskBoardContent h2{font-size:22px;font-weight:600}.taskBoardContent>.drawerHeading p{font-size:12px;color:var(--color-ink-3);margin-top:6px}

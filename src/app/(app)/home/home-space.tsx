@@ -7,6 +7,7 @@ import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "
 import { FurnitureArt, GardenBackdrop, WorkstationArt } from "./home-art";
 import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
 import s from "./home.module.css";
+import type { OfficeTaskSummary } from "@/lib/office-task-summary";
 
 const WEB_PRESETS = [
   { id: "puppy", name: "线条小狗" }, { id: "pacman", name: "吃豆人" }, { id: "nailong", name: "敏捷奶龙" },
@@ -34,7 +35,7 @@ async function mutate(body: unknown): Promise<HomeProfile> {
   return result.home;
 }
 
-export function HomeSpace({ data, project, taskBoard }: { data: HomeView; project?: { id: string; name: string; canAct: boolean }; taskBoard?: ReactNode }) {
+export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: HomeView; project?: { id: string; name: string; canAct: boolean }; taskBoard?: ReactNode; taskSummary?: OfficeTaskSummary }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
@@ -164,8 +165,8 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
         <div className={s.sceneHeader}><div><p>{project ? team.name : "团队共享办公室"}</p><h2>{project ? `${project.name}的办公室` : `${team.name}的庭院`}</h2></div><span className={s.pill}><i />{data.workstations.filter(seat => seat.working).length} 位成员工作中</span></div>
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>
           <div className={s.sceneLabel}><Mark name="leaf" />共享空间</div>
-          <GardenBackdrop courtyard taskBoard={Boolean(project)} />
-          {project && <button className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" onClick={() => taskBoardRef.current?.showModal()} />}
+          <GardenBackdrop courtyard taskBoard={Boolean(project)} taskSummary={taskSummary} />
+          {project && <button className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" title={taskSummary ? `我的任务：待办 ${taskSummary.todo}，进行中 ${taskSummary.doing}，待验收 ${taskSummary.review}，已完成 ${taskSummary.done}` : "查看我的任务"} onClick={() => taskBoardRef.current?.showModal()} />}
           {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
@@ -178,6 +179,7 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
             </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}，点击打开我的桌宠面板`} aria-haspopup="dialog" onClick={() => void openPetPanel()}>{label}</button></Fragment>;
           })}
         </div>
+        {project && taskSummary && <button className={s.mobileTaskSummary} onClick={() => taskBoardRef.current?.showModal()} aria-haspopup="dialog"><strong>我的任务</strong><span>待办 {taskSummary.todo}</span><span>进行中 {taskSummary.doing}</span><span>待验收 {taskSummary.review}</span><span>查看 →</span></button>}
         {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
         <div className={s.sceneFooter}><span>手动开始工作后入座，结束工作后离座。每 15 秒同步。</span><div><button onClick={() => { setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />保存合影</button></div></div>
       </section>
