@@ -42,6 +42,8 @@
 .seatedPet{position:absolute;left:27%;top:6%;width:36%;height:43%;z-index:4;padding:0;border:0;border-radius:45%;background:transparent;cursor:pointer}
 .seatedPet:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px}
 .workstationTrigger{position:absolute;inset:0;z-index:4;border:1px solid transparent;border-radius:12px;background:transparent;cursor:pointer}
+.interacting [data-seated-pet]{transform-box:fill-box;transform-origin:50% 90%;animation:pet-hello .7s ease-in-out 4}
+@keyframes pet-hello{0%,100%{transform:rotate(0)}35%{transform:rotate(-5deg)}70%{transform:rotate(5deg)}}
 .workstationTrigger:hover,.workstationTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:2px;background:#21836d08}
 .presetChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .presetChoices button{padding:10px 5px;border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-panel);font-size:11px;text-align:center;cursor:pointer}

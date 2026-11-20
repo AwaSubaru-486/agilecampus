@@ -8,6 +8,8 @@ import { FurnitureArt, GardenBackdrop, WorkstationArt } from "./home-art";
 import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
 import s from "./home.module.css";
 import type { OfficeTaskSummary } from "@/lib/office-task-summary";
+import { OfficePetInteractions } from "@/components/pets/office-pet-interactions";
+import { PET_INTERACTIONS, type PetInteractionEvent } from "@/lib/pets/interaction-contract";
 
 const WEB_PRESETS = [
   { id: "puppy", name: "线条小狗" }, { id: "pacman", name: "吃豆人" }, { id: "nailong", name: "敏捷奶龙" },
@@ -40,6 +42,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
+  const [interaction, setInteraction] = useState<PetInteractionEvent | null>(null);
   const [seatPage, setSeatPage] = useState(0);
   const [selectedPreset, setSelectedPreset] = useState<WebPreset>("puppy");
   const webNameRef = useRef("线条小狗");
@@ -66,6 +69,11 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
     const timer = setTimeout(() => setBubble(null), 2800);
     return () => clearTimeout(timer);
   }, [bubble]);
+  useEffect(() => {
+    if (!interaction) return;
+    const timer = setTimeout(() => setInteraction(null), 6000);
+    return () => clearTimeout(timer);
+  }, [interaction]);
 
   async function openPetPanel() {
     petDrawerRef.current?.showModal();
@@ -171,9 +179,11 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
             const occupied = Boolean(seat?.working && seat.pet?.status === "ready");
+            const reacting = occupied && interaction && (interaction.actorId === seat?.ownerId || interaction.targetId === seat?.ownerId);
             const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
-            return <Fragment key={seat?.ownerId ?? index}><div className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
-              <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={bubble === seat?.ownerId} /></div>
+            return <Fragment key={seat?.ownerId ?? index}><div className={`${s.workstation} ${reacting ? s.interacting : ""}`} style={{ left: `${left}%`, top: `${top}%`, zIndex: reacting ? 20 : 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
+              <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={Boolean(reacting) || bubble === seat?.ownerId} /></div>
+              {reacting && interaction && <span className={s.workSpeech} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
               <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : occupied && seat?.pet ? `${seat.ownerName}的桌宠${seat.pet.name}，打开我的桌宠面板` : "空工位，打开我的桌宠面板"} onClick={() => void openPetPanel()} />
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
             </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}，点击打开我的桌宠面板`} aria-haspopup="dialog" onClick={() => void openPetPanel()}>{label}</button></Fragment>;
@@ -183,6 +193,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
         {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
         <div className={s.sceneFooter}><span>手动开始工作后入座，结束工作后离座。每 15 秒同步。</span><div><button onClick={() => { setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />保存合影</button></div></div>
       </section>
+      {project && <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} onEvent={setInteraction} />}
     </div>}
     <dialog ref={petDrawerRef} className={s.petDrawer} aria-labelledby="pet-drawer-title" onClick={event => { if (event.target === event.currentTarget) petDrawerRef.current?.close(); }}>
       <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
