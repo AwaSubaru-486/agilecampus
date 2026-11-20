@@ -5,9 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
 import { FurnitureArt, GardenBackdrop, WorkstationArt } from "./home-art";
-import { HomePetAvatar as PetAvatar } from "@/components/pets/home-pet-avatar";
 import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
 import s from "./home.module.css";
+
+const WEB_PRESETS = [
+  { id: "puppy", name: "线条小狗" }, { id: "pacman", name: "吃豆人" }, { id: "nailong", name: "敏捷奶龙" },
+] as const;
+type WebPreset = typeof WEB_PRESETS[number]["id"];
 
 const COURTYARD_FURNITURE: HomeFurniture[] = [
   { id: "yard-lamp", kind: "lamp", x: 8, y: 1, flipped: false },
@@ -36,7 +40,8 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [seatPage, setSeatPage] = useState(0);
-  const [selectedPetId, setSelectedPetId] = useState(data.ownPet.petId ?? data.availablePets.find(pet => pet.id.startsWith("web:"))?.id ?? "");
+  const [selectedPreset, setSelectedPreset] = useState<WebPreset>("puppy");
+  const webNameRef = useRef("线条小狗");
   const sceneRef = useRef<HTMLDivElement>(null);
   const petDrawerRef = useRef<HTMLDialogElement>(null);
   const taskBoardRef = useRef<HTMLDialogElement>(null);
@@ -61,23 +66,41 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
     return () => clearTimeout(timer);
   }, [bubble]);
 
-  async function changeWork(teamId: string | null) {
-    setPending(true); setNotice(null);
+  async function openPetPanel() {
+    petDrawerRef.current?.showModal();
     try {
-      await mutate({ operation: "work", teamId, ...(project ? { projectId: project.id } : {}) });
-      setNotice({ text: teamId ? "已开始工作，桌宠已经在工位就座。" : "已结束工作，桌宠已离开工位。" }); router.refresh();
-    } catch (error) { setNotice({ text: error instanceof Error ? error.message : "暂时无法出门，请稍后重试。", error: true }); }
+      const response = await fetch("/api/desktop-pet/status", { cache: "no-store" });
+      if (!response.ok) return;
+      const { config } = await response.json();
+      if (WEB_PRESETS.some(preset => preset.id === config.preset)) setSelectedPreset(config.preset);
+      if (typeof config.name === "string") webNameRef.current = config.name;
+    } catch { /* The default preset remains usable if the read fails. */ }
+  }
+
+  async function savePreset(preset: WebPreset) {
+    const name = WEB_PRESETS.some(option => option.name === webNameRef.current) ? WEB_PRESETS.find(option => option.id === preset)!.name : webNameRef.current;
+    const response = await fetch("/api/desktop-pet/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-config", config: { preset, name } }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error ?? "桌宠选择保存失败");
+    webNameRef.current = name; setSelectedPreset(preset);
+    window.dispatchEvent(new CustomEvent("agilecampus:deskpet-event", { detail: { type: "switch-preset", preset, name } }));
+    window.dispatchEvent(new Event("agilecampus:pet-updated"));
+  }
+
+  async function choosePreset(preset: WebPreset) {
+    setPending(true); setNotice(null);
+    try { await savePreset(preset); setNotice({ text: "已同步网页桌宠。点击“开始工作”即可坐到你的工位。" }); }
+    catch (error) { setNotice({ text: error instanceof Error ? error.message : "选择失败，请重试。", error: true }); }
     finally { setPending(false); }
   }
 
-  async function bindPet() {
+  async function changeWork(teamId: string | null) {
     setPending(true); setNotice(null);
     try {
-      const response = await fetch("/api/home/pets", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId: selectedPetId || null }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "暂时无法选择桌宠");
-      setNotice({ text: selectedPetId ? "桌宠已选择，可以带它进入庭院。" : "已腾出桌宠展示位。" }); router.refresh();
-    } catch (error) { setNotice({ text: error instanceof Error ? error.message : "操作失败，请稍后重试。", error: true }); }
+      if (teamId) await savePreset(selectedPreset);
+      await mutate({ operation: "work", teamId, ...(project ? { projectId: project.id } : {}) });
+      setNotice({ text: teamId ? "已开始工作，网页桌宠已在你的工位就座。" : "已结束工作，桌宠已离开工位。" }); router.refresh();
+    } catch (error) { setNotice({ text: error instanceof Error ? error.message : "操作失败，请重试。", error: true }); }
     finally { setPending(false); }
   }
 
@@ -129,7 +152,7 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
   return <div className={s.page}>
     <header className={`ac-page-header ${s.heading}`}>
       <div><h1>{project ? "项目办公室" : "家园"}</h1><p>{project ? "点击墙上的黑板查看我的任务，在工位上与伙伴一起工作。" : "带上你的桌宠，在团队庭院与队友相聚。"}</p></div>
-      <button className="ac-btn-ghost" aria-haspopup="dialog" onClick={() => petDrawerRef.current?.showModal()}>我的桌宠 ↗</button>
+      <button className="ac-btn-ghost" aria-haspopup="dialog" onClick={() => void openPetPanel()}>我的桌宠 ↗</button>
     </header>
     <div className={s.navigation}>
       <h2>{project ? project.name : "团队庭院"}</h2>
@@ -150,9 +173,9 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
             const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
             return <Fragment key={seat?.ownerId ?? index}><div className={s.workstation} style={{ left: `${left}%`, top: `${top}%`, zIndex: 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={bubble === seat?.ownerId} /></div>
-              {occupied && seat?.pet && <button className={s.seatedPet} aria-haspopup="dialog" aria-label={`${seat.ownerName}的桌宠${seat.pet.name}，打开我的桌宠面板`} onClick={() => petDrawerRef.current?.showModal()} />}
+              <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : occupied && seat?.pet ? `${seat.ownerName}的桌宠${seat.pet.name}，打开我的桌宠面板` : "空工位，打开我的桌宠面板"} onClick={() => void openPetPanel()} />
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
-            </div><span className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={label}>{label}</span></Fragment>;
+            </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}，点击打开我的桌宠面板`} aria-haspopup="dialog" onClick={() => void openPetPanel()}>{label}</button></Fragment>;
           })}
         </div>
         {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
@@ -163,21 +186,18 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
       <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
         <div className={s.drawerHeading}><div className={s.panelHeading}><h3 id="pet-drawer-title">我的桌宠</h3><p>选择自己的桌宠，带它与团队伙伴相聚。</p></div><button className="ac-btn-ghost" aria-label="关闭我的桌宠面板" onClick={() => petDrawerRef.current?.close()}>×</button></div>
         {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
-        <div className={s.companion}><PetAvatar pet={data.ownPet} /><h4>{data.ownPet.name}</h4><p>{data.ownPet.status === "unavailable" ? "原桌宠暂不可用，可重新选择" : data.ownPet.status === "unbound" ? "自定义桌宠开放后，可在此选择" : workingHere ? "工作中 · 已在工位就座" : workingElsewhere ? project ? "正在其他项目工作" : "正在其他团队工作" : "休息中 · 工位空闲"}</p><span>{data.ownPet.status === "ready" ? "已关联桌宠" : "等待选择桌宠"}</span></div>
-        {canAct && <button className="ac-btn-ghost" onClick={() => { petDrawerRef.current?.close(); window.dispatchEvent(new CustomEvent("agilecampus:deskpet-event", { detail: { type: "open-settings" } })); }}>装扮网页桌宠 · 同步到办公室</button>}
-        <p className={s.integrationHint}>网页桌宠换装或改名后，会同步到这里；工位工作状态保持不变。</p>
-        <div className={s.petBinding}>
-            <label className={s.field}>选择桌宠<select aria-label="选择桌宠" value={selectedPetId} disabled={!canAct || pending || (!data.availablePets.length && !data.ownPet.petId)} onChange={event => setSelectedPetId(event.target.value)}>
-            <option value="">{data.availablePets.length ? "暂不展示桌宠" : "暂无可选桌宠"}</option>
-            {data.ownPet.petId && !data.availablePets.some(pet => pet.id === data.ownPet.petId) && <option value={data.ownPet.petId}>原桌宠暂不可用</option>}
-            {data.availablePets.map(pet => <option key={pet.id} value={pet.id}>{pet.name}</option>)}
-          </select></label>
-          <button className="ac-btn-ghost" disabled={!canAct || pending || selectedPetId === (data.ownPet.petId ?? "")} onClick={bindPet}>{pending ? "正在应用…" : "应用桌宠"}</button>
+        <div className={s.companion}><div className={s.presetPreview} role="img" aria-label={WEB_PRESETS.find(preset => preset.id === selectedPreset)?.name} style={{ backgroundImage: `url(/desk-pet/frames/${selectedPreset}_0.png)` }} /><h4>{WEB_PRESETS.find(preset => preset.id === selectedPreset)?.name}</h4><p>{data.ownPet.status === "unavailable" ? "原桌宠暂不可用，可重新选择" : data.ownPet.status === "unbound" ? "选择下方任一形象即可入座" : workingHere ? "工作中 · 已在工位就座" : workingElsewhere ? project ? "正在其他项目工作" : "正在其他团队工作" : "休息中 · 工位空闲"}</p><span>{data.ownPet.status === "ready" ? "已关联桌宠" : "等待选择桌宠"}</span></div>
+        <div className={s.presetChoices} role="group" aria-label="选择网页桌宠形象">
+          {WEB_PRESETS.map(preset => <button key={preset.id} disabled={!canAct || pending} aria-pressed={selectedPreset === preset.id} onClick={() => void choosePreset(preset.id)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/desk-pet/frames/${preset.id}_0.png`} alt="" /><span>{preset.name}</span>
+          </button>)}
         </div>
-        <button className="ac-btn" disabled={!canAct || pending || (!team && !data.ownWorkingTeamId) || (data.ownPet.status !== "ready" && !data.ownWorkingTeamId)} onClick={() => changeWork(workingHere || workingElsewhere ? null : data.teamId)}>{pending ? "正在更新…" : workingHere || workingElsewhere ? "结束工作" : "开始工作"}</button>
+        <p className={s.integrationHint}>1. 选择网页桌宠形象　2. 点击“开始工作”，桌宠自动坐到自己的工位。</p>
+        <button className="ac-btn" disabled={!canAct || pending || (!team && !data.ownWorkingTeamId)} onClick={() => changeWork(workingHere || workingElsewhere ? null : data.teamId)}>{pending ? "正在更新…" : workingHere || workingElsewhere ? "结束工作" : "开始工作"}</button>
         <p className={s.integrationHint}>开始后会持续显示工作中，关闭网页不会自动结束。休息时请点击“结束工作”。</p>
-        {canAct ? <DesktopCompanionControl /> : <p className={s.integrationHint}>当前为角色预览，桌宠操作暂不可用。</p>}
-        <div className={s.smallNote}><Mark name="leaf" /><p>选择桌宠后点击“开始工作”，它就会在你的工位上陪你工作。</p></div>
+        {canAct ? <details><summary>独立桌面陪伴（可选）</summary><DesktopCompanionControl /></details> : <p className={s.integrationHint}>当前为角色预览，桌宠操作暂不可用。</p>}
+        <div className={s.smallNote}><Mark name="leaf" /><p>点击任意工位可以打开本面板；开始工作后，桌宠会在自己的工位上陪你工作。</p></div>
       </div>
     </dialog>
     {project && <dialog ref={taskBoardRef} className={s.taskBoardDialog} aria-labelledby="office-tasks-title" onClick={event => { if (event.target === event.currentTarget) taskBoardRef.current?.close(); }}>
