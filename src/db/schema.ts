@@ -21,7 +21,7 @@ import { sql } from "drizzle-orm";
 import { DEFAULT_STATUS, TASK_STATUSES } from "@/lib/task-status";
 import { BLOCKER_REASONS, BLOCKER_STATUSES } from "@/lib/blocker-labels";
 import { ENTRY_TYPES } from "@/lib/entry-labels";
-import { ITERATION_STATUSES, type IterationTask, type IterationFeature, type IterationModule } from "@/lib/iteration-types";
+import { ITERATION_STATUSES, type IterationTask, type IterationFeature, type IterationModule, type IterationOutcome } from "@/lib/iteration-types";
 import { taskMemoryVersions } from "./schema-task-memory";
 import type { TutorialProgress } from "@/lib/tutorials/catalog";
 
@@ -126,6 +126,7 @@ export const projectIterations = pgTable("project_iterations", {
   baseIterationId: uuid("base_iteration_id").references((): AnyPgColumn => projectIterations.id, { onDelete: "set null" }),
   features: jsonb("features").$type<IterationFeature[]>().notNull().default([]),
   moduleSnapshot: jsonb("module_snapshot").$type<IterationModule[]>(),
+  outcomeSnapshot: jsonb("outcome_snapshot").$type<IterationOutcome[]>().notNull().default([]),
   executionNotes: text("execution_notes").notNull().default(""),
   validationNotes: text("validation_notes").notNull().default(""),
   releaseUrl: text("release_url").notNull().default(""),

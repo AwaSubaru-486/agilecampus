@@ -9,8 +9,11 @@ import { activityEvents, iterationTasks, tasks } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject } from "@/lib/project";
-import { createTask } from "@/lib/task";
-import { changeIterationStatus, listProjectIterations, saveProjectIteration, saveIterationExecution, continueIteration, saveIterationWorkspace } from "@/lib/project-iterations";
+import { claimTask, createTask, reviewTask, submitTask } from "@/lib/task";
+import { submitTaskWithDelivery } from "@/lib/task-submission";
+import { createEvidenceItem } from "@/lib/evidence";
+import { recheckCompletedTask } from "@/lib/task-recheck";
+import { changeIterationStatus, getProjectIterationWorkspace, listProjectIterations, saveProjectIteration, saveIterationExecution, continueIteration, saveIterationWorkspace } from "@/lib/project-iterations";
 import { changeIterationStatusAction, saveIterationAction, saveIterationExecutionAction, continueIterationAction, saveWorkspaceAction } from "@/app/(app)/projects/[projectId]/iterations/actions";
 import { iterationModules } from "@/lib/iteration-modules";
 import { randomUUID } from "node:crypto";
@@ -40,6 +43,54 @@ async function publish(f: Awaited<ReturnType<typeof scene>>) {
   const saved = await saveIterationExecution(f.owner.id, f.project.id, active.id, active.updatedAt.toISOString(), execution);
   return changeIterationStatus(f.owner.id, f.project.id, saved.id, "release", saved.updatedAt.toISOString());
 }
+
+describe("自动同步已验收的交付成果", () => {
+  it("从项目已验收的交付读取说明和 PR，待验收和退回的交付不进入迭代", async () => {
+    const f = await scene();
+    await claimTask(f.member.id, f.task.id, { commitmentNote: "接入搜索" });
+    await submitTaskWithDelivery(f.member.id, f.task.id, {
+      branchName: "feature/search", pullRequestUrl: "https://example.com/pull/1", completionNote: "可以按名称搜索活动。",
+      handoffVersion: f.task.handoffVersion, evidence: {},
+    });
+    const rejected = await createTask(f.owner.id, f.project.id, { title: "待修改内容", assigneeId: f.member.id });
+    await claimTask(f.member.id, rejected.id, { commitmentNote: "调整筛选" });
+    await submitTask(f.member.id, rejected.id, { completionNote: "筛选仍需修改" });
+    await reviewTask(f.owner.id, rejected.id, { decision: "reject", note: "缺少筛选条件" });
+    expect(await getProjectIterationWorkspace(f.member.id, f.project.id)).toEqual({ iterations: [], outcomes: [] });
+
+    const accepted = await reviewTask(f.owner.id, f.task.id, { decision: "accept" });
+    const outcome = { taskId: f.task.id, title: f.task.title, summary: "可以按名称搜索活动。", resultUrl: "https://example.com/pull/1",
+      submittedAt: accepted.submittedAt!.toISOString(), acceptedAt: accepted.reviewedAt!.toISOString() };
+    expect(await getProjectIterationWorkspace(f.member.id, f.project.id)).toEqual({ iterations: [], outcomes: [outcome] });
+    await recheckCompletedTask(f.teacher.id, f.project.id, f.task.id, { decision: "accept" });
+    expect((await getProjectIterationWorkspace(f.teacher.id, f.project.id)).outcomes).toEqual([outcome]);
+    const other = await createProject(f.owner.id, f.team.id, { name: "其他项目" });
+    expect((await getProjectIterationWorkspace(f.member.id, other.id)).outcomes).toEqual([]);
+    await expect(getProjectIterationWorkspace(f.outsider.id, f.project.id)).rejects.toThrow();
+  });
+
+  it("可仅凭同步成果保存版本，保持历史快照且并发发布只归档一次", async () => {
+    const f = await scene();
+    await claimTask(f.member.id, f.task.id, { commitmentNote: "制作演示" });
+    await createEvidenceItem(f.member.id, f.task.id, { type: "demo", label: "演示", value: "https://example.com/demo" });
+    await submitTask(f.member.id, f.task.id, { completionNote: "原始验收成果" });
+    await reviewTask(f.owner.id, f.task.id, { decision: "accept" });
+    const legacy = await publish({ ...f, project: await createProject(f.owner.id, f.team.id, { name: "已有版本演示" }) });
+    const first = await continueIteration(f.owner.id, f.project.id, null);
+    const second = await saveProjectIteration(f.owner.id, f.project.id, { version: "v2", title: "另一份开发版本" });
+    const results = await Promise.allSettled([first, second].map(row => saveIterationWorkspace(f.owner.id, f.project.id, row.id,
+      row.updatedAt.toISOString(), { version: row.version, title: row.title, modules: [], publish: true })));
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter(result => result.status === "rejected")).toEqual([expect.objectContaining({ reason: expect.objectContaining({ message: expect.stringContaining("没有待归档") }) })]);
+    await db.update(tasks).set({ title: "后续更名" }).where(eq(tasks.id, f.task.id));
+    await recheckCompletedTask(f.teacher.id, f.project.id, f.task.id, { decision: "accept" });
+    const workspace = await getProjectIterationWorkspace(f.member.id, f.project.id);
+    expect(workspace.outcomes).toEqual([]);
+    const released = workspace.iterations.find(row => row.status === "released");
+    expect(released).toMatchObject({ features: [], outcomeSnapshot: [{ taskId: f.task.id, title: f.task.title, summary: "原始验收成果", resultUrl: "https://example.com/demo" }] });
+    expect(legacy.outcomeSnapshot).toEqual([]);
+  });
+});
 
 describe("以功能模块推进版本迭代", () => {
   it("版本保存模块变化，成员和老师可查看，不返回任务安排", async () => {

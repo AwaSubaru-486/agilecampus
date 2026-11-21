@@ -8,6 +8,7 @@ import { getProjectForUser } from "./project";
 import { recordEvent } from "./activity";
 import { FEATURE_CHANGES, type IterationView } from "./iteration-types";
 import { iterationModules, moduleChanges } from "./iteration-modules";
+import { readUnarchivedOutcomes } from "./iteration-outcomes";
 
 const featureSchema = z.object({
   id: z.uuid().default(() => randomUUID()),
@@ -48,16 +49,36 @@ async function editableIteration(tx: DbTx, projectId: string, id: string, update
   if (current.updatedAt.toISOString() !== updatedAt) throw new ConflictError("迭代已被更新，请刷新后重试");
   return current;
 }
-export async function listProjectIterations(actorId: string, projectId: string): Promise<IterationView[]> {
-  if (!await getProjectForUser(actorId, projectId)) throw new ForbiddenError();
-  const rows = await db.select().from(projectIterations).where(eq(projectIterations.projectId, projectId)).orderBy(desc(projectIterations.createdAt), desc(projectIterations.id));
+function iterationRows(projectId: string, exec: DbTx | typeof db = db) {
+  return exec.select().from(projectIterations).where(eq(projectIterations.projectId, projectId)).orderBy(desc(projectIterations.createdAt), desc(projectIterations.id));
+}
+
+function iterationViews(rows: (typeof projectIterations.$inferSelect)[]): IterationView[] {
   return rows.map(row => ({
     id: row.id, version: row.version, title: row.title, goal: row.goal, releaseNotes: row.releaseNotes,
     status: row.status, startDate: row.startDate, endDate: row.endDate, baseIterationId: row.baseIterationId,
     features: row.features, executionNotes: row.executionNotes, validationNotes: row.validationNotes, releaseUrl: row.releaseUrl,
-    moduleSnapshot: row.moduleSnapshot,
+    moduleSnapshot: row.moduleSnapshot, outcomeSnapshot: row.outcomeSnapshot,
     createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), releasedAt: row.releasedAt?.toISOString() ?? null,
   }));
+}
+
+function projectOutcomes(projectId: string, rows: (typeof projectIterations.$inferSelect)[], tx: DbTx) {
+  const archived = rows.filter(row => row.status === "released").flatMap(row => row.outcomeSnapshot);
+  return readUnarchivedOutcomes(projectId, archived, tx);
+}
+
+export async function listProjectIterations(actorId: string, projectId: string): Promise<IterationView[]> {
+  if (!await getProjectForUser(actorId, projectId)) throw new ForbiddenError();
+  return iterationViews(await iterationRows(projectId));
+}
+
+export async function getProjectIterationWorkspace(actorId: string, projectId: string) {
+  if (!await getProjectForUser(actorId, projectId)) throw new ForbiddenError();
+  return db.transaction(async tx => {
+    const rows = await iterationRows(projectId, tx);
+    return { iterations: iterationViews(rows), outcomes: await projectOutcomes(projectId, rows, tx) };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function saveProjectIteration(actorId: string, projectId: string, input: IterationInput, edit?: { id: string; updatedAt: string }) {
   const parsed = iterationInputSchema.safeParse(input);
@@ -107,8 +128,9 @@ export async function changeIterationStatus(actorId: string, projectId: string, 
       if (action === "release" && (!current.validationNotes.trim() || !current.releaseNotes.trim())) throw new AppError("发布前请保存验证结果和版本说明");
     } else if (action === "release" && !current.features.length) throw new AppError("本轮尚无功能变化，继续修改后再保存版本");
     const now = new Date();
+    const outcomeSnapshot = action === "release" ? await projectOutcomes(projectId, await iterationRows(projectId, tx), tx) : undefined;
     const [saved] = await tx.update(projectIterations).set({ status: action === "start" ? "active" : "released", updatedAt: now,
-      ...(action === "release" ? { releasedAt: now } : {}),
+      ...(action === "release" ? { releasedAt: now, outcomeSnapshot } : {}),
     }).where(eq(projectIterations.id, iterationId)).returning();
     await recordEvent(tx, { projectId, actorId, type: "project_updated", summary: `${action === "start" ? "开始" : "发布"}迭代「${saved.version} · ${saved.title}」`, payload: { iterationId, version: saved.version, action: action === "start" ? "iteration_started" : "iteration_released" } });
     return saved;
@@ -163,10 +185,14 @@ export async function saveIterationWorkspace(actorId: string, projectId: string,
       const baseline = iterationModules(rows.find(row => row.id === current.baseIterationId), rows);
       if (baseline.some(module => !values.modules.some(item => item.id === module.id))) throw new AppError("继承的模块需要保留，请在原模块上继续修改");
       const features = moduleChanges(values.modules, baseline);
-      if (values.publish && !features.length) throw new AppError("本轮尚无功能变化，继续修改后再保存版本");
+      const outcomeSnapshot = values.publish ? await projectOutcomes(projectId, rows, tx) : [];
+      if (values.publish && !features.length && !outcomeSnapshot.length) throw new AppError("本轮尚无功能变化，也没有待归档的验收成果");
       const now = new Date();
       const [saved] = await tx.update(projectIterations).set({ moduleSnapshot: values.modules, features, executionNotes: values.executionNotes, version: values.version, title: values.title,
-        status: values.publish ? "released" : "active", ...(values.publish ? { releasedAt: now, releaseNotes: features.map(item => `${item.name}：${item.summary}`).join("\n") } : {}), updatedAt: now,
+        status: values.publish ? "released" : "active", ...(values.publish ? {
+          releasedAt: now, outcomeSnapshot,
+          releaseNotes: [...features.map(item => `${item.name}：${item.summary}`), ...outcomeSnapshot.map(item => `${item.title}：${item.summary}`)].join("\n"),
+        } : {}), updatedAt: now,
       }).where(eq(projectIterations.id, current.id)).returning();
       await recordEvent(tx, { projectId, actorId, type: "project_updated", summary: `${values.publish ? "保存版本" : "保存开发修改"}「${saved.version}」`, payload: { iterationId, action: values.publish ? "iteration_released" : "iteration_workspace_saved" } });
       return saved;

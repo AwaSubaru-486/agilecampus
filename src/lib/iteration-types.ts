@@ -11,6 +11,10 @@ export type FeatureChange = (typeof FEATURE_CHANGES)[number];
 export const FEATURE_CHANGE_LABELS: Record<FeatureChange, string> = { added: "新增", improved: "完善", fixed: "修复" };
 export type IterationFeature = { id: string; name: string; summary: string; change: FeatureChange };
 export type IterationModule = { id: string; name: string; summary: string; resultUrl: string; context: string };
+export type IterationOutcome = {
+  taskId: string; submittedAt: string | null; acceptedAt: string;
+  title: string; summary: string; resultUrl: string | null;
+};
 export type IterationView = {
   id: string; version: string; title: string; goal: string; releaseNotes: string;
   startDate: string | null; endDate: string | null; status: IterationStatus;
@@ -18,4 +22,5 @@ export type IterationView = {
   baseIterationId: string | null; features: IterationFeature[];
   executionNotes: string; validationNotes: string; releaseUrl: string;
   moduleSnapshot: IterationModule[] | null;
+  outcomeSnapshot: IterationOutcome[];
 };

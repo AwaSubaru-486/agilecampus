@@ -640,6 +640,7 @@ export async function reviewTaskAction(_prev: FormState, formData: FormData): Pr
     throw e;
   }
   revalidatePath(`/projects/${parsed.data.projectId}`);
+  if (parsed.data.decision === "accept") revalidatePath(`/projects/${parsed.data.projectId}/iterations`);
   revalidatePath("/today");
   return null;
 }
