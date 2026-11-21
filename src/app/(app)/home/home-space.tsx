@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
 import { FurnitureArt, GardenBackdrop, WorkstationArt } from "./home-art";
 import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
+import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
 import s from "./home.module.css";
 import type { OfficeTaskSummary } from "@/lib/office-task-summary";
 import { OfficePetInteractions } from "@/components/pets/office-pet-interactions";
@@ -43,11 +44,13 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<PetInteractionEvent | null>(null);
+  const [interactionTargetId, setInteractionTargetId] = useState<string | null>(null);
   const [seatPage, setSeatPage] = useState(0);
   const [selectedPreset, setSelectedPreset] = useState<WebPreset>("puppy");
   const webNameRef = useRef("线条小狗");
   const sceneRef = useRef<HTMLDivElement>(null);
   const petDrawerRef = useRef<HTMLDialogElement>(null);
+  const interactionDrawerRef = useRef<HTMLDialogElement>(null);
   const taskBoardRef = useRef<HTMLDialogElement>(null);
   const team = data.teams.find(t => t.id === data.teamId);
   const residents = data.workstations.filter(seat => seat.working && seat.pet?.status === "ready");
@@ -55,6 +58,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
   const currentPage = Math.min(seatPage, pageCount - 1);
   const seats = Array.from({ length: 6 }, (_, index) => data.workstations[currentPage * 6 + index] ?? null);
   const canAct = project?.canAct ?? true;
+  const interactionTarget = data.workstations.find(seat => seat.ownerId === interactionTargetId);
   const workingHere = data.ownWorkingTeamId === data.teamId && (!project || data.ownWorkingProjectId === project.id);
   const workingElsewhere = Boolean(data.ownWorkingTeamId && !workingHere);
 
@@ -84,6 +88,12 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
       if (WEB_PRESETS.some(preset => preset.id === config.preset)) setSelectedPreset(config.preset);
       if (typeof config.name === "string") webNameRef.current = config.name;
     } catch { /* The default preset remains usable if the read fails. */ }
+  }
+
+  function openWorkstation(seat: HomeView["workstations"][number] | null) {
+    if (!seat || seat.ownerId === data.actorId || !project) { void openPetPanel(); return; }
+    setInteractionTargetId(seat.ownerId);
+    interactionDrawerRef.current?.showModal();
   }
 
   async function savePreset(preset: WebPreset) {
@@ -184,16 +194,15 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
             return <Fragment key={seat?.ownerId ?? index}><div className={`${s.workstation} ${reacting ? s.interacting : ""}`} style={{ left: `${left}%`, top: `${top}%`, zIndex: reacting ? 20 : 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={Boolean(reacting) || bubble === seat?.ownerId} /></div>
               {reacting && interaction && <span className={s.workSpeech} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
-              <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : occupied && seat?.pet ? `${seat.ownerName}的桌宠${seat.pet.name}，打开我的桌宠面板` : "空工位，打开我的桌宠面板"} onClick={() => void openPetPanel()} />
+              <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : seat ? `${seat.ownerName}的工位，打开桌宠互动面板` : "空工位，打开我的桌宠面板"} onClick={() => openWorkstation(seat)} />
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
-            </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}，点击打开我的桌宠面板`} aria-haspopup="dialog" onClick={() => void openPetPanel()}>{label}</button></Fragment>;
+            </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}，${seat && seat.ownerId !== data.actorId ? "点击互动" : "点击设置我的桌宠"}`} aria-haspopup="dialog" onClick={() => openWorkstation(seat)}>{label}</button></Fragment>;
           })}
         </div>
         {project && taskSummary && <button className={s.mobileTaskSummary} onClick={() => taskBoardRef.current?.showModal()} aria-haspopup="dialog"><strong>我的任务</strong><span>待办 {taskSummary.todo}</span><span>进行中 {taskSummary.doing}</span><span>待验收 {taskSummary.review}</span><span>查看 →</span></button>}
         {pageCount > 1 && <div className={s.seatPages}><button disabled={currentPage === 0} onClick={() => setSeatPage(currentPage - 1)}>上一组工位</button><span>{currentPage + 1} / {pageCount}</span><button disabled={currentPage + 1 === pageCount} onClick={() => setSeatPage(currentPage + 1)}>下一组工位</button></div>}
         <div className={s.sceneFooter}><span>手动开始工作后入座，结束工作后离座。每 15 秒同步。</span><div><button onClick={() => { setBubble(residents[0]?.ownerId ?? null); }} disabled={!residents.length}>打个招呼 ♡</button><button onClick={photograph}><Mark name="camera" />保存合影</button></div></div>
       </section>
-      {project && <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} onEvent={setInteraction} />}
     </div>}
     <dialog ref={petDrawerRef} className={s.petDrawer} aria-labelledby="pet-drawer-title" onClick={event => { if (event.target === event.currentTarget) petDrawerRef.current?.close(); }}>
       <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
@@ -213,6 +222,13 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
         <div className={s.smallNote}><Mark name="leaf" /><p>点击任意工位可以打开本面板；开始工作后，桌宠会在自己的工位上陪你工作。</p></div>
       </div>
     </dialog>
+    {project && <dialog ref={interactionDrawerRef} className={s.petDrawer} aria-labelledby="pet-interaction-title" onClick={event => { if (event.target === event.currentTarget) interactionDrawerRef.current?.close(); }}>
+      <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
+        <header className={s.drawerHeading}><div className={s.panelHeading}><h3 id="pet-interaction-title">队友桌宠互动</h3><p>点击的是谁，就和谁的桌宠互动。</p></div><button className="ac-btn-ghost" aria-label="关闭桌宠互动面板" onClick={() => interactionDrawerRef.current?.close()}>×</button></header>
+        {interactionTarget && <div className={s.companion}>{interactionTarget.pet && <HomePetAvatar pet={interactionTarget.pet} />}<h4>{interactionTarget.ownerName}</h4><p>{interactionTarget.pet?.name ?? "暂未展示桌宠"} · {interactionTarget.working ? "工作中" : "休息中"}</p></div>}
+        <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} targetId={interactionTargetId} onEvent={setInteraction} onSent={() => interactionDrawerRef.current?.close()} />
+      </div>
+    </dialog>}
     {project && <dialog ref={taskBoardRef} className={s.taskBoardDialog} aria-labelledby="office-tasks-title" onClick={event => { if (event.target === event.currentTarget) taskBoardRef.current?.close(); }}>
       <div className={s.taskBoardContent}>
         <header className={s.drawerHeading}><div><h2 id="office-tasks-title">我的任务</h2><p>{project.name} · 按阶段查看，点击任务进入详情</p></div><button className="ac-btn-ghost" aria-label="关闭我的任务" onClick={() => taskBoardRef.current?.close()}>×</button></header>
