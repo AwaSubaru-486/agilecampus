@@ -4,7 +4,8 @@ import { PET_INTERACTIONS, type PetInteractionEvent, type PetInteractionKind } f
 import type { HomeView } from "@/lib/home-contract";
 export function OfficePetInteractions({ projectId, actorId, seats, canAct, onEvent, targetId, onSent }: { projectId: string; actorId: string; seats: HomeView["workstations"]; canAct: boolean; onEvent: (event: PetInteractionEvent) => void; targetId: string | null; onSent: (event: PetInteractionEvent) => void }) {
   const [message, setMessage] = useState<{ targetId: string; text: string } | null>(null);
-  const [busy, setBusy] = useState(false), [cooldown, setCooldown] = useState(false);
+  const [busy, setBusy] = useState(false), [cooldown, setCooldown] = useState(0);
+  const [sendingKind, setSendingKind] = useState<PetInteractionKind | null>(null);
   const seen = useRef(new Set<string>());
   const ready = (seat: HomeView["workstations"][number]) => seat.working && seat.pet?.status === "ready" && seat.pet.petId?.startsWith("web:");
   const targets = seats.filter(seat => seat.ownerId !== actorId && ready(seat));
@@ -26,21 +27,28 @@ export function OfficePetInteractions({ projectId, actorId, seats, canAct, onEve
     void refresh(); const timer = setInterval(() => void refresh(), 4000);
     return () => { disposed = true; controller.abort(); clearInterval(timer); };
   }, [projectId, onEvent]);
-  useEffect(() => { if (!cooldown) return; const timer = setTimeout(() => setCooldown(false), 10000); return () => clearTimeout(timer); }, [cooldown]);
+  useEffect(() => { if (!cooldown) return; const timer = setTimeout(() => setCooldown(value => Math.max(0, value - 1)), 1000); return () => clearTimeout(timer); }, [cooldown]);
+  const blockedReason = !canAct ? "当前视角不能操作，请切回自己的项目视角。" : !ownWorking ? "请先点击自己的工位选择桌宠并开始工作。" : !selected ? "这位队友暂未带网页桌宠开工，开工后才能互动。" : cooldown ? `请等待 ${cooldown} 秒后再互动。` : "";
   async function send(kind: PetInteractionKind) {
-    setBusy(true); setMessage(null);
+    if (busy) return;
+    if (blockedReason) { setMessage({ targetId: selected, text: blockedReason }); return; }
+    setBusy(true); setSendingKind(kind); setMessage(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/pet-interactions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetId: selected, kind }) });
-      const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "互动发送失败");
-      seen.current.add(data.event.id); onEvent(data.event); setCooldown(true); onSent(data.event);
-    } catch (error) { setMessage({ targetId: selected, text: error instanceof Error ? error.message : "互动失败，请重试" }); }
-    finally { setBusy(false); }
+      const response = await fetch(`/api/projects/${projectId}/pet-interactions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetId: selected, kind }), signal: AbortSignal.timeout(10000) });
+      if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("服务响应异常，请刷新项目页面后重试。");
+      const data = await response.json(); if (!response.ok) throw new Error(data.error ?? (response.status === 401 ? "登录已过期，请重新登录。" : "互动发送失败"));
+      if (!data.event?.id || data.event.targetId !== selected || data.event.kind !== kind) throw new Error("没有收到有效的互动回执，请刷新后重试。");
+      seen.current.add(data.event.id); onEvent(data.event); setCooldown(10); onSent(data.event);
+    } catch (error) { setMessage({ targetId: selected, text: error instanceof Error && error.name === "TimeoutError" ? "发送超时，请检查本地服务后重试。" : error instanceof Error ? error.message : "互动失败，请重试" }); }
+    finally { setBusy(false); setSendingKind(null); }
   }
   return <section aria-label="桌宠互动" className="rounded-xl border border-stroke bg-panel p-4 text-sm">
     <p className="mb-4 font-semibold">{target ? `与${target.ownerName}的桌宠互动` : "点击队友的桌宠开始互动"}</p>
+    {busy && <p className="mb-3 text-signal" role="status">正在发送{sendingKind ? PET_INTERACTIONS[sendingKind].label : "互动"}，请稍候…</p>}
+    {message?.targetId === selected && <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{message.text}</p>}
     <div className="flex flex-wrap items-center gap-3">
-      {(Object.keys(PET_INTERACTIONS) as PetInteractionKind[]).map(kind => <button key={kind} className="ac-btn-ghost" disabled={!canAct || !ownWorking || !selected || busy || cooldown} onClick={() => void send(kind)}>{PET_INTERACTIONS[kind].icon} {PET_INTERACTIONS[kind].label}</button>)}
+      {(Object.keys(PET_INTERACTIONS) as PetInteractionKind[]).map(kind => <button key={kind} className="ac-btn-ghost" disabled={busy} aria-disabled={Boolean(blockedReason) || busy} onClick={() => void send(kind)}>{PET_INTERACTIONS[kind].icon} {PET_INTERACTIONS[kind].label}</button>)}
     </div>
-    <p className="mt-2 text-xs leading-6 text-ink-3" role="status">{message?.targetId === selected ? message.text : !ownWorking ? "请先点击自己的工位选择桌宠并开始工作。" : !selected ? "这位队友暂未带网页桌宠开工，开工后才能互动。" : cooldown ? "10 秒后可以再次互动。" : "选择一种互动后会回到办公室，双方桌宠短暂回应，然后继续工作。"}</p>
+    <p className="mt-2 text-xs leading-6 text-ink-3" role="status">{blockedReason || "选择一种互动后会回到办公室，双方桌宠短暂回应，然后继续工作。"}</p>
   </section>;
 }

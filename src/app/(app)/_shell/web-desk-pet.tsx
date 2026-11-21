@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 
 export type PetPreset = "puppy" | "pacman" | "nailong" | "custom";
 
@@ -111,7 +111,13 @@ export function resolveAvatarUrl(url?: string): string {
   return `/api/desktop-pet/image?path=${encodeURIComponent(trimmed)}`;
 }
 
+const subscribeClient = () => () => {};
 export function WebDeskPet() {
+  const client = useSyncExternalStore(subscribeClient, () => true, () => false);
+  return client ? <WebDeskPetClient /> : null;
+}
+
+function WebDeskPetClient() {
   const [config, setConfig] = useState<DeskPetConfig>(() => {
     const fallback: DeskPetConfig = {
       preset: "puppy",
