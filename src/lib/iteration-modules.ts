@@ -1,4 +1,4 @@
-import type { IterationFeature, IterationModule } from "./iteration-types";
+import type { IterationFeature, IterationModule, IterationOutcome } from "./iteration-types";
 
 type Version = { id: string; baseIterationId: string | null; features: IterationFeature[]; moduleSnapshot: IterationModule[] | null; releaseUrl: string };
 
@@ -25,10 +25,11 @@ export function moduleChanges(modules: IterationModule[], baseline: IterationMod
   });
 }
 
-export function iterationContext(version: { version: string; title: string; executionNotes: string }, modules: IterationModule[], baseline: IterationModule[]) {
+export function iterationContext(version: { version: string; title: string; executionNotes: string }, modules: IterationModule[], baseline: IterationModule[], outcomes: IterationOutcome[] = []) {
   const changes = moduleChanges(modules, baseline);
   return [`# ${version.version} · ${version.title}`, "请在以下已有成果上继续开发。", ...modules.map(capability => {
     const before = baseline.find(item => item.id === capability.id);
     return [`## ${capability.name}${changes.some(item => item.id === capability.id) ? "（本轮修改）" : "（沿用）"}`, before ? `上一版：${before.summary}` : "上一版：尚无此模块", `当前：${capability.summary}`, capability.resultUrl && `成果：${capability.resultUrl}`, capability.context && `开发备注：${capability.context}`].filter(Boolean).join("\n");
-  }), version.executionNotes && `## 工作断点\n${version.executionNotes}`].filter(Boolean).join("\n\n");
+  }), outcomes.length > 0 && ["## 已验收成果", ...outcomes.map(item => `- ${item.title}：${item.summary}${item.resultUrl ? `\n  ${item.resultUrl}` : ""}`)].join("\n"),
+  version.executionNotes && `## 工作断点\n${version.executionNotes}`].filter(Boolean).join("\n\n");
 }

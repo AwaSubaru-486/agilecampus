@@ -96,9 +96,9 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · PostgreSQL 16 + 
 
 ## 项目版本迭代
 
-在项目导航点击「迭代」，进入 `/projects/[projectId]/iterations`。上方「功能演进」沿版本展示已实现模块，同版沿一条竖线；同模块可回看上次变化。下方「当前开发版本」继承基准版本的全部模块、成果链接与开发备注，选模块修改能力描述，自动查看前后变化，满意后保存成历史版本。新流程无需反复填写目标、日期、验证与复盘。可复制开发上下文，在开发对话中接续。组长管理，成员和老师查看。不读取或改变任务安排。这里保存的是模块与链接状态，不执行代码开发、部署或 Git 快照。
+在项目导航点击「迭代」，进入 `/projects/[projectId]/iterations`。页面默认展示最新归档版本，每次选看一项变化，和归档时保存的基准版本对照。版本详情可查看验收依据并跳回来源任务。下方自动读取本项目通过组长验收且待归档的交付说明和链接。组长保存版本时，待归档成果随版本保存为快照，也可手动补充或编辑模块。下一轮沿用基准版本的模块、成果链接和开发备注，可复制开发上下文继续工作。成员和老师可查看。
 
-已有数据库依次执行 `scripts/migrations/2026-11-01-project-iterations.sql` 、`scripts/migrations/2026-11-04-iteration-features.sql` 和 `scripts/migrations/2026-11-04-iteration-workspace.sql`；只新增表和字段，保留旧关联数据。新建数据库可使用下方的 `db:push`。当前设计与验收见 [`接续开发工作区`](docs/reviews/2026-11-04-iteration-continuity/README.md)；11 月 1 日记录仅反映旧版任务关联方案。
+已有数据库依次执行 `scripts/migrations/2026-11-01-project-iterations.sql`、`scripts/migrations/2026-11-04-iteration-features.sql`、`scripts/migrations/2026-11-04-iteration-workspace.sql` 和 `scripts/migrations/2026-11-18-iteration-outcomes.sql`。验收成果快照从下次保存版本开始记录。新建数据库可使用下方的 `db:push`。
 
 ## 本地启动
 
