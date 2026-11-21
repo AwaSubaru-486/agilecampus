@@ -184,7 +184,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
         <div className={s.sceneHeader}><div><p>{project ? team.name : "团队共享办公室"}</p><h2>{project ? `${project.name}的办公室` : `${team.name}的庭院`}</h2></div><span className={s.pill}><i />{data.workstations.filter(seat => seat.working).length} 位成员工作中</span></div>
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>
           <div className={s.sceneLabel}><Mark name="leaf" />共享空间</div>
-          {interaction && <div className={s.interactionReceipt} role="status" data-interaction-receipt>{PET_INTERACTIONS[interaction.kind].icon} {data.workstations.find(seat => seat.ownerId === interaction.actorId)?.ownerName ?? "伙伴"}向{data.workstations.find(seat => seat.ownerId === interaction.targetId)?.ownerName ?? "队友"}{PET_INTERACTIONS[interaction.kind].label} · 桌宠正在回应</div>}
+          {interaction && <div className={s.interactionReceipt} role="status" data-interaction-receipt>{PET_INTERACTIONS[interaction.kind].icon} {data.workstations.find(seat => seat.ownerId === interaction.actorId)?.ownerName ?? "伙伴"}向{data.workstations.find(seat => seat.ownerId === interaction.targetId)?.ownerName ?? "队友"}{PET_INTERACTIONS[interaction.kind].label} · 互动动画播放中</div>}
           <GardenBackdrop courtyard taskBoard={Boolean(project)} taskSummary={taskSummary} />
           {project && <button className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" title={taskSummary ? `我的任务：待办 ${taskSummary.todo}，进行中 ${taskSummary.doing}，待验收 ${taskSummary.review}，已完成 ${taskSummary.done}` : "查看我的任务"} onClick={() => taskBoardRef.current?.showModal()} />}
           {interaction && <OfficeProjectile key={interaction.id} event={interaction} seats={seats} />}
@@ -230,9 +230,9 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
       <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
         <header className={s.drawerHeading}><div className={s.panelHeading}><h3 id="pet-interaction-title">队友桌宠互动</h3><p>点击的是谁，就和谁的桌宠互动。</p></div><button className="ac-btn-ghost" aria-label="关闭桌宠互动面板" onClick={() => interactionDrawerRef.current?.close()}>×</button></header>
         {interactionTarget && <div className={s.companion}>{interactionTarget.pet && <HomePetAvatar pet={interactionTarget.pet} />}<h4>{interactionTarget.ownerName}</h4><p>{interactionTarget.pet?.name ?? "暂未展示桌宠"} · {interactionTarget.working ? "工作中" : "休息中"}</p></div>}
-        <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} targetId={interactionTargetId} onEvent={setInteraction} onSent={event => {
+        <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} targetId={interactionTargetId} onEvent={setInteraction} onSyncError={message => setNotice({ text: message, error: true })} onSent={event => {
           interactionDrawerRef.current?.close();
-          setNotice({ text: `已向${data.workstations.find(seat => seat.ownerId === event.targetId)?.ownerName ?? "队友"}${PET_INTERACTIONS[event.kind].label}，互动已发送。` });
+          setNotice({ text: `正在向${data.workstations.find(seat => seat.ownerId === event.targetId)?.ownerName ?? "队友"}${PET_INTERACTIONS[event.kind].label}，动画已开始。` });
           sceneRef.current?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
         }} />
       </div>
