@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PET_INTERACTIONS, type PetInteractionEvent, type PetInteractionKind } from "@/lib/pets/interaction-contract";
 import type { HomeView } from "@/lib/home-contract";
-export function OfficePetInteractions({ projectId, actorId, seats, canAct, onEvent, targetId, onSent }: { projectId: string; actorId: string; seats: HomeView["workstations"]; canAct: boolean; onEvent: (event: PetInteractionEvent) => void; targetId: string | null; onSent: () => void }) {
+export function OfficePetInteractions({ projectId, actorId, seats, canAct, onEvent, targetId, onSent }: { projectId: string; actorId: string; seats: HomeView["workstations"]; canAct: boolean; onEvent: (event: PetInteractionEvent) => void; targetId: string | null; onSent: (event: PetInteractionEvent) => void }) {
   const [message, setMessage] = useState<{ targetId: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false), [cooldown, setCooldown] = useState(false);
   const seen = useRef(new Set<string>());
@@ -32,7 +32,7 @@ export function OfficePetInteractions({ projectId, actorId, seats, canAct, onEve
     try {
       const response = await fetch(`/api/projects/${projectId}/pet-interactions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetId: selected, kind }) });
       const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "互动发送失败");
-      seen.current.add(data.event.id); onEvent(data.event); setCooldown(true); onSent();
+      seen.current.add(data.event.id); onEvent(data.event); setCooldown(true); onSent(data.event);
     } catch (error) { setMessage({ targetId: selected, text: error instanceof Error ? error.message : "互动失败，请重试" }); }
     finally { setBusy(false); }
   }

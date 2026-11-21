@@ -42,6 +42,10 @@ describe("网页桌宠与办公室联动", () => {
     expect(await readDesktopAsset(owner.id)).toMatchObject({ mimeType: "image/png", petId: webPetId(owner.id) });
     await setHomeWorking(owner.id, team.id, project.id);
     const first = await currentWebHomePet(owner.id);
+    if (first.appearance.type !== "image") throw new Error("expected image");
+    const greetingKey = first.appearance.greetSrc!.split("/").at(-1)!;
+    expect(greetingKey).toMatch(/-greet$/);
+    expect(Buffer.from(await (await asset(owner.id, greetingKey)).arrayBuffer())).toEqual(await readFile("public/desk-pet/frames/puppy_3.png"));
     expect((await configure({ preset: "pacman", name: "豆豆" })).status).toBe(200);
     const home = await ensureHome(owner.id); expect(home.workingProjectId).toBe(project.id);
     const view = await getHomeView(peer.id, { view: "courtyard", team: team.id, projectId: project.id });
@@ -52,6 +56,9 @@ describe("网页桌宠与办公室联动", () => {
     const { owner, peer, stranger, team, project } = await setup(); await configure({ preset: "puppy", name: "小白" });
     expect((await asset(owner.id)).status).toBe(200);
     session.actor = peer.id; expect((await asset(owner.id)).status).toBe(403);
+    const pet = await currentWebHomePet(owner.id);
+    if (pet.appearance.type !== "image") throw new Error("expected image");
+    expect((await asset(owner.id, pet.appearance.greetSrc!.split("/").at(-1)!)).status).toBe(403);
     await setHomeWorking(owner.id, team.id, project.id); expect((await asset(owner.id)).status).toBe(200);
     session.actor = stranger.id; expect((await asset(owner.id)).status).toBe(403);
     await setHomeWorking(owner.id, null); session.actor = peer.id; expect((await asset(owner.id)).status).toBe(403);

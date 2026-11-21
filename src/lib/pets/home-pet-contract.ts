@@ -12,7 +12,7 @@ const assetPath = z.string().max(1024).refine(value => {
 const dimension = z.number().int().min(1).max(4096);
 const animation = z.object({ start: z.number().int().min(0), count: z.number().int().min(1).max(256), fps: z.number().min(0).max(30) });
 export const homePetAppearanceSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("image"), src: assetPath, width: dimension, height: dimension }),
+  z.object({ type: z.literal("image"), src: assetPath, greetSrc: assetPath.optional(), width: dimension, height: dimension }),
   z.object({ type: z.literal("spritesheet"), src: assetPath, frameWidth: dimension, frameHeight: dimension,
     columns: z.number().int().min(1).max(32), rows: z.number().int().min(1).max(32),
     idle: animation, greet: animation.optional(),

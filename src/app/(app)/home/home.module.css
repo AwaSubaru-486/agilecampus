@@ -42,7 +42,9 @@
 .seatedPet{position:absolute;left:27%;top:6%;width:36%;height:43%;z-index:4;padding:0;border:0;border-radius:45%;background:transparent;cursor:pointer}
 .seatedPet:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px}
 .workstationTrigger{position:absolute;inset:0;z-index:4;border:1px solid transparent;border-radius:12px;background:transparent;cursor:pointer}
-.interacting [data-seated-pet]{transform-box:fill-box;transform-origin:50% 90%;animation:pet-hello .7s ease-in-out 4}
+.interacting [data-seated-pet]{transform-box:fill-box;transform-origin:50% 90%;animation:pet-hello .7s ease-in-out 7;filter:drop-shadow(0 0 3px #60ae8a99)}
+.interactionReceipt{position:absolute;top:4%;left:50%;transform:translateX(-50%);z-index:35;max-width:85%;padding:9px 14px;border:1px solid var(--color-signal-ring);border-radius:12px;background:var(--color-panel);color:var(--color-signal);font-size:clamp(11px,1vw,14px);box-shadow:var(--shadow-panel);pointer-events:none;text-align:center}
+.interactionEmoji{position:absolute;top:4%;left:65%;z-index:6;font-size:clamp(18px,2vw,30px);pointer-events:none;animation:pet-hello .8s ease-in-out 7}
 @keyframes pet-hello{0%,100%{transform:rotate(0)}35%{transform:rotate(-5deg)}70%{transform:rotate(5deg)}}
 .workstationTrigger:hover,.workstationTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:2px;background:#21836d08}
 .presetChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}

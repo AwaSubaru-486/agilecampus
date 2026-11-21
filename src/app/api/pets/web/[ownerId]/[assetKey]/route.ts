@@ -10,14 +10,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ own
   const session = await auth();
   if (!session?.user?.id) return new Response(null, { status: 401 });
   const { ownerId, assetKey } = await params;
-  if (!z.uuid().safeParse(ownerId).success || !/^[a-f0-9]{24}$/.test(assetKey)) return new Response(null, { status: 404 });
+  const key = /^([a-f0-9]{24})(-greet)?$/.exec(assetKey);
+  if (!z.uuid().safeParse(ownerId).success || !key) return new Response(null, { status: 404 });
   if (session.user.id !== ownerId) {
     const [home] = await db.select({ projectId: homeProfiles.workingProjectId, pet: homeProfiles.pet }).from(homeProfiles).where(eq(homeProfiles.ownerId, ownerId));
     if (!home?.projectId || home.pet.petId !== webPetId(ownerId) || !await getProjectForUser(ownerId, home.projectId) || !await getProjectForUser(session.user.id, home.projectId)) return new Response(null, { status: 403 });
   }
   const config = await readWebPetConfig(ownerId);
-  if (webPetAssetKey(config) !== assetKey) return new Response(null, { status: 404 });
-  const asset = await readWebPetAsset(ownerId, config);
+  if (webPetAssetKey(config) !== key[1]) return new Response(null, { status: 404 });
+  const asset = await readWebPetAsset(ownerId, config, Boolean(key[2]));
   if (!asset) return new Response(null, { status: 404 });
   const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
   if ("redirect" in asset) return new Response(null, { status: 302, headers: { ...headers, Location: asset.redirect } });

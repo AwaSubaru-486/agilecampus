@@ -20,9 +20,9 @@ export async function readWebPetConfig(ownerId: string) {
 export function webPetAssetKey(config: Awaited<ReturnType<typeof readWebPetConfig>>) {
   return createHash("sha256").update(config.preset + "\n" + config.customImageUrl).digest("hex").slice(0, 24);
 }
-export async function readWebPetAsset(ownerId: string, suppliedConfig?: Awaited<ReturnType<typeof readWebPetConfig>>): Promise<{ bytes: Uint8Array; mimeType: string } | { redirect: string } | null> {
+export async function readWebPetAsset(ownerId: string, suppliedConfig?: Awaited<ReturnType<typeof readWebPetConfig>>, greeting = false): Promise<{ bytes: Uint8Array; mimeType: string } | { redirect: string } | null> {
   const config = suppliedConfig ?? await readWebPetConfig(ownerId);
-  const source = config.preset === "custom" ? config.customImageUrl.trim().replace(/^["']|["']$/g, "") : `/desk-pet/frames/${config.preset}_0.png`;
+  const source = config.preset === "custom" ? config.customImageUrl.trim().replace(/^["']|["']$/g, "") : `/desk-pet/frames/${config.preset}_${greeting ? 3 : 0}.png`;
   if (/^https?:\/\//i.test(source)) {
     const url = new URL(source); if (url.username || url.password) return null;
     return { redirect: url.href }; // Browser redirect only; never fetch user URLs on the server.
