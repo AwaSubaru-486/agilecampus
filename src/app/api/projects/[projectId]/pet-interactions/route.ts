@@ -13,7 +13,7 @@ async function handle(request: Request, context: Context, writing: boolean) {
     const url = new URL(request.url), origin = request.headers.get("origin");
     if (request.headers.get("sec-fetch-site") === "cross-site" || (origin && origin !== `${url.protocol}//${request.headers.get("host") ?? url.host}`)) throw new ForbiddenError("请求来源无效");
     const raw = await request.text(); if (raw.length > 4096) throw new AppError("请求过大");
-    const body = z.object({ targetId: z.uuid(), kind: z.enum(["wave", "cheer", "coffee"]) }).parse(JSON.parse(raw));
+    const body = z.object({ targetId: z.uuid(), kind: z.enum(["wave", "cheer", "coffee", "plane", "paper"]) }).parse(JSON.parse(raw));
     return Response.json({ event: await sendPetInteraction(session.user.id, projectId, body.targetId, body.kind) }, { headers });
   } catch (error) {
     if (error instanceof AppError) return Response.json({ error: error.message }, { status: error instanceof ForbiddenError ? 403 : 400, headers });

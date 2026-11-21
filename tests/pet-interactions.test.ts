@@ -19,6 +19,17 @@ async function setup() {
 }
 beforeEach(async () => { await resetDb(); authState.actor = ""; });
 describe("工位桌宠互动", () => {
+  it("支持纸飞机和纸团，接收者可以反向投掷", async () => {
+    const { owner, peer, project } = await setup();
+    const context = { params: Promise.resolve({ projectId: project.id }) };
+    authState.actor = owner.id;
+    const request = (targetId: string, kind: string) => new Request("http://localhost/api/projects/" + project.id + "/pet-interactions", { method: "POST", headers: { origin: "http://localhost" }, body: JSON.stringify({ targetId, kind }) });
+    expect((await POST(request(peer.id, "plane"), context)).status).toBe(200);
+    authState.actor = peer.id;
+    expect((await POST(request(owner.id, "paper"), context)).status).toBe(200);
+    expect((await listPetInteractions(owner.id, project.id)).map(event => event.kind)).toEqual(["paper", "plane"]);
+    expect((await POST(request(owner.id, "invalid-projectile"), context)).status).toBe(400);
+  });
   it("双方可看到同一事件，按项目隔离，不改变开工状态", async () => {
     const { owner, peer, project, otherProject } = await setup();
     const event = await sendPetInteraction(owner.id, project.id, peer.id, "coffee");

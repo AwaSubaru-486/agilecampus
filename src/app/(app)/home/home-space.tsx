@@ -10,6 +10,7 @@ import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
 import s from "./home.module.css";
 import type { OfficeTaskSummary } from "@/lib/office-task-summary";
 import { OfficePetInteractions } from "@/components/pets/office-pet-interactions";
+import { OfficeProjectile } from "@/components/pets/office-projectile";
 import { PET_INTERACTIONS, type PetInteractionEvent } from "@/lib/pets/interaction-contract";
 
 const WEB_PRESETS = [
@@ -186,6 +187,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
           {interaction && <div className={s.interactionReceipt} role="status" data-interaction-receipt>{PET_INTERACTIONS[interaction.kind].icon} {data.workstations.find(seat => seat.ownerId === interaction.actorId)?.ownerName ?? "伙伴"}向{data.workstations.find(seat => seat.ownerId === interaction.targetId)?.ownerName ?? "队友"}{PET_INTERACTIONS[interaction.kind].label} · 桌宠正在回应</div>}
           <GardenBackdrop courtyard taskBoard={Boolean(project)} taskSummary={taskSummary} />
           {project && <button className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" title={taskSummary ? `我的任务：待办 ${taskSummary.todo}，进行中 ${taskSummary.doing}，待验收 ${taskSummary.review}，已完成 ${taskSummary.done}` : "查看我的任务"} onClick={() => taskBoardRef.current?.showModal()} />}
+          {interaction && <OfficeProjectile key={interaction.id} event={interaction} seats={seats} />}
           {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
@@ -194,7 +196,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
             const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
             return <Fragment key={seat?.ownerId ?? index}><div className={`${s.workstation} ${reacting ? s.interacting : ""}`} style={{ left: `${left}%`, top: `${top}%`, zIndex: reacting ? 20 : 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={Boolean(reacting) || bubble === seat?.ownerId} /></div>
-              {reacting && interaction && <span className={s.workSpeech} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
+              {reacting && interaction && <span className={`${s.workSpeech} ${interaction.targetId === seat?.ownerId && (interaction.kind === "paper" || interaction.kind === "plane") ? s.projectileResponse : ""}`} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
               {reacting && interaction && <span className={s.interactionEmoji} aria-hidden="true">{PET_INTERACTIONS[interaction.kind].icon}</span>}
               <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : seat ? `${seat.ownerName}的工位，打开桌宠互动面板` : "空工位，打开我的桌宠面板"} onClick={() => openWorkstation(seat)} />
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
