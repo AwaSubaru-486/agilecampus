@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
@@ -10,7 +10,7 @@ import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
 import s from "./home.module.css";
 import type { OfficeTaskSummary } from "@/lib/office-task-summary";
 import { OfficePetInteractions } from "@/components/pets/office-pet-interactions";
-import { OfficeProjectile } from "@/components/pets/office-projectile";
+import { LiveOfficeProjectile } from "@/components/pets/office-projectile";
 import { PET_INTERACTIONS, type PetInteractionEvent } from "@/lib/pets/interaction-contract";
 
 const WEB_PRESETS = [
@@ -45,6 +45,12 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<PetInteractionEvent | null>(null);
+  const [flights, setFlights] = useState<PetInteractionEvent[]>([]);
+  const playInteraction = useCallback((event: PetInteractionEvent) => {
+    setInteraction(event);
+    if (event.kind === "plane" || event.kind === "paper") setFlights(current => [...current, event].slice(-50));
+  }, []);
+  const finishFlight = useCallback((id: string) => setFlights(current => current.filter(event => event.id !== id)), []);
   const [interactionTargetId, setInteractionTargetId] = useState<string | null>(null);
   const [seatPage, setSeatPage] = useState(0);
   const [selectedPreset, setSelectedPreset] = useState<WebPreset>("puppy");
@@ -187,7 +193,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
           {interaction && <div className={s.interactionReceipt} role="status" data-interaction-receipt>{PET_INTERACTIONS[interaction.kind].icon} {data.workstations.find(seat => seat.ownerId === interaction.actorId)?.ownerName ?? "伙伴"}向{data.workstations.find(seat => seat.ownerId === interaction.targetId)?.ownerName ?? "队友"}{PET_INTERACTIONS[interaction.kind].label} · 互动动画播放中</div>}
           <GardenBackdrop courtyard taskBoard={Boolean(project)} taskSummary={taskSummary} />
           {project && <button className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" title={taskSummary ? `我的任务：待办 ${taskSummary.todo}，进行中 ${taskSummary.doing}，待验收 ${taskSummary.review}，已完成 ${taskSummary.done}` : "查看我的任务"} onClick={() => taskBoardRef.current?.showModal()} />}
-          {interaction && <OfficeProjectile key={interaction.id} event={interaction} seats={seats} />}
+          {flights.map(event => <LiveOfficeProjectile key={event.id} event={event} seats={seats} onComplete={finishFlight} />)}
           {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
@@ -226,14 +232,13 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
         <div className={s.smallNote}><Mark name="leaf" /><p>点击任意工位可以打开本面板；开始工作后，桌宠会在自己的工位上陪你工作。</p></div>
       </div>
     </dialog>
-    {project && <dialog ref={interactionDrawerRef} className={s.petDrawer} aria-labelledby="pet-interaction-title" onClick={event => { if (event.target === event.currentTarget) interactionDrawerRef.current?.close(); }}>
+    {project && <dialog ref={interactionDrawerRef} className={`${s.petDrawer} ${s.continuousInteractions}`} aria-labelledby="pet-interaction-title" onClick={event => { if (event.target === event.currentTarget) interactionDrawerRef.current?.close(); }}>
       <div className={`${s.sidePanel} ${s.petDrawerPanel}`}>
         <header className={s.drawerHeading}><div className={s.panelHeading}><h3 id="pet-interaction-title">队友桌宠互动</h3><p>点击的是谁，就和谁的桌宠互动。</p></div><button className="ac-btn-ghost" aria-label="关闭桌宠互动面板" onClick={() => interactionDrawerRef.current?.close()}>×</button></header>
         {interactionTarget && <div className={s.companion}>{interactionTarget.pet && <HomePetAvatar pet={interactionTarget.pet} />}<h4>{interactionTarget.ownerName}</h4><p>{interactionTarget.pet?.name ?? "暂未展示桌宠"} · {interactionTarget.working ? "工作中" : "休息中"}</p></div>}
-        <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} targetId={interactionTargetId} onEvent={setInteraction} onSyncError={message => setNotice({ text: message, error: true })} onSent={event => {
-          interactionDrawerRef.current?.close();
+        <OfficePetInteractions projectId={project.id} actorId={data.actorId} seats={data.workstations} canAct={canAct} targetId={interactionTargetId} onEvent={playInteraction} onSyncError={message => setNotice({ text: message, error: true })} onSent={event => {
           setNotice({ text: `正在向${data.workstations.find(seat => seat.ownerId === event.targetId)?.ownerName ?? "队友"}${PET_INTERACTIONS[event.kind].label}，动画已开始。` });
-          sceneRef.current?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+          sceneRef.current?.scrollIntoView({ block: window.innerWidth <= 800 ? "start" : "center", behavior: "auto" });
         }} />
       </div>
     </dialog>}

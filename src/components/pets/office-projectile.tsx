@@ -1,6 +1,13 @@
+"use client";
+import { useEffect } from "react";
 import type { HomeView } from "@/lib/home-contract";
 import type { PetInteractionEvent } from "@/lib/pets/interaction-contract";
 import s from "@/app/(app)/home/home.module.css";
+
+export function LiveOfficeProjectile({ event, seats, onComplete }: { event: PetInteractionEvent; seats: (HomeView["workstations"][number] | null)[]; onComplete: (id: string) => void }) {
+  useEffect(() => { const timer = setTimeout(() => onComplete(event.id), 1800); return () => clearTimeout(timer); }, [event.id, onComplete]);
+  return <OfficeProjectile event={event} seats={seats} />;
+}
 
 /** Scene coordinates match the office's 960 × 600 SVG and six workstation slots. */
 export function OfficeProjectile({ event, seats }: { event: PetInteractionEvent; seats: (HomeView["workstations"][number] | null)[] }) {

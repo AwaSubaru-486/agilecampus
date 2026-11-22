@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { homeProfiles, petInteractions } from "@/db/schema";
 import { getProjectForUser } from "@/lib/project";
@@ -8,7 +8,7 @@ import type { PetInteractionKind } from "./interaction-contract";
 
 export async function listPetInteractions(actorId: string, projectId: string) {
   if (!await getProjectForUser(actorId, projectId)) throw new ForbiddenError();
-  return db.select().from(petInteractions).where(and(eq(petInteractions.projectId, projectId), gte(petInteractions.createdAt, new Date(Date.now() - 12000)))).orderBy(desc(petInteractions.createdAt)).limit(10);
+  return db.select().from(petInteractions).where(and(eq(petInteractions.projectId, projectId), gte(petInteractions.createdAt, new Date(Date.now() - 12000)))).orderBy(desc(petInteractions.createdAt)).limit(100);
 }
 export async function sendPetInteraction(actorId: string, projectId: string, targetId: string, kind: PetInteractionKind) {
   if (actorId === targetId) throw new AppError("请选择另一位伙伴");
@@ -19,9 +19,6 @@ export async function sendPetInteraction(actorId: string, projectId: string, tar
     await requireHomePet(userId, home.pet.petId);
   }
   return db.transaction(async tx => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actorId}))`);
-    const [last] = await tx.select().from(petInteractions).where(and(eq(petInteractions.actorId, actorId), gte(petInteractions.createdAt, new Date(Date.now() - 10000)))).limit(1);
-    if (last) throw new AppError("让伙伴回应一下，10 秒后再互动吧");
     await tx.delete(petInteractions).where(and(eq(petInteractions.projectId, projectId), lt(petInteractions.createdAt, new Date(Date.now() - 86400000))));
     const [event] = await tx.insert(petInteractions).values({ projectId, actorId, targetId, kind }).returning();
     return event;

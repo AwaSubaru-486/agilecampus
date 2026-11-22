@@ -38,11 +38,12 @@ describe("工位桌宠互动", () => {
     expect((await ensureHome(owner.id)).workingProjectId).toBe(project.id);
     expect((await ensureHome(peer.id)).workingProjectId).toBe(project.id);
   });
-  it("并发发送也只允许十秒内一次", async () => {
+  it("支持连续及并发发送，不再需要等待冷却", async () => {
     const { owner, peer, project } = await setup();
     const results = await Promise.allSettled([sendPetInteraction(owner.id, project.id, peer.id, "wave"), sendPetInteraction(owner.id, project.id, peer.id, "cheer")]);
-    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
-    expect(await listPetInteractions(owner.id, project.id)).toHaveLength(1);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(2);
+    await sendPetInteraction(owner.id, project.id, peer.id, "plane");
+    expect(await listPetInteractions(owner.id, project.id)).toHaveLength(3);
   });
   it("拒绝自己、非成员、跨项目及已收工的对象", async () => {
     const { owner, peer, outsider, project, otherProject, team } = await setup();
