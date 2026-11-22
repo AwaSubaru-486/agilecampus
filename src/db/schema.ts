@@ -107,7 +107,7 @@ export const petInteractions = pgTable("pet_interactions", {
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   actorId: uuid("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   targetId: uuid("target_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  kind: text("kind").$type<"wave" | "cheer" | "coffee" | "plane" | "paper" | "tomato">().notNull(),
+  kind: text("kind").$type<"wave" | "cheer" | "coffee" | "plane" | "paper" | "tomato" | "water">().notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, t => [index("pet_interactions_project_time_idx").on(t.projectId, t.createdAt), index("pet_interactions_actor_time_idx").on(t.actorId, t.createdAt)]);
 

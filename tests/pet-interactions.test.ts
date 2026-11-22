@@ -32,6 +32,10 @@ describe("工位桌宠互动", () => {
     expect(tomato.status).toBe(200);
     expect((await tomato.json()).event.kind).toBe("tomato");
     expect((await listPetInteractions(owner.id, project.id))[0].kind).toBe("tomato");
+    const water = await POST(request(owner.id, "water"), context);
+    expect(water.status).toBe(200);
+    expect((await water.json()).event.kind).toBe("water");
+    expect((await listPetInteractions(owner.id, project.id))[0].kind).toBe("water");
     expect((await POST(request(owner.id, "invalid-projectile"), context)).status).toBe(400);
   });
   it("双方可看到同一事件，按项目隔离，不改变开工状态", async () => {

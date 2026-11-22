@@ -48,7 +48,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
   const [flights, setFlights] = useState<PetInteractionEvent[]>([]);
   const playInteraction = useCallback((event: PetInteractionEvent) => {
     setInteraction(event);
-    if (event.kind === "plane" || event.kind === "paper" || event.kind === "tomato") setFlights(current => [...current, event].slice(-50));
+    if (event.kind === "plane" || event.kind === "paper" || event.kind === "tomato" || event.kind === "water") setFlights(current => [...current, event].slice(-50));
   }, []);
   const finishFlight = useCallback((id: string) => setFlights(current => current.filter(event => event.id !== id)), []);
   const [interactionTargetId, setInteractionTargetId] = useState<string | null>(null);
@@ -202,7 +202,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
             const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
             return <Fragment key={seat?.ownerId ?? index}><div className={`${s.workstation} ${reacting ? s.interacting : ""}`} style={{ left: `${left}%`, top: `${top}%`, zIndex: reacting ? 20 : 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={Boolean(reacting) || bubble === seat?.ownerId} /></div>
-              {reacting && interaction && <span className={`${s.workSpeech} ${interaction.targetId === seat?.ownerId && (interaction.kind === "paper" || interaction.kind === "plane" || interaction.kind === "tomato") ? s.projectileResponse : ""}`} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
+              {reacting && interaction && <span className={`${s.workSpeech} ${interaction.targetId === seat?.ownerId && (interaction.kind === "paper" || interaction.kind === "plane" || interaction.kind === "tomato" || interaction.kind === "water") ? s.projectileResponse : ""}`} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
               {reacting && interaction && <span key={interaction.id} className={s.interactionEmoji} aria-hidden="true" data-pet-interaction-icon>{PET_INTERACTIONS[interaction.kind].icon}</span>}
               <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : seat ? `${seat.ownerName}的工位，打开桌宠互动面板` : "空工位，打开我的桌宠面板"} onClick={() => openWorkstation(seat)} />
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
