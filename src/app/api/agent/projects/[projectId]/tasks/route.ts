@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
+import { authenticateBearer, unauthorized, mapAgentError, readAgentJson } from "@/lib/agent-auth";
 import { createTask, listProjectTasks } from "@/lib/task";
 import { TASK_STATUSES } from "@/lib/task-status";
 import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
@@ -97,7 +97,11 @@ export async function POST(req: Request, ctx: Ctx) {
   const projectId = parseProjectId(raw);
   if (!projectId) return NextResponse.json({ error: "projectId 无效" }, { status: 400 });
 
-  const parsed = createSchema.safeParse(await req.json().catch(() => ({})));
+  let body: unknown;
+
+  try { body = await readAgentJson(req); } catch (e) { return mapAgentError(e, "agent body"); }
+
+  const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }

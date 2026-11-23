@@ -10,12 +10,6 @@ import { rateLimit } from "@/lib/rate-limit";
  */
 function allowedOrigins(req: Request) {
   const origins = new Set<string>();
-  const requestUrl = new URL(req.url);
-  origins.add(requestUrl.origin);
-
-  const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  if (forwardedHost) origins.add(`${forwardedProto || requestUrl.protocol.replace(":", "")}://${forwardedHost}`);
 
   for (const value of [process.env.AGILECAMPUS_URL, process.env.FEISHU_JSSDK_ALLOWED_ORIGINS]) {
     for (const item of (value ?? "").split(",")) {
@@ -24,10 +18,20 @@ function allowedOrigins(req: Request) {
       try {
         origins.add(new URL(trimmed).origin);
       } catch {
-        // 配置项写错时忽略；请求来源仍可作为兜底。
+        // 配置项写错时忽略。
       }
     }
   }
+
+  // 生产环境只要配置了对外地址，就只认显式来源；Host 和 x-forwarded-host
+  // 都来自请求方，不能作为可信任的签名依据。
+  if (process.env.NODE_ENV === "production" && origins.size > 0) return origins;
+
+  const requestUrl = new URL(req.url);
+  origins.add(requestUrl.origin);
+  const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (forwardedHost) origins.add(`${forwardedProto || requestUrl.protocol.replace(":", "")}://${forwardedHost}`);
   return origins;
 }
 

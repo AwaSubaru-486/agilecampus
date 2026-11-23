@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { PayloadTooLargeError, readJsonWithLimit } from "@/lib/http";
 import { buildContextPackPreview } from "@/lib/context-pack";
+
+const MAX_PREVIEW_BYTES = 512 * 1024;
 
 const sourceSchema = z.object({
   sourceType: z.enum([
@@ -26,6 +29,7 @@ const sourceSchema = z.object({
 const schema = z.object({ sources: z.array(sourceSchema).min(1).max(100) });
 
 function errorResponse(error: unknown) {
+  if (error instanceof PayloadTooLargeError) return NextResponse.json({ error: error.message }, { status: 413 });
   if (error instanceof ForbiddenError) return NextResponse.json({ error: error.message }, { status: 403 });
   if (error instanceof AppError) return NextResponse.json({ error: error.message }, { status: 400 });
   console.error("[context-pack/preview] 请求失败", error);
@@ -42,7 +46,13 @@ export async function POST(
   if (!z.uuid().safeParse(projectId).success) {
     return NextResponse.json({ error: "项目参数无效" }, { status: 400 });
   }
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  let body: unknown;
+  try {
+    body = await readJsonWithLimit(request, { maxBytes: MAX_PREVIEW_BYTES });
+  } catch (error) {
+    return errorResponse(error);
+  }
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "参数无效" }, { status: 400 });
   }

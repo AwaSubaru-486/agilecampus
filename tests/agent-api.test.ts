@@ -45,6 +45,13 @@ describe("POST /api/agent/tasks", () => {
     expect(tasks[0].title).toBe("斥候任务");
   });
 
+  it("请求体超过 256 KiB → 413，不写入任务", async () => {
+    const { owner, project, token } = await scene();
+    const res = await tasksRoute(req({ projectId: project.id, title: "大请求", padding: "x".repeat(300 * 1024) }, token));
+    expect(res.status).toBe(413);
+    expect(await listProjectTasks(owner.id, project.id)).toHaveLength(0);
+  });
+
   it("无 token → 401", async () => {
     const { project } = await scene();
     const res = await tasksRoute(req({ projectId: project.id, title: "x" }));

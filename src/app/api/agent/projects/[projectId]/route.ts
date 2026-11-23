@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
+import { authenticateBearer, unauthorized, mapAgentError, readAgentJson } from "@/lib/agent-auth";
 import { getProjectDetail, updateProject } from "@/lib/project";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -65,7 +65,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const projectId = parseProjectId(raw);
   if (!projectId) return NextResponse.json({ error: "projectId 无效" }, { status: 400 });
 
-  const parsed = patchSchema.safeParse(await req.json().catch(() => ({})));
+  let body: unknown;
+
+  try { body = await readAgentJson(req); } catch (e) { return mapAgentError(e, "agent body"); }
+
+  const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }

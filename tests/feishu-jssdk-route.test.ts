@@ -40,6 +40,13 @@ describe("飞书 JSSDK 签名接口", () => {
     expect(response.status).toBe(200);
   });
 
+  it("生产环境只认配置来源，不信任伪造的请求 Host", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AGILECAMPUS_URL", "https://campus.example");
+    const spoofed = await GET(request("http://evil.example/login", "http://evil.example"));
+    expect(spoofed.status).toBe(403);
+  });
+
   it("缺少 url 时返回 400", async () => {
     expect((await GET(new Request("http://localhost:3000/api/feishu/jssdk-config"))).status).toBe(400);
   });

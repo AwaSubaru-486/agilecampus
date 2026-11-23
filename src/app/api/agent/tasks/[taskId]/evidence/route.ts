@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, mapAgentError, unauthorized } from "@/lib/agent-auth";
+import { authenticateBearer, mapAgentError, unauthorized, readAgentJson } from "@/lib/agent-auth";
 import { createEvidenceItem, EVIDENCE_TYPES } from "@/lib/evidence";
 
 const schema = z.object({
@@ -18,7 +18,9 @@ export async function POST(
   if (!userId) return unauthorized();
   const { taskId } = await context.params;
   if (!z.uuid().safeParse(taskId).success) return NextResponse.json({ error: "taskId 无效" }, { status: 400 });
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  let body: unknown;
+  try { body = await readAgentJson(request); } catch (e) { return mapAgentError(e, "agent body"); }
+  const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "参数无效" }, { status: 400 });
   try {
     const evidence = await createEvidenceItem(userId, taskId, parsed.data);

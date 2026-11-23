@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
+import { authenticateBearer, unauthorized, mapAgentError, readAgentJson } from "@/lib/agent-auth";
 import { reportAgentRun } from "@/lib/agent-run";
 
 const schema = z.object({
@@ -26,7 +26,11 @@ export async function POST(req: Request) {
   const agentUserId = await authenticateBearer(req);
   if (!agentUserId) return unauthorized();
 
-  const parsed = schema.safeParse(await req.json().catch(() => ({})));
+  let body: unknown;
+
+  try { body = await readAgentJson(req); } catch (e) { return mapAgentError(e, "agent body"); }
+
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
