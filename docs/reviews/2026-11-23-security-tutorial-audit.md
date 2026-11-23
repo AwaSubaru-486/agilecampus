@@ -43,6 +43,8 @@
 - 聊天 64 KiB，聊天草案落库 128 KiB，草案 AI 分析 256 KiB；
 - 记忆提炼 2 MiB；
 - 上下文包创建与预览 512 KiB；
+- 会话、决策、审批、证据等其余写入接口 256 KiB，通知回执 4 KiB；
+- 任务记忆 2 MiB、接续回执 4 KiB，均改为流式读取；
 - 家园设置 64 KiB，桌宠选择 16 KiB；
 - 网页桌宠控制/回复 32 KiB。
 
@@ -55,7 +57,11 @@
 - 拒绝非 HTTP(S)、带账号密码或第三方的 URL；
 - 按 IP 限流。
 
-### 5. 依赖升级
+### 5. 全局安全响应头
+
+`next.config.ts` 为所有响应补上 `X-Content-Type-Options: nosniff`、`Referrer-Policy`、`X-Frame-Options: SAMEORIGIN`、`frame-ancestors 'self'` 和限制摄像头/麦克风/定位的 `Permissions-Policy`。HSTS 仍建议由 HTTPS 反向代理统一设置，避免本机 HTTP 开发被浏览器缓存。
+
+### 6. 依赖升级
 
 - `next` 16.2.10 → 16.4.6
 - `eslint-config-next` 16.2.10 → 16.4.6

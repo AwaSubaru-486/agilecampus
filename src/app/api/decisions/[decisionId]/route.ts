@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { resolveDecision, supersedeDecision } from "@/lib/decision";
+import { readJsonOrError } from "@/lib/http";
 
 const schema = z.union([
   z.object({
@@ -29,7 +30,9 @@ export async function PATCH(
   if (!actorId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   const { decisionId } = await context.params;
   if (!z.uuid().safeParse(decisionId).success) return NextResponse.json({ error: "决策参数无效" }, { status: 400 });
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = schema.safeParse(bodyResult.body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "参数无效" }, { status: 400 });
 
   try {

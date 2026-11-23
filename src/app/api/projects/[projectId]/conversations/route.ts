@@ -6,6 +6,7 @@ import {
   listProjectConversations,
 } from "@/lib/agent/conversation";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { readJsonOrError } from "@/lib/http";
 
 const createSchema = z.object({
   title: z.string().trim().max(120).optional(),
@@ -53,7 +54,9 @@ export async function POST(
   if (!z.uuid().safeParse(projectId).success) {
     return NextResponse.json({ error: "项目参数无效" }, { status: 400 });
   }
-  const parsed = createSchema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = createSchema.safeParse(bodyResult.body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "参数无效" }, { status: 400 });
   }

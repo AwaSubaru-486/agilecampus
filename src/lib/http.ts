@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { AppError } from "./errors";
 
 /** 请求体超过上限时抛出，路由层应返回 413。 */
@@ -65,6 +66,20 @@ export async function readJsonWithLimit(
     return JSON.parse(raw) as unknown;
   } catch {
     throw new AppError("JSON 格式无效");
+  }
+}
+
+/** 读取 JSON；失败时直接给出可返回的 413/400 响应。 */
+export async function readJsonOrError(
+  req: Request,
+  maxBytes: number,
+): Promise<{ ok: true; body: unknown } | { ok: false; response: NextResponse }> {
+  try {
+    return { ok: true, body: await readJsonWithLimit(req, { maxBytes }) };
+  } catch (e) {
+    if (e instanceof PayloadTooLargeError) return { ok: false, response: NextResponse.json({ error: e.message }, { status: 413 }) };
+    if (e instanceof AppError) return { ok: false, response: NextResponse.json({ error: e.message }, { status: 400 }) };
+    throw e;
   }
 }
 

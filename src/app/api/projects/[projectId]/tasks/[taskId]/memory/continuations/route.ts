@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { authenticateBearer } from "@/lib/extension-auth";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { readTextWithLimit } from "@/lib/http";
 import { claimMemoryContinuation, createMemoryContinuation, getMemoryContinuation, reportMemoryContinuation } from "@/lib/task-memory-continuation";
 
 type Context = { params: Promise<{ projectId: string; taskId: string }> };
@@ -17,8 +18,7 @@ const patch = z.discriminatedUnion("operation", [
   }).strict(),
 ]);
 async function readBody(request: Request) {
-  const text = await request.text();
-  if (Buffer.byteLength(text) > 4096) throw new AppError("请求过大");
+  const text = await readTextWithLimit(request, 4096);
   try { return JSON.parse(text); } catch { throw new AppError("请求 JSON 无效"); }
 }
 async function handle(request: Request, context: Context, method: "GET" | "POST" | "PATCH") {

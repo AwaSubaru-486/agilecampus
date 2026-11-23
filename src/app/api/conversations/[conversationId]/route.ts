@@ -8,6 +8,7 @@ import {
 } from "@/lib/agent/conversation";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { extractDraftsFromToolCalls, listApprovalRequests } from "@/lib/approval";
+import { readJsonOrError } from "@/lib/http";
 
 const updateSchema = z.object({
   title: z.string().trim().max(120).optional(),
@@ -80,7 +81,9 @@ export async function PATCH(
   if (!z.uuid().safeParse(conversationId).success) {
     return NextResponse.json({ error: "会话参数无效" }, { status: 400 });
   }
-  const parsed = updateSchema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = updateSchema.safeParse(bodyResult.body);
   if (!parsed.success || Object.keys(parsed.data).length === 0) {
     return NextResponse.json({ error: "参数无效" }, { status: 400 });
   }

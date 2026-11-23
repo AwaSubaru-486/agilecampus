@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { createDecision, listProjectDecisions } from "@/lib/decision";
+import { readJsonOrError } from "@/lib/http";
 
 const optionSchema = z.object({
   label: z.string().trim().min(1).max(160),
@@ -60,7 +61,9 @@ export async function POST(
   if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   const { projectId } = await context.params;
   if (!z.uuid().safeParse(projectId).success) return NextResponse.json({ error: "项目参数无效" }, { status: 400 });
-  const parsed = createSchema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = createSchema.safeParse(bodyResult.body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "参数无效" }, { status: 400 });
   try {
     const decision = await createDecision(userId, projectId, parsed.data);

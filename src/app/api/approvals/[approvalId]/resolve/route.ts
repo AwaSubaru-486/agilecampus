@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { resolveApprovalRequest } from "@/lib/approval";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { readJsonOrError } from "@/lib/http";
 
 const schema = z.object({
   decision: z.enum(["approve", "reject"]),
@@ -20,7 +21,9 @@ export async function POST(
   if (!z.uuid().safeParse(approvalId).success) {
     return NextResponse.json({ error: "审批参数无效" }, { status: 400 });
   }
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = schema.safeParse(bodyResult.body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
   try {

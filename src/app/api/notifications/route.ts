@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { dismissTaskNotification, listTaskNotifications } from "@/lib/task-notifications";
 import { AppError } from "@/lib/errors";
+import { readJsonOrError } from "@/lib/http";
 
 export async function GET() {
   const session = await auth();
@@ -23,7 +24,9 @@ export async function POST(request: Request) {
   if (!sameOrigin) return NextResponse.json({ error: "请求来源不正确" }, { status: 403 });
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  const parsed = z.object({ id: z.uuid() }).safeParse(await request.json().catch(() => null));
+  const bodyResult = await readJsonOrError(request, 4 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = z.object({ id: z.uuid() }).safeParse(bodyResult.body);
   if (!parsed.success) return NextResponse.json({ error: "通知编号不正确" }, { status: 400 });
   try {
     await dismissTaskNotification(session.user.id, parsed.data.id);

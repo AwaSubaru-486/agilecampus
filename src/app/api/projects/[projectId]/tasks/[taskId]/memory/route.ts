@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { authenticateBearer } from "@/lib/extension-auth";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { PayloadTooLargeError, readTextWithLimit } from "@/lib/http";
 import { getTaskMemoryByReference, getTaskMemoryVersion, listTaskMemoryVersions, saveTaskMemory } from "@/lib/task-memory";
 
 type Context = { params: Promise<{ projectId: string; taskId: string }> };
@@ -14,7 +15,7 @@ async function actor(request: Request) {
   return (await auth())?.user?.id ?? null;
 }
 function fail(error: unknown) {
-  const status = error instanceof ForbiddenError ? 403 : error instanceof NotFoundError ? 404 : error instanceof ConflictError ? 409 : 400;
+  const status = error instanceof PayloadTooLargeError ? 413 : error instanceof ForbiddenError ? 403 : error instanceof NotFoundError ? 404 : error instanceof ConflictError ? 409 : 400;
   if (error instanceof AppError || error instanceof z.ZodError) return NextResponse.json({ error: error instanceof z.ZodError ? "任务参数无效" : error.message }, { status, headers });
   console.error("[task-memory] operation failed");
   return NextResponse.json({ error: "记忆服务暂不可用，请重试" }, { status: 500, headers });
@@ -50,9 +51,7 @@ export async function POST(request: Request, context: Context) {
     if (!actorId) return NextResponse.json({ error: "请先登录或连接插件" }, { status: 401, headers });
     const { projectId, taskId } = scopeSchema.parse(await context.params);
     if (request.headers.get("origin") && request.headers.get("origin") !== new URL(request.url).origin) throw new ForbiddenError("来源不匹配");
-    if (Number(request.headers.get("content-length")) > 2 * 1024 * 1024) throw new AppError("文件超过 2 MiB");
-    const text = await request.text();
-    if (Buffer.byteLength(text, "utf8") > 2 * 1024 * 1024) throw new AppError("文件超过 2 MiB");
+    const text = await readTextWithLimit(request, 2 * 1024 * 1024);
     let value: unknown;
     try { value = JSON.parse(text); } catch { throw new AppError("无法解析记忆 JSON"); }
     const saved = await saveTaskMemory(actorId, projectId, taskId, value, new URL(request.url).origin);
