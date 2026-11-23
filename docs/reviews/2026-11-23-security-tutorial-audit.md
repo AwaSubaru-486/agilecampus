@@ -98,7 +98,10 @@
 - `npm run lint`：0 错误，37 条既有警告。
 - `npm run build`：通过。
 - `npm audit --omit=dev`：0 个生产依赖漏洞。
+- VS Code 扩展：37 个文件、214 项测试通过。
 - 本地生产构建使用测试库启动，演示组长账号登录成功；上述教程页面逐一返回 200。
+- 安全头的实际 HTTP 响应包含 `nosniff`、`strict-origin-when-cross-origin`、`SAMEORIGIN`、`frame-ancestors 'self'` 和最小权限策略。
+- 实测超大请求体：通知 4 KiB、聊天 64 KiB、草案 256 KiB、上下文包 512 KiB 均返回 413；飞书签名第三方来源返回 403，同一 IP 第 61 次请求返回 429。验证服务随后已停止，测试库数据由下一次测试重置。
 
 ## 需要保留的本机文件
 
