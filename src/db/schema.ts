@@ -102,6 +102,15 @@ export const homeProfiles = pgTable("home_profiles", {
 }, t => [index("home_profiles_pet_team_idx").on(t.petTeamId)]);
 
 // Dedicated, read-only pet sessions: never reuse a project-wide Personal API Token.
+export const petInteractions = pgTable("pet_interactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  actorId: uuid("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetId: uuid("target_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"wave" | "cheer" | "coffee" | "plane" | "paper" | "tomato" | "water">().notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, t => [index("pet_interactions_project_time_idx").on(t.projectId, t.createdAt), index("pet_interactions_actor_time_idx").on(t.actorId, t.createdAt)]);
+
 export const desktopPetConnections = pgTable("desktop_pet_connections", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

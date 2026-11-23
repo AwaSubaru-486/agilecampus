@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 
 export type PetPreset = "puppy" | "pacman" | "nailong" | "custom";
 
@@ -118,7 +118,13 @@ const FALLBACK_CONFIG: DeskPetConfig = {
   webPetVisible: true,
 };
 
+const subscribeClient = () => () => {};
 export function WebDeskPet() {
+  const client = useSyncExternalStore(subscribeClient, () => true, () => false);
+  return client ? <WebDeskPetClient /> : null;
+}
+
+function WebDeskPetClient() {
   // 首帧必须与服务端一致，本地设置和坐标在挂载后再读取，避免水合不匹配。
   const [config, setConfig] = useState<DeskPetConfig>(FALLBACK_CONFIG);
   const [visible, setVisible] = useState(true);
@@ -331,7 +337,7 @@ export function WebDeskPet() {
           if (
             (data.config.preset && data.config.preset !== config.preset) ||
             (data.config.name && data.config.name !== config.name) ||
-            (data.config.customImageUrl && data.config.customImageUrl !== config.customImageUrl)
+            (data.config.customImageUrl !== undefined && data.config.customImageUrl !== config.customImageUrl)
           ) {
             setConfig((c) => ({
               ...c,
@@ -339,7 +345,7 @@ export function WebDeskPet() {
               name: data.config.name || c.name,
               customImageUrl: data.config.customImageUrl !== undefined ? data.config.customImageUrl : c.customImageUrl,
             }));
-            if (data.config.name && !nameInput) {
+            if (data.config.name && (!nameInput || nameInput === config.name)) {
               setNameInput(data.config.name);
             }
           }
@@ -474,12 +480,15 @@ export function WebDeskPet() {
     } catch {}
 
     try {
-      await fetch("/api/desktop-pet/control", {
+      const response = await fetch("/api/desktop-pet/control", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update-config", config: newConfig }),
       });
-    } catch {}
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "桌宠设置保存失败");
+      window.dispatchEvent(new Event("agilecampus:pet-updated"));
+    } catch (error) { setConfig(config); showToast(error instanceof Error ? error.message : "桌宠设置保存失败"); return; }
 
     showToast(`✨ 桌宠已成功命名为【${trimmed}】！`);
   };
@@ -509,12 +518,15 @@ export function WebDeskPet() {
     } catch {}
 
     try {
-      await fetch("/api/desktop-pet/control", {
+      const response = await fetch("/api/desktop-pet/control", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update-config", config: newConfig }),
       });
-    } catch {}
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "桌宠设置保存失败");
+      window.dispatchEvent(new Event("agilecampus:pet-updated"));
+    } catch (error) { setConfig(config); showToast(error instanceof Error ? error.message : "桌宠设置保存失败"); return; }
 
     showToast(`已切换为【${names[preset]}】形象！`);
   };
@@ -542,12 +554,15 @@ export function WebDeskPet() {
     } catch {}
 
     try {
-      await fetch("/api/desktop-pet/control", {
+      const response = await fetch("/api/desktop-pet/control", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update-config", config: newConfig }),
       });
-    } catch {}
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "桌宠设置保存失败");
+      window.dispatchEvent(new Event("agilecampus:pet-updated"));
+    } catch (error) { setConfig(config); showToast(error instanceof Error ? error.message : "桌宠设置保存失败"); return; }
 
     showToast("🎨 自定义立绘已成功应用！");
   };
@@ -557,6 +572,7 @@ export function WebDeskPet() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 2 * 1024 * 1024) { showToast("图片最大支持 2 MiB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const base64Data = reader.result as string;

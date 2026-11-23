@@ -18,8 +18,12 @@
 @media(min-width:801px){.workspace.officeWorkspace{width:92%;max-width:1280px;margin-inline:auto}}
 .petDrawer{position:fixed;inset:0 0 0 auto;margin:0;padding:0;width:min(380px,100vw);max-width:100vw;height:100dvh;max-height:100dvh;border:0;background:var(--color-panel);color:var(--color-ink);overflow-y:auto;box-shadow:-12px 0 40px #15383e20}
 .petDrawer::backdrop{background:#16343940;backdrop-filter:blur(2px)}
+.petDrawer.continuousInteractions::backdrop{background:#16343908;backdrop-filter:none}
+@media(max-width:800px){.petDrawer.continuousInteractions{inset:auto 0 0;width:100%;height:auto;max-height:45dvh;border-radius:16px 16px 0 0}.continuousInteractions .companion{display:none}.sidePanel.petDrawerPanel:has([aria-label="桌宠互动"]){padding:16px;gap:12px}}
 .blackboardTrigger{position:absolute;left:11.25%;top:22.3333%;width:19.8%;height:10.5%;z-index:2;border:2px solid transparent;border-radius:5px;background:transparent;cursor:pointer}
 .blackboardTrigger:hover,.blackboardTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px;background:#ffffff0a}
+.mobileTaskSummary{display:none}
+@media(max-width:800px){.mobileTaskSummary{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;padding:12px;font-size:12px;border-top:1px solid var(--color-stroke);color:var(--color-ink-2);background:var(--color-panel);cursor:pointer}.mobileTaskSummary strong,.mobileTaskSummary span:last-child{color:var(--color-signal)}}
 .taskBoardDialog{width:min(1100px,94vw);max-width:94vw;max-height:85dvh;margin:auto;padding:0;border:1px solid var(--color-stroke);border-radius:var(--radius-panel);background:var(--color-panel);color:var(--color-ink);overflow:auto;box-shadow:var(--shadow-panel)}
 .taskBoardDialog::backdrop{background:#16343960;backdrop-filter:blur(2px)}
 .taskBoardContent{padding:clamp(16px,3vw,28px)}.taskBoardContent>.drawerHeading{margin-bottom:24px}.taskBoardContent h2{font-size:22px;font-weight:600}.taskBoardContent>.drawerHeading p{font-size:12px;color:var(--color-ink-3);margin-top:6px}
@@ -39,6 +43,30 @@
 .deskArt{position:absolute;inset:0;z-index:3;pointer-events:none}.deskArt>svg{width:100%;height:100%}
 .seatedPet{position:absolute;left:27%;top:6%;width:36%;height:43%;z-index:4;padding:0;border:0;border-radius:45%;background:transparent;cursor:pointer}
 .seatedPet:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px}
+.workstationTrigger{position:absolute;inset:0;z-index:4;border:1px solid transparent;border-radius:12px;background:transparent;cursor:pointer}
+.interacting [data-seated-pet]{transform-box:fill-box;transform-origin:50% 90%;animation:pet-hello .7s ease-in-out 7;filter:drop-shadow(0 0 3px #60ae8a99)}
+.scene>svg.projectileLayer{z-index:25;overflow:visible;pointer-events:none}
+.flyingObject{animation:projectile-flight 1.25s linear both}
+.flightTrail{animation:projectile-fade .4s ease-out 1.2s both}
+.projectileImpact{transform-box:fill-box;transform-origin:center;animation:projectile-impact .45s ease-out 1.2s both}
+.projectileResponse{animation:projectile-receive .2s ease-out 1.2s both}
+@keyframes projectile-flight{0%,94%{opacity:1}100%{opacity:0}}
+@keyframes projectile-fade{from{opacity:.5}to{opacity:0}}
+@keyframes projectile-impact{0%{opacity:0;transform:scale(.3)}30%{opacity:1}100%{opacity:0;transform:scale(1.6)}}
+@keyframes projectile-receive{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.scene>svg.projectileLayer{display:none}}
+.interactionReceipt{position:absolute;top:4%;left:50%;transform:translateX(-50%);z-index:35;max-width:85%;padding:9px 14px;border:1px solid var(--color-signal-ring);border-radius:12px;background:var(--color-panel);color:var(--color-signal);font-size:clamp(11px,1vw,14px);box-shadow:var(--shadow-panel);pointer-events:none;text-align:center}
+.interactionEmoji{position:absolute;top:4%;left:65%;z-index:6;font-size:clamp(18px,2vw,30px);pointer-events:none;animation:pet-hello .5s ease-in-out 2,interaction-icon-exit .12s ease-out .88s forwards}
+@keyframes interaction-icon-exit{to{opacity:0;visibility:hidden}}
+@media(prefers-reduced-motion:reduce){.interactionEmoji{display:none}}
+@keyframes pet-hello{0%,100%{transform:rotate(0)}35%{transform:rotate(-5deg)}70%{transform:rotate(5deg)}}
+.workstationTrigger:hover,.workstationTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:2px;background:#21836d08}
+.presetChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.presetChoices button{padding:10px 5px;border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-panel);font-size:11px;text-align:center;cursor:pointer}
+.presetChoices button[aria-pressed="true"]{border-color:var(--color-signal);background:var(--color-signal-soft);box-shadow:0 0 0 1px var(--color-signal)}
+.presetChoices img{width:58px;height:58px;object-fit:contain;margin:0 auto 8px}.presetChoices button:disabled{opacity:.6;cursor:wait}
+.presetPreview{height:128px;margin:5px auto 8px;background-size:contain;background-position:center;background-repeat:no-repeat}
+.seatLabel{cursor:pointer}.seatLabel:focus-visible{outline:2px solid var(--color-signal);outline-offset:2px}
 .workSpeech{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);width:140px;padding:8px 10px;border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-panel);box-shadow:var(--shadow-panel);font-size:11px;z-index:5}
 .seatLabel{position:absolute;z-index:30;transform:translateX(-50%);font-size:clamp(8px,1vw,10px);line-height:1.2;white-space:nowrap;max-width:23%;overflow:hidden;text-overflow:ellipsis;background:var(--color-panel);border:1px solid var(--color-stroke);border-radius:6px;padding:2px 5px;color:var(--color-ink-3)}
 .seatLabel[data-occupied="true"]{color:var(--color-signal);border-color:var(--color-signal-ring)}

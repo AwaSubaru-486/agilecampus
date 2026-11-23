@@ -1,3 +1,5 @@
+import { saveWebPetConfig } from "@/lib/pets/web-pet-config";
+import { bindWebPetToHome } from "@/lib/home";
 import { NextResponse } from "next/server";
 import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
 import { PayloadTooLargeError, readTextWithLimit } from "@/lib/http";
@@ -12,9 +14,10 @@ export async function POST(req: Request) {
   const limited = rateLimit(`pet:control:${actor}`, 60, 60 * 1000);
   if (!limited.ok) return NextResponse.json({ error: "操作过于频繁，请稍后再试" }, { status: 429, headers: { "Retry-After": String(limited.retryAfterSeconds) } });
 
+  // 自定义立绘配置允许 3 MiB；其他动作在解析后收紧到 32 KiB。
   let raw: string;
   try {
-    raw = await readTextWithLimit(req, 32768);
+    raw = await readTextWithLimit(req, 3 * 1024 * 1024);
   } catch (e) {
     if (e instanceof PayloadTooLargeError) return NextResponse.json({ error: e.message }, { status: 413 });
     throw e;
@@ -23,6 +26,7 @@ export async function POST(req: Request) {
   try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "请求格式无效" }, { status: 400 });
   const { action, config, event, message } = body;
+  if (action !== "update-config" && Buffer.byteLength(raw) > 32768) return NextResponse.json({ error: "请求过大" }, { status: 413 });
   const runtimeDir = webPetRuntime(actor);
   if (!fs.existsSync(runtimeDir)) {
     fs.mkdirSync(runtimeDir, { recursive: true });
@@ -30,15 +34,13 @@ export async function POST(req: Request) {
 
   // 1. 更新网页桌宠配置（形象切换：线条小狗 / 吃豆人 / 奶龙 / 自定义立绘）
   if (action === "update-config" && config) {
-    const configFile = path.resolve(runtimeDir, "desk-pet-config.json");
-    let currentConfig = {};
-    if (fs.existsSync(configFile)) {
-      try {
-        currentConfig = JSON.parse(fs.readFileSync(configFile, "utf8"));
-      } catch {}
+    let newConfig;
+    try {
+      newConfig = await saveWebPetConfig(actor, config);
+      await bindWebPetToHome(actor);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "桌宠设置保存失败" }, { status: 400 });
     }
-    const newConfig = { ...currentConfig, ...config };
-    fs.writeFileSync(configFile, JSON.stringify(newConfig, null, 2), "utf8");
 
     return NextResponse.json({
       ok: true,

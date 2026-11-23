@@ -1,13 +1,7 @@
-import { createHash } from "node:crypto";
-import path from "node:path";
 import { auth } from "@/lib/auth";
 
 // Each account owns its own runtime files; never reuse the old global demo files.
-export function webPetRuntime(userId: string) {
-  const cwd = process.cwd();
-  const root = cwd.includes(`${path.sep}.next`) ? cwd.split(`${path.sep}.next`)[0] : cwd;
-  return path.join(root, ".runtime", "web-pets", createHash("sha256").update(userId).digest("hex"));
-}
+export { webPetRuntime } from "./web-pet-runtime";
 
 export async function webPetActor(request?: Request): Promise<string | Response> {
   const session = await auth();

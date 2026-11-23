@@ -6,10 +6,12 @@ const owner = "11111111-1111-4111-8111-111111111111";
 const other = "22222222-2222-4222-8222-222222222222";
 afterEach(() => vi.unstubAllEnvs());
 describe("临时演示桌宠", () => {
-  it("默认关闭，保留原来的空接口", async () => {
+  it("默认关闭演示，提供当前账号的网页桌宠", async () => {
     vi.stubEnv("HOME_DEMO_PET_ENABLED", "false");
     expect(demoHomePet(owner)).toBeNull();
-    expect(await homePetSource.listOwned(owner)).toEqual([]);
+    const pets = await homePetSource.listOwned(owner);
+    expect(pets).toHaveLength(1);
+    expect(pets[0]).toMatchObject({ id: `web:${owner}`, ownerId: owner });
   });
   it("开启后明确标注演示，使用真实透明图片并符合现有契约", async () => {
     vi.stubEnv("HOME_DEMO_PET_ENABLED", "true");

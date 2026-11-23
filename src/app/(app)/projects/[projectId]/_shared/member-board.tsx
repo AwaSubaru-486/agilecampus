@@ -5,9 +5,9 @@ import { groupTasksByStage } from "@/lib/project-stage-groups";
 import { statusLabel } from "@/lib/task-status";
 import { collaborationHelpHref, groupTaskHelp } from "@/lib/collaboration-help";
 
-export async function MemberBoard({ actorId, viewUserId = actorId, projectId, embedded = false }: { actorId: string; viewUserId?: string; projectId: string; embedded?: boolean }) {
+export async function MemberBoard({ actorId, viewUserId = actorId, projectId, embedded = false, taskTree }: { actorId: string; viewUserId?: string; projectId: string; embedded?: boolean; taskTree?: Awaited<ReturnType<typeof getTaskTree>> }) {
   const [tree, blockers] = await Promise.all([
-    getTaskTree(actorId, projectId),
+    taskTree ?? getTaskTree(actorId, projectId),
     listProjectBlockers(actorId, projectId, { status: ["open"] }),
   ]);
   const mine = tree.tasks.filter(task => !task.isTaskGroup && task.assigneeId === viewUserId);
