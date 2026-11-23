@@ -90,6 +90,15 @@
 - VS Code 扩展施工目录：[`vscode-extension/`](vscode-extension/)
 - 技术债备案：[`docs/BACKLOG.md`](docs/BACKLOG.md)
 
+## 安全边界
+
+- 模型服务地址默认拒绝本机、内网、链路本地和云元数据地址，请求前解析域名并禁止重定向。确需连接内网自建模型时，显式设置 `MODEL_ALLOW_PRIVATE_NETWORK=1`。
+- 登录、注册、聊天、记忆提炼、桌宠和飞书签名接口有进程内限流；这是单实例限流，多实例部署需换成共享存储。
+- 请求体按字节上限流式读取，超限返回 413。
+- 飞书 JSSDK 只为当前站点或 `AGILECAMPUS_URL` / `FEISHU_JSSDK_ALLOWED_ORIGINS` 中的页面签名。
+- 生产依赖审计为 0；开发依赖中 `drizzle-kit` 的传递依赖仍有 moderate 公告，修复需要破坏性升级。
+- 本轮验证没有覆盖真实浏览器逐步点击、窄屏布局和双机 Extension Host 接班。详见[安全与教程检查记录](docs/reviews/2026-11-23-security-tutorial-audit.md)。
+
 ## 来源说明
 
 本项目 fork 自 [`sdiver/agilecampus`](https://github.com/sdiver/agilecampus)，`upstream` remote 与原许可证原样保留。
