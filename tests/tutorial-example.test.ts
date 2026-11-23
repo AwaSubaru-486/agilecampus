@@ -13,6 +13,8 @@ describe("汪汪队项目展示路线", () => {
     expect(steps.filter(step => step.action === "result").every(step => step.target === '[data-tour="project-view-switch"]')).toBe(true);
     expect(steps.find(step => step.id === "select")?.route).toBe("/projects/demo-project?space=work&scope=all&task=first-task&panel=list");
     expect(steps.find(step => step.id === "delivery")?.action).toBe("explore");
+    // 看板在默认关闭的 dialog 里，必须让学员点击黑板触发器，而不是直接定位隐藏内容。
+    expect(steps.find(step => step.id === "board")).toMatchObject({ target: '[data-tour="member-board-trigger"]', action: "click" });
     expect(new Set(steps.map(step => step.id)).size).toBe(steps.length);
   });
   it("按照真实角色显示课程，组员不进入记录，老师不进入执行和 AI", () => {

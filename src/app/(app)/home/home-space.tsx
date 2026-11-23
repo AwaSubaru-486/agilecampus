@@ -140,7 +140,7 @@ export function HomeSpace({ data, project, taskBoard }: { data: HomeView; projec
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>
           <div className={s.sceneLabel}><Mark name="leaf" />共享空间</div>
           <GardenBackdrop courtyard taskBoard={Boolean(project)} />
-          {project && <button className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" onClick={() => taskBoardRef.current?.showModal()} />}
+          {project && <button data-tour="member-board-trigger" className={s.blackboardTrigger} aria-haspopup="dialog" aria-label="点击黑板，查看我的任务" onClick={() => taskBoardRef.current?.showModal()} />}
           {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;

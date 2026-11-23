@@ -39,7 +39,7 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
       step("assignments", "查看组长下派的任务", "分工页列出全项目任务。每个阶段默认折叠，展开后能核对任务和负责人；组长可在任务资料与管理中调整分工。", `${work}&panel=list`, "console-task-list"),
     ] : []),
     ...(role !== "teacher" ? [
-      step("board", "看板：我的任务与协作中心", "看板左侧按阶段展示我的任务，右侧显示谁需要什么帮助。没有分配给自己的任务时会显示空状态；组长可从分工查看组员的工作。", base, "member-board"),
+      step("board", "看板：我的任务与协作中心", "点击高亮的黑板打开看板。左侧按阶段展示我的任务，右侧显示谁需要什么帮助；没有分配给自己的任务时会显示空状态，组长可从分工查看组员的工作。", base, "member-board-trigger", "click"),
       step("task-list", "展开阶段查看任务", "我的任务只展示分配给自己的工作。阶段默认折叠；点击具体任务会打开对应的执行详情。", `${base}?space=work&panel=list`, "console-task-list"),
       ...(journey.taskId ? [
         step("select", "打开一项实际任务", "点击高亮任务查看执行要求。这里使用已分配的项目任务，只需查看即可学习交付流程。", `${detail}&panel=list`, "console-task", "click"),

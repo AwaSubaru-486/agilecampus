@@ -111,35 +111,17 @@ export function resolveAvatarUrl(url?: string): string {
   return `/api/desktop-pet/image?path=${encodeURIComponent(trimmed)}`;
 }
 
-export function WebDeskPet() {
-  const [config, setConfig] = useState<DeskPetConfig>(() => {
-    const fallback: DeskPetConfig = {
-      preset: "puppy",
-      name: "线条小狗",
-      customImageUrl: "",
-      webPetVisible: true,
-    };
-    if (typeof window === "undefined") return fallback;
-    try {
-      const savedConfig = localStorage.getItem("agilecampus.deskpet.config");
-      if (savedConfig) {
-        return { ...fallback, ...JSON.parse(savedConfig) };
-      }
-    } catch {}
-    return fallback;
-  });
+const FALLBACK_CONFIG: DeskPetConfig = {
+  preset: "puppy",
+  name: "线条小狗",
+  customImageUrl: "",
+  webPetVisible: true,
+};
 
-  const [visible, setVisible] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    try {
-      const savedConfig = localStorage.getItem("agilecampus.deskpet.config");
-      if (savedConfig) {
-        const parsed = JSON.parse(savedConfig);
-        if (parsed.webPetVisible !== undefined) return Boolean(parsed.webPetVisible);
-      }
-    } catch {}
-    return true;
-  });
+export function WebDeskPet() {
+  // 首帧必须与服务端一致，本地设置和坐标在挂载后再读取，避免水合不匹配。
+  const [config, setConfig] = useState<DeskPetConfig>(FALLBACK_CONFIG);
+  const [visible, setVisible] = useState(true);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -154,24 +136,8 @@ export function WebDeskPet() {
     setTimeout(() => setToastMessage(null), 3200);
   }, []);
 
-  // 坐标位置 (相对于浏览器视口)
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const savedPos = localStorage.getItem("agilecampus.webpet.pos");
-      if (savedPos) {
-        const parsedPos = JSON.parse(savedPos);
-        if (typeof parsedPos.x === "number" && typeof parsedPos.y === "number") {
-          return parsedPos;
-        }
-      }
-      const defaultX = Math.max(20, window.innerWidth - 250);
-      const defaultY = Math.max(40, window.innerHeight - 280);
-      return { x: defaultX, y: defaultY };
-    } catch {
-      return { x: 300, y: 300 };
-    }
-  });
+  // 坐标位置 (相对于浏览器视口)，挂载前保持 null 以匹配服务端输出
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number }>({
@@ -211,13 +177,41 @@ export function WebDeskPet() {
   // 已提醒的通知 ID 集合（避免重复弹出同一条通知）
   const handledNotifIdsRef = useRef<Set<string>>(new Set());
 
-  // 客户端挂载安全居中
+  // 挂载后读取本地设置和坐标；服务端渲染不读取浏览器存储。
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      try {
+        const savedConfig = localStorage.getItem("agilecampus.deskpet.config");
+        if (savedConfig) {
+          const parsed = JSON.parse(savedConfig) as Partial<DeskPetConfig>;
+          const next = { ...FALLBACK_CONFIG, ...parsed };
+          setConfig(next);
+          setNameInput(next.name || "线条小狗");
+          setImageUrlInput(next.customImageUrl || "");
+          if (parsed.webPetVisible !== undefined) setVisible(Boolean(parsed.webPetVisible));
+        }
+        const savedPos = localStorage.getItem("agilecampus.webpet.pos");
+        if (savedPos) {
+          const parsedPos = JSON.parse(savedPos);
+          if (typeof parsedPos.x === "number" && typeof parsedPos.y === "number") {
+            setPosition(parsedPos);
+          }
+        }
+      } catch {
+        // 本地存储损坏时使用默认设置。
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // 客户端挂载安全居中；已有本地坐标时不要覆盖。
   useEffect(() => {
     if (position === null) {
       const timer = setTimeout(() => {
-        const defaultX = Math.max(20, window.innerWidth - 250);
-        const defaultY = Math.max(40, window.innerHeight - 280);
-        setPosition({ x: defaultX, y: defaultY });
+        setPosition((current) => current ?? {
+          x: Math.max(20, window.innerWidth - 250),
+          y: Math.max(40, window.innerHeight - 280),
+        });
       }, 0);
       return () => clearTimeout(timer);
     }
