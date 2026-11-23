@@ -39,6 +39,8 @@ function preparedInput(promptVersion: "memory-extract-v1" | "memory-extract-v2" 
 describe("session memory model boundary", () => {
   it("用户 API 自动用于记忆提炼，模型来源记录真实的个人模型名称", async () => {
     vi.stubEnv("AUTH_SECRET", "memory-model-routing-secret");
+    // 合成域名由本地 fetch 拦截器响应，不需要真实 DNS；SSRF 边界另有专项测试。
+    vi.stubEnv("MODEL_ALLOW_PRIVATE_NETWORK", "1");
     try {
       await resetDb();
       const user = await createUser({ name: "提炼者", email: "extract@api.test", password: "password123" });

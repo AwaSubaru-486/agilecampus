@@ -26,6 +26,8 @@ describe("用户 API 自动路由", () => {
     vi.stubEnv("DEEPSEEK_API_KEY", "site-test-key");
     vi.stubEnv("DEEPSEEK_BASE_URL", "https://site.test/v1");
     vi.stubEnv("DEEPSEEK_MODEL", "site-model");
+    // 测试用合成域名和本地拦截器，不经过真实 DNS；SSRF 边界另有专项测试。
+    vi.stubEnv("MODEL_ALLOW_PRIVATE_NETWORK", "1");
     await resetDb();
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });

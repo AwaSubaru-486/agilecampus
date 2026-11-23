@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { AppError, ConflictError, ForbiddenError } from "@/lib/errors";
+import { PayloadTooLargeError, readJsonWithLimit } from "@/lib/http";
 import { moveHomePet, saveHome, setHomeWorking } from "@/lib/home";
+
+const MAX_HOME_BODY_BYTES = 64 * 1024;
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -14,7 +17,7 @@ export async function POST(request: Request) {
   const authority = request.headers.get("host") ?? url.host;
   if (origin && origin !== `${url.protocol}//${authority}`) return Response.json({ error: "请求来源无效" }, { status: 403 });
   try {
-    const body = await request.json();
+    const body = (await readJsonWithLimit(request, { maxBytes: MAX_HOME_BODY_BYTES })) as Record<string, unknown>;
     if (body.operation === "work") {
       const destination = z.object({ teamId: z.uuid().nullable(), projectId: z.uuid().optional() }).parse(body);
       return Response.json({ home: destination.projectId ? await setHomeWorking(session.user.id, destination.teamId, destination.projectId) : await setHomeWorking(session.user.id, destination.teamId) });
@@ -26,6 +29,7 @@ export async function POST(request: Request) {
     }
     return Response.json({ error: "未知家园操作" }, { status: 400 });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) return Response.json({ error: error.message }, { status: 413 });
     if (error instanceof z.ZodError) return Response.json({ error: error.issues[0]?.message ?? "家园设置无效" }, { status: 400 });
     if (error instanceof SyntaxError) return Response.json({ error: "请求格式无效" }, { status: 400 });
     if (error instanceof AppError) return Response.json({ error: error.message }, { status: error instanceof ForbiddenError ? 403 : error instanceof ConflictError ? 409 : 400 });

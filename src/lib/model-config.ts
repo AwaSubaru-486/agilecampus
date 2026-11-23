@@ -4,12 +4,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import { userModelConfigs } from "@/db/schema";
 import { AppError } from "./errors";
+import { modelBaseUrlIssue } from "./url-safety";
 
 export const modelConfigSchema = z.object({
-  baseUrl: z.url().trim().max(500).refine(value => {
-    const url = new URL(value);
-    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
-  }, "填写 HTTP 或 HTTPS API 地址，不要包含账号、查询参数或密钥"),
+  baseUrl: z.url().trim().max(500).superRefine((value, ctx) => {
+    const issue = modelBaseUrlIssue(value);
+    if (issue) ctx.addIssue({ code: "custom", message: issue });
+  }),
   model: z.string().trim().min(1).max(120),
   apiKey: z.string().trim().max(4096),
 });

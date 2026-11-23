@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { PayloadTooLargeError, readJsonWithLimit } from "@/lib/http";
 import { ensureHome, selectHomePet } from "@/lib/home";
 import { HOME_PET_CONTRACT_VERSION, homePetIdSchema } from "@/lib/pets/home-pet-contract";
 import { listHomePets } from "@/lib/pets/home-pet-provider";
 
 const headers = { "Cache-Control": "private, no-store" };
 function failure(error: unknown) {
+  if (error instanceof PayloadTooLargeError) return Response.json({ error: error.message }, { status: 413, headers });
   if (error instanceof AppError) return Response.json({ error: error.message }, { status: error instanceof ForbiddenError ? 403 : 400, headers });
   if (error instanceof z.ZodError || error instanceof SyntaxError) return Response.json({ error: "桌宠参数或资源格式无效" }, { status: 400, headers });
   console.error("Home pet integration failed");
@@ -28,7 +30,8 @@ export async function PUT(request: Request) {
   if (origin && origin !== `${url.protocol}//${request.headers.get("host") ?? url.host}`)
     return Response.json({ error: "请求来源无效" }, { status: 403, headers });
   try {
-    const { petId } = z.object({ petId: homePetIdSchema.nullable() }).parse(await request.json());
+    const body = await readJsonWithLimit(request, { maxBytes: 16 * 1024 });
+    const { petId } = z.object({ petId: homePetIdSchema.nullable() }).parse(body);
     const home = await selectHomePet(session.user.id, petId);
     return Response.json({ schemaVersion: HOME_PET_CONTRACT_VERSION, selectedPetId: home.pet.petId ?? null }, { headers });
   } catch (error) { return failure(error); }

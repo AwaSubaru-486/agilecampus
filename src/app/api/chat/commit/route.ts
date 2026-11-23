@@ -4,6 +4,9 @@ import { auth } from "@/lib/auth";
 import { commitDraft } from "@/lib/agent/commit";
 import { WRITE_TOOL_NAMES } from "@/lib/agent/tools";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { PayloadTooLargeError, readJsonWithLimit } from "@/lib/http";
+
+const MAX_COMMIT_BODY_BYTES = 128 * 1024;
 
 const schema = z.object({
   projectId: z.uuid(),
@@ -15,7 +18,15 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
 
-  const parsed = schema.safeParse(await req.json().catch(() => ({})));
+  let body: unknown;
+  try {
+    body = await readJsonWithLimit(req, { maxBytes: MAX_COMMIT_BODY_BYTES });
+  } catch (e) {
+    if (e instanceof PayloadTooLargeError) return NextResponse.json({ error: e.message }, { status: 413 });
+    if (e instanceof AppError) return NextResponse.json({ error: e.message }, { status: 400 });
+    throw e;
+  }
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }

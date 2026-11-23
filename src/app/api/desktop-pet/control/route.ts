@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { webPetActor, webPetRuntime } from "@/lib/pets/web-pet-security";
+import { PayloadTooLargeError, readTextWithLimit } from "@/lib/http";
+import { rateLimit } from "@/lib/rate-limit";
 import path from "path";
 import fs from "fs";
 
@@ -7,8 +9,16 @@ import fs from "fs";
 export async function POST(req: Request) {
   const actor = await webPetActor(req);
   if (actor instanceof Response) return actor;
-  const raw = await req.text();
-  if (Buffer.byteLength(raw) > 32768) return NextResponse.json({ error: "请求过大" }, { status: 413 });
+  const limited = rateLimit(`pet:control:${actor}`, 60, 60 * 1000);
+  if (!limited.ok) return NextResponse.json({ error: "操作过于频繁，请稍后再试" }, { status: 429, headers: { "Retry-After": String(limited.retryAfterSeconds) } });
+
+  let raw: string;
+  try {
+    raw = await readTextWithLimit(req, 32768);
+  } catch (e) {
+    if (e instanceof PayloadTooLargeError) return NextResponse.json({ error: e.message }, { status: 413 });
+    throw e;
+  }
   let body;
   try { body = JSON.parse(raw); } catch { return NextResponse.json({ error: "请求格式无效" }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "请求格式无效" }, { status: 400 });

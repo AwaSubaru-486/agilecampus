@@ -28,4 +28,18 @@ describe("个人 API 配置", () => {
       await expect(saveModelConfig("00000000-0000-4000-8000-000000000001", { baseUrl, model: "test", apiKey: "test-only" })).rejects.toThrow();
     }
   });
+  it("拒绝指向本机、内网和云元数据的模型地址", async () => {
+    for (const baseUrl of [
+      "http://127.0.0.1:8000/v1",
+      "http://localhost/v1",
+      "http://[::1]/v1",
+      "http://10.0.0.8/v1",
+      "http://192.168.1.20/v1",
+      "http://169.254.169.254/latest/meta-data",
+      "http://metadata.internal/v1",
+      "http://ollama/v1",
+    ]) {
+      await expect(saveModelConfig("00000000-0000-4000-8000-000000000001", { baseUrl, model: "test", apiKey: "test-only" })).rejects.toThrow();
+    }
+  });
 });

@@ -6,6 +6,11 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { verifyPassword } from "./password";
 import { loginWithFeishuCode } from "@/lib/user";
+import { rateLimit, resetRateLimit } from "./rate-limit";
+
+// 即使直接调用 NextAuth 的凭据接口，也要限制同一账号的密码尝试次数。
+const LOGIN_EMAIL_LIMIT = 8;
+const LOGIN_EMAIL_WINDOW_MS = 10 * 60 * 1000;
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -24,6 +29,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const email = parsed.data.email.toLowerCase();
+        const emailLimitKey = `login:email:${email}`;
+        if (!rateLimit(emailLimitKey, LOGIN_EMAIL_LIMIT, LOGIN_EMAIL_WINDOW_MS).ok) return null;
+
         const [user] = await db
           .select()
           .from(users)
@@ -38,6 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await verifyPassword(parsed.data.password, user.passwordHash);
         if (!ok) return null;
 
+        resetRateLimit(emailLimitKey);
         return { id: user.id, email: user.email, name: user.name };
       },
     }),

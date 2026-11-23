@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatCanceledError, ChatTimeoutError, MAX_CHAT_INPUT_CHARS } from "@/lib/agent/chat-context";
+import { resetAllRateLimits } from "@/lib/rate-limit";
 const mock = vi.hoisted(() => ({ auth: vi.fn(), run: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ auth: mock.auth }));
 vi.mock("@/lib/agent/orchestrator", () => ({ runAgentTurn: mock.run }));
@@ -8,7 +9,7 @@ import { POST } from "@/app/api/chat/route";
 const projectId = "00000000-0000-4000-8000-000000000001";
 const request = (userText = "查看当前阶段") => new Request("http://localhost/api/chat", { method: "POST", body: JSON.stringify({ projectId, userText }), headers: { "Content-Type": "application/json" } });
 describe("chat API 兼容现有前端", () => {
-  beforeEach(() => { vi.resetAllMocks(); mock.auth.mockResolvedValue({ user: { id: "actor" } }); });
+  beforeEach(() => { vi.resetAllMocks(); resetAllRateLimits(); mock.auth.mockResolvedValue({ user: { id: "actor" } }); });
   it("保持原响应字段，同时传递取消信号", async () => {
     mock.run.mockResolvedValue({ conversationId: "conversation", userMessageId: "user", assistantMessageId: "assistant", text: "当前阶段有三项任务", toolTrace: [], drafts: [] });
     const req = request(); const response = await POST(req);
@@ -25,5 +26,17 @@ describe("chat API 兼容现有前端", () => {
     const timeout = await POST(request()); expect(timeout.status).toBe(504); expect(await timeout.json()).toEqual({ error: "AI 响应超时，请稍后重试" });
     mock.run.mockRejectedValueOnce(new ChatCanceledError("本次对话已取消，可重新发送"));
     expect((await POST(request())).status).toBe(408);
+  });
+  it("拒绝超大请求体，不启动模型", async () => {
+    const oversized = new Request("http://localhost/api/chat", { method: "POST", body: JSON.stringify({ projectId, userText: "x".repeat(70 * 1024) }), headers: { "Content-Type": "application/json" } });
+    expect((await POST(oversized)).status).toBe(413);
+    expect(mock.run).not.toHaveBeenCalled();
+  });
+  it("同一账号高频调用会被限流", async () => {
+    mock.run.mockResolvedValue({ conversationId: "c", userMessageId: "u", assistantMessageId: "a", text: "ok", toolTrace: [], drafts: [] });
+    for (let i = 0; i < 30; i++) expect((await POST(request())).status).toBe(200);
+    const blocked = await POST(request());
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("Retry-After")).toBeTruthy();
   });
 });
