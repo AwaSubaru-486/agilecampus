@@ -37,6 +37,16 @@ describe("任务教程入口恢复", () => {
     expect(findTutorialTarget(doc, `[data-tour="${name}"]`).element).toBe(target);
     expect(disclosure.click).toHaveBeenCalledOnce();
   });
+  it("表单尚未重绘时连续定位只点击一次，避免又把它关回去", () => {
+    const disclosure = { ...element(), getAttribute: () => "false", click: vi.fn() };
+    const doc = {
+      querySelectorAll: () => [],
+      querySelector: () => disclosure,
+    } as unknown as Pick<Document, "querySelectorAll" | "querySelector">;
+    findTutorialTarget(doc, '[data-tour="conversation-title"]');
+    findTutorialTarget(doc, '[data-tour="conversation-title"]');
+    expect(disclosure.click).toHaveBeenCalledOnce();
+  });
   it("会话打开与收起分别核对真实状态，不把一次点击当作完成", () => {
     const course = buildTutorialCourses(null).find(item => item.id === "ai")!;
     expect(course.steps.find(item => item.id === "new-chat")).toMatchObject({ action: "result", completion: "data-tour-conversation-open" });
