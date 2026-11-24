@@ -22,6 +22,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fromPath = pathname.match(PROJECT_PATH)?.[1] ?? null;
+  const isRetrospective = fromPath !== null && pathname === `/projects/${fromPath}/retrospective`;
 
   const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState(fromPath ?? projects[0]?.id ?? "");
@@ -218,7 +219,7 @@ export function StuckButton({ projects }: { projects: Project[] }) {
         aria-expanded={open}
         aria-label={open ? "关闭求助" : "发起求助"}
         aria-controls="task-help-panel"
-        className="ac-pressable fixed bottom-4 right-4 z-30 min-h-10 border border-stroke-strong bg-panel px-3 py-2 text-sm font-medium text-ink"
+        className={`ac-pressable fixed bottom-4 right-4 z-30 min-h-10 border border-stroke-strong bg-panel px-3 py-2 text-sm font-medium text-ink${isRetrospective ? " max-[660px]:static max-[660px]:mb-4 max-[660px]:ml-auto max-[660px]:mr-4 max-[660px]:block" : ""}`}
       >
         {open ? "关闭求助" : "任务求助"}
       </button>
