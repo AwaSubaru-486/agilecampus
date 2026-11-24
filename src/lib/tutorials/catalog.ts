@@ -60,7 +60,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("progress", "找到当前阶段", "进度区显示当前阶段、已验收任务与待处理事项。任务验收和阶段集成是两个不同的关口。", `${base}/timeline`, "stage-progress"),
       step("stage", "切换一个阶段", "点击高亮阶段导航，跳到对应任务。下一阶段只有在集成审核通过后才会解锁。", `${base}/timeline`, "stage-link", "click"),
       step("handoff", "查看执行与交接资料", "在执行台查看任务契约、运行记录与交接材料。分支信息是登记材料，网页不会自动合并代码。", work, "execution-console"),
-      step("retrospective", "回看任务交付", "选择一项交付，结合验收意见写下有效做法和下次要试的改进。", `${base}/retrospective`, "retrospective"),
+      step("retrospective", "回看任务交付", "从侧栏的「项目复盘」选择当前项目，结合验收意见回看任务交付。", "/library", "library"),
       step("activity", "追溯具体动作", "活动流按时间记录提交、审核、复核等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
     ] },
     { id: "ai", roles: ["admin", "student"], title: "AI 协作与会话分支", category: "协作与沉淀", needsProject: true, description: "进入项目对话，认识共享会话和人工确认。", steps: [

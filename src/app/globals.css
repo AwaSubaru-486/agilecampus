@@ -304,11 +304,12 @@ html {
  .ac-shell-sidebar[data-collapsed="true"] .ac-brand-row {flex-direction:column;}
  .ac-shell-sidebar[data-collapsed="true"] .ac-brand-label,
  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-switcher,
- .ac-shell-sidebar[data-collapsed="true"] .ac-navigation-support,
+ .ac-shell-sidebar[data-collapsed="true"] .ac-navigation-support > a[href="/teams"],
  .ac-shell-sidebar[data-collapsed="true"] .ac-nav-label,
  .ac-shell-sidebar[data-collapsed="true"] .ac-account-name,
  .ac-shell-sidebar[data-collapsed="true"] .ac-sidebar-tip {display:none;}
  .ac-shell-sidebar[data-collapsed="true"] .ac-nav-item {justify-content:center;padding:12px;}
+ .ac-shell-sidebar[data-collapsed="true"] .ac-navigation-support {margin-top:12px;padding-top:12px;}
  .ac-shell-sidebar[data-collapsed="true"] .ac-nav-count {display:none;}
  .ac-shell-sidebar[data-collapsed="true"] ~ .ac-shell-main {margin-left:76px;}
 }

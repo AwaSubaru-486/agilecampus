@@ -21,7 +21,8 @@ export function TopWorkbar({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [ready, setReady] = useState(false);
-  const active = activeNavHref(pathname);
+  const isRetrospective = pathname === "/library" || /^\/projects\/[^/]+\/retrospective$/.test(pathname);
+  const active = isRetrospective ? "/library" : activeNavHref(pathname);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setCollapsed(
@@ -146,12 +147,13 @@ export function TopWorkbar({
               <span>我的团队</span>
             </Link>
             <Link
-              className={"ac-nav-item " + (pathname === "/library" ? "is-active" : "")}
+              className={"ac-nav-item " + (active === "/library" ? "is-active" : "")}
               href="/library"
-              aria-current={pathname === "/library" ? "page" : undefined}
+              title="项目复盘"
+              aria-current={active === "/library" ? "page" : undefined}
             >
               <WorkspaceIcon name="projects" />
-              <span className={collapsed ? "sr-only" : ""}>项目复盘</span>
+              <span className={collapsed ? "lg:sr-only" : undefined}>项目复盘</span>
             </Link>
           </div>
         </nav>
