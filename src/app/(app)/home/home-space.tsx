@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FURNITURE, type HomeFurniture, type HomeProfile, type HomeView } from "@/lib/home-contract";
+import type { HomeFurniture, HomeProfile, HomeView } from "@/lib/home-contract";
 import { FurnitureArt, GardenBackdrop, WorkstationArt } from "./home-art";
 import { DesktopCompanionControl } from "@/components/pets/desktop-companion-control";
 import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
@@ -182,19 +182,25 @@ export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMember
     setNotice({ text: "合影已保存。" });
   }
 
+  const petButton = <button type="button" className="ac-btn-ghost shrink-0" aria-haspopup="dialog" onClick={() => void openPetPanel()}>我的桌宠 ↗</button>;
+  const workingCount = <span className={s.pill}><i />{data.workstations.filter(seat => seat.working).length} 位成员工作中</span>;
+
   return <div className={s.page}>
-    <header className={`ac-page-header ${s.heading}`}>
-      <div><h1>{project ? "项目办公室" : "家园"}</h1><p>{project ? "点击墙上的黑板查看我的任务，在工位上与伙伴一起工作。" : "带上你的桌宠，在团队庭院与队友相聚。"}</p></div>
-      <button className="ac-btn-ghost" aria-haspopup="dialog" onClick={() => void openPetPanel()}>我的桌宠 ↗</button>
-    </header>
-    <div className={s.navigation}>
-      <h2>{project ? project.name : "团队庭院"}</h2>
-      {!project && data.teams.length > 0 && <select aria-label="选择团队" value={data.teamId ?? ""} disabled={pending} onChange={event => router.push(`/home?team=${event.target.value}`)}>{data.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
-    </div>
+    {!project && <>
+      <header className={`ac-page-header ${s.heading}`}>
+        <div><h1>家园</h1><p>带上你的桌宠，在团队庭院与队友相聚。</p></div>
+        {petButton}
+      </header>
+      <div className={s.navigation}>
+        <h2>团队庭院</h2>
+        {data.teams.length > 0 && <select aria-label="选择团队" value={data.teamId ?? ""} disabled={pending} onChange={event => router.push(`/home?team=${event.target.value}`)}>{data.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
+      </div>
+    </>}
     {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
     {!team ? <div className={s.empty}><Mark name="leaf" /><h2>庭院，等大家一起开启。</h2><p>加入一个团队，就能带伙伴到共享庭院相聚。</p><Link className="ac-btn" href="/teams">前往我的团队 →</Link></div> : <div className={`${s.workspace} ${s.officeWorkspace}`}>
-      <section className={s.gardenCard} aria-label="团队共享庭院">
-        <div className={s.sceneHeader}><div><p>{project ? team.name : "团队共享办公室"}</p><h2>{project ? `${project.name}的办公室` : `${team.name}的庭院`}</h2></div><span className={s.pill}><i />{data.workstations.filter(seat => seat.working).length} 位成员工作中</span></div>
+      <section className={s.gardenCard} aria-label={project ? "项目办公室" : "团队共享庭院"}>
+        {project ? <div className={s.officeToolbar}>{workingCount}{petButton}</div>
+          : <div className={s.sceneHeader}><div><p>团队共享办公室</p><h2>{team.name}的庭院</h2></div>{workingCount}</div>}
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>
           <div className={s.sceneLabel}><Mark name="leaf" />共享空间</div>
           {interaction && <div className={s.interactionReceipt} role="status" data-interaction-receipt>{PET_INTERACTIONS[interaction.kind].icon} {data.workstations.find(seat => seat.ownerId === interaction.actorId)?.ownerName ?? "伙伴"}向{data.workstations.find(seat => seat.ownerId === interaction.targetId)?.ownerName ?? "队友"}{PET_INTERACTIONS[interaction.kind].label} · 互动动画播放中</div>}
@@ -203,7 +209,12 @@ export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMember
             <span>我的任务</span>
           </button>}
           {flights.map(event => <LiveOfficeProjectile key={event.id} event={event} seats={seats} onComplete={finishFlight} />)}
-          {COURTYARD_FURNITURE.map(item => <button type="button" key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-label={FURNITURE[item.kind].name} onClick={() => setNotice({ text: `${FURNITURE[item.kind].name}：坐一会儿，和伙伴一起休息。` })} className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}><span><FurnitureArt kind={item.kind} /></span></button>)}
+          {COURTYARD_FURNITURE.map(item => (
+            <div key={item.id} data-photo-object="furniture" data-flipped={item.flipped} aria-hidden="true"
+              className={s.furniture} style={{ left: `${12 + item.x * 8}%`, top: `${54 + item.y * 6.8}%`, zIndex: 2 + item.y }}>
+              <span><FurnitureArt kind={item.kind} /></span>
+            </div>
+          ))}
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
             const occupied = Boolean(seat?.working && seat.pet?.status === "ready");

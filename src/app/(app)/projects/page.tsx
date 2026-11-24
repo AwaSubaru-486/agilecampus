@@ -75,7 +75,7 @@ export default async function AllProjectsPage() {
                               ? "导师"
                               : "组员"}
                         </p>
-                        <h2 className="mt-1.5 text-lg font-semibold leading-7 text-ink group-hover:text-signal">
+                        <h2 className="ac-project-title mt-1.5 text-lg font-semibold leading-7 text-ink group-hover:text-signal">
                           {p.name}
                         </h2>
                       </div>
@@ -126,7 +126,7 @@ export default async function AllProjectsPage() {
                       href={"/projects/" + p.id + "?space=record"}
                       className="flex flex-1 items-center justify-between gap-4 p-5 text-sm text-ink-2"
                     >
-                      <span>{p.name}</span>
+                      <span className="ac-project-title">{p.name}</span>
                       <span className="text-xs text-ink-3">查看成果 →</span>
                     </Link>
                     {memberships.find(m => m.teamId === p.teamId)?.role === "admin" && <DeleteProjectButton projectId={p.id} projectName={p.name} />}

@@ -4,7 +4,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-5 py-10 lg:grid-cols-2 lg:gap-20 lg:px-10">
+    <div className="ac-auth-shell mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-5 py-10 lg:grid-cols-2 lg:gap-20 lg:px-10">
       <aside className="space-y-7 lg:pr-8">
         <p className="text-base font-semibold tracking-tight text-signal">
           AgileCampus

@@ -42,18 +42,12 @@ export default async function ProjectLayout({
         </div>
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            <h1 className="ac-project-title text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
               {project.name}
             </h1>
-            <p className="mt-3 text-sm text-ink-3">
-              {next
-                ? `下一里程碑：${next.title}${next.targetDate ? `，${next.targetDate}` : ""}`
-                : role === "admin"
-                  ? "规划与分工，推进每一轮交付。"
-                  : role === "teacher"
-                    ? "从成果证据出发，给出审核与指导。"
-                    : "明确完成要求，接下任务并交付成果。"}
-            </p>
+            {next && <p className="mt-3 text-sm text-ink-3">
+              下一里程碑：{next.title}{next.targetDate && `，${next.targetDate}`}
+            </p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {actualRole === "admin" && <ProjectViewSwitch projectId={projectId} view={role} selection={perspective.selection} members={perspective.members} leaderName={session.user.name ?? "组长"} />}

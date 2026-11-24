@@ -90,7 +90,7 @@ export async function StudioSpace({
 
     return (
       <div data-tour="ai-workspace" className="space-y-3">
-        <header><h2 className="text-lg font-semibold text-ink">AI 助手</h2><p className="mt-1 text-sm text-ink-3">围绕项目和任务展开对话。</p></header>
+        <h2 className="text-lg font-semibold text-ink">AI 助手</h2>
         {selectedTaskId && <Link href={`/projects/${projectId}?space=work&task=${selectedTaskId}`} className="ac-btn-ghost min-h-8 px-2.5 text-xs text-ink-2">返回任务</Link>}
         <ChatPanel
           key={`${selectedTaskId ?? "project"}:${selected?.id ?? "new"}`}

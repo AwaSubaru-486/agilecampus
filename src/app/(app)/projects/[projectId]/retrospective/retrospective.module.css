@@ -43,12 +43,12 @@
 .heroTitle { min-width: 0; }
 .heroTitle h2 {
   overflow-wrap: anywhere;
+  font-family: var(--font-sans);
   font-size: clamp(33px, 5.2vw, 73px);
   font-weight: 900;
   letter-spacing: -.085em;
   line-height: 1.05;
 }
-.heroTitle p { max-width: 28rem; margin-top: 14px; color: #363d35; font-size: clamp(13px, 1.3vw, 16px); font-weight: 550; line-height: 1.75; }
 .heroArtwork {
   position: relative;
   overflow: hidden;
@@ -72,7 +72,7 @@
 .metrics > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; padding: 8px clamp(9px, 1.6vw, 20px) 10px; }
 .metrics > div + div { border-left: 1px solid #a6a771; }
 .metrics dt { color: #3c432e; font-size: 12px; font-weight: 650; }
-.metrics dd { order: -1; overflow-wrap: anywhere; font-size: clamp(22px, 3.4vw, 40px); font-weight: 850; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.metrics dd { order: -1; overflow-wrap: anywhere; font-family: var(--font-data); font-size: clamp(22px, 3.4vw, 40px); font-weight: 850; line-height: 1.05; font-variant-numeric: tabular-nums; }
 
 .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .steps a {
@@ -106,7 +106,7 @@
   box-shadow: 0 3px 0 #191b2d0d;
 }
 .panelHeader { margin-bottom: 14px; }
-.panelHeader h3 { font-size: clamp(18px, 2vw, 24px); font-weight: 800; letter-spacing: -.045em; }
+.panelHeader h3 { font-family: var(--font-display); font-size: clamp(18px, 2vw, 24px); font-weight: 800; letter-spacing: -.045em; }
 .muted { margin-top: 4px; color: var(--review-copy); font-size: 14px; line-height: 1.7; }
 .deliveryPanel { border-top: 4px solid var(--review-purple); }
 .selector { display: flex; align-items: center; gap: 7px; max-width: 100%; color: var(--review-copy); font-size: 12px; font-weight: 600; }
@@ -201,7 +201,6 @@
   .hero { margin-right: 4px; border-radius: 15px; box-shadow: 3px 4px 0 var(--review-ink); }
   .heroBody { grid-template-columns: 1fr; }
   .heroTitle h2 { font-size: clamp(30px, 9vw, 49px); }
-  .heroTitle p { margin-top: 8px; }
   .heroArtwork { aspect-ratio: 2.1; transform: none; box-shadow: 3px 3px 0 var(--review-ink); }
   .steps { gap: 6px; }
   .steps span { font-size: 14px; }

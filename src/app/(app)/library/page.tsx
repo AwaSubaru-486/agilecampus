@@ -29,7 +29,7 @@ export default async function LibraryPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-xs text-ink-3">{project.teamName}{project.status === "archived" && " · 已归档"}</p>
-                    <h2 className="mt-2 break-words text-lg font-semibold text-ink group-hover:text-signal">{project.name}</h2>
+                    <h2 className="ac-project-title mt-2 break-words text-lg font-semibold text-ink group-hover:text-signal">{project.name}</h2>
                   </div>
                   <span aria-hidden className="shrink-0 text-signal">↗</span>
                 </div>

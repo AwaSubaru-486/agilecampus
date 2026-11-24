@@ -127,7 +127,6 @@ function ReflectionWorkspace({ projectId, projectName, draftKey, showScopeSwitch
       <div className={styles.heroBody}>
         <div className={styles.heroTitle}>
           <h2>{personal ? "我的任务复盘" : "团队复盘"}</h2>
-          <p>选一项交付，对照反馈，写下一件下次可以先做的事。</p>
         </div>
         <div className={styles.heroArtwork} aria-hidden="true">
           <Image src="/retrospective-cover.webp" alt="" fill loading="eager" fetchPriority="high"

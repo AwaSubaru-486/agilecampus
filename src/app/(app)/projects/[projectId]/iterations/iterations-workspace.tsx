@@ -70,10 +70,9 @@ export function IterationsWorkspace({ projectId, iterations, outcomes, canManage
         {current && <span className={styles.workbenchVersion}>{current.version}</span>}
         <span className={styles.workbenchChevron} aria-hidden>⌄</span>
       </summary>
-      <header className={styles.workbenchIntro}>
-        <p className={styles.muted}>{canManage ? "保存版本时会自动收录待归档成果，也可手动补充模块。" : "查看当前开发版本的模块和工作断点。"}</p>
-        {canManage && latest && current && current.baseIterationId !== latest.id && <button className="ac-btn-ghost" disabled={pending} onClick={() => resume(latest.id)}>接着 {latest.version} 继续开发</button>}
-      </header>
+      {canManage && latest && current && current.baseIterationId !== latest.id && <div className={styles.workbenchActions}>
+        <button className="ac-btn-ghost" disabled={pending} onClick={() => resume(latest.id)}>接着 {latest.version} 继续开发</button>
+      </div>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
       {upcoming.length > 1 && <nav className={styles.draftTabs} aria-label="未保存的开发版本">{upcoming.map(item => <button key={item.id} aria-pressed={current?.id === item.id} onClick={() => { if (!dirty || window.confirm("工作断点尚未保存，仍要切换版本吗？")) setSelectedId(item.id); }}>{item.version} · {item.title}</button>)}</nav>}
       {current ? <DevelopmentWorkspace key={`${current.id}:${current.updatedAt}`} projectId={projectId} current={current} iterations={iterations} outcomes={outcomes} canManage={canManage} onDirty={setDirty} saved={() => router.refresh()} />

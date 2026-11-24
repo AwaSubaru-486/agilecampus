@@ -59,7 +59,7 @@ export default async function TimelinePage({ params }: { params: Promise<{ proje
   const currentTasks = tree.tasks.filter(task => current && task.stageId === current.id && !task.isTaskGroup);
   const complete = currentTasks.filter(task => task.status === "done").length;
   return <main data-tour="timeline" className="space-y-6">
-    <header><h2 className="text-xl font-semibold text-ink">时间线</h2><p className="mt-2 text-sm text-ink-3">查看当前阶段进度和项目任务树，点击任务打开详情。</p></header>
+    <h2 className="text-xl font-semibold text-ink">时间线</h2>
     <section data-tour="stage-progress" aria-label="项目阶段进度" className="grid gap-px overflow-hidden border border-stroke bg-stroke sm:grid-cols-3">
       <div className="bg-panel p-4"><p className="text-xs text-ink-3">当前阶段</p><p className="mt-2 font-semibold">{current?.title ?? (tree.stages.length ? "全部阶段已完成" : "等待规划")}</p><p className="mt-1 text-xs text-ink-3">{current?.status === "integrating" ? "待集成审核" : current ? "执行中" : "暂无执行中的阶段"}</p></div>
       <div className="bg-panel p-4"><p className="text-xs text-ink-3">当前阶段任务验收进度</p><p className="mt-2 text-xl tabular-nums">{complete}<span className="text-sm text-ink-3"> / {currentTasks.length}</span></p><progress aria-label="当前阶段已验收任务比例" className="mt-2 h-1.5 w-full accent-[var(--color-signal)]" value={complete} max={currentTasks.length || 1} /></div>

@@ -4,7 +4,7 @@ import { IntegrationReviewForm, IntegrationSubmitForm } from "../task-tree/task-
 export async function StageIntegrationPanel({ actorId, viewUserId = actorId, projectId, role, canAct = true }: { actorId: string; viewUserId?: string; projectId: string; role: "admin" | "teacher"; canAct?: boolean }) {
   const tree = await getTaskTree(actorId, projectId);
   const stages = tree.stages.filter(stage => role === "teacher" ? stage.status === "integrating" || tree.integrations.some(item => item.stageId === stage.id) : stage.status !== "locked");
-  return <section data-tour="stage-tasks" className="space-y-4" aria-label="阶段集成审核"><header><h2 className="text-lg font-semibold">阶段集成审核</h2><p className="mt-1 text-sm text-ink-3">在同一工作区检查任务成果和阶段集成材料。</p></header>
+  return <section data-tour="stage-tasks" className="space-y-4" aria-label="阶段集成审核"><h2 className="text-lg font-semibold">阶段集成审核</h2>
     {!stages.length && <p className="border border-stroke p-6 text-sm text-ink-3">暂无阶段集成提交。组长提交后会显示在这里。</p>}
     {stages.map(stage => { const integration = tree.integrations.find(item => item.stageId === stage.id); const leaves = tree.tasks.filter(task => task.stageId === stage.id && !task.isTaskGroup); const pendingTasks = leaves.filter(task => task.status !== "done").length; const missing = leaves.filter(task => !tree.deliveries.some(item => item.taskId === task.id)).length;
       return <article id={`stage-${stage.id}`} key={stage.id} className="ac-card p-5"><h3 className="font-semibold">阶段 {tree.stages.findIndex(item => item.id === stage.id) + 1}：{stage.title}</h3>

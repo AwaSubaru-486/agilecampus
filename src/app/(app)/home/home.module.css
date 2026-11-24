@@ -63,6 +63,7 @@
 @keyframes pet-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
 .gardenCard{background:var(--color-panel);border:1px solid var(--color-stroke);border-radius:var(--radius-panel);overflow:hidden;box-shadow:var(--shadow-panel)}
 .sceneHeader{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 24px;border-bottom:1px solid var(--color-stroke)}
+.officeToolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:8px clamp(12px,2vw,24px);border-bottom:1px solid var(--color-stroke)}
 .sceneHeader>div>p{font-size:12px;color:var(--color-ink-3);margin-bottom:5px}
 .sceneHeader h2{font-size:18px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
 .pill{display:flex;align-items:center;gap:6px;font-size:11px;white-space:nowrap;color:var(--color-signal);background:var(--color-signal-soft);padding:5px 10px;border-radius:6px}
@@ -105,12 +106,12 @@
 @keyframes projectile-receive{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.scene>svg.projectileLayer{display:none}}
 .interactionReceipt{position:absolute;top:4%;left:50%;transform:translateX(-50%);z-index:35;max-width:85%;padding:9px 14px;border:1px solid var(--color-signal-ring);border-radius:12px;background:var(--color-panel);color:var(--color-signal);font-size:clamp(11px,1vw,14px);box-shadow:var(--shadow-panel);pointer-events:none;text-align:center}
-.interactionEmoji{position:absolute;top:4%;left:65%;z-index:6;font-size:clamp(18px,2vw,30px);pointer-events:none;animation:pet-hello .5s ease-in-out 2,interaction-icon-exit .12s ease-out .88s forwards}
 @media(max-width:640px){
   .taskBoardTrigger{left:8%;top:19%;z-index:21}
   .scene:has(>.taskBoardTrigger)>.sceneLabel{display:none}
   .interactionReceipt{left:auto;right:5%;max-width:52%;transform:none;padding:6px 8px}
 }
+.interactionEmoji{position:absolute;top:4%;left:65%;z-index:6;font-size:clamp(18px,2vw,30px);pointer-events:none;animation:pet-hello .5s ease-in-out 2,interaction-icon-exit .12s ease-out .88s forwards}
 @keyframes interaction-icon-exit{to{opacity:0;visibility:hidden}}
 @media(prefers-reduced-motion:reduce){.interactionEmoji{display:none}}
 @keyframes pet-hello{0%,100%{transform:rotate(0)}35%{transform:rotate(-5deg)}70%{transform:rotate(5deg)}}
@@ -139,12 +140,9 @@
 .moonlight>svg{filter:brightness(.94) hue-rotate(10deg)}
 .sceneLabel{position:absolute;top:6%;left:5%;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-ink-3);z-index:1;pointer-events:none}.sceneLabel svg{width:14px;height:14px}
 .moonlight .sceneLabel,.moonlight .sceneLabel span{color:#637887}
-.furniture{position:absolute;width:10%;aspect-ratio:100/110;transform:translate(-50%,-78%);padding:0;border:1px solid transparent;border-radius:10px;cursor:pointer;touch-action:manipulation}
+.furniture{position:absolute;width:10%;aspect-ratio:100/110;transform:translate(-50%,-78%);padding:0;border:1px solid transparent;pointer-events:none}
 .furniture>span{display:block;width:100%;height:100%}
-.furniture svg{width:100%;height:100%;pointer-events:none;filter:drop-shadow(0 4px 2px #5b735510);transition:filter .2s}
-.furniture:hover svg{filter:drop-shadow(0 4px 3px #5b735540)}
-.editing .furniture{cursor:grab;background:#ffffff15}
-.furniture.selected{border:1px dashed #426d4e;background:#ffffef55;box-shadow:0 0 0 3px #ffffff55}
+.furniture svg{width:100%;height:100%;filter:drop-shadow(0 4px 2px #5b735510)}
 .grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));position:absolute;left:8%;top:50.6%;width:80%;height:40.8%;z-index:1;transform:translateY(-1%);background:#ffffef18;border:1px dashed #6a8f6755;border-radius:6px}
 .grid button{border:1px solid #70965f33;cursor:crosshair;min-width:0;min-height:0}
 .grid button:hover,.grid button:focus-visible{background:#fff5bb99;outline:2px solid #4f7e58;outline-offset:-2px}
