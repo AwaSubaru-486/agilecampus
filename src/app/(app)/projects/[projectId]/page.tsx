@@ -13,7 +13,7 @@ import { RecordSpace } from "./_record/record-space";
 import { ProjectOffice } from "./_shared/project-office";
 import { ProjectRoleHome } from "./_shared/project-role-home";
 import { ProjectDeadlineWarning } from "./_shared/project-deadline-warning";
-import { isProjectHome } from "@/lib/project-role-workspace";
+import { isProjectHome, projectTaskScope } from "@/lib/project-role-workspace";
 
 // 项目页：四个互斥模式。
 //
@@ -54,11 +54,7 @@ export default async function ProjectPage({
   const { project } = access;
   const actorId = session.user.id;
   const { role, viewUserId, preview } = await getProjectPerspective(access.role, projectId, actorId, project.teamId);
-  const deadlineWarning = role !== "teacher" && project.status === "active" && (
-    <ProjectDeadlineWarning actorId={actorId} projectId={projectId} viewMemberId={role === "student" ? viewUserId : undefined} />
-  );
   if (isProjectHome(sp)) return <div className="space-y-4">
-    {deadlineWarning}
     {(role === "admin" || role === "teacher") && sp.view === "manage"
       ? <ProjectRoleHome actorId={actorId} viewUserId={viewUserId} projectId={projectId} role={role} />
       : <ProjectOffice actorId={actorId} viewUserId={viewUserId} projectId={projectId} teamId={project.teamId} name={project.name} canAct={!preview} />}
@@ -80,6 +76,8 @@ export default async function ProjectPage({
   if (space === "record" && role === "student") redirect(`/projects/${projectId}`);
 
   const canWrite = role === "admin" || role === "student";
+  const showDeadlineWarning = space === "work" && project.status === "active" &&
+    projectTaskScope(role, normalized.scope ?? null) === "mine";
 
 
   // 接力链只在现场模式需要，按需加载。
@@ -95,7 +93,7 @@ export default async function ProjectPage({
 
   return (
     <div className="space-y-4">
-      {space === "work" && deadlineWarning}
+      {showDeadlineWarning && <ProjectDeadlineWarning actorId={actorId} projectId={projectId} viewMemberId={viewUserId} />}
 
       {space === "live" && (
         <LiveSpace

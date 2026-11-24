@@ -1,14 +1,14 @@
 import Link from "@/components/feedback-link";
 import { DUE_SOON_DAYS } from "@/lib/action-queue";
 import { listProjectDeadlineWarnings } from "@/lib/project-deadlines";
-import { isInReview, statusLabel } from "@/lib/task-status";
+import { statusLabel } from "@/lib/task-status";
 
 type DeadlineTask = Awaited<ReturnType<typeof listProjectDeadlineWarnings>>[number];
 
 export async function ProjectDeadlineWarning({ actorId, projectId, viewMemberId }: {
   actorId: string;
   projectId: string;
-  viewMemberId?: string;
+  viewMemberId: string;
 }) {
   const warnings = await listProjectDeadlineWarnings(actorId, projectId, { viewMemberId });
   if (warnings.length === 0) return null;
@@ -27,26 +27,24 @@ export async function ProjectDeadlineWarning({ actorId, projectId, viewMemberId 
           {dueSoon > 0 && <span className="text-warn">{dueSoon} 项 {DUE_SOON_DAYS} 天内到期</span>}
         </p>
       </header>
-      <DeadlineList projectId={projectId} tasks={initial} ownTasks={Boolean(viewMemberId)} />
+      <DeadlineList projectId={projectId} tasks={initial} />
       {more.length > 0 && <details className="mt-2 border-t border-stroke pt-2">
         <summary className="cursor-pointer text-sm font-medium text-signal">查看其余 {more.length} 项</summary>
-        <DeadlineList projectId={projectId} tasks={more} ownTasks={Boolean(viewMemberId)} />
+        <DeadlineList projectId={projectId} tasks={more} />
       </details>}
     </section>
   );
 }
 
-function DeadlineList({ projectId, tasks, ownTasks }: { projectId: string; tasks: DeadlineTask[]; ownTasks: boolean }) {
+function DeadlineList({ projectId, tasks }: { projectId: string; tasks: DeadlineTask[] }) {
   return (
     <ul className="mt-2 divide-y divide-stroke">
       {tasks.map(task => {
         const late = task.daysRemaining < 0;
-        const review = isInReview(task.status);
-        const scope = ownTasks ? "mine" : review ? "review" : "all";
         const timing = late ? `已逾期 ${-task.daysRemaining} 天` : task.daysRemaining === 0 ? "今天截止" : `${task.daysRemaining} 天后截止`;
         return (
           <li key={task.id}>
-            <Link href={`/projects/${projectId}?space=work&scope=${scope}&panel=list&task=${task.id}`} prefetch={false}
+            <Link href={`/projects/${projectId}?space=work&scope=mine&panel=list&task=${task.id}`} prefetch={false}
               className="group flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg px-1 py-2 focus-visible:outline-2 focus-visible:outline-signal sm:flex-nowrap">
               <div className="min-w-0">
                 <p className="break-words text-sm font-medium text-ink group-hover:underline group-hover:underline-offset-4">{task.title}</p>
