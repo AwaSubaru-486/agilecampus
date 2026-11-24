@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { emptyDraftPlan, removePlannedTask, validateDraftPlan } from "@/lib/draft-planning";
-import { directPlanningLinks, layoutTechTree } from "@/lib/tech-tree-layout";
+import { directPlanningLinks, layoutTechTree, techTreeLinkPath } from "@/lib/tech-tree-layout";
 import type { TaskTreePayload } from "@/lib/task-tree";
+
+it("keeps clear timeline links and routes longer links around intervening tasks", () => {
+  const from = { x: 46, y: 88 };
+  const adjacent = { x: 376, y: 88 };
+  const to = { x: 706, y: 88 };
+  expect(techTreeLinkPath(from, adjacent, [from, adjacent])).toBe("M 298 146 H 337 V 146 H 376");
+  expect(techTreeLinkPath(from, to, [from, to])).toBe("M 298 146 H 502 V 146 H 706");
+  expect(techTreeLinkPath(from, to, [from, adjacent, to])).toBe("M 298 146 H 312 V 74 H 692 V 146 H 706");
+});
 
 function scene() {
   const task = (key: string) => ({ key, title: key, parentKey: null, description: "", assigneeId: null, priority: "medium" as const, doneCriteria: ["结果可检查"] });

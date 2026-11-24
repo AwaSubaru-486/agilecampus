@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, useDraggable, useDroppable, pointerWithin, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { type DraftTask, type StagePlan } from "@/lib/draft-planning";
-import { directPlanningLinks, layoutTechTree, type TreeSection } from "@/lib/tech-tree-layout";
+import { directPlanningLinks, layoutTechTree, techTreeLinkPath, type TreeSection } from "@/lib/tech-tree-layout";
 
 type Point = { x: number; y: number };
 type TreeProps = {
@@ -51,6 +51,8 @@ export function DraftTechTree(props: TreeProps) {
   const orderedTasks = props.plan.links.map(link => props.tasks.find(task => task.key === link.key)!).filter(Boolean);
   const { positions, bands, width, height } = useMemo(() => layoutTechTree(props.tasks, props.plan, props.sections ?? [{ title: "任务编排", keys: props.tasks.map(task => task.key) }]), [props.tasks, props.plan, props.sections]);
   const drawingPlan = directPlanningLinks(props.plan);
+  const obstacles = props.readOnly ? [...positions.values()] : [];
+  const drawingLinks = drawingPlan.links.flatMap(link => link.afterKeys.map(before => ({ before, after: link.key })));
   const focusLeft = props.focusStage === undefined ? undefined : bands[props.focusStage]?.left;
   useEffect(() => {
     if (focusLeft !== undefined) viewport.current?.scrollTo({ left: Math.max(0, focusLeft * zoom), top: 0, behavior: "smooth" });
@@ -79,12 +81,11 @@ export function DraftTechTree(props: TreeProps) {
             {bands.map((band, index) => <div key={index} className="ac-tech-stage-band" style={{ left: band.left + 20, width: band.right - band.left - 40 }}><span>{props.sections ? `阶段 ${index + 1}` : "任务编排"}</span><strong>{band.title}</strong></div>)}
             <svg width={width} height={height} className="ac-tech-lines" aria-hidden="true">
               {bands.slice(1).map(band => <line key={band.left} className="ac-tech-stage-divider" x1={band.left + 7} x2={band.left + 7} y1={18} y2={height - 18} />)}
-              {drawingPlan.links.flatMap(link => link.afterKeys.map(before => {
-                const start = positions.get(before), finish = positions.get(link.key);
+              {drawingLinks.map(({ before, after }, lane) => {
+                const start = positions.get(before), finish = positions.get(after);
                 if (!start || !finish) return null;
-                const mid = (start.x + 252 + finish.x) / 2;
-                return <path key={`${before}-${link.key}`} d={`M ${start.x + 252} ${start.y + 58} H ${mid} V ${finish.y + 58} H ${finish.x}`} />;
-              }))}
+                return <path key={`${before}-${after}`} d={techTreeLinkPath(start, finish, obstacles, lane)} />;
+              })}
               {props.tasks.filter(task => task.parentKey).map(task => {
                 const start = positions.get(task.parentKey!), finish = positions.get(task.key);
                 if (!start || !finish) return null;
