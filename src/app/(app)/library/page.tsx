@@ -1,254 +1,44 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { projectEntries, projects, teamMembers, users } from "@/db/schema";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
-import { ENTRY_LABEL, type EntryType } from "@/lib/entry-labels";
+import { listRetrospectiveProjects } from "@/lib/project-retrospective";
 
-// 资料库：跨项目的成果与文档。
-//
-// 需求文档的痛点是「成果散落在不同工具中」——散在**不同项目里**
-// 也是散。团队做完一个项目，代码仓库和答辩材料就沉在那个项目页底部，
-// 下个项目又要从头找。这一页把它们拉到一处。
-//
-// 只收成果与文档。老师反馈不进这里——那是针对某个项目的意见，
-// 脱离了那个项目就没有意义。
-export default async function LibraryPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ type?: string }>;
-}) {
+export const metadata = { title: "项目复盘 · AgileCampus" };
+
+export default async function LibraryPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-
-  const sp = searchParams ? await searchParams : {};
-  const selectedType = sp.type === "deliverable" || sp.type === "doc" ? sp.type : "all";
-
-  const memberships = await db
-    .select({ teamId: teamMembers.teamId })
-    .from(teamMembers)
-    .where(eq(teamMembers.userId, session.user.id));
-  const teamIds = memberships.map((m) => m.teamId);
-
-  if (teamIds.length === 0) {
-    return (
-      <div data-tour="library" className="mx-auto max-w-[70rem]">
-        <LibraryHeader total={0} deliverableCount={0} docCount={0} activeType="all" />
-        <div className="grid border-b border-stroke py-12 lg:grid-cols-[12rem_minmax(0,1fr)]">
-          <p className="text-xs text-ink-3">当前范围</p>
-          <p className="text-sm text-ink-2">你还没有加入任何团队，暂无可查看的项目资料。</p>
-        </div>
-      </div>
-    );
-  }
-
-  const rows = await db
-    .select({
-      id: projectEntries.id,
-      type: projectEntries.type,
-      title: projectEntries.title,
-      content: projectEntries.content,
-      url: projectEntries.url,
-      projectId: projects.id,
-      projectName: projects.name,
-      authorName: users.name,
-      createdAt: projectEntries.createdAt,
-    })
-    .from(projectEntries)
-    .innerJoin(projects, eq(projectEntries.projectId, projects.id))
-    .leftJoin(users, eq(projectEntries.authorId, users.id))
-    .where(and(inArray(projects.teamId, teamIds), ne(projectEntries.type, "feedback")))
-    .orderBy(desc(projectEntries.createdAt))
-    .limit(200);
-
-  const deliverables = rows.filter((r) => r.type === "deliverable");
-  const docs = rows.filter((r) => r.type === "doc");
-
-  const displayRows =
-    selectedType === "deliverable"
-      ? deliverables
-      : selectedType === "doc"
-        ? docs
-        : rows;
+  const projects = await listRetrospectiveProjects(session.user.id);
 
   return (
-    <div data-tour="library" className="mx-auto max-w-[74rem] space-y-2">
-      <LibraryHeader
-        total={rows.length}
-        deliverableCount={deliverables.length}
-        docCount={docs.length}
-        activeType={selectedType}
-      />
-
-      {rows.length === 0 ? (
-        <div className="grid border-b border-stroke py-16 lg:grid-cols-[12rem_minmax(0,1fr)]">
-          <p className="text-sm text-ink-3">还没有归档</p>
-          <div>
-            <p className="max-w-lg font-display text-xl font-semibold leading-8 text-ink">暂无项目资料</p>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-ink-2">在项目的成果空间添加文档或成果文件后，它们会出现在这里。</p>
-          </div>
-        </div>
+    <div data-tour="library" className="mx-auto max-w-6xl">
+      <header className="ac-page-header">
+        <h1>项目复盘</h1>
+        <p>选择一个项目，回看交付和验收意见，写下下一次要试的做法。</p>
+      </header>
+      {projects.length === 0 ? (
+        <section className="ac-card px-6 py-12 text-center">
+          <h2 className="text-lg font-semibold text-ink">暂无可复盘的项目</h2>
+          <p className="mt-2 text-sm text-ink-3">加入项目后，可以从这里回看自己的交付。</p>
+        </section>
       ) : (
-        <ArchiveLedger rows={displayRows} totalCount={rows.length} activeType={selectedType} />
+        <ul className="grid gap-4 lg:grid-cols-2" aria-label="可查看复盘的项目">
+          {projects.map(project => (
+            <li key={project.id}>
+              <Link href={`/projects/${project.id}/retrospective`} prefetch={false} className="ac-project-card group h-full">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs text-ink-3">{project.teamName}{project.status === "archived" && " · 已归档"}</p>
+                    <h2 className="mt-2 break-words text-lg font-semibold text-ink group-hover:text-signal">{project.name}</h2>
+                  </div>
+                  <span aria-hidden className="shrink-0 text-signal">↗</span>
+                </div>
+                <span className="mt-5 block text-sm font-medium text-signal">{project.role === "student" ? "回看我的任务" : "查看项目复盘"}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
-}
-
-function LibraryHeader({
-  total,
-  deliverableCount,
-  docCount,
-  activeType,
-}: {
-  total: number;
-  deliverableCount: number;
-  docCount: number;
-  activeType: "all" | "deliverable" | "doc";
-}) {
-  return (
-    <header className="ac-page-header">
-      <h1>资料库</h1>
-      <p>按成果或过程文档查找项目资料，回到来源项目继续协作。</p>
-      <nav aria-label="资料类型" className="ac-view-switch">
-        {[{type:"all", label:"全部资料", count:total}, {type:"deliverable", label:"交付成果", count:deliverableCount}, {type:"doc", label:"过程文档", count:docCount}].map(item => <Link key={item.type} href={item.type === "all" ? "/library" : `/library?type=${item.type}`} aria-current={activeType === item.type ? "page" : undefined}>{item.label} <span className="ml-2 tabular-nums text-ink-3">{item.count}</span></Link>)}
-      </nav>
-    </header>
-  );
-}
-
-type Row = {
-  id: string;
-  type: EntryType;
-  title: string;
-  content: string | null;
-  url: string | null;
-  projectId: string;
-  projectName: string;
-  authorName: string | null;
-  createdAt: Date;
-};
-
-function ArchiveLedger({
-  rows,
-  totalCount,
-  activeType,
-}: {
-  rows: Row[];
-  totalCount: number;
-  activeType: "all" | "deliverable" | "doc";
-}) {
-  return (
-    <section className="grid lg:grid-cols-[12rem_minmax(0,1fr)]">
-      <aside className="border-b border-stroke py-6 lg:border-b-0 lg:border-r lg:py-8 lg:pr-7">
-        <p className="text-xs font-medium tracking-[0.08em] text-ink-3">筛选</p>
-        <div className="mt-6 hidden space-y-2 border border-stroke bg-sunken px-3 py-2 text-xs leading-5 text-ink-3 lg:block">
-          <p className="flex items-center gap-2">
-            <span className="inline-block h-0.5 w-4 bg-human" />
-            <span>可交付成果</span>
-          </p>
-          <p className="flex items-center gap-2">
-            <span className="inline-block h-0.5 w-4 bg-ink-3" />
-            <span>过程文档</span>
-          </p>
-        </div>
-      </aside>
-
-      <div className="lg:pl-9">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke py-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-ink">
-              {activeType === "deliverable"
-                ? "成果"
-                : activeType === "doc"
-                  ? "过程文档"
-                  : "全部资料"}
-            </h2>
-            <span className="font-mono text-xs text-ink-3">({rows.length})</span>
-          </div>
-          {activeType !== "all" && (
-            <Link
-              href="/library"
-              className="rounded-[var(--radius-control)] text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-            >
-              清除筛选，查看全部 {totalCount} 项 →
-            </Link>
-          )}
-        </header>
-
-        {rows.length === 0 ? (
-          <div className="py-12 text-center text-sm text-ink-3">
-            <p>该分类下暂无归档记录。</p>
-            <Link
-              href="/library"
-              className="mt-2 inline-block rounded-[var(--radius-control)] text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-            >
-              查看全部记录 →
-            </Link>
-          </div>
-        ) : (
-          <ol className="divide-y divide-stroke">
-            {rows.map((r) => (
-              <li
-                key={r.id}
-                className="group grid gap-3 py-5 transition-colors hover:bg-sunken/30 sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:gap-5"
-              >
-                <div className="pt-1 text-xs text-ink-3">
-                  <time dateTime={r.createdAt.toISOString()} className="block tabular-nums">
-                    {formatArchiveDate(r.createdAt)}
-                  </time>
-                  <span
-                    className={`mt-2 block h-0.5 w-8 rounded-full ${
-                      r.type === "deliverable" ? "bg-human" : "bg-ink-3"
-                    }`}
-                    aria-hidden
-                  />
-                  <span className="mt-1.5 block font-medium text-ink-2">{ENTRY_LABEL[r.type]}</span>
-                </div>
-                <div className="min-w-0 sm:grid sm:grid-cols-[minmax(0,1fr)_10.5rem] sm:gap-6">
-                  <div>
-                    {r.url ? (
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline text-base font-semibold leading-7 text-ink underline decoration-stroke-strong underline-offset-4 transition-colors hover:text-signal hover:decoration-signal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal rounded-[var(--radius-control)]"
-                      >
-                        {r.title}
-                        <span aria-hidden className="ml-1 text-xs text-ink-3">↗</span>
-                      </a>
-                    ) : (
-                      <span className="text-base font-semibold leading-7 text-ink">{r.title}</span>
-                    )}
-                    {r.content && (
-                      <p className="mt-1.5 max-w-2xl text-sm leading-6 text-ink-2">{r.content}</p>
-                    )}
-                    <p className="mt-2.5 font-mono text-[11px] text-ink-3">
-                      <span>ID {r.id.slice(0, 8).toUpperCase()}</span>
-                      {r.authorName && <span className="ml-3">记录人：{r.authorName}</span>}
-                    </p>
-                  </div>
-                  <div className="mt-2 sm:mt-0 sm:pt-1">
-                    <Link
-                      href={`/projects/${r.projectId}?space=record`}
-                      aria-label={`返回项目：${r.projectName}`}
-                      className="inline-block rounded-[var(--radius-control)] text-xs leading-5 text-ink-3 underline decoration-transparent underline-offset-4 transition-colors hover:text-ink hover:decoration-ink-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-                    >
-                      返回项目
-                      <br className="hidden sm:block" /> {r.projectName} →
-                    </Link>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function formatArchiveDate(date: Date) {
-  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(date).replace("/", ".");
 }

@@ -146,12 +146,12 @@ export function TopWorkbar({
               <span>我的团队</span>
             </Link>
             <Link
-              className="ac-nav-item"
+              className={"ac-nav-item " + (pathname === "/library" ? "is-active" : "")}
               href="/library"
               aria-current={pathname === "/library" ? "page" : undefined}
             >
               <WorkspaceIcon name="projects" />
-              <span>资料库</span>
+              <span className={collapsed ? "sr-only" : ""}>项目复盘</span>
             </Link>
           </div>
         </nav>

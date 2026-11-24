@@ -60,7 +60,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("progress", "找到当前阶段", "进度区显示当前阶段、已验收任务与待处理事项。任务验收和阶段集成是两个不同的关口。", `${base}/timeline`, "stage-progress"),
       step("stage", "切换一个阶段", "点击高亮阶段导航，跳到对应任务。下一阶段只有在集成审核通过后才会解锁。", `${base}/timeline`, "stage-link", "click"),
       step("handoff", "查看执行与交接资料", "在执行台查看任务契约、运行记录与交接材料。分支信息是登记材料，网页不会自动合并代码。", work, "execution-console"),
-      step("retrospective", "用过程记录复盘", "这里汇总交付、验收、求助与成员贡献。没有活动记录时会显示空状态；数据只反映已登记的过程。", `${base}/retrospective`, "retrospective"),
+      step("retrospective", "回看任务交付", "选择一项交付，结合验收意见写下有效做法和下次要试的改进。", `${base}/retrospective`, "retrospective"),
       step("activity", "追溯具体动作", "活动流按时间记录提交、审核、复核等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
     ] },
     { id: "ai", roles: ["admin", "student"], title: "AI 协作与会话分支", category: "协作与沉淀", needsProject: true, description: "进入项目对话，认识共享会话和人工确认。", steps: [
@@ -77,7 +77,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     { id: "records", roles: ["admin", "teacher"], title: "证据、决策与项目档案", category: "协作与沉淀", needsProject: true, description: "把成果和评审留在可追溯的项目记录中。", steps: [
       step("record", "进入成果记录", "点击成果记录，查看项目文档、交付材料与老师反馈。", work, "nav-record", "click"),
       step("archive", "认识项目档案", "高亮区域汇集成果、证据与决策。需要提交材料时使用页面上的实际操作。", `${base}?space=record`, "project-records"),
-      step("library", "查看跨项目资料", "资料库汇集可访问的工程资料，便于查找已有上下文。", "/library", "library"),
+      step("library", "按项目查看复盘", "从项目复盘选择一个项目，查看其成果与验收报告。", "/library", "library"),
     ] },
     { id: "timeline", title: "时间线与任务树", category: "项目管理", needsProject: true, description: "查看当前阶段进度、任务依赖和并行分支。", steps: [step("timeline", "看一次项目时间线", "在高亮时间线中查看当前阶段进度和任务树，完成任务显示绿色，点击节点打开详情。", `${base}/timeline`, "timeline")] },
     { id: "risks", title: "风险、求助与协作中心", category: "项目管理", description: "找到风险与求助入口，及时向团队说明阻塞。", steps: [
@@ -110,5 +110,5 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     id:"welcome",title:"跟着汪汪队认识敏捷开发平台",category:"推荐起点",needsProject:true,description:"以现有项目展示成员分工、阶段任务、时间线、三角色界面与成果验收。",
     steps:buildWelcomeSteps(journey.projectId ? journey : project ? {version:6,teamId:project.teamId,projectId:project.id,role:project.role} : EMPTY_JOURNEY),
   };
-  return [welcome, ...courses.map(course => course.id === "iterations" && project?.role === "student" ? { ...course, steps: course.steps.filter(step => !step.route.endsWith("/retrospective") && !step.route.endsWith("/activity")) } : course)];
+  return [welcome, ...courses.map(course => course.id === "iterations" && project?.role === "student" ? { ...course, steps: course.steps.filter(step => !step.route.endsWith("/activity")) } : course)];
 }

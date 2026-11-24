@@ -57,7 +57,7 @@ export function AccountMenu({ name }: { name: string }) {
               onClick={() => setOpen(false)}
               className="block rounded-[var(--radius-control)] px-2.5 py-1.5 text-sm text-ink-2 hover:bg-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
             >
-              资料库
+              项目复盘
             </Link>
             <Link
               href="/settings"

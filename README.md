@@ -109,6 +109,12 @@
 
 Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · PostgreSQL 16 + Drizzle ORM · Auth.js v5 (JWT) · Vercel AI SDK v5 (DeepSeek / openai-compatible) · Tailwind CSS v4 · Vitest
 
+## 项目版本迭代
+
+在项目导航点击「迭代」，进入 `/projects/[projectId]/iterations`。页面默认展示最新归档版本，每次选看一项变化，和归档时保存的基准版本对照。版本详情可查看验收依据并跳回来源任务。下方自动读取本项目通过组长验收且待归档的交付说明和链接。组长保存版本时，待归档成果随版本保存为快照，也可手动补充或编辑模块。下一轮沿用基准版本的模块、成果链接和开发备注，可复制开发上下文继续工作。成员和老师可查看。
+
+已有数据库依次执行 `scripts/migrations/2026-11-01-project-iterations.sql`、`scripts/migrations/2026-11-04-iteration-features.sql`、`scripts/migrations/2026-11-04-iteration-workspace.sql` 和 `scripts/migrations/2026-11-18-iteration-outcomes.sql`。验收成果快照从下次保存版本开始记录。新建数据库可使用下方的 `db:push`。
+
 ## 本地启动
 
 ```bash

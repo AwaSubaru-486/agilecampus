@@ -12,8 +12,9 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
   const base = `/projects/${projectId}`;
   const workspace = PROJECT_ROLE_WORKSPACE[role];
   const section =
-    pathname.includes("/task-tree") || pathname.includes("/timeline")
+    pathname.includes("/iterations") ? "versions" : pathname.includes("/task-tree") || pathname.includes("/timeline")
       ? "iterations"
+      : role === "student" && pathname.endsWith("/retrospective") ? "personal-retrospective"
       : pathname.includes("/activity") || pathname.includes("/retrospective")
         ? "record"
         : search.get("space") === "studio"
@@ -36,6 +37,13 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
       title: workspace.work,
       href: `${base}?space=work&scope=mine&panel=list`,
       tour: "nav-work",
+    },
+    ...(role === "student" ? [{ id: "personal-retrospective", title: "任务复盘", href: `${base}/retrospective`, tour: "nav-retrospective" }] : []),
+    {
+      id: "versions",
+      title: "迭代",
+      href: `${base}/iterations`,
+      tour: "nav-versions",
     },
     {
       id: "iterations",
@@ -105,7 +113,7 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
               pathname.endsWith("/retrospective") ? "page" : undefined
             }
           >
-            贡献复盘
+            复盘报告
           </Link>
           <Link
             href={`${base}/activity`}

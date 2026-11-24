@@ -7,6 +7,8 @@ export const TRUNCATED_TABLES = [
   "pet_interactions",
   "desktop_pet_connections",
   "home_profiles",
+  "iteration_tasks",
+  "project_iterations",
   "task_memory_continuations",
   "task_memory_versions",
   "task_handoff_notifications",

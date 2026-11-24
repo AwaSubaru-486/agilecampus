@@ -2,7 +2,7 @@ import { cache } from "react";
 import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { approvalRequests, blockerInvites, blockers, decisions, projects, tasks, teamMembers, users } from "@/db/schema";
-import { buildActionQueue, type RawAction } from "./action-queue";
+import { buildActionQueue, DUE_SOON_DAYS, type RawAction } from "./action-queue";
 import { today } from "./today";
 
 // 行动队列的取数。
@@ -39,7 +39,7 @@ const loadActionQueueRows = cache(async (userId: string): Promise<RawAction[]> =
   const teamIds = memberships.map((m) => m.teamId);
   const reviewerTeamIds = memberships.filter((m) => m.role !== "student").map((m) => m.teamId);
   const day = today();
-  const soon = addDays(day, 3);
+  const soon = addDays(day, DUE_SOON_DAYS);
 
   // 归档项目不再打扰人——它已经结束了。这一条不写会让人被半年前的
   // 逾期任务永久追着跑

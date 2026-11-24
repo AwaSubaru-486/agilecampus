@@ -203,7 +203,7 @@ function EntryItem({ entry, projectId }: { entry: EntryRow; projectId: string })
   const fromTeacher = entry.type === "feedback" && entry.authorRole === "teacher";
 
   return (
-    <li className="px-4 py-3">
+    <li id={`entry-${entry.id}`} className="scroll-mt-20 px-4 py-3 target:bg-signal-soft/40">
       <div className="flex flex-wrap items-baseline gap-2">
         <span className={`ac-badge ${TONE[entry.type]}`}>{ENTRY_LABEL[entry.type]}</span>
         <span className="text-sm font-medium text-ink">

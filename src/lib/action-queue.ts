@@ -75,6 +75,7 @@ export type RawAction = {
 };
 
 export const DEFAULT_QUEUE_LIMIT = 8;
+export const DUE_SOON_DAYS = 3;
 
 /**
  * 排序 + 去重。纯函数。
