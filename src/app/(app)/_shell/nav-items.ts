@@ -1,0 +1,31 @@
+// 一级导航。桌面固定在侧栏，窄屏放入导航抽屉；教程常驻方便复习。
+//
+// 术语与顺序由 docs/design/product-language.md §4 冻结，改这里之前先改那份文档。
+//
+// 与旧版的差别不只是换了名字：旧版一级导航是「项目空间 / 风险瞭望 /
+// 团队成员 / 连接与设置」——以「系统有哪些东西」组织；
+// 这里只保留「项目 / 协作中心」与新手教程。
+// 项目复盘和设置仍保留原路由，通过支持区和账户菜单进入。
+
+export type NavItem = {
+  href: string;
+  label: string;
+  /** 无障碍名。图标按钮必须有名可读 */
+  hint: string;
+};
+
+export const NAV_ITEMS: readonly NavItem[] = [
+  { href: "/projects", label: "项目", hint: "项目脉搏与最近访问" },
+  { href: "/collaboration", label: "协作中心", hint: "求助、AI 确认与团队状态" },
+  { href: "/tutorials", label: "新手教程", hint: "互动学习与功能教程目录" },
+] as const;
+
+/** 当前路径命中哪一项。用前缀匹配，使子路由也能点亮父项。 */
+export function activeNavHref(pathname: string): string | null {
+  // 长的优先，避免 /settings/tokens 同时命中 /settings 与自身
+  const sorted = [...NAV_ITEMS].sort((a, b) => b.href.length - a.href.length);
+  for (const item of sorted) {
+    if (pathname === item.href || pathname.startsWith(`${item.href}/`)) return item.href;
+  }
+  return null;
+}

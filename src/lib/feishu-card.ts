@@ -21,6 +21,8 @@ function field(content: string, isShort = true) {
   return { is_short: isShort, text: { tag: "lark_md", content } };
 }
 
+// 只用跳转按钮（url），不做回调按钮：回调须配合飞书事件订阅端点，
+// 本项目不做（产品决策见实施方案）。
 function detailButton(projectId: string, taskId: string, label = "查看详情") {
   return {
     tag: "action",
@@ -58,6 +60,131 @@ export function buildCompletedCard(t: CardTask) {
         field(`**完成情况**\n${t.completionNote ?? "—"}`, false),
       ] },
       detailButton(t.projectId, t.id),
+    ],
+  };
+}
+
+// 待验收：发给组长与教师。紫色与看板上的「待验收」列同色，一眼认得出是同一件事。
+export function buildSubmittedCard(t: CardTask) {
+  return {
+    config: { wide_screen_mode: true },
+    header: { template: "purple", title: { tag: "plain_text", content: "📮 待你验收" } },
+    elements: [
+      { tag: "div", fields: [
+        field(`**任务**\n${t.title}`, false),
+        field(`**项目**\n${t.projectName}`),
+        field(`**提交人**\n${t.assigneeName ?? "—"}`),
+        field(`**交付说明**\n${t.completionNote ?? "—"}`, false),
+      ] },
+      { tag: "div", text: { tag: "lark_md", content: "通过则任务完成；若需修改，请写明要改什么再退回。" } },
+      detailButton(t.projectId, t.id, "去验收"),
+    ],
+  };
+}
+
+// 验收结果：发给提交人。通过为绿、退回为红——颜色即结论，不必读字。
+export function buildReviewedCard(
+  t: CardTask,
+  decision: "accept" | "reject",
+  note: string | null,
+) {
+  const accepted = decision === "accept";
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: accepted ? "green" : "red",
+      title: { tag: "plain_text", content: accepted ? "✅ 验收通过" : "↩️ 已退回修改" },
+    },
+    elements: [
+      { tag: "div", fields: [
+        field(`**任务**\n${t.title}`, false),
+        field(`**项目**\n${t.projectName}`),
+        ...(note ? [field(`**验收意见**\n${note}`, false)] : []),
+      ] },
+      detailButton(t.projectId, t.id),
+    ],
+  };
+}
+
+// 项目页深链。阻塞可以不关联任务，故单独有一个不指任务的落点。
+export function projectUrl(projectId: string): string {
+  return `${SITE()}/projects/${projectId}`;
+}
+
+export type BlockerCardInput = {
+  projectId: string;
+  projectName: string;
+  raisedByName: string;
+  reasonLabel: string;
+  detail: string | null;
+  helpNeeded: string | null;
+  taskTitle: string | null;
+  /** 被点名求助的人；空表示只广播给组长与教师 */
+  inviteeNames: string[];
+};
+
+// 求助卡片。橙色与「任务提醒」同色系——都是需要有人动手的事，
+// 与指派（蓝）、验收（紫）刻意区分开。
+export function buildBlockerCard(b: BlockerCardInput) {
+  return {
+    config: { wide_screen_mode: true },
+    header: { template: "orange", title: { tag: "plain_text", content: "🙋 有人卡住了" } },
+    elements: [
+      { tag: "div", fields: [
+        field(`**求助人**\n${b.raisedByName}`),
+        field(`**项目**\n${b.projectName}`),
+        field(`**卡在**\n${b.reasonLabel}`),
+        ...(b.taskTitle ? [field(`**关联任务**\n${b.taskTitle}`)] : []),
+        ...(b.helpNeeded ? [field(`**需要什么**\n${b.helpNeeded}`, false)] : []),
+        ...(b.detail ? [field(`**补充说明**\n${b.detail}`, false)] : []),
+      ] },
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content:
+            b.inviteeNames.length > 0
+              ? `点名请 ${b.inviteeNames.join("、")} 看一眼。帮上忙后，请到项目页把这条求助标记为已解决。`
+              : "请组长或教师看一眼，必要时转给能帮忙的同学。",
+        },
+      },
+      {
+        tag: "action",
+        actions: [
+          {
+            tag: "button",
+            text: { tag: "plain_text", content: "去看一眼" },
+            url: projectUrl(b.projectId),
+            type: "primary",
+          },
+        ],
+      },
+    ],
+  };
+}
+
+// 接不住：发给派活的人（任务创建者）。
+// 红色与「验收退回」同色系——都是「这件事没能照原样往前走」，
+// 需要有人动一下。
+export function buildDeclinedCard(t: CardTask, reason: string) {
+  return {
+    config: { wide_screen_mode: true },
+    header: { template: "red", title: { tag: "plain_text", content: "🙅 有人接不住" } },
+    elements: [
+      { tag: "div", fields: [
+        field(`**任务**\n${t.title}`, false),
+        field(`**项目**\n${t.projectName}`),
+        field(`**原负责人**\n${t.assigneeName ?? "—"}`),
+        field(`**理由**\n${reason}`, false),
+      ] },
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: "任务已退回未指派。请改派他人、拆分这活，或与对方商定新的做法。",
+        },
+      },
+      detailButton(t.projectId, t.id, "去处理"),
     ],
   };
 }

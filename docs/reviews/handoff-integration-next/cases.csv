@@ -1,0 +1,18 @@
+case_id,plan_step,scenario,result,evidence
+R00-01,R00,根测试仅收集网页侧 tests 目录,PASS,progress.md
+R00-02,R00,attempt store worker 从测试模块 URL 定位源码,PASS,progress.md
+R00-03,R00,reset 清理 checkpoint/handoff/attempt 三类领域记录,PASS,progress.md
+R01-01,R01,requiredEvidence 数组加载/标签显示/PATCH 回存,PASS,progress.md
+R01-02,R01,任务切换后证据 checkbox 草稿隔离,PASS,progress.md
+R02-01,R02,未授权用户无法建检查点或读取交接详情,PASS,evidence/r02-http-smoke.md
+R02-02,R02,交接动作拒绝发起者代接和已离队接收者,PASS,evidence/r02-http-smoke.md
+R02-03,R02,缺少/错误版本及非法 JSON 返回 400；过期任务契约返回 409,PASS,evidence/r02-http-smoke.md
+R02-04,R02,相同幂等键并发重试复用唯一 handoff；改载荷返回冲突,PASS,evidence/r02-http-smoke.md
+R02-05,R02,accept 与 withdraw 并发最多一个成功,PASS,evidence/r02-http-smoke.md
+R02-06,R02,accept 后登记 Attempt 并回传回执,PASS,evidence/r02-http-smoke.md
+R02-07,R02,根目录全量 Vitest 显式串行复测,PASS,progress.md
+R02-08,R02,Vitest maxWorkers 配置后普通 npm test 复测,PASS,progress.md
+R03-01,R03,扩展 A 发布共享检查点和 handoff,NOT_RUN,
+R04-01,R04,扩展 B 独立工作区导入实际材料,NOT_RUN,
+R05-01,R05,真实模型 session 接班,NOT_RUN,
+R06-01,R06,两个 Agent worktree 并行测试与人工集成,NOT_RUN,

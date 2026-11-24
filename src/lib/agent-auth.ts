@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyApiToken } from "./api-token";
 import { AppError, ForbiddenError } from "./errors";
+import { PayloadTooLargeError, readJsonWithLimit } from "./http";
+
+export const MAX_AGENT_JSON_BYTES = 256 * 1024;
+
+/** 外部 Agent 写入的 JSON 入口统一限制体积。 */
+export function readAgentJson(req: Request) {
+  return readJsonWithLimit(req, { maxBytes: MAX_AGENT_JSON_BYTES });
+}
 
 // 从 Authorization: Bearer <token> 提取并校验，得 userId | null。
 // 外部写入的认证入口——不信任输入，缺失/畸形/伪造一律 null。
@@ -19,6 +27,7 @@ export function unauthorized() {
 
 // 业务错误 → HTTP 状态。ForbiddenError 须先于 AppError 判（前者是后者子类）。
 export function mapAgentError(e: unknown, tag: string) {
+  if (e instanceof PayloadTooLargeError) return NextResponse.json({ error: e.message }, { status: 413 });
   if (e instanceof ForbiddenError) return NextResponse.json({ error: "没有权限" }, { status: 403 });
   if (e instanceof z.ZodError) return NextResponse.json({ error: "请求格式无效" }, { status: 400 });
   if (e instanceof AppError) return NextResponse.json({ error: e.message }, { status: 400 });

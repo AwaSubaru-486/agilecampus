@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   conversations,
@@ -17,6 +17,7 @@ export type ConversationListItem = {
   title: string | null;
   visibility: ConversationVisibility;
   taskId: string | null;
+  taskMemoryVersionId?: string | null;
   taskTitle: string | null;
   parentConversationId: string | null;
   forkedFromMessageId: string | null;
@@ -75,6 +76,7 @@ export async function listProjectConversations(
       visibility: conversations.visibility,
       taskId: conversations.taskId,
       taskTitle: tasks.title,
+      taskMemoryVersionId: conversations.taskMemoryVersionId,
       parentConversationId: conversations.parentConversationId,
       forkedFromMessageId: conversations.forkedFromMessageId,
       createdById: conversations.createdById,
@@ -165,8 +167,15 @@ export async function persistTurn(
   assistantText: string,
   toolTrace: ToolTraceEntry[],
   authorId?: string,
+  contextPackId?: string,
+  expectedVisibility?: ConversationVisibility,
+  taskMemoryVersionId?: string,
 ) {
   return db.transaction(async (tx) => {
+    // Serialize message timestamps across simultaneous replies in a shared conversation.
+    const [locked] = await tx.select({ id: conversations.id, visibility: conversations.visibility }).from(conversations).where(eq(conversations.id, conversationId)).for("update");
+    if (!locked) throw new AppError("会话不存在");
+    if (expectedVisibility && locked.visibility !== expectedVisibility) throw new AppError("会话可见范围已改变，请重新发送");
     const [lastMessage] = await tx
       .select({ createdAt: messages.createdAt })
       .from(messages)
@@ -186,6 +195,8 @@ export async function persistTurn(
           role: "user" as const,
           content: userText,
           authorId,
+          contextPackId,
+          taskMemoryVersionId,
           createdAt: userCreatedAt,
         },
         {
@@ -193,16 +204,27 @@ export async function persistTurn(
           role: "assistant" as const,
           content: assistantText,
           toolCalls: toolTrace.length > 0 ? toolTrace : null,
+          contextPackId,
+          taskMemoryVersionId,
           createdAt: assistantCreatedAt,
         },
       ])
       .returning();
     await tx
       .update(conversations)
-      .set({ updatedAt: new Date() })
+      .set({ updatedAt: new Date(), ...(taskMemoryVersionId ? { taskMemoryVersionId } : {}) })
       .where(eq(conversations.id, conversationId));
     return { userMessage: inserted[0], assistantMessage: inserted[1] };
   });
+}
+
+/** AI needs a bounded tail; the user-facing history API still returns the full conversation. */
+export async function listRecentConversationMessages(actorId: string, conversationId: string) {
+  await getConversationForUser(actorId, conversationId);
+  const tail = await db.select({ role: messages.role, content: messages.content }).from(messages)
+    .where(and(eq(messages.conversationId, conversationId), inArray(messages.role, ["user", "assistant"])))
+    .orderBy(desc(messages.createdAt), desc(messages.id)).limit(41);
+  return tail.reverse();
 }
 
 export async function listConversationMessages(actorId: string, conversationId: string) {
@@ -216,6 +238,8 @@ export async function listConversationMessages(actorId: string, conversationId: 
       toolCalls: messages.toolCalls,
       authorId: messages.authorId,
       authorName: users.name,
+      contextPackId: messages.contextPackId,
+      taskMemoryVersionId: messages.taskMemoryVersionId,
       sourceMessageId: messages.sourceMessageId,
       createdAt: messages.createdAt,
     })
@@ -249,9 +273,10 @@ export async function forkConversation(
         projectId: source.projectId,
         createdById: actorId,
         taskId: source.taskId,
+        taskMemoryVersionId: source.taskMemoryVersionId,
         parentConversationId: source.id,
         forkedFromMessageId: throughMessageId,
-        visibility: input.visibility ?? "project",
+        visibility: input.visibility ?? source.visibility,
         title,
       })
       .returning();
@@ -264,6 +289,8 @@ export async function forkConversation(
           content: message.content,
           toolCalls: message.toolCalls,
           authorId: message.authorId,
+          contextPackId: message.contextPackId,
+          taskMemoryVersionId: message.taskMemoryVersionId,
           sourceMessageId: message.id,
           createdAt: message.createdAt,
         })),

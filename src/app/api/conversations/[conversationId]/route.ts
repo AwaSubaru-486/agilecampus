@@ -7,6 +7,8 @@ import {
   updateConversation,
 } from "@/lib/agent/conversation";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { extractDraftsFromToolCalls, listApprovalRequests } from "@/lib/approval";
+import { readJsonOrError } from "@/lib/http";
 
 const updateSchema = z.object({
   title: z.string().trim().max(120).optional(),
@@ -41,7 +43,29 @@ export async function GET(
       getConversationForUser(session.user.id, conversationId),
       listConversationMessages(session.user.id, conversationId),
     ]);
-    return NextResponse.json({ conversation, messages });
+    const approvalRows = await listApprovalRequests(session.user.id, conversation.projectId);
+    const approvalsByMessage = new Map<string, { id: string; status: (typeof approvalRows)[number]["status"] }[]>();
+    for (const approval of approvalRows) {
+      if (!approval.sourceMessageId) continue;
+      const current = approvalsByMessage.get(approval.sourceMessageId) ?? [];
+      current[approval.ordinal] = { id: approval.id, status: approval.status };
+      approvalsByMessage.set(approval.sourceMessageId, current);
+    }
+    return NextResponse.json({
+      conversation,
+      messages: messages.map((message) => {
+        const drafts = extractDraftsFromToolCalls(message.toolCalls);
+        const approvalIds = approvalsByMessage.get(message.id) ?? [];
+        return {
+          ...message,
+          drafts: drafts.map((draft, ordinal) => ({
+            ...draft,
+            approvalId: approvalIds[ordinal]?.id,
+            approvalStatus: approvalIds[ordinal]?.status,
+          })),
+        };
+      }),
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -57,7 +81,9 @@ export async function PATCH(
   if (!z.uuid().safeParse(conversationId).success) {
     return NextResponse.json({ error: "会话参数无效" }, { status: 400 });
   }
-  const parsed = updateSchema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = updateSchema.safeParse(bodyResult.body);
   if (!parsed.success || Object.keys(parsed.data).length === 0) {
     return NextResponse.json({ error: "参数无效" }, { status: 400 });
   }

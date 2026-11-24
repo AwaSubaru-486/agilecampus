@@ -1,0 +1,781 @@
+"use client";
+
+/**
+ * 交接工作面（W02/W04/W05 中央主面板）。
+ *
+ * 显示：任务目标、交接要求、完成条件、资料包状态、认领状态、交付证据、当前动作。
+ * - 支持内联编辑交接契约（HandoffEditor，W04）
+ * - 支持直接认领、拒绝认领、提交成果、验收动作（W05）
+ * - 展示真实交付证据列表（EvidenceList，W05）
+ * - 不生成虚假交接摘要；字段为空时显示"未填写"。
+ * - 不可读上下文显示"无权查看此资料"，不泄露私密内容。
+ */
+
+import { useState, useActionState } from "react";
+import Link from "@/components/feedback-link";
+import { LoadingProgress } from "@/components/loading-progress";
+import { useRouter } from "next/navigation";
+import {
+  reviewTaskAction,
+  deleteTaskAction,
+  type FormState,
+} from "../actions";
+import { isInFlight, isInReview } from "@/lib/task-status";
+import { HandoffEditor } from "./handoff-editor";
+import { TaskSubmitDialog } from "../_shared/task-submit-dialog";
+import { TaskRecheckForm } from "../_shared/task-recheck-form";
+import { EvidenceList } from "./evidence-list";
+import { TaskConversations } from "./task-conversations";
+import { TaskMemoryPanel } from "./task-memory-panel";
+import { ExtensionEntry, TaskMaterialBinding, TaskMemoryEntry } from "./task-material-controls";
+import {
+  missingRequiredEvidenceTypes,
+} from "../_shared/required-evidence-fields";
+import type {
+  ConsoleLayout,
+  MemberSummary,
+  SelectedTaskDetail,
+} from "./console-shell";
+import type { EvidenceType } from "@/lib/handoff";
+
+const STATUS_LABEL: Record<string, string> = {
+  todo: "待办",
+  doing: "进行中",
+  review: "待验收",
+  done: "已完成",
+};
+
+const STATUS_CLASSES: Record<string, string> = {
+  todo: "bg-ink-3/20 text-ink-2",
+  doing: "bg-signal/10 text-signal",
+  review: "bg-caution/10 text-caution",
+  done: "bg-success/10 text-success",
+};
+
+const EVIDENCE_LABELS: Record<EvidenceType, string> = {
+  link: "外部链接",
+  file: "交付文件",
+  text: "文本说明",
+  test: "单测日志",
+  demo: "演示证据",
+};
+
+const ATTEMPT_STATE_LABELS: Record<string, string> = {
+  started: "执行中",
+  finished: "已完成",
+  failed: "已失败",
+  unknown: "未知状态",
+};
+
+const ATTEMPT_STATE_CLASSES: Record<string, string> = {
+  started: "bg-signal/10 text-signal border-signal/30",
+  finished: "bg-success/10 text-success border-success/30",
+  failed: "bg-risk/10 text-risk border-risk/30",
+  unknown: "bg-ink-3/20 text-ink-2 border-stroke",
+};
+
+const MEMORY_CATEGORY_LABELS: Record<string, string> = {
+  constraint: "约束限制",
+  decision: "架构决策",
+  learned: "已验证经验",
+  rejected_approach: "废弃方案",
+};
+
+const MEMORY_STATUS_LABELS: Record<string, string> = {
+  active: "生效中",
+  needs_review: "待复核",
+  superseded: "已替代",
+};
+
+export function TaskContractPanel({
+  projectId,
+  actorId,
+  canWrite,
+  canDelete = false,
+  canReview,
+  selectedTask,
+  selectedTaskError,
+  selectedTaskId,
+  members = [],
+  layout,
+  onBack,
+  onOpenRunRail,
+}: {
+  projectId: string;
+  actorId?: string;
+  canWrite: boolean;
+  canDelete?: boolean;
+  canReview: boolean;
+  selectedTask: SelectedTaskDetail | null;
+  selectedTaskError: string | null;
+  selectedTaskId: string | null;
+  members?: MemberSummary[];
+  layout: ConsoleLayout;
+  onBack: () => void;
+  onOpenRunRail: (trigger: HTMLButtonElement) => void;
+}) {
+  const [editingHandoff, setEditingHandoff] = useState(false);
+
+  // 未选中任务
+  if (!selectedTaskId) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-ink-3">
+        从左侧选择一个任务查看详情
+      </div>
+    );
+  }
+
+  // 权限/不存在错误
+  if (selectedTaskError) {
+    return (
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <button
+          onClick={onBack}
+          className="self-start text-xs text-ink-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+        >
+          ← 返回任务列表
+        </button>
+        <p className="text-sm text-risk">{selectedTaskError}</p>
+      </div>
+    );
+  }
+
+  if (!selectedTask) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-ink-3">
+        <LoadingProgress className="max-w-sm" label="正在读取任务详情…" />
+      </div>
+    );
+  }
+
+  const task = selectedTask;
+  const isMine = Boolean(actorId && task.assigneeId === actorId);
+  const canSubmit = canWrite && isMine && isInFlight(task.status);
+  const missingEvidenceTypes = missingRequiredEvidenceTypes(
+    task.requiredEvidence,
+    task.evidence.map((item) => item.type),
+  );
+  const isAdmin = canWrite && canReview;
+  const canReviewThis =
+    isAdmin && isInReview(task.status);
+
+  return (
+    <div data-tour="tutorial-task-detail" data-tour-claimed={task.committedAt ? "true" : "false"} data-tour-submitted={isInReview(task.status) || task.status === "done" ? "true" : "false"} className="flex flex-col gap-0">
+      {/* 头部：真实标题，无广告性副标题 */}
+      <div className="flex flex-wrap items-start gap-3 border-b border-stroke px-6 py-5">
+        {/* 返回按钮（窄屏） */}
+        <button
+          onClick={onBack}
+          className={`shrink-0 text-xs text-ink-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal ${layout === "mobile" ? "" : "hidden"}`}
+          aria-label="返回任务列表"
+        >
+          ←
+        </button>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold leading-snug text-ink">
+            {task.title}
+          </h2>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-2">
+            <span
+              className={`rounded px-1.5 py-0.5 font-medium ${STATUS_CLASSES[task.status] ?? "bg-panel text-ink-2"}`}
+            >
+              {STATUS_LABEL[task.status] ?? task.status}
+            </span>
+            {task.assigneeName && <span>负责人：{task.assigneeName}</span>}
+            {task.dueDate && <span>截止：{task.dueDate}</span>}
+            {task.responseDueAt && (
+              <span className="text-caution">
+                交接截止：
+                {new Date(task.responseDueAt).toLocaleDateString("zh-CN")}
+              </span>
+            )}
+          </div>
+        </div>
+        <details className="ac-context-menu">
+          <summary className="ac-btn-ghost !min-h-8 !text-xs">
+            任务资料与管理 ⌄
+          </summary>
+          <div className="ac-context-menu-panel space-y-3 p-4">
+            {canWrite && (
+              <button
+                onClick={() => setEditingHandoff(!editingHandoff)}
+                className="shrink-0 rounded border border-stroke px-2.5 py-1 text-xs text-ink-2 hover:bg-panel-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+              >
+                {editingHandoff ? "取消编辑" : "编辑交接信息"}
+              </button>
+            )}
+            {/* 删除任务（仅组长可用） */}
+            {canDelete && (
+              <DeleteTaskButton
+                projectId={projectId}
+                taskId={task.id}
+                onDeleted={onBack}
+              />
+            )}
+            {/* 按需查看执行记录 */}
+            <button
+              onClick={(event) => onOpenRunRail(event.currentTarget)}
+              className="ac-btn-ghost !min-h-8 !text-xs"
+            >
+              执行记录
+            </button>
+          </div>
+        </details>
+        {canWrite && canReview && task.status !== "done" && task.status !== "review" && <button type="button" className="ac-btn-ghost" onClick={() => setEditingHandoff(!editingHandoff)}>{editingHandoff ? "取消分工" : "下派任务 / 调整分工"}</button>}
+      </div>
+
+      <TaskMemoryPanel key={task.id} projectId={projectId} taskId={task.id} canWrite={canWrite} />
+
+      <section aria-label="任务对话" className="border-b border-stroke px-6 py-5">
+        <h3 className="mb-3 text-sm font-semibold text-ink">任务对话</h3>
+        <TaskConversations projectId={projectId} taskId={task.id} conversations={task.conversations ?? []} />
+      </section>
+
+      <div className="flex flex-col gap-5 px-6 py-6">
+        {isInReview(task.status) && !canReviewThis && (
+          <p
+            role="status"
+            className="border border-stroke bg-sunken px-3 py-2 text-sm text-ink-soft"
+          >
+            {isMine
+              ? "已提交，不能验收自己提交的任务；请由组长处理。"
+              : "任务由组长审核，老师可复核已完成成果。"}
+          </p>
+        )}
+
+        {/* 内联交接契约编辑器（W04） */}
+        {editingHandoff && (
+          <HandoffEditor
+            projectId={projectId}
+            selectedTask={task}
+            canWrite={canWrite}
+            canDispatch={isAdmin}
+            members={members}
+            availablePacks={task.availablePacks}
+            onClose={() => setEditingHandoff(false)}
+          />
+        )}
+
+        {/* 任务目标 */}
+        <Section label="任务目标">
+          {task.description ? (
+            <p className="whitespace-pre-wrap text-sm text-ink">
+              {task.description}
+            </p>
+          ) : (
+            <Empty />
+          )}
+        </Section>
+
+        {/* 交接要求 */}
+        {task.handoffBrief && (
+          <Section label="交接要求">
+            {task.handoffBrief ? (
+              <p className="whitespace-pre-wrap text-sm text-ink">
+                {task.handoffBrief}
+              </p>
+            ) : (
+              <Empty />
+            )}
+          </Section>
+        )}
+
+        {/* 完成条件 */}
+        {task.doneCriteria && task.doneCriteria.length > 0 && (
+          <Section label="完成条件">
+            <ul className="space-y-1">
+              {task.doneCriteria.map((c, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-ink">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-3" />
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
+
+        {/* 交件要求 */}
+        {task.requiredEvidence && task.requiredEvidence.length > 0 && (
+          <Section label="交件要求">
+            <p className="whitespace-pre-wrap text-sm text-ink">
+              {task.requiredEvidence
+                .map((type) => EVIDENCE_LABELS[type])
+                .join("、")}
+            </p>
+          </Section>
+        )}
+
+        {/* 交接资料（冻结上下文包） */}
+        <Section label="交接资料">
+          {task.contextUnavailable ? (
+            <p className="text-sm text-ink-3">无权查看此资料</p>
+          ) : task.contextPackId ? (
+            <div className="rounded border border-stroke p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-ink">
+                  {task.contextTitle ?? "未命名资料包"}
+                </span>
+                <span
+                  className={`text-xs ${task.contextFrozen ? "text-success" : "text-caution"}`}
+                >
+                  {task.contextFrozen ? "已冻结" : "未冻结"}
+                </span>
+              </div>
+              {task.contextFrozenAt && (
+                <div className="mt-1 text-xs text-ink-3">
+                  冻结于{" "}
+                  {new Date(task.contextFrozenAt).toLocaleString("zh-CN")}
+                </div>
+              )}
+              {task.contextStale && (
+                <div className="mt-1.5 rounded bg-caution/10 px-2 py-1 text-xs text-caution">
+                  资料包内容可能已过期。建议重新冻结。
+                </div>
+              )}
+            </div>
+          ) : (
+            <Empty text="尚未绑定交接资料" />
+          )}
+          <TaskMaterialBinding key={task.id + ":" + (task.contextPackId ?? "")} projectId={projectId} task={task} canWrite={canWrite} />
+        </Section>
+
+        {task.delivery && <Section label="交付材料"><div className="space-y-2 rounded-xl border border-stroke p-4 text-sm"><p>任务分支：<strong>{task.delivery.branchName}</strong></p>{task.delivery.headSha && <p className="break-all">提交 SHA：{task.delivery.headSha}</p>}{task.delivery.testSummary && <p className="whitespace-pre-wrap">测试摘要：{task.delivery.testSummary}</p>}{task.delivery.pullRequestUrl && /^https?:\/\//i.test(task.delivery.pullRequestUrl) && <a href={task.delivery.pullRequestUrl} target="_blank" rel="noreferrer" className="text-signal hover:underline">查看 PR 成果链接 ↗</a>}</div></Section>}
+
+        {/* 看清要求与证据后，再完成当前阶段的任务动作。 */}
+        {(task.evidence.length > 0 ||
+          isInReview(task.status) ||
+          task.status === "done" ||
+          canSubmit) && (
+          <Section label="交付证据">
+            <EvidenceList evidence={task.evidence} projectId={projectId} />
+          </Section>
+        )}
+
+        {canSubmit && <TaskSubmitDialog key={task.id} projectId={projectId} task={task} evidenceTypes={missingEvidenceTypes} />}
+
+        {task.completionNote && <Section label="提交成果"><p className="whitespace-pre-wrap text-sm leading-6">{task.completionNote}</p></Section>}
+        {task.reviewNote && <Section label="验收与复核意见"><p className="whitespace-pre-wrap text-sm leading-6">{task.reviewNote}</p></Section>}
+        {canReview && !canWrite && task.status === "done" && !isMine && <TaskRecheckForm key={task.id} projectId={projectId} taskId={task.id} />}
+        {canReviewThis && (
+          <div className="space-y-2">
+            <ActionFormBlock
+              title="验收任务"
+              action={reviewTaskAction}
+              projectId={projectId}
+              taskId={task.id}
+              submitLabel="提交验收结果"
+              successMessage="验收结果已保存"
+            >
+              <div className="space-y-2">
+                <fieldset className="flex gap-4 text-sm text-ink">
+                  <label className="flex items-center gap-1.5 cursor-pointer font-medium text-signal">
+                    <input
+                      type="radio"
+                      name="decision"
+                      value="accept"
+                      defaultChecked
+                    />{" "}
+                    ✓ 通过验收
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="decision" value="reject" />{" "}
+                    退回修改
+                  </label>
+                </fieldset>
+                <textarea
+                  name="note"
+                  rows={2}
+                  aria-label="验收意见"
+                  placeholder="验收意见（退回时必填，通过时选填，默认：验收通过）"
+                  className="ac-field text-sm"
+                />
+              </div>
+            </ActionFormBlock>
+          </div>
+        )}
+
+        {/* 待确认审批 */}
+        {task.approvals.filter((a) => a.status === "pending").length > 0 && (
+          <Section label="待确认审批">
+            <div className="space-y-2">
+              {task.approvals
+                .filter((a) => a.status === "pending")
+                .map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-start justify-between gap-2 rounded border border-stroke p-2.5 text-sm"
+                  >
+                    <span className="text-ink">{a.title}</span>
+                    {a.canResolve ? (
+                      <Link
+                        href={`/projects/${projectId}?space=studio&approval=${a.id}&task=${task.id}`}
+                        className="shrink-0 text-xs text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+                      >
+                        处理
+                      </Link>
+                    ) : (
+                      <span className="shrink-0 text-xs text-ink-3">
+                        等待有权人处理
+                      </span>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </Section>
+        )}
+
+        {/* 并行接续尝试（B04） */}
+        <Section label="并行接续尝试">
+          {task.attempts && task.attempts.length > 0 ? (
+            <div className="space-y-2">
+              {task.attempts.map((attempt) => (
+                <div
+                  key={attempt.id}
+                  className="rounded border border-stroke bg-sunken/30 p-2.5 space-y-1.5 text-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-ink">
+                        {attempt.actorName || "执行者"}
+                      </span>
+                      <span className="rounded bg-ink-3/15 px-1.5 py-0.5 text-[10px] text-ink-2">
+                        {attempt.kind === "parallel" ? "并行分支" : "主线接续"}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${
+                        ATTEMPT_STATE_CLASSES[attempt.state] ??
+                        ATTEMPT_STATE_CLASSES.unknown
+                      }`}
+                    >
+                      {ATTEMPT_STATE_LABELS[attempt.state] ?? attempt.state}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-[11px] font-mono">
+                    {attempt.branchName && (
+                      <span>
+                        分支:{" "}
+                        <strong className="text-ink-2">
+                          {attempt.branchName}
+                        </strong>
+                      </span>
+                    )}
+                    <span>基线: {attempt.baseSha.slice(0, 8)}</span>
+                    {attempt.receipt.headSha && (
+                      <span>产出: {attempt.receipt.headSha.slice(0, 8)}</span>
+                    )}
+                  </div>
+
+                  {attempt.receipt.tests &&
+                    attempt.receipt.tests.length > 0 && (
+                      <div className="mt-1 space-y-1 rounded bg-panel/60 p-1.5 border border-stroke/50">
+                        <div className="text-[10px] font-medium text-ink-3 uppercase">
+                          测试验证回执
+                        </div>
+                        <div className="space-y-0.5 font-mono text-[11px]">
+                          {attempt.receipt.tests.map((t, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between text-ink-2"
+                            >
+                              <span className="truncate">{t.commandLabel}</span>
+                              <span
+                                className={`shrink-0 font-sans font-medium px-1 rounded text-[10px] ${
+                                  t.exitCode === 0
+                                    ? "text-success bg-success/10"
+                                    : "text-risk bg-risk/10"
+                                }`}
+                              >
+                                {t.exitCode === 0
+                                  ? "通过"
+                                  : `退出码 ${t.exitCode ?? "异常"}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {attempt.receipt.changedPaths &&
+                    attempt.receipt.changedPaths.length > 0 && (
+                      <div className="text-[11px] text-ink-3">
+                        变更文件: {attempt.receipt.changedPaths.length} 个
+                      </div>
+                    )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-ink-3">
+              暂无已登记到平台的接续回执。
+            </p>
+          )}
+          <ExtensionEntry parallel />
+        </Section>
+
+        {/* 有效项目记忆（B05） */}
+        <Section label="项目规则与经验">
+          <TaskMemoryEntry key={task.id} projectId={projectId} taskId={task.id} canAdd={canWrite || canReview} />
+          {task.memories && task.memories.length > 0 ? (
+            <div className="space-y-2">
+              {task.memories.map((mem) => (
+                <div
+                  key={mem.id}
+                  className="rounded border border-stroke bg-sunken/30 p-2.5 space-y-1 text-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-signal/15 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                        {MEMORY_CATEGORY_LABELS[mem.category] ?? mem.category}
+                      </span>
+                      <strong className="text-ink font-medium">
+                        {mem.title}
+                      </strong>
+                    </div>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        mem.status === "active"
+                          ? "bg-success/10 text-success"
+                          : mem.status === "needs_review"
+                            ? "bg-caution/10 text-caution"
+                            : "bg-ink-3/20 text-ink-3 line-through"
+                      }`}
+                    >
+                      {MEMORY_STATUS_LABELS[mem.status] ?? mem.status}
+                    </span>
+                  </div>
+                  <p className="text-ink-2 whitespace-pre-wrap leading-relaxed">
+                    {mem.content}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-ink-3 pt-0.5">
+                    {mem.creatorName && <span>记录人: {mem.creatorName}</span>}
+                    {mem.codeRefSha && (
+                      <span className="font-mono">
+                        代码引用: {mem.codeRefSha.slice(0, 8)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-ink-3">
+              当前任务暂无关联的有效记忆。可沉淀技术决策、约束限制或废弃方案供团队与后续
+              Agent 复用。
+            </p>
+          )}
+        </Section>
+
+        {/* 检查点共享与接续契约（W07/B01） */}
+        <details className="group rounded border border-stroke bg-sunken/30 text-xs">
+          <summary className="cursor-pointer px-3 py-2 font-medium text-ink-2 hover:text-ink select-none flex items-center justify-between">
+            <span>检查点共享与接续契约（VS Code 插件）</span>
+            <span className="text-ink-3 group-open:rotate-180 transition-transform">
+              ▼
+            </span>
+          </summary>
+          <div className="border-t border-stroke px-3 py-2.5 space-y-2 text-ink-2 leading-relaxed">
+            <p>
+              在 VS Code 插件中发布检查点、选择接收成员，并检查代码基线和工作区状态。
+            </p>
+            <p>
+              <strong className="text-ink">接续流转机制：</strong>
+              发起交接 → 接收人核对 Git 基线与工作区状态 →
+              登记接续尝试和测试结果 → 由组长或教师审核。
+            </p>
+            <p className="text-ink-3">
+              提示：Handoff
+              接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
+            </p>
+            <ExtensionEntry />
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  if (
+    [
+      "交接资料",
+      "会话与分支",
+      "并行接续尝试",
+      "项目规则与经验",
+      "AGENT 运行",
+      "任务活动",
+    ].includes(label)
+  ) {
+    return (
+      <details className="ac-disclosure">
+        <summary>{label}<span className="float-right ml-3 text-xs font-normal text-ink-3">{label === "交接资料" ? "查看 / 绑定" : label === "有效项目记忆" ? "查看 / 添加" : label === "会话与分支" ? "打开会话" : label === "并行接续尝试" ? "查看 / 配置" : ""}</span></summary>
+        <div className="ac-disclosure-body">{children}</div>
+      </details>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-ink-3">{label}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Empty({ text = "未填写" }: { text?: string }) {
+  return <p className="text-sm text-ink-3">{text}</p>;
+}
+
+function ActionFormBlock({
+  title,
+  action,
+  projectId,
+  taskId,
+  submitLabel,
+  successMessage = "操作成功已生效！",
+  children,
+}: {
+  title: string;
+  action: (prev: FormState, fd: FormData) => Promise<FormState>;
+  projectId: string;
+  taskId: string;
+  submitLabel: string;
+  successMessage?: string;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const [success, setSuccess] = useState<string | null>(null);
+  const [state, formAction, pending] = useActionState<FormState, FormData>(
+    async (prev, fd) => {
+      setSuccess(null);
+      try {
+        const res = await action(prev, fd);
+        if (!res || !("error" in res)) {
+          setSuccess(successMessage);
+          router.refresh();
+          return null;
+        }
+        return res;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "请求失败";
+        return { error: msg };
+      }
+    },
+    null,
+  );
+
+  return (
+    <div className="rounded border border-stroke-strong bg-sunken/40 p-3 space-y-2">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-ink">
+        {title}
+      </h4>
+      <form action={formAction} aria-busy={pending} className="space-y-2">
+        <input type="hidden" name="projectId" value={projectId} />
+        <input type="hidden" name="taskId" value={taskId} />
+        {children}
+        {state && "error" in state && (
+          <p
+            aria-live="polite"
+            className="text-xs font-medium text-risk bg-risk/10 p-2 rounded"
+          >
+            {state.error}
+          </p>
+        )}
+        {success && (
+          <p
+            aria-live="polite"
+            className="text-xs font-medium text-success bg-success/10 p-2 rounded flex items-center gap-1.5"
+          >
+            <span>✓</span> {success}
+          </p>
+        )}
+        {pending && <LoadingProgress label="正在处理任务…" />}
+        <button
+          type="submit"
+          disabled={pending}
+          className="ac-btn min-h-8 px-3 text-xs"
+        >
+          {pending ? "处理中…" : submitLabel}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function DeleteTaskButton({
+  projectId,
+  taskId,
+  onDeleted,
+}: {
+  projectId: string;
+  taskId: string;
+  onDeleted: () => void;
+}) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [state, formAction, pending] = useActionState<FormState, FormData>(
+    async (prev, fd) => {
+      try {
+        const res = await deleteTaskAction(prev, fd);
+        if (!res) {
+          onDeleted();
+          router.refresh();
+          return null;
+        }
+        return res;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "删除失败";
+        return { error: msg };
+      }
+    },
+    null,
+  );
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="shrink-0 rounded border border-risk/30 px-2.5 py-1 text-xs text-risk hover:bg-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-risk"
+        title="组长专享：删除当前任务"
+      >
+        删除任务
+      </button>
+    );
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="inline-flex items-center gap-1.5 shrink-0"
+    >
+      <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="taskId" value={taskId} />
+      <span className="text-xs text-risk font-medium">确认删除？</span>
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded bg-risk px-2 py-0.5 text-xs text-white hover:bg-risk/90 disabled:opacity-50"
+      >
+        {pending ? "删除中…" : "确定"}
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => setConfirming(false)}
+        className="rounded border border-stroke px-2 py-0.5 text-xs text-ink-2 hover:bg-panel-hover"
+      >
+        取消
+      </button>
+      {state && "error" in state && (
+        <span className="text-xs text-risk">{state.error}</span>
+      )}
+    </form>
+  );
+}

@@ -1,4 +1,5 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { cache } from "react";
 import { db } from "@/db";
 import {
   milestones,
@@ -9,7 +10,10 @@ import {
   type ProjectStatus,
 } from "@/db/schema";
 import { AppError, ForbiddenError } from "./errors";
-import { getTeamMembership, requireTeamRole } from "./team";
+import { requireTeamRole } from "./team";
+import { TASK_STATUSES, emptyByStatus } from "./task-status";
+// 写入侧不引 ./project，故可放心反向引用，不成循环
+import { describe, recordEvent } from "./activity";
 
 export async function createProject(
   actorId: string,
@@ -32,6 +36,14 @@ export async function createProject(
       endDate: input.endDate,
     })
     .returning();
+
+  await recordEvent(db, {
+    projectId: project.id,
+    actorId,
+    type: "project_created",
+    summary: describe.projectCreated(project.name),
+    payload: { name: project.name },
+  });
   return project;
 }
 
@@ -73,6 +85,20 @@ export async function updateProject(
     .where(eq(projects.id, projectId))
     .returning();
   if (!updated) throw new AppError("项目不存在");
+
+  await recordEvent(db, {
+    projectId,
+    actorId,
+    type: "project_updated",
+    summary: describe.projectUpdated(updated.name),
+    // 只记真正传了的字段名，供复盘看「改过什么」
+    payload: {
+      name: updated.name,
+      fields: Object.entries(patch)
+        .filter(([, v]) => v !== undefined)
+        .map(([k]) => k),
+    },
+  });
   return updated;
 }
 
@@ -86,30 +112,31 @@ export async function getProjectDetail(actorId: string, projectId: string) {
     db
       .select({ status: tasks.status, count: sql<number>`count(*)::int` })
       .from(tasks)
-      .where(eq(tasks.projectId, projectId))
+      .where(and(eq(tasks.projectId, projectId), eq(tasks.isTaskGroup, false)))
       .groupBy(tasks.status),
   ]);
 
-  const byStatus = { todo: 0, doing: 0, done: 0 };
+  const byStatus = emptyByStatus();
   for (const c of counts) byStatus[c.status] = c.count;
 
   return {
     project: access.project,
     role: access.role,
     milestones: projectMilestones,
-    taskTotal: byStatus.todo + byStatus.doing + byStatus.done,
+    // 求和而非手写三项相加：加了状态档后，漏加一项就是总数凭空少算，且编译器不吭声
+    taskTotal: TASK_STATUSES.reduce((n, s) => n + byStatus[s], 0),
     byStatus,
   };
 }
 
 // 页面/任务层的访问收敛点：项目不存在或非团队成员一律 null，不泄露存在性
-export async function getProjectForUser(actorId: string, projectId: string) {
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project) return null;
-  const membership = await getTeamMembership(actorId, project.teamId);
-  if (!membership) return null;
-  return { project, role: membership.role };
-}
+// Only deduplicate within one server render; never share permission results between requests.
+export const getProjectForUser = cache(async (actorId: string, projectId: string) => {
+  const [row] = await db.select({ project: projects, role: teamMembers.role })
+    .from(projects).innerJoin(teamMembers, and(eq(teamMembers.teamId, projects.teamId), eq(teamMembers.userId, actorId)))
+    .where(eq(projects.id, projectId));
+  return row ?? null;
+});
 
 export async function createMilestone(
   actorId: string,
@@ -122,6 +149,14 @@ export async function createMilestone(
     .insert(milestones)
     .values({ projectId, title: input.title, targetDate: input.targetDate })
     .returning();
+
+  await recordEvent(db, {
+    projectId,
+    actorId,
+    type: "milestone_created",
+    summary: describe.milestoneCreated(milestone.title),
+    payload: { title: milestone.title, targetDate: milestone.targetDate },
+  });
   return milestone;
 }
 
@@ -136,7 +171,7 @@ export async function listProjectMilestones(actorId: string, projectId: string) 
 }
 
 // 跨团队聚合：我所在全部团队的项目 + 团队名 + 任务统计
-export async function listMyProjects(actorId: string) {
+export const listMyProjects = cache(async (actorId: string) => {
   const memberships = await db
     .select({ teamId: teamMembers.teamId })
     .from(teamMembers)
@@ -181,4 +216,20 @@ export async function listMyProjects(actorId: string) {
     const doneCount = mine.find((s) => s.status === "done")?.count ?? 0;
     return { ...p, taskTotal: total, doneCount };
   });
+});
+
+// 删除项目：仅团队管理员 (组长) 可操作
+export async function deleteProject(actorId: string, projectId: string) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access) throw new ForbiddenError("项目不存在或无权访问");
+  if (access.role !== "admin") throw new ForbiddenError("只有组长（Admin）可以删除项目");
+
+  const [deleted] = await db
+    .delete(projects)
+    .where(eq(projects.id, projectId))
+    .returning();
+  if (!deleted) throw new AppError("项目不存在");
+
+  return deleted;
 }
+

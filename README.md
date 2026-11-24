@@ -1,23 +1,119 @@
 # AgileCampus 敏捷校园
 
-面向高校实验室 / 教学团队的 **Agent 驱动轻量项目管理平台**。看板协作、AI 项目助手、资源占用登记、时间线甘特，并支持 Claude Code 等外部程序经 Personal API Token 直接写入。
+## 工作记忆与 Agent 接续（2026-10-30）
+
+模块验收入口：[功能、演示步骤与测试边界](docs/reviews/memory-core/2026-10-30-module-delivery.md)。
+
+最新插件为 [AgileCampus 0.1.9](vscode-extension/agilecampus-memory-reception-0.1.9.vsix)。下载后，在 VS Code 扩展菜单选择“从 VSIX 安装”，再连接与网页相同的服务和项目。
+
+使用入口：项目 → 分工与执行 → 选择任务 → 当前工作记忆。
+
+- 保存并查看任务断点：进度、失败方法、阻塞、下一步及来源。
+- 选择固定记忆版本，在 VS Code 核对代码后继续；网页显示插件接收、确认及执行回执。
+- 新记忆记录父记忆的精确修订和内容校验值，可以与继承版本比较变化。
+- 会话结束后，按执行记录整理准确的本机会话，审核后保存下一份断点。
+- 代码基线变化时，插件列出实际变动文件；会话审核先展示本轮迭代结果，对照精确父版本核对进展、阻塞与测试出处。见[接班核对与迭代总结](docs/reviews/memory-core/2026-10-30-iteration-review.md)。
+- 父版本不在本机时，可按精确引用从当前项目读取并校验，不受最近 50 条历史限制；提炼输入标记历史注入，防止仅凭继承摘要把旧结论升级为本轮执行证据。见[父版本恢复与历史证据](docs/reviews/memory-core/2026-10-30-parent-recovery.md)。
+- 接续回执先写入本机队列，断网或重启后按原序号补传；插件命令“重试同步接续回执”可手动重试。见[回执持久化与恢复](docs/reviews/memory-core/2026-10-30-receipt-outbox.md)。
+- “带此断点求助”生成可编辑说明；协作中心可以回查自己的求助及工作断点。
+
+部署需要同步数据库 schema（首次安装按下文 `npm run db:push` 操作）。增量迁移见 [记忆版本](scripts/migrations/2026-10-26-task-memory-versions.sql) 和 [接续回执](scripts/migrations/2026-10-26-task-memory-continuations.sql)，两份均需应用。插件和网页应一起升级。
+
+原始对话和未提交代码不会由此记忆材料自动上传。已通过真实 Codex CLI 在独立接收目录中继承记忆和记录命令的验证；真实双机 Extension Host 完整接班仍待验证。历史页面截图使用合成测试数据。详细记录：[网页与插件回执](docs/reviews/memory-core/2026-10-26-continuation-receipts.md)、[精确版本](docs/reviews/memory-core/2026-10-27-exact-parent-version.md)、[任务求助](docs/reviews/memory-core/2026-10-27-memory-help.md)、[会话收尾](docs/reviews/memory-core/2026-10-27-memory-wrapup.md)。
+
+以下早期施工入口的阶段描述为历史记录，以本节和 [AGENTS.md](AGENTS.md) 顶部的最新说明为准。
+
+> **下一阶段 Luna 执行入口（2026-10-05）**：[真实采集、记忆草稿与交接准备 N00–N06](docs/superpowers/plans/2026-10-05-session-memory-next-luna-plan.md)。首批只做 N00–N02，完成后停下来验收。此前 H00–H02 的代码验收已通过；真实 Extension Host + Codex Hook 采集、AI 提炼、私有材料发布和异机接班仍待验证与施工。
+
+> **最新 Luna 施工入口：自动会话记忆与一键发布（2026-10-02）**：[M00–M08 完整工单](docs/superpowers/plans/2026-10-02-session-memory-publish-luna-plan.md)。M00 能力盘点完成；M01 契约、数据库基础表、项目授权记录和受权限控制的会话/版本索引 API 已通过定向测试；M02 本地绑定与追加式事件存储基础正在施工。当前尚无 Hook/扩展命令接线、真实会话采集、发布登记、AI 提炼、远端 transcript 读取、网页会话页或 A→B 真实接班。分工以 [AGENTS.md](AGENTS.md) 顶部为准，阶段证据见 [施工记录](docs/reviews/session-memory-publish/progress.md)。
+
+> **当前网页重构 / Luna 执行入口（2026-10-02）**：[人–Agent 交接主线施工工单](docs/superpowers/plans/2026-10-02-handoff-first-web-luna-workorders.md)。先做 W00–W03：将任务、交接资料与真实执行记录挂到同一页面，桌面/窄屏验收后暂停。当前仅制定工单，页面尚未按此重构；不要将下面的扩展专项当作本轮起点。
+
+> **个人负责模块 / Luna 执行入口**：[VS Code 工作台、检查点与人–Agent 接续专项工单](docs/superpowers/plans/2026-09-30-vscode-checkpoint-handoff-luna-workorders.md)。首次只做 E00–E02，完成后停下来验收；不接管全站 UI 或共享后端。
+
+**面向高校团队的人机协作现场。** 不替学生做项目，而是让团队在人与 AI 之间交接工作时，不丢背景、不丢责任、不丢证据。
+
+> 当前可演示版本：**v0.2.0-demo**。本版本聚焦「任务交接 → Agent 协作 → 人工确认 → 成果沉淀」这条核心闭环。
+
+> **共享工作区协作分工（先读）**：Codex 负责业务核心、AI 数据链路、任务状态与最终验收；Antigravity 负责可见 UI、响应式和视觉 QA。完整边界见 [`AGENTS.md`](AGENTS.md)。
+
+> 它和普通项目管理工具的区别：普通工具问「有哪些任务、各在什么状态」；AgileCampus 问「**这件事现在停在谁手上、他为什么要接着做、做完了谁认账**」。
+
+## 五个核心对象
+
+界面围绕这五个对象组织，不围绕「仪表盘 / 看板 / 聊天」组织。详见 [`docs/design/product-language.md`](docs/design/product-language.md)。
+
+| 对象 | 回答的问题 |
+|---|---|
+| **行动** Action | 现在该我做什么？ |
+| **交接** Handoff | 这件事谁接住了？ |
+| **上下文** Context | AI 或同伴需要知道什么？ |
+| **决策** Decision | 为什么最后选了这个？ |
+| **证据** Evidence | 做成了什么，凭什么算数？ |
 
 ## 功能特性
 
-- **团队与角色**：创建/加入团队，admin / teacher / student 三级权限
-- **项目看板**：里程碑 + 拖拽看板 + 任务增强（描述/完成情况/起止日/后置任务）+ 标签筛选与四维度分组（状态/指派人/优先级/里程碑，各分组下拖拽皆生效）
-- **跨项目总览**：`/projects` 聚合我所在全部团队的项目与任务进度
-- **AI 协作空间**：项目成员共享 AI 会话，可创建私人草稿、关联任务，并从任意已完成回复创建上下文分支
-- **可追溯上下文继承**：分支只继承选定回复及此前历史，记录源会话、分支消息和继承消息，后续 AI 会真正读取历史
-- **AI 项目助手**：对话式拆解任务，两段式确认后落库（读工具 + 四写兵器草案）
-- **资源占用登记**：团队共享资源（服务器/算力等）的占用登记与时长汇总，纯登记无审批
-- **Personal API Token**：生成/撤销令牌，供外部程序以本人身份写入
-- **Agent 写入 API**：Claude Code 等携令牌直接添加任务、填写完成情况、登记资源占用
-- **时间线甘特**：项目内任务按里程碑分组的甘特视图，逾期标红、今日竖线
+### 人机同席
+
+- **AI 成员**：注册后与人在同一张表里，可被指派任务、能接活、能汇报、能卡住求助、能交付待验收
+- **接住 / 接不住**：活被派下来，接不住的人（或 AI）当场说得出口——而不是拖到 deadline 才暴露
+- **agent 干活，但不参与验收**：判断「做对了没有」是人的活
+- **agent 协议**：`GET /api/agent/inbox` 领活、`POST /api/agent/runs` 汇报，认证复用 Personal API Token
+
+### 过程可见
+
+- **工作现场**：正在发生（人与 AI 混排的实时状态）、接力（一件工作怎么在人与 AI 之间流转）、里程碑（自动记录的功勋墙）
+- **项目健康度**：六类风险，每条都答「为什么红 / 该做什么 / 谁来做」——不是仪表盘，是待办清单
+- **任务求助**：关联工作断点、编辑求助说明，按原因推荐协助人，发送后在协作中心回查
+- **项目活动流**：append-only 的过程账本，人机混排、分得清谁做的
+
+### 闭环与沉淀
+
+- **任务承诺与验收**：认领时写下「我打算怎么做」；做完只能推到「待验收」，判完成权在组长或教师
+- **贡献记录零填写**：全部从活动流算出，**没有任何一格需要人填**；刻意不产出「贡献总分」
+- **项目档案**：老师反馈、文档、成果链接，落在同一处
+- **里程碑自动记录**：达成自己判定，值得记住的事自己长出来
+
+### 基础设施
+
+- **团队与角色**：admin / teacher / student 三级权限
+- **项目四模式**：现场 / 工作 / 协同室 / 记录（见产品语言文档）
+- **资源占用登记**、**时间线甘特**、**飞书通知与提醒**
+
+## 设计文档
+
+- 会话记忆与 Agent 接续的项目说明及小组分工：[`docs/design/session-memory-team-brief.md`](docs/design/session-memory-team-brief.md)
+- 原创性审计（与原版的逐项差异）：[`docs/design/originality-audit.md`](docs/design/originality-audit.md)
+- 产品语言（术语、路由、骨架）：[`docs/design/product-language.md`](docs/design/product-language.md)
+- 施工计划：[`docs/superpowers/plans/`](docs/superpowers/plans/)
+- 当前网页端 UI 框架与 VS Code 双端计划：[`2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md`](docs/superpowers/plans/2026-09-28-agilecampus-web-ui-framework-and-vscode-extension.md)
+- VS Code 扩展施工目录：[`vscode-extension/`](vscode-extension/)
+- 技术债备案：[`docs/BACKLOG.md`](docs/BACKLOG.md)
+
+## 安全边界
+
+- 模型服务地址默认拒绝本机、内网、链路本地和云元数据地址，请求前解析域名并禁止重定向。确需连接内网自建模型时，显式设置 `MODEL_ALLOW_PRIVATE_NETWORK=1`。
+- 登录、注册、聊天、记忆提炼、桌宠和飞书签名接口有进程内限流；这是单实例限流，多实例部署需换成共享存储。
+- 请求体按字节上限流式读取，超限返回 413；Agent 写入 256 KiB，任务记忆 2 MiB，其余接口按用途单独限制。
+- 全局响应头包含 `nosniff`、同源框架限制和最小权限策略。
+- 飞书 JSSDK 只为当前站点或 `AGILECAMPUS_URL` / `FEISHU_JSSDK_ALLOWED_ORIGINS` 中的页面签名。
+- 生产依赖审计为 0；开发依赖中 `drizzle-kit` 的传递依赖仍有 moderate 公告，修复需要破坏性升级。
+- 本轮验证没有覆盖真实浏览器逐步点击、窄屏布局和双机 Extension Host 接班。详见[安全与教程检查记录](docs/reviews/2026-11-23-security-tutorial-audit.md)。
+
+## 来源说明
+
+本项目 fork 自 [`sdiver/agilecampus`](https://github.com/sdiver/agilecampus)，`upstream` remote 与原许可证原样保留。
+产品结构与交互对象为重新设计，借鉴的第三方代码按许可证署名。
 
 ## 技术栈
 
 Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · PostgreSQL 16 + Drizzle ORM · Auth.js v5 (JWT) · Vercel AI SDK v5 (DeepSeek / openai-compatible) · Tailwind CSS v4 · Vitest
+
+## 项目版本迭代
+
+在项目导航点击「迭代」，进入 `/projects/[projectId]/iterations`。页面默认展示最新归档版本，每次选看一项变化，和归档时保存的基准版本对照。版本详情可查看验收依据并跳回来源任务。下方自动读取本项目通过组长验收且待归档的交付说明和链接。组长保存版本时，待归档成果随版本保存为快照，也可手动补充或编辑模块。下一轮沿用基准版本的模块、成果链接和开发备注，可复制开发上下文继续工作。成员和老师可查看。
+
+已有数据库依次执行 `scripts/migrations/2026-11-01-project-iterations.sql`、`scripts/migrations/2026-11-04-iteration-features.sql`、`scripts/migrations/2026-11-04-iteration-workspace.sql` 和 `scripts/migrations/2026-11-18-iteration-outcomes.sql`。验收成果快照从下次保存版本开始记录。新建数据库可使用下方的 `db:push`。
 
 ## 本地启动
 
@@ -34,6 +130,32 @@ npm run dev
 > 本机若用 colima 提供 Docker：先 `colima start`。
 
 测试：`npm test`
+
+### 本机日常使用（Windows）
+
+双击 `start-local.cmd` 或执行 `npm run local`，默认在 `http://127.0.0.1:3106` 启动正式运行模式。首次启动或源码、配置变化后自动编译；没有变化时复用构建与已有服务，页面访问时不再编译。日志位于 `.runtime/`。
+
+```powershell
+npm run local                        # 日常使用，自动检查构建并打开网页
+npm run local -- -Rebuild             # 强制重新编译并启动
+npm run local -- -Mode development    # 修改代码，使用 Turbopack 热更新
+```
+
+`npm run dev` 默认使用 Turbopack；`npm run dev:webpack` 保留兼容入口。同一端口只替换当前项目的服务，其他应用占用端口时直接报错。启动器使用现有数据库配置，不初始化或重置数据。
+
+手动运行可执行 `npm run build` 后 `npm run start`（默认端口 3106，可附加 `-- -p 其他端口`）。构建会补齐 standalone 所需的 public 与静态文件，启动前检测过期构建。修改代码后须重新编译，或使用开发模式。
+
+启动脚本回归：`node --test tests/production-runtime.test.mjs`。
+
+### 生成演示项目
+
+如果需要看到与仓库截图一致的「赤壁演习 · 智能问答系统」演示项目，在数据库建表后执行：
+
+```bash
+node scripts/seed-demo.mjs
+```
+
+脚本只创建固定 ID 的演示团队，不会修改你已有的真实团队。脚本结束时会打印演示账号；密码统一为 `demo1234`。演示数据包括课程项目、学生成员、教师、AI 成员、任务交接、求助、风险、成果和过程记录。
 
 ## 生产部署（一键全栈）
 
@@ -120,9 +242,9 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/tasks" \
 # → { "id": "...", "title": "撰写调研问卷", "status": "todo" }
 ```
 
-### `POST /api/agent/tasks/complete` — 填写完成情况
+### `POST /api/agent/tasks/complete` — 提交成果待验收
 
-将任务标记为 `done` 并附完成说明。
+将任务置为 `review`（待验收）并附完成说明。任务不会由执行者直接标记为完成；组长或教师通过 `POST /api/agent/tasks/review` 完成验收。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
@@ -134,7 +256,7 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/tasks/complete" \
   -H "Authorization: Bearer $AGILECAMPUS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"taskId":"<uuid>","completionNote":"已跑通全部演武"}'
-# → { "id": "...", "status": "done" }
+# → { "id": "...", "status": "review" }
 ```
 
 ### `POST /api/agent/resource-usage` — 登记资源占用
@@ -172,7 +294,7 @@ curl -X POST "$AGILECAMPUS_URL/api/agent/resource-usage" \
 
 ### Claude Code 集成
 
-项目内置 `.claude/skills/agilecampus/` skill，封装上述端点调用——配置好 `AGILECAMPUS_TOKEN` 与 `AGILECAMPUS_URL` 后，即可在 Claude Code 里用自然语言「给项目 X 加任务 Y」「把任务 Z 标记完成」「登记我占用了 GPU-01」。完整契约另见 [`docs/agent-api.md`](docs/agent-api.md)。
+项目内置 `.claude/skills/agilecampus/` skill，封装上述端点调用——配置好 `AGILECAMPUS_TOKEN` 与 `AGILECAMPUS_URL` 后，即可在 Claude Code 里用自然语言「给项目 X 加任务 Y」「提交任务 Z 等待验收」「登记我占用了 GPU-01」。完整契约另见 [`docs/agent-api.md`](docs/agent-api.md)。
 
 ---
 

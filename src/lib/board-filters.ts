@@ -1,5 +1,8 @@
 // 看板筛选态 ↔ URL query 的纯函数模块。无 IO、不取系统时钟，
 // 「今日」由调用方传入，便于单测。
+// 引 task-status 不破此约：它同为零 IO 的叶子模块。
+import { isActive } from "./task-status";
+
 export type GroupBy = "status" | "assignee" | "priority" | "milestone";
 
 export type BoardFilters = {
@@ -78,7 +81,8 @@ export function applyFilters<T extends FilterableTask>(
     if (f.priority.length && !f.priority.includes(t.priority)) return false;
     if (f.milestone.length && !f.milestone.includes(t.milestoneId ?? "none")) return false;
     if (f.label.length && !t.labels.some((l) => f.label.includes(l.id))) return false;
-    if (f.overdue && !(t.dueDate && t.dueDate < today && t.status !== "done")) return false;
+    // 待验收仍算逾期：活没过验收就是没交付完。逾期该催的是验收人，但那归通知层管
+    if (f.overdue && !(t.dueDate && t.dueDate < today && isActive(t.status))) return false;
     return true;
   });
 }

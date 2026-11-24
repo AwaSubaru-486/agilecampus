@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-30",
+  "cliVersion": "0.153.4",
+  "realCli": true,
+  "syntheticProject": true,
+  "isolatedReceiverWorkspace": true,
+  "state": "finished",
+  "exitCode": 0,
+  "timedOut": false,
+  "sessionConfirmed": true,
+  "toolCalls": 1,
+  "toolResults": 1,
+  "replyMentionsExactMemory": true,
+  "workspaceUnchanged": true,
+  "originalMemoryUnchanged": true,
+  "scope": "One real Codex CLI run, two isolated local workspaces; not two physical computers or an Extension Host end-to-end test."
+}

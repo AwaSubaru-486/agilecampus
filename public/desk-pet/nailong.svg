@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges" width="128" height="128">
+  <style>
+    .outline { fill: #1e293b; }
+    .horn { fill: #d97706; }
+    .horn-light { fill: #f59e0b; }
+    .body { fill: #fbbf24; }
+    .body-shadow { fill: #f59e0b; }
+    .belly { fill: #fef08a; }
+    .cheek { fill: #fb7185; }
+    .eye { fill: #0f172a; }
+    .white { fill: #ffffff; }
+    .mouth { fill: #e11d48; }
+  </style>
+  <!-- 像素奶龙 (Pixel Nailong) 32x32 像素艺术画风 -->
+  <!-- 左龙角 -->
+  <rect x="8" y="2" width="2" height="3" class="horn"/>
+  <rect x="9" y="3" width="2" height="3" class="horn-light"/>
+  <rect x="8" y="5" width="4" height="2" class="outline"/>
+
+  <!-- 右龙角 -->
+  <rect x="22" y="2" width="2" height="3" class="horn"/>
+  <rect x="21" y="3" width="2" height="3" class="horn-light"/>
+  <rect x="20" y="5" width="4" height="2" class="outline"/>
+
+  <!-- 头部与身体大轮廓 (经典奶龙大肚腩轮廓) -->
+  <rect x="10" y="6" width="12" height="2" class="outline"/>
+  <rect x="8" y="8" width="16" height="3" class="outline"/>
+  <rect x="6" y="11" width="20" height="9" class="outline"/>
+  <rect x="5" y="15" width="22" height="9" class="outline"/>
+  <rect x="6" y="24" width="20" height="4" class="outline"/>
+  <rect x="8" y="28" width="16" height="2" class="outline"/>
+
+  <!-- 身体金黄填充 -->
+  <rect x="10" y="8" width="12" height="3" class="body"/>
+  <rect x="8" y="11" width="16" height="9" class="body"/>
+  <rect x="7" y="15" width="18" height="9" class="body"/>
+  <rect x="8" y="24" width="16" height="3" class="body-shadow"/>
+
+  <!-- 奶黄圆滚滚大肚子 -->
+  <rect x="11" y="17" width="10" height="8" class="belly"/>
+  <rect x="10" y="19" width="12" height="5" class="belly"/>
+
+  <!-- 呆萌大眼睛与高光 -->
+  <rect x="9" y="12" width="3" height="4" class="eye"/>
+  <rect x="9" y="12" width="1" height="2" class="white"/>
+  <rect x="20" y="12" width="3" height="4" class="eye"/>
+  <rect x="20" y="12" width="1" height="2" class="white"/>
+
+  <!-- 肉嘟嘟粉色腮红 -->
+  <rect x="7" y="16" width="2" height="2" class="cheek"/>
+  <rect x="23" y="16" width="2" height="2" class="cheek"/>
+
+  <!-- 好奇微张的小嘴巴 -->
+  <rect x="14" y="15" width="4" height="2" class="mouth"/>
+  <rect x="15" y="15" width="2" height="1" class="white"/>
+
+  <!-- 两只短短的小龙爪 -->
+  <rect x="7" y="19" width="2" height="2" class="body-shadow"/>
+  <rect x="23" y="19" width="2" height="2" class="body-shadow"/>
+
+  <!-- 两只胖胖的小脚丫 -->
+  <rect x="9" y="27" width="4" height="2" class="body-shadow"/>
+  <rect x="19" y="27" width="4" height="2" class="body-shadow"/>
+
+  <!-- 微微翘起的龙尾巴 -->
+  <rect x="26" y="20" width="3" height="4" class="outline"/>
+  <rect x="26" y="21" width="2" height="3" class="body"/>
+</svg>

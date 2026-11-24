@@ -10,7 +10,7 @@ export function ProjectForm({ teamId }: { teamId: string }) {
   );
 
   return (
-    <form action={formAction} className="ac-card space-y-2 p-4">
+    <form data-tour="project-create" data-tour-complete={state?.createdId ? "true" : "false"} action={formAction} className="ac-card space-y-2 p-4">
       <h2 className="font-medium text-ink">创建项目</h2>
       <input type="hidden" name="teamId" value={teamId} />
       <input name="name" placeholder="项目名称" className="ac-field" />
@@ -30,6 +30,7 @@ export function ProjectForm({ teamId }: { teamId: string }) {
           <input type="date" name="endDate" className="ac-field" />
         </label>
       </div>
+      {state?.createdId && <p role="status" className="text-xs text-success">项目已创建，可以继续规划第一轮。</p>}
       {state?.error && <p className="text-sm text-high">{state.error}</p>}
       <button disabled={pending} className="ac-btn">
         {pending ? "创建中…" : "创建"}

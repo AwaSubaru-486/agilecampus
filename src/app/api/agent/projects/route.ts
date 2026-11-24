@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
+import { authenticateBearer, unauthorized, mapAgentError, readAgentJson } from "@/lib/agent-auth";
 import { createProject, listMyProjects } from "@/lib/project";
 
 // CC 读取：列出令牌主人参与的全部项目（跨团队）。
@@ -39,7 +39,11 @@ export async function POST(req: Request) {
   const userId = await authenticateBearer(req);
   if (!userId) return unauthorized();
 
-  const parsed = createSchema.safeParse(await req.json().catch(() => ({})));
+  let body: unknown;
+
+  try { body = await readAgentJson(req); } catch (e) { return mapAgentError(e, "agent body"); }
+
+  const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }

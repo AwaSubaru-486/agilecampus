@@ -28,13 +28,14 @@ const opts = {} as never;
 describe("写工具产草案不落库", () => {
   beforeEach(resetDb);
 
-  it("WRITE_TOOL_NAMES 含五写工具", () => {
+  it("WRITE_TOOL_NAMES 包含全部写工具", () => {
     expect(WRITE_TOOL_NAMES).toEqual([
       "create_project",
       "decompose_tasks",
       "update_tasks",
       "plan_sprint",
       "create_milestone",
+      "create_decision",
     ]);
   });
 

@@ -25,15 +25,30 @@ async function scene() {
 
 describe("completionNote", () => {
   beforeEach(resetDb);
-  it("可写入完成情况", async () => {
+  it("学生提交成果：落入待验收并写入完成情况", async () => {
     const { student, project } = await scene();
     const t = await createTask(student.id, project.id, { title: "甲" });
     const u = await updateTask(student.id, t.id, {
-      status: "done",
+      status: "review",
       completionNote: "已按计划完成，附实验数据",
     });
-    expect(u.status).toBe("done");
+    expect(u.status).toBe("review");
     expect(u.completionNote).toBe("已按计划完成，附实验数据");
+  });
+
+  it("学生不得自证完成，直接判 done 被拒", async () => {
+    const { student, project } = await scene();
+    const t = await createTask(student.id, project.id, { title: "甲" });
+    await expect(
+      updateTask(student.id, t.id, { status: "done", completionNote: "我说完成了" }),
+    ).rejects.toThrow("任务须先提交验收");
+  });
+
+  it("组长可直接判完成", async () => {
+    const { owner, project } = await scene();
+    const t = await createTask(owner.id, project.id, { title: "甲" });
+    const u = await updateTask(owner.id, t.id, { status: "done" });
+    expect(u.status).toBe("done");
   });
 });
 

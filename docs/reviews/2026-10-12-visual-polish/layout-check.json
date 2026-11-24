@@ -1,0 +1,160 @@
+{
+  "before": {
+    "links": [
+      {
+        "href": "/projects",
+        "text": "我的项目"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/members",
+        "text": "成员与角色"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/resources",
+        "text": "共享资源"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/labels",
+        "text": "团队标签"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/agents",
+        "text": "AI 成员与连接"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5",
+        "text": "看板"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=home&view=manage",
+        "text": "项目推进台"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=work&scope=all&panel=list",
+        "text": "分工"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=work&scope=mine&panel=list",
+        "text": "我的任务"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5/timeline",
+        "text": "时间线"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=studio",
+        "text": "AI 助手"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=record",
+        "text": "成果与记录"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=work&scope=mine&panel=list",
+        "text": "查看任务 →"
+      },
+      {
+        "href": "/collaboration?project=f82b8973-200a-4cb3-9a08-00773eebd8f5&task=eefc5bee-adb0-4efc-8e08-d948d4ebc18e#task-eefc5bee-adb0-4efc-8e08-d948d4ebc18e",
+        "text": "技术选型与架构决策记录苏镕堃需要帮助"
+      },
+      {
+        "href": "/collaboration?project=f82b8973-200a-4cb3-9a08-00773eebd8f5#help",
+        "text": "查看项目全部求助 →"
+      }
+    ],
+    "panels": [
+      {
+        "height": 331.5740966796875,
+        "width": 870.59033203125,
+        "x": 271.9907531738281,
+        "y": 328.15972900390625
+      },
+      {
+        "height": 242.78936767578125,
+        "width": 609.4097290039062,
+        "x": 1174.57177734375,
+        "y": 328.15972900390625
+      }
+    ]
+  },
+  "after": {
+    "links": [
+      {
+        "href": "/projects",
+        "text": "我的项目"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/members",
+        "text": "成员与角色"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/resources",
+        "text": "共享资源"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/labels",
+        "text": "团队标签"
+      },
+      {
+        "href": "/teams/ffe88690-3f16-4aa3-8c55-184ca4f6ebae/agents",
+        "text": "AI 成员与连接"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5",
+        "text": "看板"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=home&view=manage",
+        "text": "项目推进台"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=work&scope=all&panel=list",
+        "text": "分工"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=work&scope=mine&panel=list",
+        "text": "我的任务"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5/timeline",
+        "text": "时间线"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=studio",
+        "text": "AI 助手"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=record",
+        "text": "成果与记录"
+      },
+      {
+        "href": "/projects/f82b8973-200a-4cb3-9a08-00773eebd8f5?space=work&scope=mine&panel=list",
+        "text": "查看任务 →"
+      },
+      {
+        "href": "/collaboration?project=f82b8973-200a-4cb3-9a08-00773eebd8f5&task=eefc5bee-adb0-4efc-8e08-d948d4ebc18e#task-eefc5bee-adb0-4efc-8e08-d948d4ebc18e",
+        "text": "技术选型与架构决策记录苏镕堃需要帮助"
+      },
+      {
+        "href": "/collaboration?project=f82b8973-200a-4cb3-9a08-00773eebd8f5#help",
+        "text": "查看项目全部求助 →"
+      }
+    ],
+    "panels": [
+      {
+        "height": 331.5740966796875,
+        "width": 870.59033203125,
+        "x": 271.9907531738281,
+        "y": 328.15972900390625
+      },
+      {
+        "height": 242.78936767578125,
+        "width": 609.4097290039062,
+        "x": 1174.57177734375,
+        "y": 328.15972900390625
+      }
+    ]
+  },
+  "samePanelGeometry": true,
+  "sameLinks": true
+}

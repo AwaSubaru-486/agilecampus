@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { forkConversation } from "@/lib/agent/conversation";
 import { AppError, ForbiddenError } from "@/lib/errors";
+import { readJsonOrError } from "@/lib/http";
 
 const schema = z.object({
   throughMessageId: z.uuid(),
@@ -20,7 +21,9 @@ export async function POST(
   if (!z.uuid().safeParse(conversationId).success) {
     return NextResponse.json({ error: "会话参数无效" }, { status: 400 });
   }
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const bodyResult = await readJsonOrError(request, 256 * 1024);
+  if (!bodyResult.ok) return bodyResult.response;
+  const parsed = schema.safeParse(bodyResult.body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "参数无效" }, { status: 400 });
   }

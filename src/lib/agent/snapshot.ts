@@ -2,7 +2,11 @@ import { getProjectForUser, listProjectMilestones } from "@/lib/project";
 import { listProjectTasks } from "@/lib/task";
 import { listTeamMembers } from "@/lib/team";
 import { ForbiddenError } from "@/lib/errors";
+import { STATUS_LABEL, TASK_STATUSES, emptyByStatus } from "@/lib/task-status";
+import { today } from "@/lib/today";
 import type { TaskStatus } from "@/db/schema";
+import { handoffToPrompt } from "@/lib/handoff";
+import { listProjectStages } from "./project-context";
 
 // 上限放宽至 4000：快照须随行携带 uuid（成员/里程碑/任务各 36 字符）供写工具填参，
 // 旧的 2000 字符下十余个任务即触发降级，模型只得反复调读工具，反更耗 token。
@@ -15,26 +19,35 @@ export async function buildProjectSnapshot(actorId: string, projectId: string): 
   if (!access) throw new ForbiddenError();
   const { project } = access;
 
-  const [milestones, tasks, members] = await Promise.all([
+  const [milestones, allTasks, members, stages] = await Promise.all([
     listProjectMilestones(actorId, projectId),
     listProjectTasks(actorId, projectId),
     listTeamMembers(project.teamId),
+    listProjectStages(actorId, projectId),
   ]);
+  const tasks = allTasks.filter(task => !task.isTaskGroup);
+  const currentStage = stages.find(stage => stage.status === "active" || stage.status === "integrating");
+  const currentTasks = tasks.filter(task => task.stageId === currentStage?.id);
 
-  const byStatus: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+  const byStatus: Record<TaskStatus, number> = emptyByStatus();
   for (const t of tasks) byStatus[t.status]++;
 
   // 当日日期：模型不知今夕何夕，缺此则「下周五截止」一类相对日期必错。
-  // 取法同 notify.ts:103（toISOString 前十位），全军一律。
-  const today = new Date().toISOString().slice(0, 10);
+  // 取法走 lib/today.ts，全军一律。
+  // 局部变量名避开 day 之外的 today——勿遮蔽同名函数。
+  const day = today();
 
   const head = [
-    `今天是 ${today}（相对日期以此为准推算）`,
+    `今天是 ${day}（相对日期以此为准推算）`,
     `# 当前项目：${project.name}（projectId=${project.id}）`,
+    `当前提问者：id=${actorId}，项目角色=${access.role}（admin=组长，student=组员，teacher=老师）`,
     project.description ? `描述：${project.description}` : null,
     `状态：${project.status}；起止：${project.startDate ?? "?"} ~ ${project.endDate ?? "?"}`,
-    `任务统计：共 ${tasks.length} 个（待办 ${byStatus.todo} / 进行中 ${byStatus.doing} / 已完成 ${byStatus.done}）`,
+    // 统计串随枚举走：加档后自动多出一项，无需回来补文案
+    `任务统计：共 ${tasks.length} 个（${TASK_STATUSES.map((s) => `${STATUS_LABEL[s]} ${byStatus[s]}`).join(" / ")}）`,
     `共 ${milestones.length} 个里程碑`,
+    currentStage ? `当前执行阶段：${currentStage.title}｜id=${currentStage.id}｜${currentStage.status}｜当前阶段验收 ${currentTasks.filter(task => task.status === "done").length}/${currentTasks.length}` : "当前执行阶段：暂无执行中的阶段",
+    `共 ${stages.length} 个执行阶段；阶段集成与任务验收分别确认，里程碑不是执行阶段。详情用 query_stage_progress 查询。`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -61,8 +74,16 @@ export async function buildProjectSnapshot(actorId: string, projectId: string): 
       ? "\n\n## 任务（taskId 取此处的 id）\n" +
         shownTasks
           .map(
-            (t) =>
-              `- [${t.status}] ${t.title}｜${t.assigneeName ?? "未指派"}｜${t.dueDate ?? "无截止"}｜id=${t.id}`,
+            (t) => {
+              const handoff = handoffToPrompt(t);
+              const version = `契约v${t.handoffVersion}${
+                t.committedHandoffVersion !== null &&
+                t.committedHandoffVersion !== t.handoffVersion
+                  ? "（需重新确认）"
+                  : ""
+              }`;
+              return `- [${t.status}] ${t.title}｜${t.assigneeName ?? "未指派"}｜${t.dueDate ?? "无截止"}｜${version}${handoff ? `｜${handoff.replaceAll("\n", "；")}` : ""}｜id=${t.id}`;
+            },
           )
           .join("\n") +
         (tasks.length > shownTasks.length

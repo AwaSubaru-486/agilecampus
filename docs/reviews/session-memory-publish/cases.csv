@@ -1,0 +1,11 @@
+id,phase,source,scenario,expected,status,evidence
+CAP-001,M01,Codex Hook,UserPromptSubmit payload fixture,Shared schema accepts normalized user-event target shape without leaking cwd,PASS,../../../tests/session-memory-contract.test.ts
+CAP-002,M01,Codex Hook,PostToolUse payload fixture,Shared schema accepts paired normalized tool evidence target shapes,PASS,../../../tests/session-memory-contract.test.ts
+CAP-003,M01,Codex Hook,Stop payload fixture,Shared schema accepts assistant-event target shape; runtime event dedupe remains M02,PASS,../../../tests/session-memory-contract.test.ts
+CAP-004,M01,Claude Hook,UserPromptSubmit/PostToolUse/Stop payload fixtures,Shared schema accepts normalized target shapes and missing evidence stays null,PASS,../../../tests/session-memory-contract.test.ts
+CAP-005,M01,Workspace binding,Hook cwd resolves to an unrelated repository,Reject event and do not capture,NOT_IMPLEMENTED,shared schema only; workspace adapter required
+CAP-006,M02,Codex Hook,Trusted hook writes event while Extension Host is active,Local event appears once with correct bound workspace,PLANNED,
+CAP-007,M02,Claude Hook,Trusted hook writes event while Extension Host is active,Local event appears once with correct bound workspace,PLANNED,
+CAP-008,M02,Extension restart,Host exits between events then resumes,Cursor resumes without duplicate events and records detectable gaps,PLANNED,
+CAP-009,M02,Transcript rotation,Source transcript truncates or rotates,Mark gap and refuse to claim complete coverage,PLANNED,
+CAP-010,M02,Privacy,Hook captures a synthetic credential-shaped string,Local redaction catches it before any network request,PLANNED,

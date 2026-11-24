@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createUser, bindFeishu } from "@/lib/user";
-import { createTeam } from "@/lib/team";
+import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject } from "@/lib/project";
 import { createTask } from "@/lib/task";
 import { db } from "@/db";
@@ -87,6 +87,24 @@ describe("notifyTaskCompleted", () => {
     const { notifyTaskCompleted } = await import("@/lib/notify");
     await notifyTaskCompleted(task, owner.id);
     expect(sendMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("提交审核通知", () => {
+  beforeEach(async () => { await resetDb(); sendMock.mockClear(); });
+  it("待审核只通知组长，老师不承担初审", async () => {
+    const { owner, team, project } = await base();
+    const member = await createUser({ email: "submit@e.com", password: "password123", name: "组员" });
+    const teacher = await createUser({ email: "recheck@e.com", password: "password123", name: "老师" });
+    await joinTeam(member.id, team.inviteCode);
+    await joinTeam(teacher.id, team.inviteCode);
+    await updateMemberRole(owner.id, team.id, teacher.id, "teacher");
+    await bindFeishu(owner.id, { openId: "ou_leader", name: "组长" });
+    await bindFeishu(teacher.id, { openId: "ou_teacher", name: "老师" });
+    const task = await createTask(owner.id, project.id, { title: "交付", assigneeId: member.id });
+    const { notifyTaskSubmitted } = await import("@/lib/notify");
+    await notifyTaskSubmitted(task);
+    expect(sendMock.mock.calls.map(call => call[0])).toEqual(["ou_leader"]);
   });
 });
 

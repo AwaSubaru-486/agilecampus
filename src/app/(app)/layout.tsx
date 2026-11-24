@@ -1,71 +1,63 @@
-import Link from "next/link";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { teamMembers } from "@/db/schema";
+import { getTutorialProgress } from "@/lib/tutorials/progress";
+import { TutorialProvider } from "./tutorials/tutorial-provider";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "@/lib/auth";
-import { AppNavigation } from "./app-navigation";
+import { auth } from "@/lib/auth";
+import { listMyProjects } from "@/lib/project";
+import { Suspense } from "react";
+import { PendingActionBadge } from "./_shell/pending-action-badge";
+import { TopWorkbar } from "./_shell/top-workbar";
+import { StuckButton } from "./stuck-button";
+import { TaskNotificationInbox } from "./_shell/task-notification-inbox";
+import { WebDeskPet } from "./_shell/web-desk-pet";
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// 应用骨架。Commit 2/13 起由「左侧永久导航」改为「顶部工作带」。
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const [myProjects, memberships, tutorialProgress] = await Promise.all([
+    listMyProjects(session.user.id),
+    db.select({ teamId: teamMembers.teamId, role: teamMembers.role }).from(teamMembers).where(eq(teamMembers.userId, session.user.id)),
+    getTutorialProgress(session.user.id),
+  ]);
+
+  const switcherProjects = myProjects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    teamName: p.teamName,
+  }));
+
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-surface p-4 lg:flex">
-        <Link href="/projects" className="flex items-center gap-3 px-2 py-2">
-          <span aria-hidden className="relative grid size-9 place-items-center rounded-xl bg-ink text-xs font-bold tracking-tight text-white shadow-sm">
-            AC
-            <i className="absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-surface bg-accent" />
-          </span>
-          <span>
-            <span className="block text-sm font-bold tracking-[-0.02em] text-ink">AgileCampus</span>
-            <span className="block text-[10px] tracking-[0.12em] text-ink-faint">TEAM OS</span>
-          </span>
-        </Link>
+    <TutorialProvider initialProgress={tutorialProgress} projects={myProjects.flatMap((project) => {
+      const membership = memberships.find((item) => item.teamId === project.teamId);
+      return membership ? [{ id: project.id, name: project.name, teamId: project.teamId, teamName: project.teamName, taskTotal: project.taskTotal, role: membership.role }] : [];
+    })}>
+    <div className="min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only z-[60] rounded-[var(--radius-control)] bg-ink px-3 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        跳到主要内容
+      </a>
+      <TopWorkbar
+        userName={session.user.name ?? ""}
+        projects={switcherProjects}
+        collaborationBadge={<Suspense fallback={null}><PendingActionBadge userId={session.user.id} /></Suspense>}
+      />
+      <main id="main-content" tabIndex={-1} className="ac-shell-main">
+        {children}
+      </main>
 
-        <div className="mt-7 px-2 text-[10px] font-semibold tracking-[0.14em] text-ink-faint">WORKSPACE</div>
-        <div className="mt-2"><AppNavigation /></div>
+      {/* 悬浮求助入口 */}
+      <StuckButton projects={switcherProjects.map((p) => ({ id: p.id, name: p.name }))} />
+      <TaskNotificationInbox key={session.user.id} userId={session.user.id} />
 
-        <div className="mt-auto space-y-3">
-          <div className="rounded-2xl bg-ink p-3.5 text-white">
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <span className="size-2 rounded-full bg-[#7CF2C3] shadow-[0_0_0_4px_rgba(124,242,195,0.12)]" />
-              AI 协作在线
-            </div>
-            <p className="mt-2 text-[11px] leading-5 text-white/55">项目上下文会跟随任务进入会话，不再重复解释背景。</p>
-          </div>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-            className="flex items-center gap-2 rounded-xl border border-line p-2"
-          >
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary">
-              {(session.user.name || "U").slice(0, 1).toUpperCase()}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">{session.user.name}</span>
-            <button className="rounded-lg px-2 py-1 text-[11px] text-ink-faint hover:bg-sunken hover:text-ink">退出</button>
-          </form>
-        </div>
-      </aside>
-
-      <section className="min-w-0">
-        <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 px-4 py-3 backdrop-blur-xl lg:hidden">
-          <div className="mb-3 flex items-center justify-between">
-            <Link href="/projects" className="font-bold text-ink">AgileCampus</Link>
-            <span className="text-xs text-ink-faint">{session.user.name}</span>
-          </div>
-          <AppNavigation mobile />
-        </header>
-        <div className="hidden h-14 items-center justify-between border-b border-line bg-surface/70 px-8 backdrop-blur lg:flex">
-          <p className="text-xs font-medium text-ink-soft">高校团队协作空间</p>
-          <p className="flex items-center gap-2 text-xs text-ink-faint"><span className="size-1.5 rounded-full bg-done" /> 所有更改自动保存</p>
-        </div>
-        <div className="mx-auto max-w-[90rem] p-4 sm:p-6 lg:p-8">{children}</div>
-      </section>
+      {/* 网页常驻浮动桌宠 (纯像素风格 · 拖拽交互 · 消息与预警联动) */}
+      <WebDeskPet />
     </div>
+    </TutorialProvider>
   );
 }

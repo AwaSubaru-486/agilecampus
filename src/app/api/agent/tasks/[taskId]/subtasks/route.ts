@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateBearer, unauthorized, mapAgentError } from "@/lib/agent-auth";
+import { authenticateBearer, unauthorized, mapAgentError, readAgentJson } from "@/lib/agent-auth";
 import { createSubtask, listSubtasks } from "@/lib/task";
+import { EVIDENCE_TYPES, MAX_DONE_CRITERIA } from "@/lib/handoff";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -35,6 +36,11 @@ const createSchema = z.object({
   dueDate: z.string().optional(),
   milestoneId: z.uuid().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  handoffBrief: z.string().trim().max(2_000).optional(),
+  doneCriteria: z.array(z.string().trim().min(1)).max(MAX_DONE_CRITERIA).optional(),
+  requiredEvidence: z.array(z.enum(EVIDENCE_TYPES)).max(EVIDENCE_TYPES.length).optional(),
+  responseDueAt: z.iso.datetime().optional(),
+  contextPackId: z.uuid().nullable().optional(),
 });
 
 // CC 写入：在该任务下建子任务。所属项目由父任务推得，调用方无须传 projectId。
@@ -46,13 +52,20 @@ export async function POST(req: Request, ctx: Ctx) {
   const taskId = parseTaskId(raw);
   if (!taskId) return NextResponse.json({ error: "taskId 无效" }, { status: 400 });
 
-  const parsed = createSchema.safeParse(await req.json().catch(() => ({})));
+  let body: unknown;
+
+  try { body = await readAgentJson(req); } catch (e) { return mapAgentError(e, "agent body"); }
+
+  const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
   try {
-    const task = await createSubtask(userId, taskId, parsed.data);
+    const task = await createSubtask(userId, taskId, {
+      ...parsed.data,
+      responseDueAt: parsed.data.responseDueAt ? new Date(parsed.data.responseDueAt) : undefined,
+    });
     return NextResponse.json({
       id: task.id,
       title: task.title,

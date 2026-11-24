@@ -46,6 +46,22 @@ Open WebUI 当前版本带额外品牌限制，本项目未合并其代码。
 
 Lody 面向代码开发 Agent，包含本机 Daemon、ACP、Git Worktree、代码 Diff 和跨机器运行。AgileCampus 面向高校项目团队，第一版只实现 Web 端共享会话和上下文继承，不远程控制成员电脑，也不自动执行代码。这里复用的是协作模型，不是开发环境架构。
 
+## 当前已落地的复用
+
+当前分支已经把 Lody 中适合 AgileCampus 的一小块纯逻辑适配进仓库：
+
+- `src/lib/conversation-tree.ts`：适配会话关系树的稳定排序、孤儿提升、循环防护和折叠展示；
+- `src/app/(app)/projects/[projectId]/conversation-tree.tsx`：把项目会话从平铺列表改为可折叠分支树；
+- `src/app/(app)/projects/[projectId]/context-pack-builder.tsx`：把现有 Context Pack API 接成可预览、创建、冻结、选择的工作流；
+- `src/app/(app)/projects/[projectId]/chat-panel.tsx`：改为连续工作稿，保留分支来源和人工确认边界。
+- `src/db/schema.ts` + `src/lib/approval.ts`：把 AI 写草案持久化为审批请求，使用幂等键和 CAS 抢占，统一委托既有 `commitDraft` 执行；
+- `src/app/api/approvals/[approvalId]/resolve/route.ts` 与 `src/app/(app)/collaboration/page.tsx`：提供审批执行入口和跨项目待处理汇总；
+- `src/app/(app)/projects/[projectId]/approval-detail.tsx`：提供结构化 payload 编辑、来源跳转、驳回原因、失败重试和执行超时人工恢复；
+- `src/lib/approval.ts` + `/api/approvals/[approvalId]/preview`：在确认前按任务字段展示 stale 版本冲突，并根据团队角色显示可确认范围；
+- `tests/approval.test.ts`：覆盖幂等登记、拒绝不写入、确认执行和重复确认不重复写入。
+
+这不是把 Lody 的桌面端、Daemon 或 ACP runtime 搬进来；适配代码和来源说明见仓库根目录 `THIRD_PARTY_NOTICES.md`。assistant-ui、Vercel AI Chatbot、LibreChat、Plane 等目前仍作为交互和数据模型参考，后续只有在契约、许可证和现有权限模型都匹配时才会逐块引入。
+
 ## 后续计划
 
 1. 将 AI 回复转为项目决策、风险、文档和交付物。
