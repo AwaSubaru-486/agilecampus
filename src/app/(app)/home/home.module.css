@@ -20,13 +20,43 @@
 .petDrawer::backdrop{background:#16343940;backdrop-filter:blur(2px)}
 .petDrawer.continuousInteractions::backdrop{background:#16343908;backdrop-filter:none}
 @media(max-width:800px){.petDrawer.continuousInteractions{inset:auto 0 0;width:100%;height:auto;max-height:45dvh;border-radius:16px 16px 0 0}.continuousInteractions .companion{display:none}.sidePanel.petDrawerPanel:has([aria-label="桌宠互动"]){padding:16px;gap:12px}}
-.blackboardTrigger{position:absolute;left:11.25%;top:22.3333%;width:19.8%;height:10.5%;z-index:2;border:2px solid transparent;border-radius:5px;background:transparent;cursor:pointer}
-.blackboardTrigger:hover,.blackboardTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px;background:#ffffff0a}
-.mobileTaskSummary{display:none}
-@media(max-width:800px){.mobileTaskSummary{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;padding:12px;font-size:12px;border-top:1px solid var(--color-stroke);color:var(--color-ink-2);background:var(--color-panel);cursor:pointer}.mobileTaskSummary strong,.mobileTaskSummary span:last-child{color:var(--color-signal)}}
+.taskBoardTrigger{
+  position:absolute;
+  left:11.25%;
+  top:27%;
+  z-index:2;
+  display:grid;
+  place-items:center;
+  min-height:44px;
+  padding:.48em .95em;
+  transform:translateY(-50%);
+  border:1px solid #8caf9e;
+  border-radius:clamp(9px,1vw,14px);
+  background:#fffcf1;
+  box-shadow:0 3px 0 #a4bdb1,0 6px 12px #34534c24;
+  color:#284f44;
+  font-size:clamp(15px,2.25vw,29px);
+  font-weight:800;
+  line-height:1.15;
+  letter-spacing:.06em;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.taskBoardTrigger:hover,.taskBoardTrigger:focus-visible{background:#f3fff8;border-color:var(--color-signal)}
+.taskBoardTrigger>span{animation:task-label-hop 2.8s ease-in-out infinite}
+.taskBoardTrigger:hover>span,.taskBoardTrigger:focus-visible>span{animation-play-state:paused}
+@keyframes task-label-hop{
+  0%,16%,30%,100%{transform:translateY(0)}
+  8%{transform:translateY(-.22em)}
+  23%{transform:translateY(-.1em)}
+}
 .taskBoardDialog{width:min(1100px,94vw);max-width:94vw;max-height:85dvh;margin:auto;padding:0;border:1px solid var(--color-stroke);border-radius:var(--radius-panel);background:var(--color-panel);color:var(--color-ink);overflow:auto;box-shadow:var(--shadow-panel)}
 .taskBoardDialog::backdrop{background:#16343960;backdrop-filter:blur(2px)}
 .taskBoardContent{padding:clamp(16px,3vw,28px)}.taskBoardContent>.drawerHeading{margin-bottom:24px}.taskBoardContent h2{font-size:22px;font-weight:600}.taskBoardContent>.drawerHeading p{font-size:12px;color:var(--color-ink-3);margin-top:6px}
+.taskCounts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 20px}
+.taskCounts>div{padding:8px clamp(8px,1.5vw,14px);border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-signal-soft)}
+.taskCounts dt{font-size:12px;color:var(--color-ink-2)}
+.taskCounts dd{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--color-signal)}
 .sidePanel.petDrawerPanel{display:flex;flex-direction:column;min-height:100%;border:0;border-radius:0;box-shadow:none;padding:24px;gap:18px}
 .drawerHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.drawerHeading>button{flex-shrink:0;font-size:22px;min-width:36px;min-height:36px}
 .petDrawer[open]{animation:pet-drawer-in .2s ease-out}
@@ -76,6 +106,11 @@
 @media(prefers-reduced-motion:reduce){.scene>svg.projectileLayer{display:none}}
 .interactionReceipt{position:absolute;top:4%;left:50%;transform:translateX(-50%);z-index:35;max-width:85%;padding:9px 14px;border:1px solid var(--color-signal-ring);border-radius:12px;background:var(--color-panel);color:var(--color-signal);font-size:clamp(11px,1vw,14px);box-shadow:var(--shadow-panel);pointer-events:none;text-align:center}
 .interactionEmoji{position:absolute;top:4%;left:65%;z-index:6;font-size:clamp(18px,2vw,30px);pointer-events:none;animation:pet-hello .5s ease-in-out 2,interaction-icon-exit .12s ease-out .88s forwards}
+@media(max-width:640px){
+  .taskBoardTrigger{left:8%;top:19%;z-index:21}
+  .scene:has(>.taskBoardTrigger)>.sceneLabel{display:none}
+  .interactionReceipt{left:auto;right:5%;max-width:52%;transform:none;padding:6px 8px}
+}
 @keyframes interaction-icon-exit{to{opacity:0;visibility:hidden}}
 @media(prefers-reduced-motion:reduce){.interactionEmoji{display:none}}
 @keyframes pet-hello{0%,100%{transform:rotate(0)}35%{transform:rotate(-5deg)}70%{transform:rotate(5deg)}}
