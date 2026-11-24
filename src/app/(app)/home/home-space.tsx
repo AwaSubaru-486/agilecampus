@@ -39,7 +39,13 @@ async function mutate(body: unknown): Promise<HomeProfile> {
   return result.home;
 }
 
-export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: HomeView; project?: { id: string; name: string; canAct: boolean }; taskBoard?: ReactNode; taskSummary?: OfficeTaskSummary }) {
+export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMemberIds = [] }: {
+  data: HomeView;
+  project?: { id: string; name: string; canAct: boolean };
+  taskBoard?: ReactNode;
+  taskSummary?: OfficeTaskSummary;
+  blockedMemberIds?: string[];
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
@@ -198,15 +204,19 @@ export function HomeSpace({ data, project, taskBoard, taskSummary }: { data: Hom
           {seats.map((seat, index) => {
             const left = 25 + index % 3 * 25, top = 42 + Math.floor(index / 3) * 27;
             const occupied = Boolean(seat?.working && seat.pet?.status === "ready");
+            const blocked = Boolean(seat && blockedMemberIds.includes(seat.ownerId));
             const reacting = occupied && interaction && (interaction.actorId === seat?.ownerId || interaction.targetId === seat?.ownerId);
             const label = seat ? `${seat.ownerName} · ${occupied ? "工作中" : seat.working ? "桌宠暂不可用" : "未工作"}` : "空闲工位";
+            const workstationLabel = seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : seat ? `${seat.ownerName}的工位，打开桌宠互动面板` : "空工位，打开我的桌宠面板";
+            const blockerLabel = blocked ? "，有阻塞任务" : "";
             return <Fragment key={seat?.ownerId ?? index}><div className={`${s.workstation} ${reacting ? s.interacting : ""}`} style={{ left: `${left}%`, top: `${top}%`, zIndex: reacting ? 20 : 4 + Math.floor(index / 3) * 4 }} data-workstation data-occupied={occupied}>
               <div className={s.deskArt} data-photo-object="furniture" data-photo-left={left} data-photo-top={top + 18}><WorkstationArt occupied={occupied} pet={occupied && seat?.pet ? seat.pet : undefined} greeting={Boolean(reacting) || bubble === seat?.ownerId} /></div>
+              {blocked && <span className={s.blockerMark} aria-hidden="true" data-office-blocker>!</span>}
               {reacting && interaction && <span className={`${s.workSpeech} ${interaction.targetId === seat?.ownerId && (interaction.kind === "paper" || interaction.kind === "plane" || interaction.kind === "tomato" || interaction.kind === "water") ? s.projectileResponse : ""}`} data-pet-interaction role="status">{PET_INTERACTIONS[interaction.kind].icon} {interaction.actorId === seat?.ownerId ? PET_INTERACTIONS[interaction.kind].from : PET_INTERACTIONS[interaction.kind].to}</span>}
               {reacting && interaction && <span key={interaction.id} className={s.interactionEmoji} aria-hidden="true" data-pet-interaction-icon>{PET_INTERACTIONS[interaction.kind].icon}</span>}
-              <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={seat?.ownerId === data.actorId ? "我的工位，选择网页桌宠或开始工作" : seat ? `${seat.ownerName}的工位，打开桌宠互动面板` : "空工位，打开我的桌宠面板"} onClick={() => openWorkstation(seat)} />
+              <button className={s.workstationTrigger} aria-haspopup="dialog" aria-label={`${workstationLabel}${blockerLabel}`} onClick={() => openWorkstation(seat)} />
               {occupied && bubble === seat?.ownerId && <span className={s.workSpeech}>加油，一起完成今天的工作！</span>}
-            </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}，${seat && seat.ownerId !== data.actorId ? "点击互动" : "点击设置我的桌宠"}`} aria-haspopup="dialog" onClick={() => openWorkstation(seat)}>{label}</button></Fragment>;
+            </div><button type="button" className={s.seatLabel} data-seat-label data-occupied={occupied} style={{ left: `${left}%`, top: `${top + 22.25}%` }} title={`${label}${blockerLabel}，${seat && seat.ownerId !== data.actorId ? "点击互动" : "点击设置我的桌宠"}`} aria-haspopup="dialog" onClick={() => openWorkstation(seat)}>{label}</button></Fragment>;
           })}
         </div>
         {project && taskSummary && <button className={s.mobileTaskSummary} onClick={() => taskBoardRef.current?.showModal()} aria-haspopup="dialog"><strong>我的任务</strong><span>待办 {taskSummary.todo}</span><span>进行中 {taskSummary.doing}</span><span>待验收 {taskSummary.review}</span><span>查看 →</span></button>}

@@ -44,6 +44,25 @@
 .seatedPet{position:absolute;left:27%;top:6%;width:36%;height:43%;z-index:4;padding:0;border:0;border-radius:45%;background:transparent;cursor:pointer}
 .seatedPet:focus-visible{outline:2px solid var(--color-signal);outline-offset:3px}
 .workstationTrigger{position:absolute;inset:0;z-index:4;border:1px solid transparent;border-radius:12px;background:transparent;cursor:pointer}
+.blockerMark{
+  position:absolute;
+  top:5%;
+  left:45%;
+  z-index:7;
+  display:grid;
+  place-items:center;
+  width:clamp(20px,2.4vw,30px);
+  aspect-ratio:1;
+  transform:translate(-50%,-100%);
+  border:2px solid #fff;
+  border-radius:50%;
+  background:var(--color-risk);
+  box-shadow:0 2px 7px #202e4140;
+  color:#fff;
+  font:900 clamp(13px,1.6vw,20px)/1 system-ui,sans-serif;
+  pointer-events:none;
+}
+.blockerMark ~ .workSpeech{margin-bottom:clamp(16px,2vw,25px)}
 .interacting [data-seated-pet]{transform-box:fill-box;transform-origin:50% 90%;animation:pet-hello .7s ease-in-out 7;filter:drop-shadow(0 0 3px #60ae8a99)}
 .scene>svg.projectileLayer{z-index:25;overflow:visible;pointer-events:none}
 .flyingObject{animation:projectile-flight 1.25s linear both}

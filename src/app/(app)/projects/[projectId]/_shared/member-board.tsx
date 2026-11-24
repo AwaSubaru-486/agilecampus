@@ -1,14 +1,21 @@
 import Link from "@/components/feedback-link";
 import { getTaskTree } from "@/lib/task-tree";
-import { listProjectBlockers } from "@/lib/blocker";
+import { listProjectBlockers, type BlockerRow } from "@/lib/blocker";
 import { groupTasksByStage } from "@/lib/project-stage-groups";
 import { statusLabel } from "@/lib/task-status";
 import { collaborationHelpHref, groupTaskHelp } from "@/lib/collaboration-help";
 
-export async function MemberBoard({ actorId, viewUserId = actorId, projectId, embedded = false, taskTree }: { actorId: string; viewUserId?: string; projectId: string; embedded?: boolean; taskTree?: Awaited<ReturnType<typeof getTaskTree>> }) {
+export async function MemberBoard({ actorId, viewUserId = actorId, projectId, embedded = false, taskTree, openBlockers }: {
+  actorId: string;
+  viewUserId?: string;
+  projectId: string;
+  embedded?: boolean;
+  taskTree?: Awaited<ReturnType<typeof getTaskTree>>;
+  openBlockers?: BlockerRow[];
+}) {
   const [tree, blockers] = await Promise.all([
     taskTree ?? getTaskTree(actorId, projectId),
-    listProjectBlockers(actorId, projectId, { status: ["open"] }),
+    openBlockers ?? listProjectBlockers(actorId, projectId, { status: ["open"] }),
   ]);
   const mine = tree.tasks.filter(task => !task.isTaskGroup && task.assigneeId === viewUserId);
   const groups = groupTasksByStage(tree.stages, mine);
