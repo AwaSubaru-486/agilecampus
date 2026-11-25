@@ -51,6 +51,21 @@ describe("展示教程与账号进度", () => {
     const resumed = await updateTutorialProgress(a.id, { type: "save", courseId: "welcome", step: 3, projectId: project.id });
     expect(resumed.active?.paused).toBeUndefined(); expect(resumed.journey).toEqual(paused.journey);
   });
+  it("为第八步优先选择待审核任务，缺少待审核任务时展示已审核成果", async () => {
+    const owner = await user("acceptance");
+    const { project, team } = await showcase(owner.id);
+    const other = await createProject(owner.id, team.id, { name: "其他项目" });
+    const [review, done] = await db.insert(tasks).values([
+      { projectId: project.id, title: "等待验收的材料", status: "review" },
+      { projectId: project.id, title: "通过验收的材料", status: "done", submittedAt: new Date() },
+      { projectId: other.id, title: "其他项目的待验收材料", status: "review", submittedAt: new Date() },
+    ]).returning();
+    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: review.id, queue: "review" });
+    await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, review.id));
+    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: done.id, queue: "completed" });
+    await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, done.id));
+    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toBeNull();
+  });
   it("展示无需模型配置或真实交付，完成与重新开始不改团队、项目、任务和业务活动", async () => {
     const a = await user("a"); const { project } = await showcase(a.id);
     const snapshot = async () => Promise.all([db.select().from(tasks), db.select().from(projects), db.select().from(teams), db.select().from(activityEvents)]);

@@ -34,6 +34,14 @@ describe("敏捷开发平台项目导览", () => {
     expect(noTasks.find(step => step.id === "delivery")?.target).toBe('[data-tour="execution-console"]');
   });
 
+  it("组长第八步直接进入真实验收任务，空队列仍可继续", () => {
+    const steps = buildWelcomeSteps({ ...journey, acceptance: { taskId: "review-task", queue: "review" } });
+    expect(steps[7]).toMatchObject({ id: "acceptance", browseAcceptance: true, route: "/projects/demo-project?space=work&scope=review&task=review-task" });
+    expect(buildWelcomeSteps({ ...journey, acceptance: { taskId: "done-task", queue: "completed" } })[7].route)
+      .toBe("/projects/demo-project?space=work&scope=completed&task=done-task");
+    expect(buildWelcomeSteps(journey)[7].route).toBe("/projects/demo-project?space=work&scope=review&panel=list");
+  });
+
   it("优先选择演示小组中的可用项目，旧团队只作为可访问的同名示例", () => {
     const legacy = { id: "full", name: "敏捷开发平台", teamId: "team", teamName: "汪汪队", role: "admin" as const, taskTotal: 42 };
     const demo = { ...legacy, id: "demo", teamName: SHOWCASE_TEAM, taskTotal: 20 };

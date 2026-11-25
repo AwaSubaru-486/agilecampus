@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { users, tasks, taskStages } from "@/db/schema";
@@ -37,14 +37,23 @@ async function withShowcase(actorId: string, progress: TutorialProgress): Promis
   if (!access) return { ...progress, journey: { ...EMPTY_JOURNEY } };
   const help = await listCollaborationHelp(actorId, access.project.id);
   const helpTaskId = help.find(request => request.taskId)?.taskId ?? null;
-  const [task] = access.role === "teacher" ? [] : await db.select({ id: tasks.id }).from(tasks)
-    .leftJoin(taskStages, eq(tasks.stageId, taskStages.id))
-    .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false), access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
-    .orderBy(sql`${tasks.id} is distinct from ${helpTaskId}`, asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1);
+  const [[task], [reviewTask]] = await Promise.all([
+    access.role === "teacher" ? [] : db.select({ id: tasks.id }).from(tasks)
+      .leftJoin(taskStages, eq(tasks.stageId, taskStages.id))
+      .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false), access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
+      .orderBy(sql`${tasks.id} is distinct from ${helpTaskId}`, asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1),
+    access.role === "admin" ? db.select({ id: tasks.id, status: tasks.status }).from(tasks)
+      .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false), inArray(tasks.status, ["review", "done"])))
+      .orderBy(sql`(${tasks.status} = 'review') desc`, sql`${tasks.submittedAt} desc nulls last`, asc(tasks.sortOrder), asc(tasks.id)).limit(1) : [],
+  ]);
   const changed = progress.journey?.projectId !== access.project.id || progress.journey.role !== access.role;
   return {
     ...progress,
-    journey: { version: WELCOME_VERSION, teamId: access.project.teamId, projectId: access.project.id, role: access.role, taskId: task?.id ?? null, helpTaskId },
+    journey: {
+      version: WELCOME_VERSION, teamId: access.project.teamId, projectId: access.project.id, role: access.role,
+      taskId: task?.id ?? null, helpTaskId,
+      acceptance: reviewTask ? { taskId: reviewTask.id, queue: reviewTask.status === "review" ? "review" : "completed" } : null,
+    },
     active: progress.active?.courseId === "welcome" ? {
       ...progress.active, projectId: access.project.id, journeyVersion: WELCOME_VERSION,
       ...(changed ? { step: 0, paused: true } : {}),

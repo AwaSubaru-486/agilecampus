@@ -17,6 +17,17 @@ export function tutorialStepRoute(route: string, current: string) {
   }
   return expected.pathname + expected.search + expected.hash;
 }
+
+export function tutorialRouteMatches(route: string, current: string, browseAcceptance = false) {
+  const expected = new URL(route, "http://tutorial.local");
+  const actual = new URL(current, "http://tutorial.local");
+  return expected.pathname === actual.pathname && [...expected.searchParams].every(([key, value]) => {
+    const actualValue = actual.searchParams.get(key);
+    if (browseAcceptance && (key === "task" || key === "panel")) return true;
+    if (browseAcceptance && key === "scope") return actualValue === "review" || actualValue === "completed";
+    return actualValue === value;
+  });
+}
 /** Native dialogs don't survive navigation or reload. Let users reopen the original control. */
 export function tutorialReopenStep(steps: readonly TutorialStep[], index: number) {
   const openers: Record<string, string> = {

@@ -1,5 +1,5 @@
 "use client";
-import { tutorialReopenStep, tutorialStepRoute } from "@/lib/tutorials/route";
+import { tutorialReopenStep, tutorialRouteMatches, tutorialStepRoute } from "@/lib/tutorials/route";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -68,6 +68,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const stepRoute = step?.route;
   const stepTarget = step?.target;
   const stepAction = step?.action;
+  const browseAcceptance = step?.browseAcceptance ?? false;
   const reopenIndex = course && active ? tutorialReopenStep(course.steps, active.step) : null;
   const needsReopen = reopenIndex !== null && reopenIndex !== active?.step;
   const globalNavigation = stepTarget === '[data-tour="nav-today"]' || stepTarget === '[data-tour="nav-projects"]';
@@ -159,11 +160,12 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       setFulfilled(false); setRect(null); setMissing(false);
       if (!globalNavigation) window.dispatchEvent(new CustomEvent("agilecampus:tutorial-navigation", { detail: false }));
       const current = window.location.pathname + window.location.search + window.location.hash;
+      if (browseAcceptance && tutorialRouteMatches(stepRoute, current, true)) return;
       const destination = tutorialStepRoute(stepRoute, current);
       if (current !== destination) router.push(destination);
     });
     return () => cancelAnimationFrame(frame);
-  }, [stepKey, stepRoute, stepTarget, globalNavigation, router]);
+  }, [stepKey, stepRoute, stepTarget, browseAcceptance, globalNavigation, router]);
 
   // Track the real element after navigation, scrolling, resize and dynamic UI updates.
   useEffect(() => {
@@ -174,9 +176,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       setViewport((current) => current.width === window.innerWidth && current.height === window.innerHeight ? current : { width: window.innerWidth, height: window.innerHeight });
       // A successful click can open a dialog or jump to a new section. Let the user see it.
       if (fulfilled && stepAction === "click" && readyKey.current === stepKey) return;
-      const expected = new URL(stepRoute, window.location.origin);
-      const current = new URL(window.location.href);
-      if (current.pathname !== expected.pathname || [...expected.searchParams].some(([key, value]) => current.searchParams.get(key) !== value)) {
+      if (!tutorialRouteMatches(stepRoute, window.location.href, browseAcceptance)) {
         located = null; setRect(null);
         if (!fulfilled && Date.now() - started > 8000) setMissing(true);
         return;
@@ -200,13 +200,13 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       }
       if (located !== element) {
         located = element;
-        element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+        element.scrollIntoView({ block: browseAcceptance ? "start" : "center", inline: "nearest", behavior: "instant" });
       }
       const bounds = element.getBoundingClientRect();
       const top = Math.max(8, bounds.top - 6), left = Math.max(8, bounds.left - 6);
       const width = Math.max(0, Math.min(window.innerWidth - 8, bounds.right + 6) - left);
       const height = Math.max(0, Math.min(window.innerHeight - 8, bounds.bottom + 6) - top);
-      if (!width || !height) {
+      if ((!width || !height) && !browseAcceptance) {
         located = null; setRect(null);
         return;
       }
@@ -221,7 +221,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     window.addEventListener("scroll", measure, true);
     measure();
     return () => { clearInterval(interval); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, globalNavigation, progress.journey, active?.step, course?.id, step?.id, step?.completion]);
+  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, browseAcceptance, globalNavigation, progress.journey, active?.step, course?.id, step?.id, step?.completion]);
 
   useEffect(() => {
     if (!stepTarget || !stepAction) return;
@@ -261,7 +261,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         else if (finished) { setFinished(null); router.push("/tutorials"); }
       }
       if (event.key !== "Tab") return;
-      if (running && fulfilled && stepAction === "click") return;
+      if (running && (browseAcceptance || (fulfilled && stepAction === "click"))) return;
       const targets = step ? [...document.querySelectorAll<HTMLElement>(step.target)] : [];
       const focusables = [...targets.flatMap((target) => [target, ...target.querySelectorAll<HTMLElement>("a[href],button,input,textarea,select,[tabindex]")]), ...card.current?.querySelectorAll<HTMLElement>("a[href],button,input,select,[tabindex]") ?? []]
         .filter((node) => !node.hasAttribute("disabled") && node.tabIndex >= 0 && node.getBoundingClientRect().width > 0);
@@ -274,7 +274,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", onKey); };
   // Event handler uses the current progress and lesson.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, prompt, finished, running, stepKey, pending, fulfilled, stepAction]);
+  }, [mounted, prompt, finished, running, stepKey, pending, fulfilled, stepAction, browseAcceptance]);
 
   const modal = prompt || finished;
   const cardWidth = Math.min(360, viewport.width - 24);
@@ -314,7 +314,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           </div>
         </div>
       </div> : <div className="fixed inset-0 z-[100] pointer-events-none" aria-label="互动教程">
-        {fulfilled && stepAction === "click" ? null : rect && !missing ? <>
+        {browseAcceptance || (fulfilled && stepAction === "click") ? null : rect && !missing ? <>
           {[
             { top: 0, left: 0, width: viewport.width, height: rect.top },
             { top: rect.top, left: 0, width: rect.left, height: rect.height },
@@ -323,7 +323,9 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           ].map((style, index) => <div key={index} className="absolute bg-slate-950/60 pointer-events-auto" style={style} />)}
           <div className="absolute rounded-lg border-2 border-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,0.18),0_0_28px_rgba(56,189,248,0.3)] transition-[top,left,width,height] duration-150 motion-reduce:transition-none" style={rect} />
         </> : <div className="absolute inset-0 bg-slate-950/60 pointer-events-auto" />}
-        <div ref={card} role="dialog" aria-modal="false" aria-labelledby="tutorial-step-title" className="absolute pointer-events-auto max-h-[min(430px,55vh)] overflow-y-auto rounded-2xl border border-stroke bg-panel p-5 shadow-2xl" style={{ width: cardWidth, maxHeight: mobile ? mobileCardHeight : undefined, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined }}>
+        <div ref={card} role="dialog" aria-modal="false" aria-labelledby="tutorial-step-title" className="absolute pointer-events-auto max-h-[min(430px,55vh)] overflow-y-auto rounded-2xl border border-stroke bg-panel p-5 shadow-2xl" style={browseAcceptance
+          ? { width: cardWidth, maxHeight: "min(240px, 40vh)", right: 12, bottom: 12 }
+          : { width: cardWidth, maxHeight: mobile ? mobileCardHeight : undefined, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined }}>
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="font-semibold text-signal">{chapter?.title ?? course?.title ?? "教程"}</span>
             <button disabled={pending} onClick={() => void pause()} className="rounded px-2 py-1 text-ink-3 hover:bg-sunken">暂停 / 退出</button>
@@ -334,9 +336,9 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           <p className="mt-3 text-xs text-ink-3">步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}</p>
           <h2 id="tutorial-step-title" className="mt-1 text-lg font-semibold text-ink">{step?.title ?? "先选择可用的项目"}</h2>
           <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "当前任务列表为空。任务发布后会出现在这里，点击任务即可查看交接要求与提交入口。现在可以继续认识执行流程，无需先创建任务。" : missing ? needsReopen ? "这个面板还没打开。回到打开面板的步骤，打开后就能继续。" : "暂未找到这一步需要的入口。可以重新定位，也可以暂停后再继续。" : step?.instruction}</p>
-          <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
+          {(!browseAcceptance || !rect || missing) && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
             {fulfilled ? "操作完成，可以继续。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "尚未定位到入口" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.completion === "data-tour-conversation-open" ? "展开会话表单后继续" : step?.completion === "data-tour-conversation-closed" ? "收起会话表单后继续" : step?.action === "result" ? "完成亮起区域的操作后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "查看高亮区域后继续"}
-          </p>
+          </p>}
           {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-2 bg-panel pt-2">
             <button className="ac-btn-ghost" disabled={pending || !active?.step} onClick={() => void advance(true)}>上一步</button>

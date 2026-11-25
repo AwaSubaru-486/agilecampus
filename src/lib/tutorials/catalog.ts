@@ -14,6 +14,7 @@ export type CourseId = (typeof COURSE_IDS)[number];
 export type TutorialStep = {
   id: string; title: string; instruction: string; route: string;
   chapter?: number;
+  browseAcceptance?: boolean;
   target: string; completion?: string; action: "click" | "input" | "explore" | "result";
 };
 export type TutorialCourse = {
