@@ -47,9 +47,8 @@ export async function generateProjectNotebook(projectId: string, requestPersonal
       buildTeamMemberRetrospectives(actorId, projectId),
     ]);
     const canReview = role === "admin";
-    const contributions = new Map(report.contribution.rows.map(row => [row.userId, row]));
     const pages = [teamOverview(projectId, report, canReview), ...members.map(member =>
-      memberPage(base, member, canReview ? "all" : "completed", contributions.get(member.id)))];
+      memberPage(base, member, canReview ? "all" : "completed"))];
     return { report: { ...metadata, pages } };
   } catch {
     return { error: "暂时无法生成复盘报告，请稍后重试。" };

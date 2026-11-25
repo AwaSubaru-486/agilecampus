@@ -113,9 +113,9 @@ it("学生复盘只读取本人的任务、交付材料和对应验收记录", a
   await expect(buildPersonalRetrospective(teacher.id, project.id)).rejects.toThrow();
 
   const members = await buildTeamMemberRetrospectives(owner.id, project.id);
-  expect(members.map(item => item.id)).toEqual([owner.id, member.id, teacher.id]);
+  expect(members.map(item => item.id)).toEqual([owner.id, member.id]);
   expect(members[1].report).toEqual(personal);
-  expect(members[2].report).toEqual({ assignedCount: 0, deliveries: [], openHelp: [] });
+  expect(await buildTeamMemberRetrospectives(teacher.id, project.id)).toEqual(members);
   const visibleToTeacher = memberPage(`/projects/${project.id}`, members[1], "completed");
   expect(visibleToTeacher.deliveries).toEqual([]);
   expect(visibleToTeacher.followUps).toEqual([]);

@@ -122,8 +122,9 @@ export async function buildPersonalRetrospective(actorId: string, projectId: str
 export async function buildTeamMemberRetrospectives(actorId: string, projectId: string) {
   const access = await getProjectForUser(actorId, projectId);
   if (!access || access.role === "student") throw new ForbiddenError();
-  const roster = await listHumanMembers(access.project.teamId);
-  const roleOrder = { admin: 0, student: 1, teacher: 2 };
+  const members = await listHumanMembers(access.project.teamId);
+  const roster = members.flatMap(member => member.role === "teacher" ? [] : [{ ...member, role: member.role }]);
+  const roleOrder = { admin: 0, student: 1 };
   roster.sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || a.name.localeCompare(b.name, "zh-CN") || a.id.localeCompare(b.id));
   const reports = await collectMemberRetrospectives(projectId, roster.map(member => member.id));
   return roster.map(member => ({ ...member, report: reports.get(member.id)! }));

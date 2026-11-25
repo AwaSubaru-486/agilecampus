@@ -1,5 +1,3 @@
-import type { TeamRole } from "@/db/schema";
-import type { ContributionRow } from "@/lib/contribution";
 import { ENTRY_LABEL } from "@/lib/entry-labels";
 import type { PersonalRetrospective, ProjectRetrospective } from "@/lib/project-retrospective";
 import { statusLabel } from "@/lib/task-status";
@@ -41,7 +39,7 @@ export type Notebook = {
   pages: NotebookPage[];
 };
 
-const roleNames: Record<TeamRole, string> = { admin: "组长", student: "组员", teacher: "导师" };
+const roleNames = { admin: "组长", student: "组员" };
 
 export function teamOverview(projectId: string, report: ProjectRetrospective, canReview: boolean): NotebookPage {
   const base = `/projects/${projectId}`;
@@ -69,28 +67,22 @@ export function teamOverview(projectId: string, report: ProjectRetrospective, ca
   };
 }
 
-export function memberPage(base: string, member: { id: string; name: string; role: TeamRole; report: PersonalRetrospective }, scope: "mine" | "all" | "completed", contribution?: ContributionRow): NotebookPage {
+export function memberPage(base: string, member: { id: string; name: string; role: keyof typeof roleNames; report: PersonalRetrospective }, scope: "mine" | "all" | "completed"): NotebookPage {
   const { assignedCount, deliveries, openHelp } = member.report;
   const passed = deliveries.filter(task => task.passed).length;
   const waiting = deliveries.filter(task => task.status === "review").length;
   const revision = deliveries.filter(task => (scope !== "completed" && task.returned) || task.needsRevision);
-  const teacher = member.role === "teacher";
   const taskHref = (id: string) => `${base}?space=work&scope=${scope}&task=${id}`;
-  const reviewerMetrics = teacher && !assignedCount;
 
   return {
     id: member.id,
     title: member.name,
     role: roleNames[member.role],
-    evaluation: reviewerMetrics
-      ? `本轮记录了 ${contribution?.reviewedCount ?? 0} 次验收处理。可以从项目档案查看团队的成果和反馈。`
-      : assignedCount
-        ? `本轮负责 ${assignedCount} 项任务，其中 ${passed} 项已有通过记录、${waiting} 项等待验收。${revision.length ? `另外有 ${revision.length} 项需要按反馈补充或调整。` : ""}`
-        : "本轮暂无分给这位成员的任务。任务提交后，可以在这里回看交付说明、证据和反馈。",
-    metrics: reviewerMetrics
-      ? [{ label: "参与验收", value: contribution?.reviewedCount ?? 0 }, { label: "解决他人求助", value: contribution?.helpedOthersCount ?? 0 }, { label: "涉及任务", value: contribution?.touchedTaskCount ?? 0 }]
-      : [{ label: "负责的任务", value: assignedCount }, { label: "验收通过", value: passed }, { label: "待验收", value: waiting }],
-    nextAction: revision[0] ? `先按「${revision[0].title}」的反馈补齐材料。` : openHelp[0] && scope !== "completed" ? `先回应「${openHelp[0].title}」的求助，确认接下来需要谁协助。` : waiting ? "核对待验收任务的证据，记录需要确认的问题。" : teacher ? "在验收意见里写清采用的标准和下一步建议。" : "下次交付时把完成条件和对应证据一起记录。",
+    evaluation: assignedCount
+      ? `本轮负责 ${assignedCount} 项任务，其中 ${passed} 项已有通过记录、${waiting} 项等待验收。${revision.length ? `另外有 ${revision.length} 项需要按反馈补充或调整。` : ""}`
+      : "本轮暂无分给这位成员的任务。任务提交后，可以在这里回看交付说明、证据和反馈。",
+    metrics: [{ label: "负责的任务", value: assignedCount }, { label: "验收通过", value: passed }, { label: "待验收", value: waiting }],
+    nextAction: revision[0] ? `先按「${revision[0].title}」的反馈补齐材料。` : openHelp[0] && scope !== "completed" ? `先回应「${openHelp[0].title}」的求助，确认接下来需要谁协助。` : waiting ? "核对待验收任务的证据，记录需要确认的问题。" : "下次交付时把完成条件和对应证据一起记录。",
     deliveries: deliveries.filter(task => scope !== "completed" || task.passed).map(task => ({
       id: task.id,
       title: task.title,
