@@ -366,7 +366,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-label="教程进度" aria-valuemin={0} aria-valuemax={course?.steps.length ?? 1} aria-valuenow={(active?.step ?? 0) + 1}>
             <div className="h-full bg-signal transition-all motion-reduce:transition-none" style={{ width: `${((active?.step ?? 0) + 1) / (course?.steps.length ?? 1) * 100}%` }} />
           </div>
-          <p className="mt-3 text-xs text-ink-3">{step?.chapter !== undefined && <>第 {step.chapter + 1} 章 / {WELCOME_CHAPTERS.length} <span aria-hidden>· </span></>}步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}</p>
+          <p className="mt-3 text-xs text-ink-3">{step?.chapter !== undefined && <>第 {step.chapter + 1} 章，共 {WELCOME_CHAPTERS.length} 章。 </>}步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}</p>
           <h2 id="tutorial-step-title" className="mt-1 shrink-0 text-lg font-semibold text-ink">{step?.title ?? "先选择可用的项目"}</h2>
           <div key={stepKey} id="tutorial-step-content" hidden={collapsed} className="min-h-0 overflow-y-auto pr-1" tabIndex={0} role="region" aria-label="步骤讲解">
             <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "这里还没有可以打开的任务。可以继续用后面的示例练习交付。" : missing ? needsReopen ? "这一步需要先打开内容。返回对应的打开步骤即可继续。" : "暂未找到这一步需要的入口。可以重新定位，也可以暂停后再继续。" : step?.instruction}</p>
@@ -378,7 +378,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
               {answer && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-xs leading-5 ${correct ? "bg-success-soft text-success" : "bg-warn-soft text-warn"}`}>{answer.feedback}</p>}
             </fieldset>}
             {guide && allowed && !missing && (!check || correct) && <div className="mt-3 rounded-lg bg-signal-soft px-3 py-2 text-xs leading-5 text-ink-2">
-              <p className="font-semibold text-signal">{nextChapter === undefined ? "带到下一轮" : nextChapter !== step?.chapter ? `下一章 · ${WELCOME_CHAPTERS[nextChapter]?.title}` : "接下来"}</p>
+              <p className="font-semibold text-signal">{nextChapter === undefined ? "带到下一轮" : nextChapter !== step?.chapter ? `下一章「${WELCOME_CHAPTERS[nextChapter]?.title}」` : "接下来"}</p>
               <p>{guide.handoff}</p>
             </div>}
             {((!browseAcceptance && (!isWelcome || stepAction !== "explore")) || !targetReady || missing || emptyTaskList) && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>

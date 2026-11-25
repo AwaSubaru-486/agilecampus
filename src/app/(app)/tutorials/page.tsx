@@ -42,7 +42,11 @@ export default function TutorialsPage() {
           <p className={s.kicker}><WorkspaceIcon name="tutorials" className="size-4" /> 项目导览</p>
           <h2 id="welcome-title">敏捷开发平台</h2>
           <p className={s.lead}>接手一项被卡住的任务。沿着实际求助找到交接要求，练习挑选交付证据和给验收反馈，再用报告定下下一轮要做的事。</p>
-          <p className={s.projectMeta}>约 {welcomeMinutes(welcome.steps)} 分钟 <span aria-hidden>·</span> {WELCOME_CHAPTERS.length} 章 {welcome.steps.length} 步{showcase && <> <span aria-hidden>·</span> {ROLE_NAMES[showcase.role]}视角</>}</p>
+          <p className={s.projectMeta}>
+            <span>约 {welcomeMinutes(welcome.steps)} 分钟</span>
+            <span>{WELCOME_CHAPTERS.length} 章 {welcome.steps.length} 步</span>
+            {showcase && <span>{ROLE_NAMES[showcase.role]}视角</span>}
+          </p>
           {showcase ? (
             <>
               <div className={s.actions}>
@@ -91,7 +95,7 @@ export default function TutorialsPage() {
               练习项目
               <select aria-label="教程展示项目" className="ac-field" value={project?.id ?? ""} onChange={event => selectProject(event.target.value)}>
                 <option value="" disabled>选择项目</option>
-                {projects.map(item => <option key={item.id} value={item.id}>{item.name} · {item.teamName || ROLE_NAMES[item.role]}</option>)}
+                {projects.map(item => <option key={item.id} value={item.id}>{item.name}（{item.teamName || ROLE_NAMES[item.role]}）</option>)}
               </select>
             </label>
           )}

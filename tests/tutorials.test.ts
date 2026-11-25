@@ -63,7 +63,11 @@ describe("展示教程与账号进度", () => {
       { projectId: other.id, title: "其他项目的待验收材料", status: "review", submittedAt: new Date() },
     ]).returning();
     const journey = (await getTutorialProgress(owner.id)).journey;
-    expect(journey).toMatchObject({ helpTaskTitle: task.title, taskTitle: task.title, acceptance: { taskId: review.id, queue: "review", title: review.title } });
+    expect(journey).toMatchObject({
+      helpTaskTitle: task.title, taskTitle: task.title,
+      acceptance: { taskId: review.id, queue: "review", title: review.title },
+      reviewedTask: { taskId: done.id, title: done.title },
+    });
     await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, unrelated.id));
     await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, review.id));
     expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: done.id, queue: "completed", title: done.title });
@@ -117,7 +121,7 @@ describe("展示教程与账号进度", () => {
   });
   it("旧主线重置并暂停，保留其他课程和旧团队项目", async () => {
     const a = await user("migration"); const { team, project } = await showcase(a.id);
-    for (const version of [4, 5, 6, 7] as const) {
+    for (const version of [4, 5, 6, 7, 8] as const) {
       await db.update(users).set({ tutorialProgress: { status: "completed", completed: ["welcome", "teams"], journey: { version, teamId: team.id, projectId: project.id }, active: { courseId: "welcome", step: 15, projectId: project.id, journeyVersion: version } } }).where(eq(users.id, a.id));
       const progress = await getTutorialProgress(a.id);
       expect(progress.journey?.version).toBe(WELCOME_VERSION); expect(progress.journey?.projectId).toBe(project.id);

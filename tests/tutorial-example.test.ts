@@ -12,12 +12,18 @@ describe("敏捷开发平台项目导览", () => {
     expect(steps.find(step => step.id === "roles")?.route).toBe("/teams/demo-team/members");
     expect(steps.find(step => step.id === "help")?.route).toBe("/collaboration?project=demo-project&task=blocked-task#task-blocked-task");
     expect(steps.find(step => step.id === "delivery")).toMatchObject({
-      route: "/projects/demo-project?space=work&scope=all&task=blocked-task",
+      route: "/projects/demo-project?space=work&scope=all",
       action: "explore",
     });
+    expect(steps.find(step => step.id === "choose-task")).toMatchObject({
+      route: "/projects/demo-project?space=work&scope=all",
+      preferredTarget: '[data-tour="console-task"][data-tour-task-key="blocked-task"]',
+    });
     expect(steps.at(-1)?.route).toBe("/projects/demo-project/retrospective");
-    expect(steps.filter(step => step.action === "click").map(step => step.id)).toEqual(["office-tasks-open", "office-tasks-close", "timeline-node", "timeline-read"]);
-    expect(steps.filter(step => step.action === "result").map(step => step.id)).toEqual(["leader-start", "retrospective-generate", "retrospective-member"]);
+    expect(steps.filter(step => step.action === "click").map(step => step.id)).toEqual(["office-tasks-open", "office-tasks-close", "stage-jump", "timeline-node", "timeline-read", "choose-task"]);
+    expect(steps.filter(step => step.action === "result").map(step => step.id)).toEqual([
+      "leader-start", "member-view", "leader-review", "teacher-view", "leader-restore", "retrospective-generate", "retrospective-member",
+    ]);
     expect(new Set(steps.map(step => step.id)).size).toBe(steps.length);
     expect([...new Set(steps.map(step => step.chapter))]).toEqual(WELCOME_CHAPTERS.map((_, i) => i));
   });
@@ -29,7 +35,9 @@ describe("敏捷开发平台项目导览", () => {
     expect(member.find(step => step.id === "delivery")?.route).toContain("scope=mine");
     expect(member.find(step => step.id === "acceptance")?.route).toContain("scope=mine");
     expect(teacher.some(step => step.id === "leader-start")).toBe(false);
-    expect(teacher.find(step => step.id === "assignments")?.target).toBe('[data-tour="stage-progress"]');
+    expect(teacher.find(step => step.id === "stage-progress")?.target).toBe('[data-tour="stage-progress"]');
+    expect(teacher.some(step => ["choose-task", "member-view", "teacher-view"].includes(step.id))).toBe(false);
+    expect(teacher.find(step => step.id === "stage-integration")?.target).toBe('[data-tour="stage-tasks"]');
     expect(teacher.find(step => step.id === "delivery")?.route).toContain("scope=completed");
 
     const noTasks = buildWelcomeSteps({ ...journey, taskId: null, helpTaskId: null, role: "student" });
@@ -42,23 +50,32 @@ describe("敏捷开发平台项目导览", () => {
   it("验收章沿用同一份真实交付，空队列仍可继续", () => {
     for (const [queue, taskId] of [["review", "review-task"], ["completed", "done-task"]] as const) {
       const steps = buildWelcomeSteps({ ...journey, acceptance: { taskId, queue } });
-      const reviews = steps.filter(step => step.chapter === 3);
+      const reviews = steps.filter(step => step.browseAcceptance);
       expect(reviews.map(step => step.id)).toEqual(["acceptance", "acceptance-evidence", "acceptance-check"]);
       expect(reviews.every(step => step.browseAcceptance && step.route === `/projects/demo-project?space=work&scope=${queue}&task=${taskId}`)).toBe(true);
     }
     expect(buildWelcomeSteps(journey).find(step => step.id === "acceptance")?.route).toBe("/projects/demo-project?space=work&scope=review&panel=list");
   });
 
+  it("老师复核使用已验收样例，之后查看同页的阶段集成再回到组长", () => {
+    const steps = buildWelcomeSteps({ ...journey, acceptance: { taskId: "pending", queue: "review" }, reviewedTask: { taskId: "accepted", title: "归档成果" } });
+    const index = steps.findIndex(step => step.id === "teacher-view");
+    expect(steps.slice(index, index + 4).map(step => step.id)).toEqual(["teacher-view", "teacher-reviewed", "stage-integration", "leader-restore"]);
+    expect(steps[index + 1].route).toBe("/projects/demo-project?space=work&scope=completed&task=accepted");
+    expect(steps[index + 2].route).toBe(steps[index + 1].route);
+    expect(steps[index + 3].route).toBe("/projects/demo-project?space=home&view=manage");
+  });
+
   it("各视角用约五分钟完成同一条协作主线，每步给出接下来的行动", () => {
     for (const role of ["admin", "student", "teacher"] as const) {
       const steps = buildWelcomeSteps({ ...journey, role, helpTaskTitle: "完善交付材料", taskTitle: "完善交付材料" });
-      expect(welcomeMinutes(steps)).toBe(5);
-      expect(steps).toHaveLength(role === "admin" ? 23 : 22);
+      expect(welcomeMinutes(steps)).toBe(role === "admin" ? 6 : 5);
+      expect(steps).toHaveLength(role === "admin" ? 33 : 24);
       expect(steps.every(step => step.guide && step.guide.seconds > 0 && step.guide.handoff.length > 0)).toBe(true);
       expect(steps.filter(step => step.guide?.check).map(step => step.id)).toEqual(["help-check", "evidence-plan", "acceptance-check"]);
       expect(steps.find(step => step.id === "help")?.instruction).toContain("完善交付材料");
       if (role !== "teacher") {
-        expect(steps.find(step => step.id === "delivery")?.instruction).toContain("完善交付材料");
+        expect(steps.find(step => step.id === "choose-task")?.instruction).toContain("完善交付材料");
       }
       expect(steps.find(step => step.id === "retrospective-generate")?.instruction).toContain("生成报告");
       expect(steps.at(-1)?.guide?.handoff).toContain("下一轮");
@@ -69,6 +86,7 @@ describe("敏捷开发平台项目导览", () => {
     const steps = buildWelcomeSteps(journey);
     for (const [id, opener] of [
       ["office-tasks-close", "office-tasks-open"], ["timeline-read", "timeline-node"],
+      ["evidence-plan", "choose-task"],
       ["retrospective-overview", "retrospective-generate"], ["retrospective", "retrospective-generate"],
     ]) {
       expect(steps[tutorialReopenStep(steps, steps.findIndex(step => step.id === id))]?.id).toBe(opener);
