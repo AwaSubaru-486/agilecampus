@@ -19,8 +19,9 @@ function render(state) {
   if (!state) return;
   current = state;
   document.getElementById('widget').classList.toggle('demo', state.status === 'demo');
+  document.getElementById('widget').classList.toggle('local', state.status === 'local');
   document.getElementById('name').textContent = state.name ?? '';
-  document.getElementById('hint').textContent = state.status === 'demo' ? '演示模式，不关联账号' : state.offline ? '暂时离线，正在重连' : '';
+  document.getElementById('hint').textContent = state.status === 'demo' ? '演示模式，不关联账号' : state.status === 'local' ? '本机桌宠' : state.offline ? '暂时离线，正在重连' : '';
   document.getElementById('message').textContent = state.message ?? '';
   document.getElementById('empty-title').textContent = state.connected ? '等待桌宠入住' : '桌面陪伴';
   const key = (state.asset ?? '') + JSON.stringify(state.appearance);
@@ -59,7 +60,7 @@ body.addEventListener('pointermove', event => {
 });
 body.addEventListener('pointerup', () => { if (drag && drag.distance <= 4) greet(); drag = null; });
 body.addEventListener('pointercancel', () => { drag = null; });
-body.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); greet(); } });
+body.addEventListener('keydown', event => { if (event.target === body && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); greet(); } });
 document.addEventListener('mousemove', event => {
   if (drag) return;
   let interactive = Boolean(event.target.closest('[data-interactive]'));
