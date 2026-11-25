@@ -60,20 +60,6 @@ const EVIDENCE_LABELS: Record<EvidenceType, string> = {
   demo: "演示证据",
 };
 
-const ATTEMPT_STATE_LABELS: Record<string, string> = {
-  started: "执行中",
-  finished: "已完成",
-  failed: "已失败",
-  unknown: "未知状态",
-};
-
-const ATTEMPT_STATE_CLASSES: Record<string, string> = {
-  started: "bg-signal/10 text-signal border-signal/30",
-  finished: "bg-success/10 text-success border-success/30",
-  failed: "bg-risk/10 text-risk border-risk/30",
-  unknown: "bg-ink-3/20 text-ink-2 border-stroke",
-};
-
 const MEMORY_CATEGORY_LABELS: Record<string, string> = {
   constraint: "约束限制",
   decision: "架构决策",
@@ -424,96 +410,6 @@ export function TaskContractPanel({
           </Section>
         )}
 
-        {/* 并行接续尝试（B04） */}
-        <Section label="并行接续尝试">
-          {task.attempts && task.attempts.length > 0 ? (
-            <div className="space-y-2">
-              {task.attempts.map((attempt) => (
-                <div
-                  key={attempt.id}
-                  className="rounded border border-stroke bg-sunken/30 p-2.5 space-y-1.5 text-xs"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-ink">
-                        {attempt.actorName || "执行者"}
-                      </span>
-                      <span className="rounded bg-ink-3/15 px-1.5 py-0.5 text-[10px] text-ink-2">
-                        {attempt.kind === "parallel" ? "并行分支" : "主线接续"}
-                      </span>
-                    </div>
-                    <span
-                      className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${
-                        ATTEMPT_STATE_CLASSES[attempt.state] ??
-                        ATTEMPT_STATE_CLASSES.unknown
-                      }`}
-                    >
-                      {ATTEMPT_STATE_LABELS[attempt.state] ?? attempt.state}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-3 text-[11px] font-mono">
-                    {attempt.branchName && (
-                      <span>
-                        分支:{" "}
-                        <strong className="text-ink-2">
-                          {attempt.branchName}
-                        </strong>
-                      </span>
-                    )}
-                    <span>基线: {attempt.baseSha.slice(0, 8)}</span>
-                    {attempt.receipt.headSha && (
-                      <span>产出: {attempt.receipt.headSha.slice(0, 8)}</span>
-                    )}
-                  </div>
-
-                  {attempt.receipt.tests &&
-                    attempt.receipt.tests.length > 0 && (
-                      <div className="mt-1 space-y-1 rounded bg-panel/60 p-1.5 border border-stroke/50">
-                        <div className="text-[10px] font-medium text-ink-3 uppercase">
-                          测试验证回执
-                        </div>
-                        <div className="space-y-0.5 font-mono text-[11px]">
-                          {attempt.receipt.tests.map((t, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between text-ink-2"
-                            >
-                              <span className="truncate">{t.commandLabel}</span>
-                              <span
-                                className={`shrink-0 font-sans font-medium px-1 rounded text-[10px] ${
-                                  t.exitCode === 0
-                                    ? "text-success bg-success/10"
-                                    : "text-risk bg-risk/10"
-                                }`}
-                              >
-                                {t.exitCode === 0
-                                  ? "通过"
-                                  : `退出码 ${t.exitCode ?? "异常"}`}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {attempt.receipt.changedPaths &&
-                    attempt.receipt.changedPaths.length > 0 && (
-                      <div className="text-[11px] text-ink-3">
-                        变更文件: {attempt.receipt.changedPaths.length} 个
-                      </div>
-                    )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-ink-3">
-              暂无已登记到平台的接续回执。
-            </p>
-          )}
-          <ExtensionEntry parallel />
-        </Section>
-
         {/* 有效项目记忆（B05） */}
         <Section label="项目规则与经验">
           <TaskMemoryEntry key={task.id} projectId={projectId} taskId={task.id} canAdd={canWrite || canReview} />
@@ -586,7 +482,7 @@ export function TaskContractPanel({
             </p>
             <p className="text-ink-3">
               提示：Handoff
-              接收不自动改派任务负责人；多方案并行可由团队比对回执与测试结果后统一验收。
+              接收不自动改派任务负责人。
             </p>
             <ExtensionEntry />
           </div>
@@ -607,7 +503,6 @@ function Section({
     [
       "交接资料",
       "会话与分支",
-      "并行接续尝试",
       "项目规则与经验",
       "AGENT 运行",
       "任务活动",
@@ -615,7 +510,7 @@ function Section({
   ) {
     return (
       <details className="ac-disclosure">
-        <summary>{label}<span className="float-right ml-3 text-xs font-normal text-ink-3">{label === "交接资料" ? "查看 / 绑定" : label === "有效项目记忆" ? "查看 / 添加" : label === "会话与分支" ? "打开会话" : label === "并行接续尝试" ? "查看 / 配置" : ""}</span></summary>
+        <summary>{label}<span className="float-right ml-3 text-xs font-normal text-ink-3">{label === "交接资料" ? "查看 / 绑定" : label === "有效项目记忆" ? "查看 / 添加" : label === "会话与分支" ? "打开会话" : ""}</span></summary>
         <div className="ac-disclosure-body">{children}</div>
       </details>
     );

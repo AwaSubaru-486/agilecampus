@@ -17,7 +17,6 @@ import {
 } from "@/lib/collaboration-console";
 import { toTaskRowModel } from "@/lib/collaboration-console-view";
 import { parseRequiredEvidence } from "@/lib/handoff";
-import { listTaskAttempts } from "@/lib/checkpoint";
 import { listProjectMemories } from "@/lib/project-memory";
 import { ConsoleShell } from "./console-shell";
 import type { NormalizedConsoleParams } from "@/lib/console-navigation";
@@ -92,17 +91,11 @@ export async function ExecutionConsole({
     }
   }
 
-  let attempts: Awaited<ReturnType<typeof listTaskAttempts>> = [];
   let memories: Awaited<ReturnType<typeof listProjectMemories>> = [];
 
   if (selectedTask) {
     try {
-      const [fetchedAttempts, fetchedMemories] = await Promise.all([
-        listTaskAttempts(actorId, projectId, selectedTask.task.id),
-        listProjectMemories(actorId, projectId, { taskId: selectedTask.task.id }),
-      ]);
-      attempts = fetchedAttempts;
-      memories = fetchedMemories;
+      memories = await listProjectMemories(actorId, projectId, { taskId: selectedTask.task.id });
     } catch {
       // 容错处理，不中断主流程
     }
@@ -268,28 +261,6 @@ export async function ExecutionConsole({
               })),
               conversations: selectedTask.conversations,
               availablePacks: selectedTask.availablePacks,
-              attempts: attempts.map((a) => ({
-                id: a.id,
-                handoffId: a.handoffId,
-                actorId: a.actorId,
-                actorName: a.actorName ?? null,
-                baseSha: a.baseSha,
-                branchName: a.branchName ?? null,
-                kind: a.kind,
-                state: a.state,
-                receipt: {
-                  sessionId: a.receipt?.sessionId ?? null,
-                  headSha: a.receipt?.headSha ?? null,
-                  changedPaths: a.receipt?.changedPaths ?? [],
-                  tests: (a.receipt?.tests ?? []).map((t) => ({
-                    commandLabel: t.commandLabel,
-                    exitCode: t.exitCode ?? null,
-                    source: t.source,
-                  })),
-                },
-                createdAt: a.createdAt.toISOString(),
-                updatedAt: a.updatedAt.toISOString(),
-              })),
               memories: memories.map((m) => ({
                 id: m.id,
                 category: m.category,

@@ -90,11 +90,9 @@ export function TaskMemoryEntry({ projectId, taskId, canAdd }: { projectId: stri
   </div>;
 }
 
-export function ExtensionEntry({ parallel = false }: { parallel?: boolean }) {
+export function ExtensionEntry() {
   return <div className="mt-3 space-y-2 border-t border-stroke pt-3">
     <Link href="/settings/tokens#vscode-connection" className="ac-btn-ghost !min-h-8 !text-xs">配置 VS Code 插件 →</Link>
-    <p className="text-xs leading-5 text-ink-3">{parallel
-      ? "连接项目后，在 VS Code 命令面板运行“AgileCampus: 创建并行尝试 worktree”。本地结果可通过“查看本地 Agent 尝试”查看；此处展示已登记到平台的接续回执。"
-      : "连接项目后，在 VS Code 命令面板依次运行“AgileCampus: 保存本地检查点”“AgileCampus: 发布检查点摘要”“AgileCampus: 交接给成员”。"}</p>
+    <p className="text-xs leading-5 text-ink-3">连接项目后，在 VS Code 命令面板依次运行“AgileCampus: 保存本地检查点”“AgileCampus: 发布检查点摘要”“AgileCampus: 交接给成员”。</p>
   </div>;
 }

@@ -122,31 +122,7 @@ export type SelectedTaskDetail = {
     title: string;
     frozenAt?: string | null;
   }[];
-  attempts?: AttemptSummary[];
   memories?: MemorySummary[];
-};
-
-export type AttemptSummary = {
-  id: string;
-  handoffId: string;
-  actorId: string;
-  actorName: string | null;
-  baseSha: string;
-  branchName: string | null;
-  kind: string;
-  state: string;
-  receipt: {
-    sessionId: string | null;
-    headSha: string | null;
-    changedPaths: string[];
-    tests: Array<{
-      commandLabel: string;
-      exitCode: number | null;
-      source: string;
-    }>;
-  };
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type MemorySummary = {
