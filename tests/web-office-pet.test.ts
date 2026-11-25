@@ -51,6 +51,11 @@ describe("网页桌宠与办公室联动", () => {
     const view = await getHomeView(peer.id, { view: "courtyard", team: team.id, projectId: project.id });
     expect(view.workstations.find(seat => seat.ownerId === owner.id)?.pet?.name).toBe("豆豆");
     expect((await currentWebHomePet(owner.id)).appearance.src).not.toBe(first.appearance.src);
+    expect((await configure({ preset: "mentor", name: "西装伙伴" })).status).toBe(200);
+    const mentorPet = await currentWebHomePet(owner.id);
+    if (mentorPet.appearance.type !== "image") throw new Error("expected image");
+    expect(Buffer.from(await (await asset(owner.id)).arrayBuffer())).toEqual(await readFile("public/desk-pet/frames/mentor_0.png"));
+    expect(Buffer.from(await (await asset(owner.id, mentorPet.appearance.greetSrc!.split("/").at(-1)!)).arrayBuffer())).toEqual(await readFile("public/desk-pet/frames/mentor_3.png"));
   });
   it("图片只对本人或开工项目成员开放，收工后撤销，旧图片版本不再可读", async () => {
     const { owner, peer, stranger, team, project } = await setup(); await configure({ preset: "puppy", name: "小白" });
