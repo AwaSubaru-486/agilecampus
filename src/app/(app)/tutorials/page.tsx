@@ -41,7 +41,7 @@ export default function TutorialsPage() {
         <div className={s.intro}>
           <p className={s.kicker}><WorkspaceIcon name="tutorials" className="size-4" /> 项目导览</p>
           <h2 id="welcome-title">敏捷开发平台</h2>
-          <p className={s.lead}>接手一项被卡住的任务。沿着实际求助找到交接要求，练习挑选交付证据和给验收反馈，再用报告定下下一轮要做的事。</p>
+          <p className={s.lead}>从团队成员和分工开始，打开实际任务，沿时间线认识阶段与验收。最后看看这些成果怎样进入版本和复盘，再回目录按功能练习。</p>
           <p className={s.projectMeta}>
             <span>约 {welcomeMinutes(welcome.steps)} 分钟</span>
             <span>{WELCOME_CHAPTERS.length} 章 {welcome.steps.length} 步</span>

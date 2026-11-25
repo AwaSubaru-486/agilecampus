@@ -1,16 +1,16 @@
 import type { TutorialStep, TutorialRole } from "./catalog";
 
-export const WELCOME_VERSION = 9;
+export const WELCOME_VERSION = 10;
 export const WELCOME_CHAPTERS = [
-  { title: "接班进办公室", description: "认出工位信号、自己的待办和负责验收的人。" },
-  { title: "查清任务为何卡住", description: "读一条求助，再沿时间线判断哪些任务在等它。" },
-  { title: "从分工到组员交付", description: "亲自打开任务、选交付证据，再看看组员接到的工作。" },
-  { title: "验收与老师复核", description: "检查一份真实交付，再看谁复核成果和阶段集成。" },
-  { title: "带着结论进入下一轮", description: "找到版本里的成果，翻开复盘报告，定一条下轮行动。" },
+  { title: "目录、成员与分工", description: "从目录进入示例项目，在真实成员名单和分工里确认角色。" },
+  { title: "我的任务与交付", description: "从办公室查看待做任务和求助，再打开任务核对完成条件。" },
+  { title: "阶段进度与时间线", description: "看阶段进度，定位任务并在小窗查看上下游信息。" },
+  { title: "角色视角与验收", description: "对照组员、老师和组长看到的工作、验收与推进入口。" },
+  { title: "协作、记录与复盘", description: "从 AI 助手和项目记录回看工作，翻阅版本与复盘报告后返回目录。" },
 ] as const;
 
 export type TutorialJourney = {
-  version: 4 | 5 | 6 | 7 | 8 | typeof WELCOME_VERSION;
+  version: 4 | 5 | 6 | 7 | 8 | 9 | typeof WELCOME_VERSION;
   teamId: string | null;
   projectId: string | null;
   taskId?: string | null;
@@ -36,20 +36,18 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
   const teacher = role === "teacher";
   const member = role === "student";
   const base = projectId ? `/projects/${projectId}` : "/projects";
-  const work = `${base}?space=work&scope=${leader ? "all" : "mine"}`;
+  const team = teamId ? `/teams/${teamId}/members` : "/teams";
+  const mine = `${base}?space=work&scope=mine`;
+  const work = leader ? `${base}?space=work&scope=all` : mine;
   const help = projectId ? `/collaboration?project=${projectId}${helpTaskId ? `&task=${helpTaskId}#task-${helpTaskId}` : "#help"}` : "/collaboration";
-  const helpTarget = helpTaskId ? `collaboration-help-task-${helpTaskId}` : "collaboration-help";
   const timeline = `${base}/timeline`;
   const iterations = `${base}/iterations`;
   const retrospective = `${base}/retrospective`;
-  const review = `${base}?space=work&scope=${member ? "mine" : acceptance?.queue ?? (teacher ? "completed" : "review")}${acceptance ? `&task=${acceptance.taskId}` : leader ? "&panel=list" : ""}`;
-  const delivery = teacher ? review : work;
-  const completedTask = `${base}?space=work&scope=completed${reviewedTask ? `&task=${reviewedTask.taskId}` : ""}`;
-  const restoreLeader = `${base}?space=home&view=manage`;
-  const helpName = helpTaskTitle ? `「${helpTaskTitle}」` : "这项卡住的任务";
-  const deliveryName = teacher ? acceptance?.title : taskTitle;
-  const deliveryHeading = deliveryName ? `「${deliveryName}」` : "示例任务";
-  const reviewName = acceptance?.title ? `「${acceptance.title}」` : "这份交付";
+  const review = `${base}?space=work&scope=${acceptance?.queue ?? "review"}${acceptance ? `&task=${acceptance.taskId}` : "&panel=list"}`;
+  const reviewed = leader ? reviewedTask : acceptance;
+  const completed = `${base}?space=work&scope=completed${reviewed ? `&task=${reviewed.taskId}` : ""}`;
+  const management = `${base}?space=home&view=manage`;
+  const helpTarget = helpTaskId ? `collaboration-help-task-${helpTaskId}` : "collaboration-help";
   const consoleFallback = '[data-tour="execution-console"]';
   const helpFallback = '[data-tour="collaboration-help"]';
   const timelineEmpty = '[data-tour="timeline-tree"][data-tour-empty="true"]';
@@ -57,160 +55,147 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
     { check, action = "explore", ...options }: Partial<WelcomeOptions> = {}): TutorialStep =>
     ({ chapter, id, title, route, target: `[data-tour="${target}"]`, action, instruction, guide: { seconds, handoff, check }, ...options });
 
+  // Keep the Oct 12 walkthrough's core steps in order and insert current features beside the steps they extend.
   return [
-    step(0, "office", "到办公室接班", base, "project-office", 12,
-      "今天的目标是跟着一项任务走完求助、交付和验收。先看看工位上有哪些队友，有没有人头顶亮着感叹号。",
-      "先从自己的任务列表确认眼下要做什么，再去看队友需要什么。"),
-    ...(leader ? [step(0, "leader-start", "确认正在以组长身份操作", base, "project-view-switch", 8,
-      "看「操作视角」是否选中了「组长本人」。如果当前在代看组员或老师，请切回组长。",
-      "组长也有自己的待办。点开办公室里的「我的任务」，看看它和团队分工的范围。", { action: "result", completion: "data-tour-leader-view" })] : []),
-    step(0, "office-tasks-open", "打开工位上的「我的任务」", base, "member-board-trigger", 10,
-      "点办公室里的「我的任务」。弹窗汇总自己的待做任务和项目里需要协助的任务。",
-      "打开后，看看自己还有哪些工作，队友又在哪些地方需要协助。", { action: "click" }),
-    step(0, "office-tasks-close", "看看待做任务和求助", base, "office-tasks-close", 12,
-      "先看「待做任务」，确认自己还有几项要做。再看「求助」，在协作中心找一项需要帮忙的任务。看完关闭面板。",
-      "自己和队友的工作会在提交和验收处交接。先认清负责这两个环节的人。", { action: "click", reopenFrom: "office-tasks-open" }),
-    step(0, "roles", "认清谁交付、谁验收", teamId ? `/teams/${teamId}/members` : "/teams", "team-members", 12,
-      "在成员名单里找出组长和一位组员。组员对自己的交付负责，组长对照条件验收，老师在已验收成果上给复核意见。",
-      "回到刚才的工位信号，看看哪项任务需要队友接力。"),
-
-    step(1, "help", "把感叹号读成一条具体求助", help, helpTarget, 14,
-      helpTaskId ? `读${helpName}的求助，找出负责人、卡住的原因和需要的材料或协助。有多条求助时先读第一条。`
-        : "有未解决的求助时，展开一条，找出负责人、卡住的原因和需要的协助。列表为空时，直接用下一步的例子练习。",
-      "现在把你看到的需求改写成队友能接手的一句话。", { fallbackTarget: helpFallback }),
-    step(1, "help-check", "把求助说到别人能接手", help, helpTarget, 15,
-      "假设队友负责验证失败提示，但手里缺一份能触发失败的样例。",
-      "缺什么已经明确。先到时间线看现在做到哪个阶段，再查后面的任务会不会等这份结果。", {
-        fallbackTarget: helpFallback,
-        check: {
-          question: "发什么消息最有助于解除阻塞？",
-          choices: [
-            { text: "交付有问题，大家有空来看看。", feedback: "队友还不知道要准备什么。试着说出缺少的样例和用途。" },
-            { text: "请提供一个会触发失败的样例，我用它验证提示。", feedback: "这句话说清了需要交接的材料和验证目的。" },
-            { text: "先把任务标成完成，后面再补。", feedback: "完成状态不会补齐证据。先让协助者知道需要什么。" },
-          ],
-          correct: 1,
-        },
-      }),
-    step(1, "stage-progress", "对照当前阶段的验收进度", timeline, "stage-progress", 8,
-      "看当前阶段已有几项验收，还有几项没完成。这个数字能帮助你判断问题是否值得优先跟进。",
-      "阶段进度显示全局。接下来沿连线找这项求助可能影响的后续任务。"),
-    step(1, "timeline", "判断卡住会影响谁", timeline, "timeline-tree", 11,
-      "从左向右沿一条连线找前置和后续任务。说出哪项工作要等前面的成果，再看看旁边有没有能同时推进的任务。没有连线时，先读阶段划分。",
-      "任务跨阶段时，可用图上方的阶段按钮快速定位。"),
-    step(1, "stage-jump", "亲自定位一个阶段", timeline, "stage-link", 8,
-      "点击上方任一个阶段名称，观察任务树滚动到对应位置。定位只改变你正在看的位置。",
-      "回到求助对应的节点，确认它准备交给下游哪份成果。", { action: "click", fallbackTarget: timelineEmpty }),
-    step(1, "timeline-node", "打开任务节点", timeline, "timeline-node", 10,
-      `如果在图中看到${helpName}，点开它。也可以点亮起的示例节点，查看一项任务的真实详情。`,
-      "打开后，读它的负责人和完成条件，确认它会交给下游什么。", {
-        action: "click", fallbackTarget: timelineEmpty,
-        preferredTarget: helpTaskId ? `[data-tour="timeline-node"][data-tour-task-key="${helpTaskId}"]` : undefined,
-      }),
-    step(1, "timeline-read", "从节点读出要交接的成果", timeline, "timeline-close", 12,
-      "在详情里读「负责人」和「完成条件」。想一想后续任务接到哪份成果才能开始。看完点「关闭」。",
-      teacher ? "接下来打开一份已验收成果，按任务目标和完成条件回读这次交付。" : "接下来到工作区，按负责人、目标、完成条件的顺序读任务。", { action: "click", fallbackTarget: timelineEmpty, reopenFrom: "timeline-node" }),
+    step(0, "directory", "从教程目录进入敏捷开发平台", "/tutorials", "tutorial-showcase", 6,
+      "这次用「敏捷开发平台」的真实成员、任务和交付记录练习。先看看目录中的路线和当前角色。",
+      "打开成员名单，确认团队里谁负责分工、交付和复核。"),
+    step(0, "roles", "认识项目里的三种角色", team, teamId ? "team-members" : "teams", 11,
+      "在真实名单里找一位组长、组员和老师。组长安排分工并验收，组员负责交付，老师复核已验收成果和阶段集成。",
+      leader ? "回到项目，先切到组长本人，再查看分工。" : member ? "回到办公室，看看分到自己手里的工作。" : "打开项目的求助列表，看看团队有哪些事项需要协助。"),
+    ...(leader ? [
+      step(0, "leader-start", "进入组长工作区", base, "project-view-switch", 8,
+        "确认「操作视角」选择的是「组长本人」。稍后会再切到组员和老师视角。",
+        "先从分工查看整组任务，找到负责每项工作的人。", { action: "result", completion: "data-tour-leader-view" }),
+      step(0, "assignments", "查看组长安排的分工", `${work}&panel=list`, "console-task-list", 9,
+        "展开一项阶段分组，核对任务标题、负责人和状态。需要调整时，组长可在任务详情的「任务资料与管理」里下派或改派。",
+        "分工是团队的总表。接下来到办公室看个人工作和队友求助。"),
+    ] : []),
 
     ...(!teacher ? [
-      step(2, "assignments", "定位任务和负责人", `${work}&panel=list`, "console-task-list", 12,
-        leader ? `在分工中找${deliveryHeading}的负责人和状态。列表按阶段分组，必要时展开分组。`
-          : "在「我的任务」列表找自己的待办、进行中或待验收任务。列表为空的话，记住从这里找分给自己的工作。",
-        "接下来亲手点开列表中的任务，后面的练习会沿用你打开的那一项。"),
-      step(2, "choose-task", "在任务列表打开一个真实任务", work, "console-task", 10,
-        taskId ? `点击亮起的${deliveryHeading}，也可以选择列表里的另一项任务。` : "展开一个阶段，点开一项任务。如果列表为空，继续用接下来的示例练习。",
-        "在选中的任务里，确认目标和一条可以检查的完成条件。", {
+      step(1, "board", "回到办公室的任务看板", base, "project-office", 8,
+        "在办公室找到「我的任务」，再观察工位上方的感叹号。它提示有队友的工作需要协助。",
+        "打开「我的任务」，看看办公室把哪些信息放在一起。"),
+      step(1, "board-open", "点开办公室的「我的任务」", base, "member-board-trigger", 7,
+        "点击办公场景里的「我的任务」。",
+        "弹窗把自己的任务和项目求助并排显示。", { action: "click" }),
+      step(1, "board-close", "查看待做任务与求助", base, "office-tasks-close", 9,
+        "「待做任务」合计你负责的待办和进行中任务。「求助」显示项目内仍需协助的任务数。右边的协作中心能看到具体是谁需要帮助。看完关闭。",
+        "到协作中心打开一条求助，看看需要交接什么。", { action: "click", reopenFrom: "board-open" }),
+    ] : []),
+    step(1, "help", "在协作中心打开求助详情", help, helpTarget, 10,
+      helpTaskTitle ? `看看「${helpTaskTitle}」卡在哪里，以及对方需要什么材料或协助。`
+        : "展开一条未解决的求助，找出负责人和需要的协助。没有求助时可以继续。",
+      teacher ? "接下来去时间线，确认团队推进到哪个阶段。" : "回到「我的任务」，从列表打开一项具体工作。", { fallbackTarget: helpFallback }),
+    ...(!teacher ? [
+      step(1, "task-list", "打开「我的任务」列表", `${mine}&panel=list`, "console-task-list", 8,
+        "这里按阶段组织分到当前视角的任务。展开一个阶段，看看哪些工作需要自己继续。",
+        leader ? "继续打开一项真实任务。自己的列表为空时，也可以从组长的分工查看队友的任务。" : "打开一项自己的任务，读它的交付要求。"),
+      step(1, "select", "打开列表中的一项真实任务", work, "console-task", 9,
+        taskTitle ? `可点击高亮的「${taskTitle}」，也可以从列表选另一项。后续会沿用刚打开的任务。`
+          : "展开一个阶段，点开一项可见任务。列表为空时可以继续。",
+        "在详情里核对目标、负责人和完成条件。", {
           action: "click",
           preferredTarget: taskId ? `[data-tour="console-task"][data-tour-task-key="${taskId}"]` : undefined,
         }),
-    ] : []),
-    step(2, "delivery", "把任务目标读成可验证的条件", delivery, "tutorial-task-goal", 15,
-      teacher && deliveryName ? `读${deliveryHeading}的任务目标，找出原本应达到的一条完成条件。` : "读刚打开的任务目标，再找一条「完成条件」。试着说出做什么操作、看到什么结果才算达标。没写条件时，用下一步的示例练习。",
-      "选定条件后，找一份能重现操作并看清结果的证据。", { fallbackTarget: consoleFallback, reopenFrom: teacher ? undefined : "choose-task" }),
-    step(2, "evidence-plan", "给完成条件选一份证据", delivery, "tutorial-task-criteria", 17,
-      "以「提交无效内容时，页面显示错误提示」为例，准备好交付时要附的材料。",
-      leader ? "条件和证据都明确了。切到组员视角，看看负责人接到的任务是什么样。" : teacher ? "现在用同样的方法复核一份已经验收的交付。" : "现在打开已有交付，看看实际提交的材料能证明哪条条件。", {
-        fallbackTarget: consoleFallback,
-        reopenFrom: teacher ? undefined : "choose-task",
-        check: {
-          question: "哪份材料能证明条件达成？",
-          choices: [
-            { text: "一张显示正常首页的截图。", feedback: "正常首页没有展示无效提交的行为，证据要对准这条条件。" },
-            { text: "一句「错误提示已完成」。", feedback: "这是一句交付说明。还需要可以核对的输入和结果。" },
-            { text: "无效输入、提交步骤和实际提示的录屏或测试结果。", feedback: "验收人可以据此重现操作，并看到实际发生了什么。" },
-          ],
-          correct: 2,
-        },
-      }),
-    ...(leader ? [
-      step(2, "member-view", "切到交付负责人的组员视角", base, "project-view-switch", 8,
-        "在「操作视角」里选一位组员。可优先选择刚才发出求助的成员。团队里暂无组员时可直接继续。",
-        "到这位成员的「我的任务」，比较它与组长分工列表的范围。", { action: "result", completion: "data-tour-member-preview-ready" }),
-      step(2, "member-tasks", "从组员的「我的任务」检查交付入口", `${base}?space=work&scope=mine&panel=list`, "console-task-list", 10,
-        "查看当前成员的列表和任务状态。看到待验收时，说明交付已经交给组长；可点开其他任务看提交入口的位置。",
-        "组员提交之后，组长要用刚才练过的办法检查证据。"),
-      step(2, "leader-review", "切回组长接收交付", base, "project-view-switch", 8,
-        "选择「组长本人」。同一份交付从组员的待验收状态，进入组长的成果验收队列。",
-        "打开队列里的真实样例，先把交付和对应任务对上。", { action: "result", completion: "data-tour-leader-view" }),
+      step(1, "delivery", "核对任务要求与交付方式", work, "tutorial-task-goal", 13,
+        "对照「任务目标」「完成条件」和「交件要求」。有执行权限时从详情提交任务，附分支与所需证据，随后由组长验收。",
+        "试着为一条完成条件挑一份别人能复核的证据。", { fallbackTarget: consoleFallback, reopenFrom: "select" }),
+      step(1, "evidence-plan", "为完成条件挑一份证据", work, "tutorial-task-criteria", 15,
+        "用「提交无效内容时出现错误提示」这条完成条件做个小练习。",
+        "接下来从单项任务切到时间线，看看阶段整体的验收情况。", {
+          fallbackTarget: consoleFallback, reopenFrom: "select",
+          check: {
+            question: "哪份材料能用于验收？",
+            choices: [
+              { text: "一张正常首页截图。", feedback: "这张截图看不到无效输入触发的提示。" },
+              { text: "一份包含无效输入、提交步骤和实际提示的记录。", feedback: "验收人可以重现操作、核对结果。" },
+            ],
+            correct: 1,
+          },
+        }),
     ] : []),
 
-    step(3, "acceptance", teacher ? "打开已验收的交付" : member ? "找到自己的交付记录" : "进入成果验收队列", review, "tutorial-task-heading", 12,
-      acceptance ? `${reviewName}${acceptance.queue === "review" ? "正在等待验收" : "已完成验收"}。先看标题和负责人，确认手里这份材料对应哪项工作。`
-        : member ? "在「我的任务」里找一项待验收或已完成的任务。当前没有交付时，也可以继续用下一步的例子。"
-          : "在队列里打开一项已有交付。空队列也可以继续，用下面的例子练如何核对材料。",
-      "确认任务后，在同一份交付里对照完成条件和实际证据。", { browseAcceptance: leader, fallbackTarget: consoleFallback }),
-    step(3, "acceptance-evidence", "拿实际材料对照刚才的标准", review, "tutorial-task-evidence", 15,
-      "在「交付证据」选一项材料，核对它能证明哪条条件。再看提交说明或已有验收意见。没有材料时，把缺的部分说清楚。",
-      "如果只交了正常流程的画面，想想怎样给对方一条能照着修改的反馈。", { browseAcceptance: leader, fallbackTarget: consoleFallback }),
-    step(3, "acceptance-check", "把验收意见写成能执行的动作", review, "tutorial-task-evidence", 17,
-      "假设完成条件要求错误提示，但交付里只有正常流程截图。",
-      leader ? "组长验收后，老师还可以复核。切到老师视角看看两道审核之间的关系。"
-        : teacher ? "单项验收有了依据，再检查同阶段的成果能否一起运行。" : "通过验收的交付会自动汇入迭代页。接下来找它们如何进入版本。", {
-        browseAcceptance: leader, fallbackTarget: consoleFallback,
-        check: {
-          question: "哪条反馈能让负责人知道怎样补交？",
-          choices: [
-            { text: "请补录一次无效输入，展示提交后的错误提示。", feedback: "这条反馈说清了缺的场景、要补的材料和检查结果。" },
-            { text: "功能看起来不错，先通过。", feedback: "现有材料还没覆盖要求。请先指出具体需要补验的场景。" },
-            { text: "退回，再完善一下。", feedback: "负责人不知道从哪里改。可以把缺的验证场景指出来。" },
-          ],
-          correct: 0,
-        },
+    step(2, "stages", "看当前阶段的验收进度", timeline, "stage-progress", 8,
+      "对照当前阶段、已验收任务数和待处理事项。阶段集成通过后，后续阶段才会开放。",
+      "在同一页的连续任务树里看具体任务如何衔接。"),
+    step(2, "timeline", "在连续任务树里查看全项目", timeline, "timeline-tree", 10,
+      "从左向右顺着一条连线找前置成果和后续任务，再看看哪些工作可以并行。没有连线时先看阶段划分。",
+      "用图上方的阶段按钮定位到一段工作。"),
+    step(2, "stage", "亲自定位一个阶段", timeline, "stage-link", 8,
+      "点击一个阶段名称，观察任务树滚动到对应位置。",
+      "接下来点开一个节点，核对这项任务的要求。", { action: "click", fallbackTarget: timelineEmpty }),
+    step(2, "timeline-node", "打开时间线上的任务小窗", timeline, "timeline-node", 8,
+      "点亮起的任务节点打开小窗。也可以查看其他节点。",
+      "小窗会显示负责人、目标和完成条件。", {
+        action: "click", fallbackTarget: timelineEmpty,
+        preferredTarget: helpTaskId ? `[data-tour="timeline-node"][data-tour-task-key="${helpTaskId}"]` : undefined,
       }),
-    ...(leader ? [
-      step(3, "teacher-view", "切到老师视角查看已验收成果", base, "project-view-switch", 8,
-        "在「操作视角」里选择一位老师，观察项目入口的变化。暂无老师时，继续以组长身份看已审核交付。",
-        "老师会从组长验收通过的交付里抽查成果和验证依据。", { action: "result", completion: "data-tour-teacher-preview-ready" }),
-      step(3, "teacher-reviewed", "核对一份通过验收的材料", completedTask, "tutorial-task-evidence", 11,
-        reviewedTask ? `查看「${reviewedTask.title}」的交付证据，找一条还能补验的场景。` : "打开一项已审核任务，看看交付证据和验收意见。队列为空时，可以先认清入口。",
-        "一项任务可以单独验收，整个阶段还要确认多项成果一起运行。", { fallbackTarget: consoleFallback }),
-    ] : []),
-    ...(!member ? [step(3, "stage-integration", "查看阶段集成审核", leader ? completedTask : review, "stage-tasks", 12,
-      "找一份集成分支、测试摘要和审核结果，想想它验证了哪些成果能一起使用。没有集成记录时，先记下需要准备的材料。",
-      leader ? "看完两道审核后切回组长，用推进台确认接下来该先处理什么。" : "通过的成果进入项目记录。接下来确认队友以后到哪里能找到依据。")] : []),
-    ...(leader ? [step(3, "leader-restore", "切回组长，确认团队推进入口", restoreLeader, "project-view-switch", 9,
-      "选择「组长本人」，看项目推进台恢复分工、阻塞和待验收入口。",
-      "接下来去成果与记录，看看验收结果如何留下可追溯的依据。", { action: "result", completion: "data-tour-leader-view" })] : []),
+    step(2, "timeline-detail", "在小窗核对任务信息", timeline, "timeline-inspector", 9,
+      "找一条完成条件，再看看当前状态、已有交付材料或验收意见。想一想后续任务需要拿到其中哪份成果。",
+      "读完以后关掉小窗，回到时间线。", { fallbackTarget: timelineEmpty, reopenFrom: "timeline-node" }),
+    step(2, "timeline-close", "关闭小窗回到时间线", timeline, "timeline-close", 6,
+      "点击小窗里的「关闭」。",
+      leader ? "接下来切到组员和老师视角，对比各自能看到的入口。" : teacher ? "接下来从老师的成果验收入口看一份已验收交付。" : "回到个人任务，看看提交后从哪里读验收结果。",
+      { action: "click", fallbackTarget: timelineEmpty, reopenFrom: "timeline-node" }),
 
-    ...(!member ? [step(4, "records", "在项目档案找回成果依据", `${base}?space=record`, "project-records", 10,
-      "在「成果与记录」找一份归档成果或相关证据。确认下次接手的人能从哪里看到交付背景与验收材料。",
-      "档案留住具体依据，迭代记录这些成果汇成了什么功能变化。")] : []),
-    step(4, "version-sync", "找到自动同步的验收成果", iterations, "iteration-pending", 12,
-      "查看「已验收 · 待归档」。找一项带有验收依据的成果。列表为空时，成果可能已随版本归档，也可能还在等待验收。",
-      "待归档列表告诉你哪些交付可用。归档版本会说明这些交付带来了什么功能变化。"),
-    step(4, "versions", "从单项交付读到版本变化", iterations, "iteration-history", 13,
-      "挑一项版本变化，试着说出「上一版能做什么」和「这一版多了什么」。首个版本还没归档时，先想一想刚才的成果可以写成哪条新能力。",
-      "版本记下了做成的事。接下来用报告回看过程里还欠哪些证据、哪些做法值得保留。"),
-    step(4, "retrospective-generate", "用本轮记录生成复盘报告", retrospective, "retrospective-generate", 10,
-      "点击「生成报告」，等笔记本翻开。报告会读取项目现有的交付、验收和归档记录。",
-      "翻开后先看总体评价，找出当前最值得跟进的一件事。", { action: "result", completion: "data-tour-report-ready" }),
-    step(4, "retrospective-overview", "从总体评价挑一个问题", retrospective, "retrospective-summary", 12,
-      "看首屏的总体评价和数据。从待验收、待归档或待跟进里选一项。如果没有待办，就挑一项值得带进下一轮的做法。",
-      member ? "翻到个人页，把总体结论和自己的交付反馈对照起来。" : "翻到一位成员的页，把团队结论和一份具体交付对照起来。", { reopenFrom: "retrospective-generate" }),
-    step(4, "retrospective-member", member ? "翻到自己的交付页" : "翻到一位成员的交付页", retrospective, "retrospective-pages", 13,
-      member ? "点「下一页」或目录里的名字，找到自己的交付和反馈。" : "点「下一页」或目录里的组长、组员。如果之前出现过求助负责人，可以优先看他的页。",
-      "用这次交付中看到的证据或反馈，定一个下轮能做、能检查的动作。", { action: "result", completion: "data-tour-member-view", reopenFrom: "retrospective-generate" }),
-    step(4, "retrospective", "带一条具体行动进入下一轮", retrospective, "retrospective-action", 13,
-      "参考这一页的「下一步」，给下轮任务补一句能核对的条件。比如「提交前用一个无效输入复测，并附上提示截图」。",
-      "下一轮从办公室打开任务时，先读这一条条件，再准备对应的交付证据。", { reopenFrom: "retrospective-generate" }),
+    ...(leader ? [
+      step(3, "member-view", "切换到一位具体组员的视角", base, "project-view-switch", 8,
+        "在「操作视角」选择一位组员。可以选刚才求助的队友；没有组员时可直接继续。",
+        "看看这位成员在「我的任务」中能看到哪些工作。", { action: "result", completion: "data-tour-member-preview-ready" }),
+      step(3, "member-tasks", "查看这位组员的任务", `${mine}&panel=list`, "console-task-list", 8,
+        "按阶段查看当前成员的任务，对比刚才组长所见的整组分工。待验收表示组员已提交，正在等组长处理。",
+        "接下来切到老师视角，看看验收通过的成果到哪里复核。"),
+      step(3, "teacher-view", "切换到一位老师的视角", base, "project-view-switch", 8,
+        "在「操作视角」选择一位老师。团队暂无老师时，可用组长视角继续看已审核成果。",
+        "老师的成果验收入口会展示已经通过组长验收的任务。", { action: "result", completion: "data-tour-teacher-preview-ready" }),
+    ] : []),
+    ...(!member ? [
+      step(3, "review", "查看老师复核的已验收成果", completed, "tutorial-task-evidence", 12,
+        reviewed?.title ? `查看「${reviewed.title}」的交付材料和验收意见，找出一项可以按证据重新核对的结果。`
+          : "打开一项已验收成果，核对交付材料和原验收意见。队列为空时先认识入口。",
+        "单个任务通过验收后，多个成果还需要一起做阶段集成。", { fallbackTarget: consoleFallback }),
+      step(3, "integration", "查看同页的阶段集成审核", completed, "stage-tasks", 11,
+        "找一份集成分支、测试摘要和审核结果。列表为空时，先记下团队要准备这些材料。",
+        leader ? "切回组长，到项目推进台找下一步要处理的工作。" : "接下来去成果与记录，确认这些已审核材料在哪里留档。"),
+    ] : [step(3, "member-feedback", "找到自己的提交和验收反馈", `${mine}${acceptance ? `&task=${acceptance.taskId}` : ""}`, "tutorial-task-evidence", 12,
+      "打开自己的待验收或已完成任务，回看交付证据和验收意见。没有交付时，先记住在任务详情里查找。",
+      "接下来看看 AI 助手里从哪里带着任务背景继续讨论。", { fallbackTarget: consoleFallback })]),
+    ...(leader ? [
+      step(3, "leader-view", "返回组长本人", base, "project-view-switch", 7,
+        "将「操作视角」切回「组长本人」。",
+        "接下来打开项目推进台，看分工、求助与待验收事项。", { action: "result", completion: "data-tour-leader-view" }),
+      step(3, "management", "用项目推进台看下一步", management, "project-home", 10,
+        "在推进台找出当前阶段最需要处理的一件事，可以从待验收、阻塞与阶段集成里挑。",
+        "进入成果验收，看待审核任务的材料够不够。"),
+      step(3, "acceptance", "回到组长的成果验收", review, "tutorial-task-evidence", 12,
+        acceptance?.title ? `对照「${acceptance.title}」的完成条件和交付证据，找出可以通过的依据，或想一句能执行的补交意见。`
+          : "在待审核或已审核队列打开一项交付，核对完成条件与证据。队列为空时先熟悉两个入口。",
+        "如果需要围绕一项任务讨论，在 AI 助手里可以带着项目上下文接着聊。", { browseAcceptance: true, fallbackTarget: consoleFallback }),
+    ] : []),
+
+    ...(!teacher ? [step(4, "ai", "打开 AI 助手的项目对话", `${base}?space=studio&view=chat`, "ai-workspace", 10,
+      "找到项目对话和关联任务的位置。需要讨论时可以先选任务、确认上下文，再发消息。练习到找到入口即可。",
+      leader ? "过程里的成果和证据可以在项目档案里追溯。" : "接下来查看已经验收的交付如何进入迭代。")] : []),
+    ...(!member ? [
+      step(4, "records", "在成果与记录找回交付依据", `${base}?space=record`, "project-records", 9,
+        "挑一份归档成果或证据，确认下次接手的人从哪里能找到它。",
+        "项目活动流可以进一步追查交付和审核发生的顺序。"),
+      step(4, "activity", "在活动流追溯过程", `${base}/activity`, "activity", 9,
+        "找一条分工、提交或验收记录，核对谁在什么时候做了什么。",
+        "活动流记录过程，迭代页记录这些成果带来的功能变化。"),
+    ] : []),
+    step(4, "versions", "从验收成果看版本变化", iterations, "iteration-history", 11,
+      "看一项版本变化，比较上一版和这一版能做什么。还没归档的验收成果会自动汇入下方「已验收 · 待归档」。",
+      "版本回答做成了什么。用项目复盘看看哪些做法值得带进下一轮。"),
+    step(4, "retrospective-generate", "生成项目复盘报告", retrospective, "retrospective-generate", 9,
+      "点击「生成报告」，等笔记本翻开。它会读取本项目已有的交付、验收和归档记录。",
+      "先读总体评价，再翻页查看具体交付和反馈。", { action: "result", completion: "data-tour-report-ready" }),
+    step(4, "retrospective-member", member ? "翻到自己的复盘页" : "翻到一位成员的复盘页", retrospective, "retrospective-pages", 12,
+      member ? "先看总体评价，再点「下一页」查看自己的交付与反馈。" : "先看总体评价，再用目录或「下一页」打开一位组长或组员的页面。",
+      "参考成员页里的交付和下一步，想一件下轮能检查的事。", { action: "result", completion: "data-tour-member-view", reopenFrom: "retrospective-generate" }),
+    step(4, "finish", "返回目录，按功能继续学习", "/tutorials", "tutorial-directory", 7,
+      "回到教程目录。刚才看到的时间线、交付、审核、AI 助手和档案，都可以按功能单独复习。",
+      "把复盘想到的行动写进下一轮任务的完成条件。"),
   ];
 }

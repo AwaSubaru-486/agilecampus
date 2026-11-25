@@ -121,7 +121,7 @@ describe("展示教程与账号进度", () => {
   });
   it("旧主线重置并暂停，保留其他课程和旧团队项目", async () => {
     const a = await user("migration"); const { team, project } = await showcase(a.id);
-    for (const version of [4, 5, 6, 7, 8] as const) {
+    for (const version of [4, 5, 6, 7, 8, 9] as const) {
       await db.update(users).set({ tutorialProgress: { status: "completed", completed: ["welcome", "teams"], journey: { version, teamId: team.id, projectId: project.id }, active: { courseId: "welcome", step: 15, projectId: project.id, journeyVersion: version } } }).where(eq(users.id, a.id));
       const progress = await getTutorialProgress(a.id);
       expect(progress.journey?.version).toBe(WELCOME_VERSION); expect(progress.journey?.projectId).toBe(project.id);

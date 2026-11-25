@@ -116,7 +116,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id:"welcome",title:"敏捷开发平台导览",category:"推荐起点",needsProject:true,description:"从办公室接班，练习解除任务阻塞、交付证据和验收反馈，再从复盘里定下一轮行动。",
+    id:"welcome",title:"敏捷开发平台导览",category:"推荐起点",needsProject:true,description:"从成员和分工入手，查看任务、阶段、角色视角与审核，再回看项目记录和复盘。",
     steps:buildWelcomeSteps(journey.projectId ? journey : project ? {...EMPTY_JOURNEY,teamId:project.teamId,projectId:project.id,role:project.role} : EMPTY_JOURNEY),
   };
   return [welcome, ...courses.map(course => course.id === "iterations" && project?.role === "student" ? { ...course, steps: course.steps.filter(step => !step.route.endsWith("/activity")) } : course)];

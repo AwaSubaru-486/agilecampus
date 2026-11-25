@@ -329,7 +329,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       modal ? <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/65 p-4 backdrop-blur-sm">
         <div ref={card} role="dialog" aria-modal="true" aria-labelledby="tutorial-dialog-title" className="w-full max-w-lg rounded-2xl border border-stroke bg-panel p-6 shadow-2xl sm:p-8">
           <h2 id="tutorial-dialog-title" className="text-2xl font-semibold text-ink">{finished ? `已完成${finished}` : "用敏捷开发平台上手"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink-2">{finished === welcome.title ? "你已经从一条求助走到下一轮分工。下次接手任务，先确认完成条件，再附上能核对的证据，把收到的反馈写进下一轮。" : finished ? "可以回到教程目录，按功能继续学习。" : showcase ? `用约 ${welcomeMinutes(welcome.steps)} 分钟接手一项卡住的任务。打开真实记录，练习选择证据、给验收反馈，再从复盘里定一条下轮行动。` : "当前账号暂时无法访问敏捷开发平台。可以先在教程目录学习其他功能。"}</p>
+          <p className="mt-3 text-sm leading-6 text-ink-2">{finished === welcome.title ? "你已经走过真实成员、任务、阶段审核和项目记录。可以回到目录选择一个功能再练，也可以把复盘想到的行动写进下一轮任务。" : finished ? "可以回到教程目录，按功能继续学习。" : showcase ? `用约 ${welcomeMinutes(welcome.steps)} 分钟认识团队和分工，从实际任务看到验收、版本和复盘。途中可以暂停。` : "当前账号暂时无法访问敏捷开发平台。可以先在教程目录学习其他功能。"}</p>
           {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             {finished ? <button className="ac-btn" onClick={() => { setFinished(null); router.push("/tutorials"); }}>查看教程目录</button> : <>
