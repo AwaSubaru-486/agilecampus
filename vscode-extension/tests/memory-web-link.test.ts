@@ -9,17 +9,19 @@ import type { TaskDetail } from "../src/types";
 import type { MemoryHandoffExportV1 } from "../src/memory/artifact-store";
 
 const ui = vi.hoisted(() => ({
-  handle: undefined as ((uri: { toString(): string }) => Promise<void>) | undefined,
+  handle: undefined as ((uri: { toString(skipEncoding?: boolean): string }) => Promise<void>) | undefined,
   selected: undefined as BoundWorkspace | undefined, task: undefined as TaskDetail | undefined,
   actorId: "", localId: "", versionId: "", payload: undefined as MemoryHandoffExportV1 | undefined,
   errors: [] as string[], invoked: [] as Array<{ command: string; request: unknown }>, publish: vi.fn(), cancel: false,
   claim: vi.fn(), report: vi.fn(),
+  folders: [] as vscode.WorkspaceFolder[],
+  pickWorkspace: vi.fn(async (rows: unknown[]) => rows[0]),
 }));
 vi.mock("vscode", () => ({
-  workspace: { isTrusted: true },
+  workspace: { isTrusted: true, get workspaceFolders() { return ui.folders; } },
   window: {
-    registerUriHandler: (handler: { handleUri(uri: { toString(): string }): Promise<void> }) => { ui.handle = handler.handleUri; return { dispose() {} }; },
-    showQuickPick: async (rows: unknown[]) => rows[0],
+    registerUriHandler: (handler: { handleUri: typeof ui.handle }) => { ui.handle = handler.handleUri; return { dispose() {} }; },
+    showQuickPick: ui.pickWorkspace,
     showInformationMessage: async () => undefined,
     showErrorMessage: async (message: string) => { ui.errors.push(message); },
     showWarningMessage: async (_message: string, _options: unknown, choice: string) => ui.cancel ? undefined : choice,
@@ -91,13 +93,56 @@ describe("task webpage to local memory continuation", () => {
   it("downloads the exact webpage version, prepares a verified local checkpoint and passes fixed identifiers to the existing launcher", async () => {
     const f = await bridgeFixture();
     const uri = buildTaskMemoryLink({ action: "continue", serverOrigin: f.scope.serverOrigin, projectId: f.scope.projectId, taskId: f.scope.taskId, versionId: ui.versionId });
-    await ui.handle!({ toString: () => uri });
+    // Uri.parse decodes the query and Uri.toString normally re-encodes even its separators.
+    const url = new URL(uri);
+    const query = decodeURIComponent(url.search.slice(1));
+    url.search = "";
+    await ui.handle!({ toString: (skipEncoding) => `${url}?${skipEncoding ? query : encodeURIComponent(query)}` });
     expect(ui.errors).toEqual([]);
     expect(ui.invoked).toHaveLength(1);
     expect(ui.invoked[0]).toMatchObject({ command: "agilecampus.continueTaskMemory", request: { taskId: f.scope.taskId, materialId: f.handoff.material.materialId } });
     const records = await new CheckpointStore(f.storageRoot).list(f.scope.serverOrigin, f.scope.projectId);
     expect(records).toHaveLength(1);
     expect(ui.invoked[0].request).toMatchObject({ checkpointId: records[0].manifest.id });
+  });
+
+  it("directs malformed links back to the task webpage without launching an action", async () => {
+    await bridgeFixture();
+    await ui.handle!({ toString: () => "vscode://agilecampus.agilecampus-vscode/task-memory?action=publish" });
+    expect(ui.errors).toEqual([expect.stringContaining("当前工作记忆")]);
+    expect(ui.invoked).toEqual([]);
+    expect(ui.claim).not.toHaveBeenCalled();
+    expect(ui.publish).not.toHaveBeenCalled();
+  });
+
+  it("offers only workspaces bound to the linked service and project", async () => {
+    const { selectBoundWorkspace } = await vi.importActual<typeof import("../src/commands/checkpoint-support")>("../src/commands/checkpoint-support");
+    const project = { serverOrigin: "https://campus.example/", projectId: randomUUID() };
+    const bindings = [
+      { ...project, workspaceUri: "file:///matching-a" },
+      { ...project, workspaceUri: "file:///wrong-service", serverOrigin: "https://other.example/" },
+      { ...project, workspaceUri: "file:///wrong-project", projectId: randomUUID() },
+      { ...project, workspaceUri: "file:///matching-b" },
+    ];
+    ui.folders = bindings.map(({ workspaceUri }) => ({ name: workspaceUri.slice(8), uri: { toString: () => workspaceUri } } as vscode.WorkspaceFolder));
+    const context = { workspaceState: { get: (key: string) => bindings.find((binding) => key === `agileCampus.binding.${encodeURIComponent(binding.workspaceUri)}`) } } as unknown as vscode.ExtensionContext;
+    ui.errors = [];
+    ui.pickWorkspace.mockClear();
+    try {
+      expect((await selectBoundWorkspace(context, project))?.binding).toEqual(bindings[0]);
+      expect(ui.pickWorkspace).toHaveBeenCalledExactlyOnceWith(
+        [expect.objectContaining({ label: "matching-a" }), expect.objectContaining({ label: "matching-b" })],
+        { title: "选择项目工作区" },
+      );
+      ui.pickWorkspace.mockClear();
+      ui.folders = ui.folders.slice(0, 3);
+      expect((await selectBoundWorkspace(context, project))?.binding).toEqual(bindings[0]);
+      expect(await selectBoundWorkspace(context, { ...project, projectId: randomUUID() })).toBeUndefined();
+      expect(ui.pickWorkspace).not.toHaveBeenCalled();
+      expect(ui.errors).toEqual([expect.stringContaining("相同的服务和项目")]);
+    } finally {
+      ui.folders = [];
+    }
   });
 
   it("reviews only the ended attempt's exact local session and does not launch or publish", async () => {
