@@ -3,8 +3,7 @@ import { and, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { desktopPetConnections, users } from "@/db/schema";
 import { AppError, ForbiddenError } from "@/lib/errors";
-import { ensureHome } from "@/lib/home";
-import { resolveHomePet } from "./home-pet-provider";
+import { desktopAssetVersion, resolveDesktopPet } from "./desktop-asset";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 export function desktopServerOrigin(value: string) {
@@ -52,10 +51,10 @@ export async function authenticateDesktop(request: Request) {
 export type DesktopConnection = Awaited<ReturnType<typeof authenticateDesktop>>;
 
 export async function desktopState(record: DesktopConnection) {
-  const home = await ensureHome(record.userId);
-  const pet = home.pet.petId ? await resolveHomePet(record.userId, home.pet.petId) : null;
+  const { pet, hasSelection } = await resolveDesktopPet(record.userId);
   const [owner] = await db.select({ name: users.name }).from(users).where(eq(users.id, record.userId));
-  return { schemaVersion: 1, ownerName: owner?.name ?? "", pet, status: pet ? "ready" : home.pet.petId ? "unavailable" : "unbound",
+  return { schemaVersion: 1, ownerName: owner?.name ?? "", pet, assetVersion: pet ? desktopAssetVersion(pet.appearance.src) : null,
+    status: pet ? "ready" : hasSelection ? "unavailable" : "unbound",
     command: record.commandSequence > record.ackSequence ? { sequence: record.commandSequence, action: record.command } : null };
 }
 

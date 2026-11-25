@@ -7,7 +7,7 @@ function serverOrigin(value) {
 }
 function parseLaunch(value) {
   const url = new URL(value);
-  if (url.protocol !== `${SCHEME}:` || url.hostname !== 'connect' || url.pathname || url.username || url.password || url.hash || url.port) throw new Error('无效的桌宠连接地址');
+  if (url.protocol !== `${SCHEME}:` || url.hostname !== 'connect' || !['', '/'].includes(url.pathname) || url.username || url.password || url.hash || url.port) throw new Error('无效的桌宠连接地址');
   if ([...url.searchParams.keys()].some(key => !['server', 'ticket'].includes(key)) || url.searchParams.getAll('server').length !== 1 || url.searchParams.getAll('ticket').length !== 1) throw new Error('连接参数无效');
   const ticket = url.searchParams.get('ticket');
   if (!/^acpair_[A-Za-z0-9_-]{43}$/.test(ticket)) throw new Error('连接邀请格式无效');

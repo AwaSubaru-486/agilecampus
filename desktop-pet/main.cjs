@@ -22,7 +22,7 @@ const storeFile = () => path.join(app.getPath('userData'), 'connection.json');
 
 function displayedPet() {
   if (demoMode && demoPet) return demoPet;
-  const preset = localPresets.get(config.localPreset ?? (config.token ? null : 'puppy'));
+  const preset = config.token ? null : localPresets.get(config.localPreset ?? 'puppy');
   return preset ? { ...payload, ...preset.state } : payload;
 }
 function publish() { if (win && !win.isDestroyed()) win.webContents.send('pet:state', displayedPet()); }
@@ -68,7 +68,7 @@ async function request(endpoint, options = {}) {
     ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}), ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers,
   } });
   if (response.status === 401) {
-    config.token = null; assetCache = { key: '', fetchedAt: 0, data: null }; void saveConfig();
+    config.token = null; assetCache = { key: '', fetchedAt: 0, data: null }; void saveConfig().catch(() => {});
     throw new Error('连接已失效，请从家园重新连接');
   }
   if (!response.ok) {
@@ -93,17 +93,24 @@ async function poll() {
     if (state.pet) {
       next.name = String(state.pet.name).slice(0, 40);
       next.appearance = validateAppearance(state.pet.appearance);
-      const key = JSON.stringify(state.pet);
+      const key = state.assetVersion ?? JSON.stringify(state.pet);
       try {
         if (assetCache.key !== key || Date.now() - assetCache.fetchedAt > 30000) {
           const asset = await request('/api/home/desktop/asset');
-          if (asset.headers.get('x-pet-id') !== state.pet.id) throw new Error('桌宠已切换，正在重新读取');
-          const mime = asset.headers.get('content-type')?.split(';')[0];
-          if (!['image/png', 'image/webp', 'image/gif', 'image/jpeg'].includes(mime)) throw new Error('桌宠图片格式不受支持');
-          const bytes = await limitedBody(asset, 5 * 1024 * 1024);
-          assetCache = { key, fetchedAt: Date.now(), data: `data:${mime};base64,${bytes.toString('base64')}` };
+          if (asset.headers.get('x-pet-id') !== state.pet.id || (state.assetVersion && asset.headers.get('x-pet-asset-version') !== state.assetVersion)) {
+            await asset.body?.cancel();
+            next.name = payload.name;
+            next.appearance = payload.appearance;
+            next.asset = payload.asset;
+            next.message = '桌宠已切换，正在重新读取';
+          } else {
+            const mime = asset.headers.get('content-type')?.split(';')[0];
+            if (!['image/png', 'image/webp', 'image/gif', 'image/jpeg'].includes(mime)) throw new Error('桌宠图片格式不受支持');
+            const bytes = await limitedBody(asset, 5 * 1024 * 1024);
+            assetCache = { key, fetchedAt: Date.now(), data: `data:${mime};base64,${bytes.toString('base64')}` };
+          }
         }
-        next.asset = assetCache.data;
+        if (!next.message) next.asset = assetCache.data;
       } catch (error) { next.message = error.message; next.appearance = null; }
     } else {
       assetCache = { key: '', fetchedAt: 0, data: null };
@@ -177,10 +184,15 @@ function chooseLocalPreset(id) {
   if (wasDemo && config.token) void poll();
 }
 function presetMenuItems() {
+  if (config.token) return [
+    { label: '跟随网页桌宠', type: 'checkbox', checked: !demoMode, click: () => chooseLocalPreset(null) },
+    { label: '到网页切换桌宠', click: () => void openHome() },
+  ];
   return [
-    { label: '跟随网页桌宠', type: 'radio', checked: !demoMode && config.localPreset === null, click: () => chooseLocalPreset(null) },
+    { label: '连接网页以同步', click: () => void openHome() },
+    { type: 'separator' },
     ...[...localPresets].map(([id, preset]) => ({
-      label: webPresets[id], icon: preset.icon, type: 'radio', checked: !demoMode && config.localPreset === id, click: () => chooseLocalPreset(id),
+      label: webPresets[id], icon: preset.icon, type: 'radio', checked: !demoMode && (config.localPreset ?? 'puppy') === id, click: () => chooseLocalPreset(id),
     })),
   ];
 }

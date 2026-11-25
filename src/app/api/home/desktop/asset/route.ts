@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const record = await authenticateDesktop(request);
     const asset = await readDesktopAsset(record.userId);
-    return new Response(new Uint8Array(asset.bytes), { headers: { ...desktopHeaders, "Content-Type": asset.mimeType, "X-Content-Type-Options": "nosniff", "X-Pet-Id": asset.petId } });
+    return new Response(new Uint8Array(asset.bytes), { headers: { ...desktopHeaders, "Content-Type": asset.mimeType, "X-Content-Type-Options": "nosniff", "X-Pet-Id": asset.petId, "X-Pet-Asset-Version": asset.version } });
   } catch (error) {
     if (error instanceof NotFoundError) return Response.json({ error: error.message }, { status: 404, headers: desktopHeaders });
     if (error instanceof AppError) return desktopFailure(error);

@@ -21,7 +21,7 @@ function render(state) {
   document.getElementById('widget').classList.toggle('demo', state.status === 'demo');
   document.getElementById('widget').classList.toggle('local', state.status === 'local');
   document.getElementById('name').textContent = state.name ?? '';
-  document.getElementById('hint').textContent = state.status === 'demo' ? '演示模式，不关联账号' : state.status === 'local' ? '本机桌宠' : state.offline ? '暂时离线，正在重连' : '';
+  document.getElementById('hint').textContent = state.status === 'demo' ? '演示模式，不关联账号' : state.status === 'local' ? '本机预览，连接网页后同步' : state.offline ? '暂时离线，正在重连' : state.connected && state.status === 'ready' ? '跟随网页桌宠' : '';
   document.getElementById('message').textContent = state.message ?? '';
   document.getElementById('empty-title').textContent = state.connected ? '等待桌宠入住' : '桌面陪伴';
   const key = (state.asset ?? '') + JSON.stringify(state.appearance);
