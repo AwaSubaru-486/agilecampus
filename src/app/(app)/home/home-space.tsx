@@ -15,7 +15,7 @@ import { LiveOfficeProjectile } from "@/components/pets/office-projectile";
 import { PET_INTERACTIONS, type PetInteractionEvent } from "@/lib/pets/interaction-contract";
 
 const WEB_PRESETS = [
-  { id: "puppy", name: "线条小狗" }, { id: "pacman", name: "吃豆人" }, { id: "nailong", name: "敏捷奶龙" },
+  { id: "puppy", name: "线条小狗" }, { id: "pacman", name: "吃豆人" }, { id: "nailong", name: "敏捷奶龙" }, { id: "mentor", name: "西装伙伴" },
 ] as const;
 type WebPreset = typeof WEB_PRESETS[number]["id"];
 

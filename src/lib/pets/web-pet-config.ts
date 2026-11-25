@@ -5,7 +5,7 @@ import { z } from "zod";
 import { webPetRuntime } from "./web-pet-runtime";
 
 export const webPetConfigSchema = z.object({
-  preset: z.enum(["puppy", "pacman", "nailong", "custom"]),
+  preset: z.enum(["puppy", "pacman", "nailong", "mentor", "custom"]),
   name: z.string().trim().min(1).max(40), customImageUrl: z.string().max(3 * 1024 * 1024).default(""),
   soundEnabled: z.boolean().default(true), webPetVisible: z.boolean().optional(),
 });

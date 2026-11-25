@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 
-export type PetPreset = "puppy" | "pacman" | "nailong" | "custom";
+export type PetPreset = "puppy" | "pacman" | "nailong" | "mentor" | "custom";
 
 export interface DeskPetConfig {
   preset: PetPreset;
@@ -46,14 +46,45 @@ export const PRESET_FRAMES: Record<PetPreset, { frames: string[]; actionNames: s
   },
   nailong: {
     frames: [
-      "/desk-pet/frames/nailong_0.png", // 委屈抱膝
-      "/desk-pet/frames/nailong_1.png", // 歪头好奇
-      "/desk-pet/frames/nailong_3.png", // 歪头撒娇
-      "/desk-pet/frames/nailong_4.png", // 探头求抱
-      "/desk-pet/frames/nailong_5.png", // 困困打盹
+      "/desk-pet/frames/nailong_0.png",  // 乖巧抱膝
+      "/desk-pet/frames/nailong_1.png",  // 歪头好奇
+      "/desk-pet/frames/nailong_2.png",  // 抬手招手
+      "/desk-pet/frames/nailong_3.png",  // 开心欢呼
+      "/desk-pet/frames/nailong_4.png",  // 害羞捂脸
+      "/desk-pet/frames/nailong_5.png",  // 微笑抱膝
+      "/desk-pet/frames/nailong_6.png",  // 委屈擦泪
+      "/desk-pet/frames/nailong_7.png",  // 困困眯眼
+      "/desk-pet/frames/nailong_8.png",  // 揉眼打盹
+      "/desk-pet/frames/nailong_9.png",  // 托腮撒娇
+      "/desk-pet/frames/nailong_10.png", // 期待仰望
+      "/desk-pet/frames/nailong_11.png", // 委屈抱膝
     ],
-    actionNames: ["委屈抱膝", "歪头好奇", "歪头撒娇", "探头求抱", "困困打盹"],
-    icons: ["🥺", "💛", "🫂", "✨", "🥱"],
+    actionNames: [
+      "乖巧抱膝",
+      "歪头好奇",
+      "抬手招手",
+      "开心欢呼",
+      "害羞捂脸",
+      "微笑抱膝",
+      "委屈擦泪",
+      "困困眯眼",
+      "揉眼打盹",
+      "托腮撒娇",
+      "期待仰望",
+      "委屈抱膝",
+    ],
+    icons: ["🥺", "👀", "👋", "🎉", "😊", "💛", "😢", "😪", "🥱", "🫂", "✨", "🫶"],
+  },
+  mentor: {
+    frames: [
+      "/desk-pet/frames/mentor_0.png", // 正面微笑待机
+      "/desk-pet/frames/mentor_1.png", // 歪头思考疑问
+      "/desk-pet/frames/mentor_2.png", // 侧身巡视站立
+      "/desk-pet/frames/mentor_3.png", // 欢呼握拳打气
+      "/desk-pet/frames/mentor_4.png", // 坐姿专注编码
+    ],
+    actionNames: ["微笑待机", "思考疑问", "侧身巡视", "欢呼打气", "专注编码"],
+    icons: ["🧑‍💼", "❓", "🚶", "✨", "💻"],
   },
   custom: {
     frames: ["/desk-pet/puppy.png"],
@@ -83,6 +114,13 @@ export const PRESET_ASSETS: Record<PetPreset, { name: string; img: string; quote
     quote: "呜呜~ 任务有点难嘛…抱抱我，一起冲刺交付好不好？💛🥺",
     icon: "🐉",
     desc: "呆萌委屈 · 暖心陪伴",
+  },
+  mentor: {
+    name: "西装伙伴",
+    img: "/desk-pet/frames/mentor_0.png",
+    quote: "保持专注，稳步推进！今天的代码和交付也交给我们吧~ 💻✨",
+    icon: "🧑‍💼",
+    desc: "Q版西装 · 专注陪伴",
   },
   custom: {
     name: "自定义伙伴",
@@ -224,13 +262,13 @@ function WebDeskPetClient() {
     }
   }, [position]);
 
-  // 动作帧自动来回播放：每隔 2.2 秒（奶龙）或 1.8 秒（像素宠物）自然平滑切换一个姿态帧
+  // 动作帧自动来回播放：每隔 1.4 秒（奶龙 12 帧连贯动作）或 1.8 秒（像素宠物）自然平滑切换一个姿态帧
   useEffect(() => {
     if (!autoPlayFrames || config.preset === "custom" || isDragging) return;
     const currentPack = PRESET_FRAMES[config.preset];
     if (!currentPack || currentPack.frames.length <= 1) return;
 
-    const intervalTime = config.preset === "nailong" ? 2200 : 1800;
+    const intervalTime = config.preset === "nailong" ? 1400 : 1800;
     const timer = setInterval(() => {
       setFrameIndex((prev) => (prev + 1) % currentPack.frames.length);
     }, intervalTime);
@@ -265,13 +303,13 @@ function WebDeskPetClient() {
       if (!detail) return;
       if (detail.type === "celebrate") {
         setShowConfetti(true);
-        setFrameIndex(2); // 奶龙切换到撒娇欢喜姿态，像素宠物切换到萌笑帧
+        setFrameIndex(config.preset === "nailong" || config.preset === "mentor" ? 3 : 2); // 奶龙/西装伙伴切换到欢呼帧，像素宠物切换到萌笑帧
         triggerBubble("🎉 任务完成庆祝！", detail.title ? `太棒啦！「${detail.title}」已顺利交付验收！` : "团队里程碑+1，向交付胜利冲刺！", false, undefined, 6000);
         setTimeout(() => setShowConfetti(false), 2500);
       } else if (detail.type === "overdue") {
         setHasAlert(true);
         if (config.preset === "nailong") {
-          setFrameIndex(0); // 奶龙遇到逾期警报切换到委屈抱膝
+          setFrameIndex(11); // 奶龙遇到逾期警报切换到委屈抱膝
         }
         triggerBubble("⚠️ 任务即将逾期预警", detail.text || `任务「${detail.title || "敏捷任务"}」截止时间临近，请加紧推进或呼叫搭手！`, true, undefined, 8000);
       } else if (detail.type === "open-settings") {
@@ -361,13 +399,13 @@ function WebDeskPetClient() {
           for (const ev of data.events) {
             if (ev.type === "celebrate") {
               setShowConfetti(true);
-              setFrameIndex(config.preset === "nailong" ? 3 : 2);
+              setFrameIndex(config.preset === "nailong" || config.preset === "mentor" ? 3 : 2);
               triggerBubble("🎉 任务完成庆祝！", `太棒啦！「${ev.title || "任务"}」已顺利交付验收！`, false, undefined, 6000);
               setTimeout(() => setShowConfetti(false), 2500);
             } else if (ev.type === "overdue") {
               setHasAlert(true);
               if (config.preset === "nailong") {
-                setFrameIndex(2);
+                setFrameIndex(11);
               }
               triggerBubble("⚠️ 即将逾期警报", `紧急：${ev.title || "关键任务"} 截止时间已临近，请尽快推进！`, true, undefined, 8000);
             } else if (ev.type === "message") {
@@ -507,6 +545,7 @@ function WebDeskPetClient() {
       puppy: "线条小狗",
       pacman: "吃豆人",
       nailong: "敏捷奶龙",
+      mentor: "西装伙伴",
       custom: "自定义伙伴",
     };
     const targetName = config.name && config.name !== names[config.preset] ? config.name : names[preset];
@@ -627,19 +666,26 @@ function WebDeskPetClient() {
   const currentAsset = PRESET_ASSETS[config.preset] || PRESET_ASSETS.puppy;
   const pack = PRESET_FRAMES[config.preset];
 
-  // 计算奶龙专属物理姿态动画 (保持高清透明 3D 抱膝原画，纯物理动画驱动，零失真拉伸)
+  // 计算奶龙专属物理姿态动画 (保持高清透明 3D 序列原画，配合轻微物理动效，零失真拉伸)
   const getNailongAnimClass = (idx: number): string => {
-    switch (idx % 5) {
+    switch (idx % 12) {
       case 0:
-        return "ac-nailong-breathe";    // 委屈抱膝
+      case 5:
+      case 6:
+      case 11:
+        return "ac-nailong-breathe";    // 抱膝呼吸浮动
       case 1:
-        return "ac-nailong-tilt-left";  // 歪头好奇
-      case 2:
-        return "ac-nailong-tilt-right"; // 歪头撒娇
-      case 3:
-        return "ac-nailong-peek";       // 探头求抱
       case 4:
-        return "ac-nailong-sleepy";     // 困困打盹
+        return "ac-nailong-tilt-left";  // 歪头好奇 / 害羞捂脸
+      case 2:
+      case 9:
+        return "ac-nailong-tilt-right"; // 抬手招手 / 托腮撒娇
+      case 3:
+      case 10:
+        return "ac-nailong-peek";       // 开心欢呼 / 期待仰望
+      case 7:
+      case 8:
+        return "ac-nailong-sleepy";     // 困困眯眼 / 揉眼打盹
       default:
         return "ac-nailong-breathe";
     }
@@ -850,6 +896,7 @@ function WebDeskPetClient() {
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onPointerCancel={() => setIsDragging(false)}
             className="relative cursor-pointer active:cursor-grabbing p-1 group transition-transform hover:scale-105"
             title="点击打开桌宠设置 · 按住可拖拽位置"
           >
@@ -883,8 +930,8 @@ function WebDeskPetClient() {
             {/* 奶龙丰富情绪粒子系统 (爱心/困困气泡) */}
             {config.preset === "nailong" && (
               <>
-                {/* 撒娇/求摸摸跳动爱心 */}
-                {(frameIndex % 5 === 2 || frameIndex % 5 === 3) && (
+                {/* 欢呼/害羞/撒娇跳动爱心 */}
+                {(frameIndex % 12 === 3 || frameIndex % 12 === 4 || frameIndex % 12 === 9 || frameIndex % 12 === 10) && (
                   <div
                     style={{ top: "4px", right: "20px" }}
                     className="absolute pointer-events-none z-10 ac-heart-pop text-xs drop-shadow-sm select-none"
@@ -893,7 +940,7 @@ function WebDeskPetClient() {
                   </div>
                 )}
                 {/* 困困打盹漂浮气泡 */}
-                {frameIndex % 5 === 4 && (
+                {(frameIndex % 12 === 7 || frameIndex % 12 === 8) && (
                   <div
                     style={{ top: "2px", left: "28px" }}
                     className="absolute pointer-events-none z-10 ac-zzz-float text-xs font-bold text-sky-400 drop-shadow-sm select-none"
@@ -913,7 +960,9 @@ function WebDeskPetClient() {
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = "/desk-pet/frames/puppy_0.png";
               }}
-              className={`w-28 h-28 object-contain [image-rendering:pixelated] drop-shadow-[0_8px_12px_rgba(0,0,0,0.35)] transition-all select-none ${
+              className={`${config.preset === "mentor" ? "w-44 h-44" : "w-28 h-28"} object-contain ${
+                config.preset === "puppy" || config.preset === "pacman" ? "[image-rendering:pixelated] " : ""
+              }drop-shadow-[0_8px_12px_rgba(0,0,0,0.35)] transition-all select-none ${
                 isDragging
                   ? "opacity-90 scale-95"
                   : config.preset === "nailong"
@@ -1042,7 +1091,9 @@ function WebDeskPetClient() {
                           <img
                             src={f}
                             alt={actionName}
-                            className={`w-8 h-8 object-contain [image-rendering:pixelated] ${
+                            className={`w-8 h-8 object-contain ${
+                              config.preset === "puppy" || config.preset === "pacman" ? "[image-rendering:pixelated] " : ""
+                            }${
                               config.preset === "nailong" ? getNailongAnimClass(idx) : ""
                             }`}
                           />
@@ -1070,8 +1121,8 @@ function WebDeskPetClient() {
                 <label className="text-xs font-semibold text-ink block">
                   选择预设像素形象
                 </label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {(["puppy", "pacman", "nailong"] as PetPreset[]).map((presetKey) => {
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {(["puppy", "pacman", "nailong", "mentor"] as PetPreset[]).map((presetKey) => {
                     const item = PRESET_ASSETS[presetKey];
                     const isSelected = config.preset === presetKey;
                     return (
