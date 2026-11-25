@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { blockers } from "@/db/schema";
+import { blockers, users } from "@/db/schema";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam } from "@/lib/team";
 import { createProject } from "@/lib/project";
@@ -31,7 +32,7 @@ describe("协作中心求助数据", () => {
     const other = await createProject(owner.id, team.id, { name: "同团队其他项目" });
     const secretTeam = await createTeam(outsider.id, "其他团队");
     const secret = await createProject(outsider.id, secretTeam.id, { name: "不可见项目" });
-    const task = await createTask(owner.id, project.id, { title: "需要协助的任务" });
+    const task = await createTask(owner.id, project.id, { title: "需要协助的任务", assigneeId: member.id });
     await db.insert(blockers).values([
       { projectId: project.id, taskId: task.id, raisedById: owner.id, reason: "tech" },
       { projectId: project.id, taskId: task.id, raisedById: member.id, reason: "unclear" },
@@ -42,9 +43,15 @@ describe("协作中心求助数据", () => {
     expect(all).toHaveLength(3); expect(all.map(row => row.projectName)).not.toContain("不可见项目");
     const scoped = await listCollaborationHelp(owner.id, project.id);
     expect(scoped).toHaveLength(2); expect(scoped.some(row => row.raisedById === owner.id)).toBe(true);
+    expect(scoped.find(row => row.raisedById === member.id)?.raisedByName).toBe("组员");
     expect(groupTaskHelp(scoped)[0]).toMatchObject({ taskId: task.id, title: task.title });
     expect(await listCollaborationHelp(owner.id, secret.id)).toEqual([]);
     expect(await listCollaborationHelp(outsider.id, project.id)).toEqual([]);
+
+    await db.update(users).set({ name: "哈哈哈" }).where(eq(users.id, member.id));
+    const renamed = await listCollaborationHelp(owner.id, project.id);
+    expect(renamed.find(row => row.raisedById === member.id)?.raisedByName).toBe("哈哈哈");
+    expect((await getTaskDetail(owner.id, task.id)).assigneeName).toBe("哈哈哈");
   });
   it("队友解决后同时退出协作中心和项目求助列表，不把任务自动标为完成", async () => {
     const owner = await createUser({ name: "组长", email: "owner@help.test", password: "password123" });

@@ -33,7 +33,7 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
 
   return [
     step("directory", "从汪汪队的项目开始", "这次以汪汪队的敏捷开发平台为展示项目。按真实页面认识成员、阶段和任务分工，点击查看即可继续。", "/tutorials", "tutorial-showcase"),
-    step("roles", "认识项目中的三种角色", "鱼乐、哈哈哈和聂翔是组员，负责各自任务；郭诗辉是老师，负责成果复核与集成审核；组长安排分工并推进项目。这里显示团队的当前成员档案。", `${team}/members`, "team-members"),
+    step("roles", "认识项目中的三种角色", "在成员列表查看当前姓名和角色。组员负责各自的任务，老师负责成果复核与集成审核，组长安排分工并推进项目。", `${team}/members`, "team-members"),
     ...(role === "admin" ? [
       step("leader-start", "进入组长工作区", "在查看视角中选择组长，先认识团队的真实分工；稍后再切换组员和老师的操作视角。", base, "project-view-switch", "result", "data-tour-leader-view"),
       step("assignments", "查看组长下派的任务", "分工页列出全项目任务。每个阶段默认折叠，展开后能核对任务和负责人；组长可在任务资料与管理中调整分工。", `${work}&panel=list`, "console-task-list"),
