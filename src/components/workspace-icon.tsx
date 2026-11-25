@@ -9,6 +9,7 @@ const paths = {
   settings:
     "M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2",
   arrow: "M5 12h14 M13 6l6 6-6 6",
+  move: "M12 3v18 M3 12h18 M9 6l3-3 3 3 M9 18l3 3 3-3 M6 9l-3 3 3 3 M18 9l3 3-3 3",
 } as const;
 
 export function WorkspaceIcon({

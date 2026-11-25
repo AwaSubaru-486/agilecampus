@@ -11,6 +11,8 @@ import { findTutorialTarget } from "@/lib/tutorials/target";
 import { findShowcaseProject } from "@/lib/tutorials/showcase";
 import { WELCOME_CHAPTERS, welcomeMinutes } from "@/lib/tutorials/example-flow";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { WorkspaceIcon } from "@/components/workspace-icon";
+import { useTutorialCardDrag } from "./use-tutorial-card-drag";
 
 type TutorialContextValue = {
   projects: TutorialProject[]; project: TutorialProject | null; showcase: TutorialProject | null; courses: TutorialCourse[];
@@ -321,6 +323,14 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     : rect && !hasSideSpace && rect.top >= desktopCardHeight + 32 ? rect.top - desktopCardHeight - 16
     : rect && !hasSideSpace && below ? rect.top + rect.height + 16
     : Math.max(16, Math.min(rect?.top ?? lowestCardTop, lowestCardTop));
+  const { movedPosition, handle } = useTutorialCardDrag(card, viewport, cardWidth, mounted && running && !modal, portalRoot);
+  const cardPlacement = collapsed
+    ? { width: cardWidth, ...(dockRight ? { right: 12 } : { left: 12 }), bottom: 12 }
+    : browseAcceptance
+    ? { width: cardWidth, maxHeight: mobile ? "min(280px, 40vh)" : "min(360px, 50vh)", left: 12, bottom: 12 }
+    : isWelcome && (!mobile || inNativeDialog)
+    ? { width: cardWidth, maxHeight: inNativeDialog ? "min(340px, 46vh)" : desktopCardHeight, ...(dockRight ? { right: 12 } : { left: 12 }), bottom: 12 }
+    : { width: cardWidth, maxHeight: mobile ? mobileCardHeight : desktopCardHeight, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined };
 
   return <TutorialContext.Provider value={{ projects, project, showcase, courses, progress, pending, error, selectProject: setProjectId, start }}>
     <NavigationProgress active={pending} label="正在保存教程进度…" />
@@ -349,15 +359,14 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           ].map((style, index) => <div key={index} className={`absolute ${maskClass}`} style={style} />)}
           <div className="absolute rounded-lg border-2 border-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,0.18),0_0_28px_rgba(56,189,248,0.3)] transition-[top,left,width,height] duration-150 motion-reduce:transition-none" style={rect} />
         </> : <div className={`absolute inset-0 ${maskClass}`} />}
-        <div ref={card} role="dialog" aria-modal="false" aria-labelledby="tutorial-step-title" className="absolute pointer-events-auto flex max-h-[min(430px,55vh)] flex-col overflow-hidden rounded-2xl border border-stroke bg-panel p-4 shadow-2xl sm:p-5" style={collapsed
-          ? { width: cardWidth, ...(dockRight ? { right: 12 } : { left: 12 }), bottom: 12 }
-          : browseAcceptance
-          ? { width: cardWidth, maxHeight: mobile ? "min(280px, 40vh)" : "min(360px, 50vh)", left: 12, bottom: 12 }
-          : isWelcome && (!mobile || inNativeDialog)
-          ? { width: cardWidth, maxHeight: inNativeDialog ? "min(340px, 46vh)" : desktopCardHeight, ...(dockRight ? { right: 12 } : { left: 12 }), bottom: 12 }
-          : { width: cardWidth, maxHeight: mobile ? mobileCardHeight : desktopCardHeight, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined }}>
+        <div ref={card} role="dialog" aria-modal="false" aria-labelledby="tutorial-step-title" className="absolute pointer-events-auto flex max-h-[min(430px,55vh)] flex-col overflow-hidden rounded-2xl border border-stroke bg-panel p-4 shadow-2xl sm:p-5"
+          style={movedPosition ? { ...cardPlacement, ...movedPosition, right: "auto", bottom: "auto" } : cardPlacement}>
           <div className="flex items-center justify-between gap-3 text-xs">
-            <span className="font-semibold text-signal">{chapter?.title ?? course?.title ?? "教程"}</span>
+            <button type="button" {...handle} title="拖动悬浮框" aria-label="拖动悬浮框。方向键移动，Home 键恢复位置"
+              className="flex min-h-8 min-w-0 cursor-grab touch-none select-none items-center gap-1.5 rounded px-1.5 text-left font-semibold text-signal hover:bg-sunken active:cursor-grabbing">
+              <WorkspaceIcon name="move" className="size-4 shrink-0" />
+              <span>{chapter?.title ?? course?.title ?? "教程"}</span>
+            </button>
             <div className="flex flex-wrap justify-end gap-1">
               {isWelcome && <button type="button" aria-expanded={!collapsed} aria-controls="tutorial-step-content" onClick={() => setCollapsedStep(collapsed ? "" : stepKey)} className="rounded px-2 py-1 text-signal hover:bg-sunken">{collapsed ? "展开讲解" : "收起讲解"}</button>}
               <button disabled={pending} onClick={() => void pause()} className="rounded px-2 py-1 text-ink-3 hover:bg-sunken">暂停 / 退出</button>
