@@ -29,7 +29,7 @@ export function ArchiveSection({
   entries: EntryRow[];
   tasks: { id: string; title: string }[];
   canWrite: boolean;
-  /** 老师或组长才能留反馈 */
+  /** 教师视角显示反馈入口 */
   canGiveFeedback: boolean;
 }) {
   const [adding, setAdding] = useState<null | EntryType>(null);
@@ -73,7 +73,7 @@ export function ArchiveSection({
       )}
 
       {entries.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-ink-2">暂无项目档案。添加反馈、文档或成果。</p>
+        <p className="px-4 py-8 text-center text-sm text-ink-2">暂无项目档案。</p>
       ) : (
         <ul className="divide-y divide-stroke">
           {entries.map((e) => (

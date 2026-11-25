@@ -93,7 +93,7 @@ export async function RecordSpace({
         entries={entries}
         tasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
         canWrite={canWrite}
-        canGiveFeedback={role === "teacher" || role === "admin"}
+        canGiveFeedback={role === "teacher"}
       />
 
       <section className="overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
