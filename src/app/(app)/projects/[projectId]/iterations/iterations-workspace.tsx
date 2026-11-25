@@ -54,7 +54,7 @@ export function IterationsWorkspace({ projectId, iterations, outcomes, canManage
   }
   return <main className={styles.workspace} data-tour="project-iterations">
     <ReleaseShowcase releases={releases} hasOutcomes={outcomes.length > 0} openVersion={setArchive} />
-    <section id="iteration-pending" className={styles.syncedOutcomes} aria-labelledby="synced-outcomes-title">
+    <section id="iteration-pending" data-tour="iteration-pending" className={styles.syncedOutcomes} aria-labelledby="synced-outcomes-title">
       <header className={styles.sectionHeader}>
         <h2 id="synced-outcomes-title">已验收 · 待归档</h2>
         {outcomes.length > 0 && <span className={styles.outcomeCount}>{outcomes.length} 项</span>}

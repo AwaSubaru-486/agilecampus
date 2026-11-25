@@ -1,5 +1,6 @@
 /* global petDesktop */
 const canvas = document.getElementById('pet'), context = canvas.getContext('2d');
+const widget = document.getElementById('widget'), figure = document.getElementById('pet-figure');
 const empty = document.getElementById('empty'), body = document.getElementById('pet-body');
 let current = null, image = null, renderKey = '', frame = 0, lastTime = 0, action = 'idle', animationId, greetTimer;
 function draw(time = 0) {
@@ -18,8 +19,8 @@ function draw(time = 0) {
 function render(state) {
   if (!state) return;
   current = state;
-  document.getElementById('widget').classList.toggle('demo', state.status === 'demo');
-  document.getElementById('widget').classList.toggle('local', state.status === 'local');
+  widget.classList.toggle('demo', state.status === 'demo');
+  widget.classList.toggle('local', state.status === 'local');
   document.getElementById('name').textContent = state.name ?? '';
   document.getElementById('hint').textContent = state.status === 'demo' ? '演示模式，不关联账号' : state.status === 'local' ? '本机预览，连接网页后同步' : state.offline ? '暂时离线，正在重连' : state.connected && state.status === 'ready' ? '跟随网页桌宠' : '';
   document.getElementById('message').textContent = state.message ?? '';
@@ -27,7 +28,7 @@ function render(state) {
   const key = (state.asset ?? '') + JSON.stringify(state.appearance);
   if (key === renderKey) return;
   renderKey = key; cancelAnimationFrame(animationId); image = null; frame = 0;
-  canvas.hidden = true; empty.hidden = false;
+  figure.hidden = true; empty.hidden = false;
   if (!state.asset || !state.appearance) return;
   const next = new Image();
   next.onload = () => {
@@ -35,7 +36,7 @@ function render(state) {
     image = next; const a = state.appearance;
     const width = a.type === 'image' ? a.width : a.frameWidth, height = a.type === 'image' ? a.height : a.frameHeight;
     const scale = Math.min(1, 512 / width, 512 / height); canvas.width = Math.round(width * scale); canvas.height = Math.round(height * scale);
-    canvas.hidden = false; empty.hidden = true; draw();
+    figure.hidden = false; empty.hidden = true; draw();
   };
   next.onerror = () => { document.getElementById('message').textContent = '桌宠资源无法显示，请在家园重新选择。'; };
   next.src = state.asset;
@@ -49,17 +50,28 @@ function greet() {
 }
 let drag = null;
 body.addEventListener('pointerdown', event => {
-  if (event.button !== 0 || event.target.closest('button')) return;
-  drag = { x: event.screenX, y: event.screenY, distance: 0 }; body.setPointerCapture(event.pointerId);
+  if (drag || event.button !== 0 || event.target.closest('button')) return;
+  drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+  body.setPointerCapture(event.pointerId);
+  widget.classList.add('dragging');
+  petDesktop.drag('start');
 });
 body.addEventListener('pointermove', event => {
-  if (!drag) return;
-  const dx = event.screenX - drag.x, dy = event.screenY - drag.y;
-  drag.x = event.screenX; drag.y = event.screenY; drag.distance += Math.abs(dx) + Math.abs(dy);
-  if (drag.distance > 4) petDesktop.drag(dx, dy);
+  if (drag?.pointerId !== event.pointerId) return;
+  drag.moved ||= Math.abs(event.clientX - drag.x) + Math.abs(event.clientY - drag.y) > 4;
+  if (drag.moved) petDesktop.drag('move');
 });
-body.addEventListener('pointerup', () => { if (drag && drag.distance <= 4) greet(); drag = null; });
-body.addEventListener('pointercancel', () => { drag = null; });
+function endDrag(event) {
+  if (drag?.pointerId !== event.pointerId) return;
+  const clicked = event.type === 'pointerup' && !drag.moved;
+  drag = null;
+  widget.classList.remove('dragging');
+  petDesktop.drag('end');
+  if (clicked) greet();
+}
+body.addEventListener('pointerup', endDrag);
+body.addEventListener('pointercancel', endDrag);
+body.addEventListener('lostpointercapture', endDrag);
 body.addEventListener('keydown', event => { if (event.target === body && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); greet(); } });
 document.addEventListener('mousemove', event => {
   if (drag) return;

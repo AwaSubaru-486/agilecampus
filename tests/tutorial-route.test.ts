@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tutorialReopenStep, tutorialStepRoute } from "@/lib/tutorials/route";
+import { tutorialReopenStep, tutorialRouteMatches, tutorialStepRoute } from "@/lib/tutorials/route";
 import { buildTutorialCourses } from "@/lib/tutorials/catalog";
 
 describe("教程步骤中的任务上下文", () => {
@@ -29,6 +29,15 @@ describe("教程步骤中的任务上下文", () => {
         "/projects/a?space=work&task=chosen",
       ),
     ).toBe("/projects/a?space=work&panel=list");
+  });
+  it("验收步骤允许在两个队列和任务之间切换，仍需留在同一个项目的验收页", () => {
+    const step = "/projects/a?space=work&scope=review&task=example";
+    expect(tutorialStepRoute(step, "/projects/a?space=work&scope=all&task=earlier")).toBe(step);
+    expect(tutorialRouteMatches(step, "/projects/a?space=work&scope=review&task=chosen", true)).toBe(true);
+    expect(tutorialRouteMatches(step, "/projects/a?space=work&scope=completed&panel=list", true)).toBe(true);
+    expect(tutorialRouteMatches(step, "/projects/a?space=work&scope=all&task=chosen", true)).toBe(false);
+    expect(tutorialRouteMatches(step, "/projects/b?space=work&scope=review", true)).toBe(false);
+    expect(tutorialRouteMatches(step, "/projects/a?space=work&scope=review&task=chosen")).toBe(false);
   });
   it("不将其他项目的任务或旧看板视图带到下一步", () => {
     expect(

@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { users, tasks, taskStages } from "@/db/schema";
@@ -36,15 +36,32 @@ async function withShowcase(actorId: string, progress: TutorialProgress): Promis
   const access = showcase ? await getProjectForUser(actorId, showcase.id) : null;
   if (!access) return { ...progress, journey: { ...EMPTY_JOURNEY } };
   const help = await listCollaborationHelp(actorId, access.project.id);
-  const helpTaskId = help.find(request => request.taskId)?.taskId ?? null;
-  const [task] = access.role === "teacher" ? [] : await db.select({ id: tasks.id }).from(tasks)
-    .leftJoin(taskStages, eq(tasks.stageId, taskStages.id))
-    .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false), access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
-    .orderBy(sql`${tasks.id} is distinct from ${helpTaskId}`, asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1);
+  const helpExample = help.find(request => request.taskId);
+  const helpTaskId = helpExample?.taskId ?? null;
+  const projectTasks = and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false));
+  const sampleDelivery = (completedOnly: boolean) => db.select({ id: tasks.id, title: tasks.title, status: tasks.status }).from(tasks)
+    .where(and(projectTasks, completedOnly ? eq(tasks.status, "done") : inArray(tasks.status, ["review", "done"]),
+      access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
+    .orderBy(sql`(${tasks.status} = 'review') desc`, ...(helpTaskId ? [sql`${tasks.assigneeId} is distinct from (
+      select source.assignee_id from tasks as source where source.id = ${helpTaskId} and source.project_id = ${access.project.id}
+    )`] : []), sql`${tasks.submittedAt} desc nulls last`, asc(tasks.sortOrder), asc(tasks.id)).limit(1);
+  const [[task], [reviewTask], [reviewedTask]] = await Promise.all([
+    access.role === "teacher" ? [] : db.select({ id: tasks.id, title: tasks.title }).from(tasks)
+      .leftJoin(taskStages, eq(tasks.stageId, taskStages.id))
+      .where(and(projectTasks, access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
+      .orderBy(sql`${tasks.id} is distinct from ${helpTaskId}`, asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1),
+    sampleDelivery(access.role === "teacher"),
+    access.role === "admin" ? sampleDelivery(true) : [],
+  ]);
   const changed = progress.journey?.projectId !== access.project.id || progress.journey.role !== access.role;
   return {
     ...progress,
-    journey: { version: WELCOME_VERSION, teamId: access.project.teamId, projectId: access.project.id, role: access.role, taskId: task?.id ?? null, helpTaskId },
+    journey: {
+      version: WELCOME_VERSION, teamId: access.project.teamId, projectId: access.project.id, role: access.role,
+      taskId: task?.id ?? null, taskTitle: task?.title, helpTaskId, helpTaskTitle: helpExample?.taskTitle ?? undefined,
+      acceptance: reviewTask ? { taskId: reviewTask.id, title: reviewTask.title, queue: reviewTask.status === "review" ? "review" : "completed" } : null,
+      reviewedTask: reviewedTask ? { taskId: reviewedTask.id, title: reviewedTask.title } : null,
+    },
     active: progress.active?.courseId === "welcome" ? {
       ...progress.active, projectId: access.project.id, journeyVersion: WELCOME_VERSION,
       ...(changed ? { step: 0, paused: true } : {}),

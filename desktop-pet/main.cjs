@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, shell, screen, dia
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { SCHEME, parseLaunch, serverOrigin, validateAppearance, clampBounds } = require('./lib/protocol.cjs');
+const { SCHEME, parseLaunch, serverOrigin, validateAppearance, clampBounds, dragBounds } = require('./lib/protocol.cjs');
 const { encryptToken, decryptToken } = require('./lib/secure-config.cjs');
 const webPresets = require('./lib/web-presets.cjs');
 
@@ -309,10 +309,20 @@ else {
       else if (action === 'capture') win.setIgnoreMouseEvents(false);
       else if (action === 'passthrough') win.setIgnoreMouseEvents(true, { forward: true });
     });
-    ipcMain.on('pet:drag', (event, delta) => {
-      if (!trusted(event) || !Number.isFinite(delta?.dx) || !Number.isFinite(delta?.dy) || Math.abs(delta.dx) > 500 || Math.abs(delta.dy) > 500) return;
-      const current = win.getBounds(), display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-      win.setBounds(clampBounds({ ...current, x: current.x + Math.round(delta.dx), y: current.y + Math.round(delta.dy) }, display.workArea));
+    let dragStart;
+    ipcMain.on('pet:drag', (event, phase) => {
+      if (!trusted(event)) return;
+      if (phase === 'start') {
+        dragStart = { bounds: win.getBounds(), cursor: screen.getCursorScreenPoint() };
+      } else if (phase === 'end') {
+        dragStart = undefined;
+      } else if (phase === 'move' && dragStart) {
+        // Window bounds and the OS cursor both use Electron screen coordinates.
+        const cursor = screen.getCursorScreenPoint();
+        const next = dragBounds(dragStart.bounds, dragStart.cursor, cursor, screen.getDisplayNearestPoint(cursor).workArea);
+        const current = win.getBounds();
+        if (next.x !== current.x || next.y !== current.y || next.width !== current.width || next.height !== current.height) win.setBounds(next);
+      }
     });
     tray = new Tray(icon()); tray.setToolTip('AgileCampus 桌面陪伴'); tray.on('double-click', showPet); updateTray();
     await win.loadFile(page); showPet();

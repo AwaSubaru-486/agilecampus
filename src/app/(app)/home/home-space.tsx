@@ -267,7 +267,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMember
     </dialog>}
     {project && <dialog id="office-tasks" ref={taskBoardRef} className={s.taskBoardDialog} aria-labelledby="office-tasks-title" onClick={event => { if (event.target === event.currentTarget) taskBoardRef.current?.close(); }}>
       <div className={s.taskBoardContent}>
-        <header className={s.drawerHeading}><div><h2 id="office-tasks-title">我的任务</h2><p>{project.name}{taskSummary && ` · ${taskSummary.total} 项任务`}</p></div><button className="ac-btn-ghost" aria-label="关闭我的任务" onClick={() => taskBoardRef.current?.close()}>×</button></header>
+        <header className={s.drawerHeading}><div><h2 id="office-tasks-title">我的任务</h2><p>{project.name}{taskSummary && ` · ${taskSummary.total} 项任务`}</p></div><button data-tour="office-tasks-close" className="ac-btn-ghost" aria-label="关闭我的任务" onClick={() => taskBoardRef.current?.close()}>×</button></header>
         {taskSummary && <dl className={s.taskCounts} aria-label="任务状态">
           {TASK_STATUSES.map(status => <div key={status}>
             <dt>{STATUS_LABEL[status]}</dt>

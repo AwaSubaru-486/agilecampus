@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseLaunch, serverOrigin, validateAppearance, clampBounds } = require('../lib/protocol.cjs');
+const { parseLaunch, serverOrigin, validateAppearance, clampBounds, dragBounds } = require('../lib/protocol.cjs');
 const ticket = 'acpair_' + 'a'.repeat(43);
 test('deep links accept HTTPS and loopback only, with one purpose-bound ticket', () => {
   const url = 'agilecampus-pet://connect?server=' + encodeURIComponent('http://127.0.0.1:3000') + '&ticket=' + ticket;
@@ -19,4 +19,14 @@ test('appearance validation strips remote URLs and bounds sprite frames', () => 
 });
 test('off-screen bounds are restored into the current display work area', () => {
   assert.deepEqual(clampBounds({ x: -3000, y: 3000, width: 240, height: 280 }, { x: 0, y: 0, width: 1920, height: 1040 }), { x: 0, y: 760, width: 240, height: 280 });
+});
+test('desktop drag keeps the grab offset and returns to the start after clamping', () => {
+  const bounds = { x: 350, y: 250, width: 180, height: 220 };
+  const grab = { x: 410, y: 330 };
+  const area = { x: 0, y: 0, width: 800, height: 600 };
+  const edge = { x: 799, y: 599 };
+  assert.deepEqual(dragBounds(bounds, grab, edge, area), { ...bounds, x: 620, y: 380 });
+  assert.deepEqual(dragBounds(bounds, grab, grab, area), bounds);
+  const otherScreen = { x: -1000, y: -120, width: 1000, height: 800 };
+  assert.deepEqual(dragBounds(bounds, grab, { x: -350, y: 200 }, otherScreen), { ...bounds, x: -410, y: 120 });
 });

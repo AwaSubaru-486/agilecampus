@@ -31,4 +31,7 @@ function clampBounds(bounds, area) {
   const width = Math.min(bounds.width, area.width), height = Math.min(bounds.height, area.height);
   return { width, height, x: Math.min(Math.max(bounds.x, area.x), area.x + area.width - width), y: Math.min(Math.max(bounds.y, area.y), area.y + area.height - height) };
 }
-module.exports = { SCHEME, serverOrigin, parseLaunch, validateAppearance, clampBounds };
+function dragBounds(bounds, start, cursor, area) {
+  return clampBounds({ ...bounds, x: bounds.x + cursor.x - start.x, y: bounds.y + cursor.y - start.y }, area);
+}
+module.exports = { SCHEME, serverOrigin, parseLaunch, validateAppearance, clampBounds, dragBounds };

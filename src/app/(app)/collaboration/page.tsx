@@ -106,7 +106,7 @@ export default async function CollaborationPage({ searchParams }: { searchParams
             {orderedGroups.map(group => {
               const focused = group.anchor === focusAnchor;
               const first = group.requests[0];
-              return <li id={group.anchor} key={group.anchor} className={`scroll-mt-28 p-4 ${focused ? "bg-signal-soft/40" : ""}`}>
+              return <li id={group.anchor} data-tour={`collaboration-help-${group.anchor}`} key={group.anchor} className={`scroll-mt-28 p-4 ${focused ? "bg-signal-soft/40" : ""}`}>
                 <details key={`${group.anchor}-${focused}`} open={focused}>
                   <summary className="cursor-pointer rounded-lg p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
                     <span className="font-semibold text-ink">{group.title}</span>

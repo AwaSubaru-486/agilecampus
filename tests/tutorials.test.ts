@@ -51,6 +51,29 @@ describe("展示教程与账号进度", () => {
     const resumed = await updateTutorialProgress(a.id, { type: "save", courseId: "welcome", step: 3, projectId: project.id });
     expect(resumed.active?.paused).toBeUndefined(); expect(resumed.journey).toEqual(paused.journey);
   });
+  it("为验收章优先选择求助负责人的待审核交付，缺少时展示已审核成果", async () => {
+    const owner = await user("acceptance");
+    const { project, team, task } = await showcase(owner.id);
+    const other = await createProject(owner.id, team.id, { name: "其他项目" });
+    await db.insert(blockers).values({ projectId: project.id, taskId: task.id, raisedById: owner.id, reason: "resource" });
+    const [review, done, unrelated] = await db.insert(tasks).values([
+      { projectId: project.id, title: "等待验收的材料", status: "review", assigneeId: owner.id },
+      { projectId: project.id, title: "通过验收的材料", status: "done", submittedAt: new Date() },
+      { projectId: project.id, title: "另一份更新的待验收材料", status: "review", submittedAt: new Date() },
+      { projectId: other.id, title: "其他项目的待验收材料", status: "review", submittedAt: new Date() },
+    ]).returning();
+    const journey = (await getTutorialProgress(owner.id)).journey;
+    expect(journey).toMatchObject({
+      helpTaskTitle: task.title, taskTitle: task.title,
+      acceptance: { taskId: review.id, queue: "review", title: review.title },
+      reviewedTask: { taskId: done.id, title: done.title },
+    });
+    await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, unrelated.id));
+    await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, review.id));
+    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: done.id, queue: "completed", title: done.title });
+    await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, done.id));
+    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toBeNull();
+  });
   it("展示无需模型配置或真实交付，完成与重新开始不改团队、项目、任务和业务活动", async () => {
     const a = await user("a"); const { project } = await showcase(a.id);
     const snapshot = async () => Promise.all([db.select().from(tasks), db.select().from(projects), db.select().from(teams), db.select().from(activityEvents)]);
@@ -88,11 +111,17 @@ describe("展示教程与账号进度", () => {
     for (const courseId of ["planning", "execution", "role-views"]) await expect(updateTutorialProgress(t.id, { type: "save", courseId, step: 0, projectId: project.id })).rejects.toThrow();
     await expect(updateTutorialProgress(s.id, { type: "save", courseId: "records", step: 0, projectId: project.id })).rejects.toThrow();
     expect((await updateTutorialProgress(t.id, { type: "restart-example" })).journey?.role).toBe("teacher");
-    expect((await updateTutorialProgress(s.id, { type: "restart-example" })).journey?.role).toBe("student");
+    const [delivery] = await db.insert(tasks).values([
+      { projectId: project.id, title: "组员自己的交付", assigneeId: s.id, status: "done" },
+      { projectId: project.id, title: "其他人的交付", assigneeId: a.id, status: "review" },
+    ]).returning();
+    expect((await updateTutorialProgress(s.id, { type: "restart-example" })).journey).toMatchObject({
+      role: "student", acceptance: { taskId: delivery.id, queue: "completed" },
+    });
   });
   it("旧主线重置并暂停，保留其他课程和旧团队项目", async () => {
     const a = await user("migration"); const { team, project } = await showcase(a.id);
-    for (const version of [4, 5, 6] as const) {
+    for (const version of [4, 5, 6, 7, 8] as const) {
       await db.update(users).set({ tutorialProgress: { status: "completed", completed: ["welcome", "teams"], journey: { version, teamId: team.id, projectId: project.id }, active: { courseId: "welcome", step: 15, projectId: project.id, journeyVersion: version } } }).where(eq(users.id, a.id));
       const progress = await getTutorialProgress(a.id);
       expect(progress.journey?.version).toBe(WELCOME_VERSION); expect(progress.journey?.projectId).toBe(project.id);

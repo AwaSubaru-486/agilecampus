@@ -5,12 +5,15 @@
 button{font:inherit;cursor:pointer;border:1px solid #dce6eb;border-radius:8px;background:#fff;color:#147d68;padding:6px 10px;font-size:12px}
 button:hover{background:#e3f3ed}button:focus-visible,#pet-body:focus-visible{outline:2px solid #147d68;outline-offset:2px}
 .toolbar button{padding:2px 7px;border:0;color:#4d6570;font-size:17px;line-height:22px}
-#pet-body{width:100%;flex:1;min-height:0;display:flex;align-items:flex-end;justify-content:center;cursor:grab;touch-action:none}#pet-body:active{cursor:grabbing}
-canvas{display:block;max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 5px 5px #17363420)}canvas[hidden]{display:none}
+#pet-body{width:100%;flex:1;min-height:0;display:flex;align-items:flex-end;justify-content:center;cursor:grab;touch-action:none;container-type:size}#pet-body:active{cursor:grabbing}
+#pet-figure{position:relative}
+canvas{display:block;max-width:100cqw;max-height:100cqh;filter:drop-shadow(0 5px 5px #17363420)}
 #empty{width:100%;padding:15px;background:#fffffff5;border:1px solid #dce6eb;border-radius:16px;text-align:center;box-shadow:0 5px 18px #1d353910;cursor:default}
 #empty[hidden]{display:none}.slot{display:block;margin:0 auto 5px;color:#6d9488;font-size:31px}strong{font-size:14px}#message{font-size:12px;line-height:1.7;color:#647a85;margin:8px 0 12px}#name{font-size:12px;margin:7px 0 0;padding:4px 10px;border-radius:12px;background:#ffffffed;color:#4d6570;border:1px solid #dce6eb;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#name:empty{display:none}
 #hint{font-size:10px;margin:4px 0;color:#4d6570;background:#ffffffde;border-radius:6px;padding:2px 5px;max-width:100%;text-align:center}#hint:empty{display:none}
-#speech{position:absolute;top:36px;background:#fff;border:1px solid #dce6eb;border-radius:12px;padding:8px 12px;font-size:12px;box-shadow:0 3px 10px #1d353912;z-index:3}
+#speech{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #dce6eb;border-radius:12px;padding:6px 10px;font-size:12px;white-space:nowrap;box-shadow:0 3px 10px #1d353912;z-index:4;pointer-events:none}
 .empty-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}.empty-actions button{padding:4px 5px}
-.demo canvas,.local canvas{animation:demo-float 3s ease-in-out infinite}@keyframes demo-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#widget:is(.demo,.local){animation:demo-float 3s ease-in-out infinite}
+#widget.dragging{animation-play-state:paused}
+@keyframes demo-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
