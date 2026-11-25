@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useTutorials } from "./tutorial-provider";
-import { WELCOME_CHAPTERS } from "@/lib/tutorials/example-flow";
+import { WELCOME_CHAPTERS, welcomeMinutes } from "@/lib/tutorials/example-flow";
 import { WorkspaceIcon } from "@/components/workspace-icon";
 import s from "./tutorials.module.css";
 
@@ -41,10 +41,10 @@ export default function TutorialsPage() {
         <div className={s.intro}>
           <p className={s.kicker}><WorkspaceIcon name="tutorials" className="size-4" /> 项目导览</p>
           <h2 id="welcome-title">敏捷开发平台</h2>
-          <p className={s.lead}>走进办公室，跟着一个真实任务看分工、求助与交付，最后回看这一轮做成了什么。</p>
+          <p className={s.lead}>从办公室的一条求助出发，顺着分工、交付和验收走一轮，最后从复盘报告里选出下一轮要做的事。</p>
+          <p className={s.projectMeta}>约 {welcomeMinutes(welcome.steps)} 分钟 <span aria-hidden>·</span> {welcome.steps.length} 步{showcase && <> <span aria-hidden>·</span> {ROLE_NAMES[showcase.role]}视角</>}</p>
           {showcase ? (
             <>
-              <p className={s.projectMeta}>{showcase.teamName} <span aria-hidden>·</span> {ROLE_NAMES[showcase.role]}视角 <span aria-hidden>·</span> {welcome.steps.length} 步</p>
               <div className={s.actions}>
                 <button className={s.start} disabled={pending} onClick={() => void start("welcome", resumeWelcome)}>
                   {pending ? "正在准备…" : resumeWelcome ? "继续项目导览" : completed ? "重新查看导览" : "开始项目导览"}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildWelcomeSteps, WELCOME_CHAPTERS, WELCOME_VERSION } from "@/lib/tutorials/example-flow";
+import { buildWelcomeSteps, WELCOME_CHAPTERS, WELCOME_VERSION, welcomeMinutes } from "@/lib/tutorials/example-flow";
 import { findShowcaseProject, SHOWCASE_TEAM } from "@/lib/tutorials/showcase";
 
 const journey = { version: WELCOME_VERSION, teamId: "demo-team", projectId: "demo-project", taskId: "blocked-task", helpTaskId: "blocked-task", role: "admin" } as const;
@@ -40,6 +40,21 @@ describe("敏捷开发平台项目导览", () => {
     expect(buildWelcomeSteps({ ...journey, acceptance: { taskId: "done-task", queue: "completed" } })[7].route)
       .toBe("/projects/demo-project?space=work&scope=completed&task=done-task");
     expect(buildWelcomeSteps(journey)[7].route).toBe("/projects/demo-project?space=work&scope=review&panel=list");
+  });
+
+  it("各视角用约五分钟完成同一条协作主线，每步给出接下来的行动", () => {
+    for (const role of ["admin", "student", "teacher"] as const) {
+      const steps = buildWelcomeSteps({ ...journey, role, helpTaskTitle: "完善交付材料", taskTitle: "完善交付材料" });
+      expect(welcomeMinutes(steps)).toBe(5);
+      expect(steps.every(step => step.guide && step.guide.seconds > 0 && step.guide.handoff.length > 0)).toBe(true);
+      expect(steps.find(step => step.id === "help")?.instruction).toContain("完善交付材料");
+      if (role !== "teacher") {
+        expect(steps.find(step => step.id === "help")?.guide?.handoff).toContain("同一项任务");
+        expect(steps.find(step => step.id === "delivery")?.instruction).toContain("完善交付材料");
+      }
+      expect(steps.at(-1)?.instruction).toContain("生成报告");
+      expect(steps.at(-1)?.guide?.handoff).toContain("下一轮");
+    }
   });
 
   it("优先选择演示小组中的可用项目，旧团队只作为可访问的同名示例", () => {

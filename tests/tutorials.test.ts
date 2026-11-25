@@ -51,18 +51,22 @@ describe("展示教程与账号进度", () => {
     const resumed = await updateTutorialProgress(a.id, { type: "save", courseId: "welcome", step: 3, projectId: project.id });
     expect(resumed.active?.paused).toBeUndefined(); expect(resumed.journey).toEqual(paused.journey);
   });
-  it("为第八步优先选择待审核任务，缺少待审核任务时展示已审核成果", async () => {
+  it("为第八步优先选择求助任务的负责人的待审核交付，缺少待审核任务时展示已审核成果", async () => {
     const owner = await user("acceptance");
-    const { project, team } = await showcase(owner.id);
+    const { project, team, task } = await showcase(owner.id);
     const other = await createProject(owner.id, team.id, { name: "其他项目" });
-    const [review, done] = await db.insert(tasks).values([
-      { projectId: project.id, title: "等待验收的材料", status: "review" },
+    await db.insert(blockers).values({ projectId: project.id, taskId: task.id, raisedById: owner.id, reason: "resource" });
+    const [review, done, unrelated] = await db.insert(tasks).values([
+      { projectId: project.id, title: "等待验收的材料", status: "review", assigneeId: owner.id },
       { projectId: project.id, title: "通过验收的材料", status: "done", submittedAt: new Date() },
+      { projectId: project.id, title: "另一份更新的待验收材料", status: "review", submittedAt: new Date() },
       { projectId: other.id, title: "其他项目的待验收材料", status: "review", submittedAt: new Date() },
     ]).returning();
-    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: review.id, queue: "review" });
+    const journey = (await getTutorialProgress(owner.id)).journey;
+    expect(journey).toMatchObject({ helpTaskTitle: task.title, taskTitle: task.title, acceptance: { taskId: review.id, queue: "review", title: review.title } });
+    await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, unrelated.id));
     await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, review.id));
-    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: done.id, queue: "completed" });
+    expect((await getTutorialProgress(owner.id)).journey?.acceptance).toEqual({ taskId: done.id, queue: "completed", title: done.title });
     await db.update(tasks).set({ status: "doing" }).where(eq(tasks.id, done.id));
     expect((await getTutorialProgress(owner.id)).journey?.acceptance).toBeNull();
   });
