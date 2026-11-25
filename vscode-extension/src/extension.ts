@@ -17,12 +17,14 @@ import { registerSessionMemoryCommands } from "./commands/session-memory";
 import { registerImportMemoryHandoffCommand } from "./commands/import-memory-handoff";
 import { registerTaskMemoryLinks } from "./commands/task-memory-link";
 import { registerMemoryReceiptRecovery } from "./commands/memory-receipt-recovery";
+import { openWalkthrough } from "./commands/walkthrough";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ProjectViewProvider(context.extensionUri, context);
   context.subscriptions.push(provider);
   context.subscriptions.push(vscode.window.registerWebviewViewProvider(ProjectViewProvider.viewType, provider));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.refresh", () => provider.refresh()));
+  context.subscriptions.push(vscode.commands.registerCommand("agilecampus.openWalkthrough", openWalkthrough));
   context.subscriptions.push(vscode.commands.registerCommand("agilecampus.disableCodexCapture", () => provider.disableCodexCapture()));
   registerOpenWebCommand(context, provider);
   registerContinueAiCommand(context, provider);

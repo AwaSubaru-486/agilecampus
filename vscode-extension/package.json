@@ -2,7 +2,7 @@
   "name": "agilecampus-vscode",
   "displayName": "AgileCampus",
   "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "private": true,
   "publisher": "agilecampus",
   "license": "MIT",
@@ -54,6 +54,11 @@
       }
     },
     "commands": [
+      {
+        "command": "agilecampus.openWalkthrough",
+        "title": "AgileCampus: 新手教程",
+        "icon": "$(book)"
+      },
       {
         "command": "agilecampus.retryMemoryReceipts",
         "title": "AgileCampus: 重试同步接续回执"
@@ -155,6 +160,53 @@
         "title": "AgileCampus: 导入并核对接班记忆"
       }
     ],
+    "walkthroughs": [
+      {
+        "id": "task-memory",
+        "title": "AgileCampus 新手教程",
+        "description": "连接项目，保存第一份工作断点，再从网页接续队友的任务。",
+        "steps": [
+          {
+            "id": "workspace",
+            "title": "打开项目仓库",
+            "description": "在桌面版 VS Code 中打开项目的 Git 仓库，再打开 AgileCampus 侧栏。\n[打开 AgileCampus 侧栏](command:agilecampus.projectView.focus)",
+            "media": { "markdown": "resources/walkthrough/workspace.md" },
+            "completionEvents": ["onView:agilecampus.projectView"]
+          },
+          {
+            "id": "connect",
+            "title": "连接 AgileCampus 项目",
+            "description": "在 VS Code 设置中将 `agileCampus.baseUrl` 设为团队使用的 AgileCampus 网页地址，再用从网页设置页创建的 Personal API Token 连接。\n[打开插件设置](command:workbench.action.openSettings?%5B%22agileCampus.baseUrl%22%5D)\n[连接项目](command:agilecampus.connect)",
+            "media": { "markdown": "resources/walkthrough/connect.md" },
+            "completionEvents": ["onContext:agileCampus.connected"]
+          },
+          {
+            "id": "record",
+            "title": "选择任务并关联会话",
+            "description": "在侧栏「项目任务」中选中要交接的任务，然后在「会话记录」中选择「关联会话」。",
+            "media": { "markdown": "resources/walkthrough/record.md" }
+          },
+          {
+            "id": "draft",
+            "title": "提炼并审核记忆",
+            "description": "选择刚才的任务和本机会话，整理已完成事项、失败方法和下一步，核对出处后接受草稿。\n[提炼本机会话记忆](command:agilecampus.extractSessionMemory)",
+            "media": { "markdown": "resources/walkthrough/draft.md" }
+          },
+          {
+            "id": "publish",
+            "title": "保存工作断点",
+            "description": "打开网页上的同一任务，在「当前工作记忆」中点「保存断点」，再点击「打开 VS Code 选择记忆」并在插件中确认版本。\n[打开项目网页](command:agilecampus.openProject)",
+            "media": { "markdown": "resources/walkthrough/publish.md" }
+          },
+          {
+            "id": "continue",
+            "title": "从网页接班和排查链接",
+            "description": "在网页任务的「当前工作记忆」里选择一个固定版本，点击「在 VS Code 接着做」或「在 VS Code 继续工作」。核对仓库和 Git 基线，再决定是否启动 Agent。",
+            "media": { "markdown": "resources/walkthrough/continue.md" }
+          }
+        ]
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -184,6 +236,11 @@
           "command": "agilecampus.refresh",
           "when": "view == agilecampus.projectView",
           "group": "navigation@2"
+        },
+        {
+          "command": "agilecampus.openWalkthrough",
+          "when": "view == agilecampus.projectView",
+          "group": "navigation@3"
         }
       ]
     }

@@ -11,6 +11,7 @@ import { CheckpointStore } from "../checkpoints/store";
 import { createWorkspaceApi, getLocalOnlyRepositoryId, selectBoundWorkspace } from "./checkpoint-support";
 import { createDurableContinuationReporter, type ContinuationObserver } from "../memory/continuation-reporter";
 import { ReceiptOutbox } from "../memory/receipt-outbox";
+import { openWalkthrough } from "./walkthrough";
 
 export function registerTaskMemoryLinks(context: vscode.ExtensionContext): void {
   let active = false;
@@ -21,9 +22,21 @@ export function registerTaskMemoryLinks(context: vscode.ExtensionContext): void 
       let report: ContinuationObserver | undefined;
       let delegated = false;
       try {
-        const request = parseTaskMemoryLink(uri.toString());
+        let request: ReturnType<typeof parseTaskMemoryLink>;
+        try {
+          // VS Code encodes the query as a single component by default, including its & and = separators.
+          request = parseTaskMemoryLink(uri.toString(true));
+        } catch {
+          void vscode.window.showErrorMessage(
+            "任务记忆链接无效。请回到 AgileCampus 任务页的「当前工作记忆」，重新点击保存或接续按钮。",
+            "打开新手教程",
+          ).then((action) => {
+            if (action === "打开新手教程") return openWalkthrough();
+          });
+          return;
+        }
         if (!vscode.workspace.isTrusted) throw new Error("请先信任当前工作区，再处理任务记忆");
-        const selected = await selectBoundWorkspace(context);
+        const selected = await selectBoundWorkspace(context, request);
         if (!selected) return;
         const serverOrigin = new URL(selected.binding.serverOrigin).toString();
         if (request.serverOrigin !== serverOrigin || request.projectId !== selected.binding.projectId) throw new Error("请在 VS Code 中连接与网页相同的服务和项目后重试");

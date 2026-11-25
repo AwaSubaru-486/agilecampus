@@ -5,8 +5,9 @@ import { TokenStore } from "../auth/token-store";
 import { BindingStore, type WorkspaceBinding } from "../workspace/binding-store";
 
 export type BoundWorkspace = { folder: vscode.WorkspaceFolder; binding: WorkspaceBinding };
+type ProjectBinding = Pick<WorkspaceBinding, "serverOrigin" | "projectId">;
 
-export async function selectBoundWorkspace(context: vscode.ExtensionContext): Promise<BoundWorkspace | undefined> {
+export async function selectBoundWorkspace(context: vscode.ExtensionContext, project?: ProjectBinding): Promise<BoundWorkspace | undefined> {
   const bindings = (vscode.workspace.workspaceFolders ?? []).flatMap((folder) => {
     const binding = new BindingStore(context.workspaceState).get(folder.uri.toString());
     return binding ? [{ folder, binding }] : [];
@@ -15,8 +16,14 @@ export async function selectBoundWorkspace(context: vscode.ExtensionContext): Pr
     void vscode.window.showErrorMessage("请先连接 AgileCampus 项目，再保存或查看本地检查点。");
     return undefined;
   }
-  if (bindings.length === 1) return bindings[0];
-  const selected = await vscode.window.showQuickPick(bindings.map((entry) => ({
+  const matches = project ? bindings.filter(({ binding }) => binding.projectId === project.projectId &&
+    URL.canParse(binding.serverOrigin) && new URL(binding.serverOrigin).href === project.serverOrigin) : bindings;
+  if (!matches.length) {
+    void vscode.window.showErrorMessage("请在 VS Code 中打开对应的仓库，并连接与网页相同的服务和项目后重试。");
+    return undefined;
+  }
+  if (matches.length === 1) return matches[0];
+  const selected = await vscode.window.showQuickPick(matches.map((entry) => ({
     label: entry.folder.name,
     description: entry.binding.projectId,
     entry,
