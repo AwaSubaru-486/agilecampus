@@ -1,9 +1,11 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { serverOrigin } = require('./lib/protocol.cjs');
 async function build() {
   if (process.platform !== 'win32') throw new Error('当前便携包构建脚本仅面向 Windows x64');
   const workspace = path.resolve(__dirname, '..');
+  const desktopHomeOrigin = serverOrigin(process.env.AGILECAMPUS_DESKTOP_HOME_ORIGIN ?? 'http://127.0.0.1:3106');
   const output = path.resolve(workspace, '.local', 'desktop-release', 'AgileCampusPet');
   if (!output.startsWith(workspace + path.sep)) throw new Error('Unexpected output path');
   const electron = path.dirname(require('electron'));
@@ -15,7 +17,7 @@ async function build() {
   for (const filename of ['main.cjs', 'preload.cjs', 'lib', 'ui']) await fs.cp(path.join(__dirname, filename), path.join(appRoot, filename), { recursive: true });
   await fs.mkdir(path.join(appRoot, 'ui', 'assets'), { recursive: true });
   await fs.copyFile(path.join(workspace, 'public', 'pets', 'demo', 'qing-bot.png'), path.join(appRoot, 'ui', 'assets', 'demo-qing-bot.png'));
-  await fs.writeFile(path.join(appRoot, 'package.json'), JSON.stringify({ name: 'agilecampus-desktop-pet', productName: 'AgileCampus Pet', version: '0.1.0', main: 'main.cjs' }));
+  await fs.writeFile(path.join(appRoot, 'package.json'), JSON.stringify({ name: 'agilecampus-desktop-pet', productName: 'AgileCampus Pet', version: '0.1.0', main: 'main.cjs', desktopHomeOrigin }));
   await fs.writeFile(path.join(output, '使用说明.txt'), '先解压整个文件夹，再运行 AgileCampusPet.exe。\n在家园网页点击“开启桌面陪伴”，再点击“打开桌宠程序”并确认服务地址。\n右键桌宠或系统托盘可以返回家园、隐藏、调整大小和退出。\n请保留 LICENSE、LICENSES.chromium.html 及其他运行时文件。\n');
   const archive = path.join(path.dirname(output), 'AgileCampusPet-Windows-x64.zip');
   execFileSync('tar.exe', ['-a', '-cf', archive, '-C', path.dirname(output), path.basename(output)], { stdio: 'inherit' });

@@ -7,8 +7,10 @@ const { encryptToken, decryptToken } = require('./lib/secure-config.cjs');
 
 const testMode = process.argv.includes('--test-mode');
 const page = path.join(__dirname, 'ui', 'index.html');
+const developmentOrigin = 'http://127.0.0.1:3000';
+const defaultOrigin = serverOrigin(require('./package.json').desktopHomeOrigin ?? developmentOrigin);
 let win, tray, timer, saveTimer, quitting = false, busy = false;
-let config = { origin: 'http://127.0.0.1:3000', token: null, expiresAt: null, bounds: null };
+let config = { origin: defaultOrigin, token: null, expiresAt: null, bounds: null };
 let payload = { connected: false, status: 'offline', name: '', message: '在家园点击“开启桌面陪伴”连接当前账号。' };
 let assetCache = { key: '', fetchedAt: 0, data: null };
 let failures = 0, lastAck = 0, connecting = false, demoMode = false;
@@ -27,7 +29,8 @@ async function saveConfig() {
 async function restoreConfig() {
   try {
     const value = JSON.parse(await fs.readFile(storeFile(), 'utf8'));
-    config.origin = serverOrigin(value.origin);
+    const storedOrigin = serverOrigin(value.origin);
+    if (storedOrigin !== developmentOrigin || value.encryptedToken || value.expiresAt) config.origin = storedOrigin;
     if (value.bounds && ['x', 'y', 'width', 'height'].every(k => Number.isFinite(value.bounds[k])) && value.bounds.width >= 180 && value.bounds.width <= 400 && value.bounds.height >= 200 && value.bounds.height <= 450) config.bounds = value.bounds;
     if (value.encryptedToken && Date.parse(value.expiresAt) > Date.now()) {
       const token = await decryptToken(safeStorage, value);

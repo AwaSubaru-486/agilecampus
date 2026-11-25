@@ -39,6 +39,8 @@ Node.js 需满足当前 Electron 包的要求（本版 >=22.12）。Electron 首
 
 构建输出：`.local/desktop-release/AgileCampusPet/AgileCampusPet.exe` 和 `.local/desktop-release/AgileCampusPet-Windows-x64.zip`。Windows x64 本地构建使用系统 tar.exe 创建 ZIP。重建前先退出旧便携程序，避免运行时文件被占用。
 
+便携包首次打开家园时使用 `http://127.0.0.1:3106`。为其他站点打包时，在构建前将 `AGILECAMPUS_DESKTOP_HOME_ORIGIN` 设为该站点的 HTTPS 或回环地址。连接后，客户端使用实际连接过的平台地址。
+
 部署服务器时将 ZIP 放在服务器工作目录的 `.local/desktop-release/`，登录用户即可从下载接口取得；Next standalone 部署需放在实际运行工作目录中。没有 ZIP 时接口明确返回未提供，不下载其他程序。
 
 服务端需要新增 desktop_pet_connections 表：使用原有 db:push，或执行 `scripts/migrations/2026-11-03-desktop-pet-connections.sql`。本地开发库和测试库已同步。

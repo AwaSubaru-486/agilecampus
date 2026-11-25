@@ -28,7 +28,7 @@ declare global {
   }
 }
 
-export function FeishuLogin() {
+export function FeishuLogin({ returnToHome = false }: { returnToHome?: boolean }) {
   const [status, setStatus] = useState<"idle" | "silent" | "failed">("idle");
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function FeishuLogin() {
           window.tt!.requestAuthCode({
             appId: cfg.appId,
             success: async ({ code }) => {
-              await signIn("feishu", { code, redirectTo: "/teams" });
+              await signIn("feishu", { code, redirectTo: returnToHome ? "/home" : "/teams" });
             },
             fail: () => setStatus("failed"),
           });
@@ -58,7 +58,7 @@ export function FeishuLogin() {
         setStatus("failed");
       }
     })();
-  }, []);
+  }, [returnToHome]);
 
   if (status === "silent") {
     return <p className="text-center text-sm text-ink-soft">正在通过飞书登录…</p>;
