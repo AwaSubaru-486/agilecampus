@@ -1,26 +1,20 @@
 import Link from "@/components/feedback-link";
-import { getTaskTree } from "@/lib/task-tree";
-import { listProjectBlockers, type BlockerRow } from "@/lib/blocker";
+import type { getTaskTree } from "@/lib/task-tree";
+import type { BlockerRow } from "@/lib/blocker";
 import { groupTasksByStage } from "@/lib/project-stage-groups";
 import { statusLabel } from "@/lib/task-status";
-import { collaborationHelpHref, groupTaskHelp } from "@/lib/collaboration-help";
+import { collaborationHelpHref, type groupTaskHelp } from "@/lib/collaboration-help";
 
-export async function MemberBoard({ actorId, viewUserId = actorId, projectId, embedded = false, taskTree, openBlockers }: {
-  actorId: string;
-  viewUserId?: string;
+export function MemberBoard({ viewUserId, projectId, embedded = false, taskTree, taskHelp }: {
+  viewUserId: string;
   projectId: string;
   embedded?: boolean;
-  taskTree?: Awaited<ReturnType<typeof getTaskTree>>;
-  openBlockers?: BlockerRow[];
+  taskTree: Awaited<ReturnType<typeof getTaskTree>>;
+  taskHelp: ReturnType<typeof groupTaskHelp<BlockerRow>>;
 }) {
-  const [tree, blockers] = await Promise.all([
-    taskTree ?? getTaskTree(actorId, projectId),
-    openBlockers ?? listProjectBlockers(actorId, projectId, { status: ["open"] }),
-  ]);
-  const mine = tree.tasks.filter(task => !task.isTaskGroup && task.assigneeId === viewUserId);
-  const groups = groupTasksByStage(tree.stages, mine);
+  const mine = taskTree.tasks.filter(task => !task.isTaskGroup && task.assigneeId === viewUserId);
+  const groups = groupTasksByStage(taskTree.stages, mine);
   const base = `/projects/${projectId}`;
-  const taskHelp = groupTaskHelp(blockers.filter(blocker => blocker.taskId && blocker.taskTitle));
   return <section data-tour="member-board" className="space-y-6">
     {!embedded && <header><h2 className="text-2xl font-semibold text-ink">看板</h2><p className="mt-2 text-sm text-ink-3">按阶段查看我的任务，关注团队需要的帮助。</p></header>}
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.7fr)]">

@@ -53,7 +53,7 @@
 .taskBoardDialog{width:min(1100px,94vw);max-width:94vw;max-height:85dvh;margin:auto;padding:0;border:1px solid var(--color-stroke);border-radius:var(--radius-panel);background:var(--color-panel);color:var(--color-ink);overflow:auto;box-shadow:var(--shadow-panel)}
 .taskBoardDialog::backdrop{background:#16343960;backdrop-filter:blur(2px)}
 .taskBoardContent{padding:clamp(16px,3vw,28px)}.taskBoardContent>.drawerHeading{margin-bottom:24px}.taskBoardContent h2{font-size:22px;font-weight:600}.taskBoardContent>.drawerHeading p{font-size:12px;color:var(--color-ink-3);margin-top:6px}
-.taskCounts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 20px}
+.taskCounts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 20px}
 .taskCounts>div{padding:8px clamp(8px,1.5vw,14px);border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-signal-soft)}
 .taskCounts dt{font-size:12px;color:var(--color-ink-2)}
 .taskCounts dd{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--color-signal)}

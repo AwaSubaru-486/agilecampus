@@ -9,7 +9,6 @@ import { DesktopCompanionControl } from "@/components/pets/desktop-companion-con
 import { HomePetAvatar } from "@/components/pets/home-pet-avatar";
 import s from "./home.module.css";
 import type { OfficeTaskSummary } from "@/lib/office-task-summary";
-import { STATUS_LABEL, TASK_STATUSES } from "@/lib/task-status";
 import { OfficePetInteractions } from "@/components/pets/office-pet-interactions";
 import { LiveOfficeProjectile } from "@/components/pets/office-projectile";
 import { PET_INTERACTIONS, type PetInteractionEvent } from "@/lib/pets/interaction-contract";
@@ -44,7 +43,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMember
   data: HomeView;
   project?: { id: string; name: string; canAct: boolean };
   taskBoard?: ReactNode;
-  taskSummary?: OfficeTaskSummary;
+  taskSummary?: OfficeTaskSummary & { help: number };
   blockedMemberIds?: string[];
 }) {
   const router = useRouter();
@@ -268,11 +267,9 @@ export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMember
     {project && <dialog id="office-tasks" ref={taskBoardRef} className={s.taskBoardDialog} aria-labelledby="office-tasks-title" onClick={event => { if (event.target === event.currentTarget) taskBoardRef.current?.close(); }}>
       <div className={s.taskBoardContent}>
         <header className={s.drawerHeading}><div><h2 id="office-tasks-title">我的任务</h2><p>{project.name}{taskSummary && ` · ${taskSummary.total} 项任务`}</p></div><button data-tour="office-tasks-close" className="ac-btn-ghost" aria-label="关闭我的任务" onClick={() => taskBoardRef.current?.close()}>×</button></header>
-        {taskSummary && <dl className={s.taskCounts} aria-label="任务状态">
-          {TASK_STATUSES.map(status => <div key={status}>
-            <dt>{STATUS_LABEL[status]}</dt>
-            <dd data-task-count={status}>{taskSummary[status]}</dd>
-          </div>)}
+        {taskSummary && <dl className={s.taskCounts} aria-label="任务与求助">
+          <div><dt>求助</dt><dd data-task-count="help">{taskSummary.help}</dd></div>
+          <div><dt>待做任务</dt><dd data-task-count="pending">{taskSummary.todo + taskSummary.doing}</dd></div>
         </dl>}
         {taskBoard}
       </div>

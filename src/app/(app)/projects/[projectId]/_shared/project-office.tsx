@@ -1,5 +1,6 @@
 import { getHomeView } from "@/lib/home";
 import { listProjectBlockers } from "@/lib/blocker";
+import { groupTaskHelp } from "@/lib/collaboration-help";
 import { HomeSpace } from "../../../home/home-space";
 import { MemberBoard } from "./member-board";
 import { getTaskTree } from "@/lib/task-tree";
@@ -20,13 +21,14 @@ export async function ProjectOffice({ actorId, viewUserId, projectId, teamId, na
       blockedMemberIds.add(task.assigneeId);
     }
   }
+  const taskHelp = groupTaskHelp(openBlockers.filter(blocker => blocker.taskId && blocker.taskTitle));
 
   return <HomeSpace
     key={projectId}
     data={data}
     project={{ id: projectId, name, canAct }}
     blockedMemberIds={[...blockedMemberIds]}
-    taskSummary={summarizeOfficeTasks(tree.tasks, viewUserId)}
-    taskBoard={<MemberBoard actorId={actorId} viewUserId={viewUserId} projectId={projectId} taskTree={tree} openBlockers={openBlockers} embedded />}
+    taskSummary={{ ...summarizeOfficeTasks(tree.tasks, viewUserId), help: taskHelp.length }}
+    taskBoard={<MemberBoard viewUserId={viewUserId} projectId={projectId} taskTree={tree} taskHelp={taskHelp} embedded />}
   />;
 }
