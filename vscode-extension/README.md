@@ -2,6 +2,10 @@
 
 扩展在 VS Code 侧栏显示所选 AgileCampus 项目的任务、负责人、状态、截止日期和交接要求。AgileCampus PAT 保存在 VS Code SecretStorage，并按服务地址与本地工作区分别隔离；请求由扩展 Host 发出，Webview 不接触令牌。
 
+## 0.1.12：查看本地 Codex 对话
+
+在命令面板运行 **AgileCampus: 查看本地 Codex 对话**，也可从 AgileCampus 侧栏的「…」菜单打开。选择最近或已归档的会话，或手动选择 Codex 的 JSONL 文件。插件在只读编辑器预览用户和 Codex 的文本消息，无需连接项目。预览仅在本机显示，不改变原文件，也不会关联到任务或发送给模型。
+
 ## 0.1.11：新手教程与网页接续
 
 在 AgileCampus 侧栏点书本图标，或运行 **AgileCampus: 新手教程**。六步导览覆盖项目绑定、会话记录、审核记忆、发布断点和接班。

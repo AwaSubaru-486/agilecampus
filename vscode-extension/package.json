@@ -2,7 +2,7 @@
   "name": "agilecampus-vscode",
   "displayName": "AgileCampus",
   "description": "在 VS Code 开发现场查看任务、AI 接力和 GitHub 证据。",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "publisher": "agilecampus",
   "license": "MIT",
@@ -54,6 +54,10 @@
       }
     },
     "commands": [
+      {
+        "command": "agilecampus.openCodexHistory",
+        "title": "AgileCampus: 查看本地 Codex 对话"
+      },
       {
         "command": "agilecampus.openWalkthrough",
         "title": "AgileCampus: 新手教程",
@@ -227,6 +231,11 @@
     },
     "menus": {
       "view/title": [
+        {
+          "command": "agilecampus.openCodexHistory",
+          "when": "view == agilecampus.projectView",
+          "group": "history@1"
+        },
         {
           "command": "agilecampus.connect",
           "when": "view == agilecampus.projectView && agileCampus.connected != true",

@@ -18,6 +18,7 @@ import { registerImportMemoryHandoffCommand } from "./commands/import-memory-han
 import { registerTaskMemoryLinks } from "./commands/task-memory-link";
 import { registerMemoryReceiptRecovery } from "./commands/memory-receipt-recovery";
 import { openWalkthrough } from "./commands/walkthrough";
+import { registerCodexHistoryCommand } from "./commands/codex-history";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ProjectViewProvider(context.extensionUri, context);
@@ -40,6 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerForkAttemptCommand(context);
   registerCompareAttemptsCommand(context);
   registerSessionMemoryCommands(context);
+  registerCodexHistoryCommand(context);
   registerImportMemoryHandoffCommand(context);
   registerTaskMemoryLinks(context);
   registerMemoryReceiptRecovery(context);
