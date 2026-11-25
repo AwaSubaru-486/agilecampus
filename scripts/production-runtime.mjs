@@ -7,7 +7,7 @@ import nextEnv from "@next/env";
 
 export const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const inputs = ["src", "shared", "public", "scripts", "package.json", "package-lock.json", "next.config.ts",
-  "tsconfig.json", "postcss.config.mjs", ".env", ".env.local", ".env.production", ".env.production.local"];
+  "tsconfig.json", "tsconfig.build.json", "postcss.config.mjs", ".env", ".env.local", ".env.production", ".env.production.local"];
 
 // Hash source content, not timestamps; documentation and runtime logs do not
 // invalidate a build. Environment files are hashed without exposing their values.

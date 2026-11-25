@@ -1,0 +1,2566 @@
+{
+  "projects": [
+    {
+      "id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "name": "敏捷开发平台",
+      "description": "四人演示项目。展示角色分工、办公室协作、任务验收、版本归档与项目复盘。任务及过程记录均为演示数据。",
+      "status": "active",
+      "start_date": "2026-11-12",
+      "end_date": "2026-12-01",
+      "created_at": "2026-11-24T18:50:09.415672"
+    }
+  ],
+  "teams": [
+    {
+      "id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "name": "敏捷开发演示小组",
+      "created_at": "2026-11-24T18:50:09.415672"
+    }
+  ],
+  "users": [
+    {
+      "id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "name": "鱼乐",
+      "email": "yule@demo.invalid"
+    },
+    {
+      "id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "name": "哈哈哈",
+      "email": "haha@demo.invalid"
+    },
+    {
+      "id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "name": "聂翔",
+      "email": "nie@demo.invalid"
+    },
+    {
+      "id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "name": "演示组长",
+      "email": "leader@demo.invalid"
+    },
+    {
+      "id": "5c31909d-e339-474b-826d-cca5251c1afa",
+      "name": "郭郭大人",
+      "email": "teacher@demo.invalid"
+    }
+  ],
+  "team_members": [
+    {
+      "id": "5373440d-09b0-40be-8679-89d6246fc05a",
+      "team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "user_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "role": "student",
+      "created_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "8a0098d0-9b07-4556-8d15-fbe07140fe7e",
+      "team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "user_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "role": "student",
+      "created_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "c74b3da6-12e3-40f9-8865-3b1de675dc8a",
+      "team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "user_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "role": "student",
+      "created_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "fca913d9-e8e9-4e3e-80d1-106d4192c50a",
+      "team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "user_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "role": "admin",
+      "created_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "efad5e74-2a9d-42d1-870d-df4224f18be3",
+      "team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "user_id": "5c31909d-e339-474b-826d-cca5251c1afa",
+      "role": "teacher",
+      "created_at": "2026-11-25T14:06:24.944862"
+    }
+  ],
+  "project_briefs": [
+    {
+      "id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "content": "演示目标：展示小组如何用敏捷开发平台规划、交付和复盘。验收时逐一检查分工、任务详情、交付说明和版本记录。",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-24T18:50:09.415672"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "2297ec0b-d70d-4530-86c5-12320ad1756f",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "title": "完成基础工作台",
+      "target_date": "2026-11-16",
+      "status": "done",
+      "achieved_at": "2026-11-16T18:50:09.54",
+      "auto_summary": null,
+      "created_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "039fb368-06da-429a-8ee1-3c5c02c4e979",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "title": "完成演示验收",
+      "target_date": "2026-11-28",
+      "status": "open",
+      "achieved_at": null,
+      "auto_summary": null,
+      "created_at": "2026-11-24T18:50:09.415672"
+    }
+  ],
+  "task_stages": [
+    {
+      "id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "title": "规划与基础配置",
+      "position": 1,
+      "status": "completed",
+      "integration_branch": null,
+      "integration_note": null,
+      "reviewed_by_id": null,
+      "reviewed_at": null,
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "title": "工作台与任务闭环",
+      "position": 2,
+      "status": "active",
+      "integration_branch": null,
+      "integration_note": null,
+      "reviewed_by_id": null,
+      "reviewed_at": null,
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "title": "验收复盘与演示准备",
+      "position": 3,
+      "status": "locked",
+      "integration_branch": null,
+      "integration_note": null,
+      "reviewed_by_id": null,
+      "reviewed_at": null,
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "确定角色分工与验收口径",
+      "description": "梳理组长、组员和导师的工作范围，制定交付检查项。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "梳理组长、组员和导师的工作范围，制定交付检查项。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "整理了三角色入口和逐项验收清单。",
+      "assignee_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-12",
+      "due_date": "2026-11-15",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 0,
+      "commitment_note": "按演示清单逐项核对。",
+      "committed_at": "2026-11-12T18:50:09.477",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-14T18:50:09.477",
+      "reviewed_at": "2026-11-14T21:50:09.477",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "三类角色的操作边界清楚，按清单演示。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.477",
+      "updated_at": "2026-11-14T21:50:09.477"
+    },
+    {
+      "id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "搭建项目工作台和角色导航",
+      "description": "按实际任务流组织办公室、分工、执行和成果入口。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "按实际任务流组织办公室、分工、执行和成果入口。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "串联项目入口、角色导航与任务详情，整理演示点击顺序。",
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-13",
+      "due_date": "2026-11-16",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 1,
+      "commitment_note": "按演示清单逐项核对。",
+      "committed_at": "2026-11-12T18:50:09.524",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-15T18:50:09.524",
+      "reviewed_at": "2026-11-15T21:50:09.524",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "入口清楚，任务详情可从各工作台打开。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.524",
+      "updated_at": "2026-11-15T21:50:09.524"
+    },
+    {
+      "id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "完成办公室工位与桌宠展示",
+      "description": "用带桌宠的工位展示四人团队，让成员通过黑板查看任务。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "用带桌宠的工位展示四人团队，让成员通过黑板查看任务。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "办公室显示四名成员的工位、桌宠和各自的工作状态。",
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-17",
+      "due_date": "2026-11-20",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 2,
+      "commitment_note": "按演示清单逐项核对。",
+      "committed_at": "2026-11-12T18:50:09.527",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-19T18:50:09.527",
+      "reviewed_at": "2026-11-19T21:50:09.527",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "四人工位可识别，黑板和桌宠入口可用。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.527",
+      "updated_at": "2026-11-19T21:50:09.527"
+    },
+    {
+      "id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "打通任务提交与验收记录",
+      "description": "将任务提交说明、组长验收和成果记录关联到同一任务。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "将任务提交说明、组长验收和成果记录关联到同一任务。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "整理出一条可从交付说明追溯到验收意见的示例记录。",
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-19",
+      "due_date": "2026-11-22",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 3,
+      "commitment_note": "按演示清单逐项核对。",
+      "committed_at": "2026-11-12T18:50:09.529",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-21T18:50:09.529",
+      "reviewed_at": "2026-11-21T21:50:09.529",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "提交与反馈可以对照，建议把该记录归入下一版本。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.529",
+      "updated_at": "2026-11-21T21:50:09.529"
+    },
+    {
+      "id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "整理成果档案与复盘示例",
+      "description": "用已验收的交付制作成果档案，并整理下一轮改进事项。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "用已验收的交付制作成果档案，并整理下一轮改进事项。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "交付了档案分类和复盘笔记示例，等待组长确认。",
+      "assignee_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-22",
+      "due_date": "2026-11-26",
+      "status": "review",
+      "priority": "medium",
+      "sort_order": 4,
+      "commitment_note": "按演示清单逐项核对。",
+      "committed_at": "2026-11-12T18:50:09.532",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-23T18:50:09.532",
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.532",
+      "updated_at": "2026-11-23T18:50:09.532"
+    },
+    {
+      "id": "d910dac4-e5b6-4d3c-8f9f-702604e2aaf6",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "补齐演示前的异常状态检查",
+      "description": "检查无任务、退回修改及逾期预警时的页面表现。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "检查无任务、退回修改及逾期预警时的页面表现。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": null,
+      "assignee_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-20",
+      "due_date": "2026-11-23",
+      "status": "doing",
+      "priority": "high",
+      "sort_order": 5,
+      "commitment_note": "按演示清单逐项核对。",
+      "committed_at": "2026-11-12T18:50:09.534",
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.534",
+      "updated_at": "2026-11-24T18:50:09.534"
+    },
+    {
+      "id": "425366c3-915c-43e2-8eae-45b8cf872c82",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "核对组长与组员的操作视角",
+      "description": "按分工依次检查验收入口、个人任务和材料访问。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "按分工依次检查验收入口、个人任务和材料访问。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-27",
+      "due_date": "2026-11-28",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 6,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.535",
+      "updated_at": "2026-11-24T18:50:09.535"
+    },
+    {
+      "id": "7b764049-e09a-460f-83bf-3b63b2915612",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "准备演示讲解与操作清单",
+      "description": "把办公室、提交、验收、迭代和复盘串成一条演示路径。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "把办公室、提交、验收、迭代和复盘串成一条演示路径。",
+        "可以在项目演示中说明交付与验收步骤。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-27",
+      "due_date": "2026-11-30",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 7,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T18:50:09.536",
+      "updated_at": "2026-11-24T18:50:09.536"
+    },
+    {
+      "id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "整理演示范围和成功标准",
+      "description": "列出需演示的关键流程，以及每一步的成功条件。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "列出需演示的关键流程，以及每一步的成功条件。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。列出需演示的关键流程，以及每一步的成功条件。",
+      "assignee_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-12",
+      "due_date": "2026-11-14",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 8,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-12T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-13T10:00:00",
+      "reviewed_at": "2026-11-13T13:00:00",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-13T13:00:00"
+    },
+    {
+      "id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "绘制三角色导航结构",
+      "description": "明确组长、组员和导师看到的菜单和入口。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "明确组长、组员和导师看到的菜单和入口。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。明确组长、组员和导师看到的菜单和入口。",
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-12",
+      "due_date": "2026-11-15",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 9,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-12T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-14T10:00:00",
+      "reviewed_at": "2026-11-14T13:00:00",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-14T13:00:00"
+    },
+    {
+      "id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "梳理任务状态与数据字段",
+      "description": "记录待办、进行中、待验收和已完成之间的转换。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "记录待办、进行中、待验收和已完成之间的转换。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。记录待办、进行中、待验收和已完成之间的转换。",
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-13",
+      "due_date": "2026-11-16",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 10,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-13T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-15T10:00:00",
+      "reviewed_at": "2026-11-15T13:00:00",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-15T13:00:00"
+    },
+    {
+      "id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "编写第一轮验收清单",
+      "description": "整理普通、空状态和权限异常三类检查场景。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "整理普通、空状态和权限异常三类检查场景。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。整理普通、空状态和权限异常三类检查场景。",
+      "assignee_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-13",
+      "due_date": "2026-11-17",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 11,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-13T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-16T10:00:00",
+      "reviewed_at": "2026-11-16T13:00:00",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-16T13:00:00"
+    },
+    {
+      "id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "调整项目列表与手机端导航",
+      "description": "校验短标题、长标题和窄屏导航可读性。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "校验短标题、长标题和窄屏导航可读性。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。校验短标题、长标题和窄屏导航可读性。",
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-18",
+      "due_date": "2026-11-21",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 12,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-18T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-20T10:00:00",
+      "reviewed_at": "2026-11-20T13:00:00",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-20T13:00:00"
+    },
+    {
+      "id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "将交付证据关联到原任务",
+      "description": "对照任务详情确认提交说明和原始证据可以追溯。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "对照任务详情确认提交说明和原始证据可以追溯。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。对照任务详情确认提交说明和原始证据可以追溯。",
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-18",
+      "due_date": "2026-11-22",
+      "status": "done",
+      "priority": "medium",
+      "sort_order": 13,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-18T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-21T10:00:00",
+      "reviewed_at": "2026-11-21T13:00:00",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "review_note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-21T13:00:00"
+    },
+    {
+      "id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "优化办公室的工位操作反馈",
+      "description": "检查开工、离座、队友互动和关闭面板的反馈。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "检查开工、离座、队友互动和关闭面板的反馈。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。检查开工、离座、队友互动和关闭面板的反馈。",
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-19",
+      "due_date": "2026-11-25",
+      "status": "review",
+      "priority": "medium",
+      "sort_order": 14,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-19T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-23T10:00:00",
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "补充任务退回与再次提交场景",
+      "description": "整理一条从退回原因到再次提交的演示路径。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "整理一条从退回原因到再次提交的演示路径。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": "已按演示清单逐项记录。整理一条从退回原因到再次提交的演示路径。",
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-19",
+      "due_date": "2026-11-26",
+      "status": "review",
+      "priority": "medium",
+      "sort_order": 15,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-19T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": "2026-11-23T10:00:00",
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "ac6aa28c-e704-4045-807f-311ed30aa712",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "梳理发布演示的风险与检查顺序",
+      "description": "列出需要优先验证的页面和失败场景。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "列出需要优先验证的页面和失败场景。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": null,
+      "assignee_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-20",
+      "due_date": "2026-11-25",
+      "status": "doing",
+      "priority": "medium",
+      "sort_order": 16,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-20T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.597"
+    },
+    {
+      "id": "44cf3294-22ac-4d92-893e-4f70b319ea0b",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "调整工作台在窄屏下的卡片密度",
+      "description": "合并重复说明并检查任务入口是否易于找到。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "合并重复说明并检查任务入口是否易于找到。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": 1,
+      "completion_note": null,
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-20",
+      "due_date": "2026-11-26",
+      "status": "doing",
+      "priority": "medium",
+      "sort_order": 17,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-20T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.598"
+    },
+    {
+      "id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "完善交付材料的空状态与错误反馈",
+      "description": "覆盖尚未提交、链接无效和缺少材料的界面。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "覆盖尚未提交、链接无效和缺少材料的界面。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 3,
+      "committed_handoff_version": 1,
+      "completion_note": null,
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-21",
+      "due_date": "2026-11-27",
+      "status": "doing",
+      "priority": "medium",
+      "sort_order": 18,
+      "commitment_note": "用演示场景核对交付与异常状态。",
+      "committed_at": "2026-11-21T10:00:00",
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-25T16:32:34.235732"
+    },
+    {
+      "id": "885a2b52-0d0d-404c-8164-2b2339d66861",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "205af095-8523-46fe-8aae-d89bf8cddc68",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "复核最新版本的归档字段",
+      "description": "核对版本名称、验收来源和可打开的成果链接。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "核对版本名称、验收来源和可打开的成果链接。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-22",
+      "due_date": "2026-11-27",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 19,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.6"
+    },
+    {
+      "id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "组织演示彩排并核对验收结果",
+      "description": "按演示路线逐项操作，记录待补问题。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "按演示路线逐项操作，记录待补问题。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-27",
+      "due_date": "2026-11-29",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 20,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.601"
+    },
+    {
+      "id": "18a76130-12da-4db6-8474-751ac32ff4d8",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "检查手机投屏上的关键页面",
+      "description": "确认时间线、办公室和任务详情在窄屏下能操作。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "确认时间线、办公室和任务详情在窄屏下能操作。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-27",
+      "due_date": "2026-11-29",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 21,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.602"
+    },
+    {
+      "id": "b29756c4-3b19-4b91-8c6d-bfc2e54637d7",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "核对迭代前后版本的成果对比",
+      "description": "找一项已验收交付，确认前后版本可追溯。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "找一项已验收交付，确认前后版本可追溯。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-28",
+      "due_date": "2026-11-30",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 22,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.603"
+    },
+    {
+      "id": "2071cf29-c030-4076-8ed9-1a0f2fe98fd3",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "milestone_id": null,
+      "stage_id": "5950a278-fab2-4b70-87ac-a1c4d6692826",
+      "source_brief_id": "b7f0b319-4271-404c-8964-368a8207ddd1",
+      "is_task_group": false,
+      "parent_task_id": null,
+      "title": "整理下一轮复盘结论和后续行动",
+      "description": "从验收反馈里挑一个做法和一项下一轮要尝试的改进。",
+      "handoff_brief": null,
+      "done_criteria": [
+        "从验收反馈里挑一个做法和一项下一轮要尝试的改进。",
+        "能在演示中打开对应页面或交付记录。"
+      ],
+      "required_evidence": null,
+      "response_due_at": null,
+      "handoff_version": 1,
+      "committed_handoff_version": null,
+      "completion_note": null,
+      "assignee_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "start_date": "2026-11-28",
+      "due_date": "2026-12-01",
+      "status": "todo",
+      "priority": "medium",
+      "sort_order": 23,
+      "commitment_note": null,
+      "committed_at": null,
+      "estimated_hours": null,
+      "submitted_at": null,
+      "reviewed_at": null,
+      "reviewed_by_id": null,
+      "review_note": null,
+      "reject_count": 0,
+      "decline_reason": null,
+      "declined_at": null,
+      "declined_by_id": null,
+      "created_at": "2026-11-12T10:00:00",
+      "updated_at": "2026-11-24T19:02:23.604"
+    }
+  ],
+  "task_dependencies": [
+    {
+      "id": "83cb33c1-60ac-4913-8171-3b0a966580be",
+      "predecessor_id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "successor_id": "18a76130-12da-4db6-8474-751ac32ff4d8",
+      "created_at": "2026-11-24T19:02:23.517594"
+    },
+    {
+      "id": "5c65f1f3-2309-4da4-806b-fb4a22e6419d",
+      "predecessor_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "successor_id": "ac6aa28c-e704-4045-807f-311ed30aa712",
+      "created_at": "2026-11-24T19:02:23.517594"
+    },
+    {
+      "id": "decaed42-9013-4584-8ffe-24a27993fa0a",
+      "predecessor_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "successor_id": "44cf3294-22ac-4d92-893e-4f70b319ea0b",
+      "created_at": "2026-11-24T19:02:23.517594"
+    },
+    {
+      "id": "09bb6544-9e55-483f-8025-08c56b4ea46c",
+      "predecessor_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "successor_id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "created_at": "2026-11-24T19:02:23.517594"
+    },
+    {
+      "id": "f8f4cffa-1d8d-4251-8b1e-72cae0ae1251",
+      "predecessor_id": "885a2b52-0d0d-404c-8164-2b2339d66861",
+      "successor_id": "b29756c4-3b19-4b91-8c6d-bfc2e54637d7",
+      "created_at": "2026-11-24T19:02:23.517594"
+    },
+    {
+      "id": "f94c0e18-2e2a-4910-8041-1f85d5ba989c",
+      "predecessor_id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "successor_id": "425366c3-915c-43e2-8eae-45b8cf872c82",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "a8adf838-1ce4-4ea7-8c58-7b76b02e6a48",
+      "predecessor_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "successor_id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "ea1144b8-fc0f-4bef-80ad-7aec3bcbabb3",
+      "predecessor_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "successor_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "4cd68013-90c1-4224-80f5-daa7c6b7a496",
+      "predecessor_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "successor_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "b5ec4b7c-870d-4e38-8a7c-45ef5a3b56f9",
+      "predecessor_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "successor_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "c86513c5-b55f-4c5e-84a9-a3b8a4bbdc52",
+      "predecessor_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "successor_id": "d910dac4-e5b6-4d3c-8f9f-702604e2aaf6",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "3bfd3341-a4f3-4cd9-8a44-4af9fa841c8f",
+      "predecessor_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "successor_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "f24b6c25-af77-4008-83d9-f316fa68ccf0",
+      "predecessor_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "successor_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "fc09386f-6020-48f5-869f-6e986848bc4e",
+      "predecessor_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "successor_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "2a20d063-cd70-4859-89e2-c70c3cac66c9",
+      "predecessor_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "successor_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "c9eb4e5d-5657-423c-88b4-8bce0cc5ba10",
+      "predecessor_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "successor_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "eb7395a7-9431-4249-8d13-3c40f0f60aea",
+      "predecessor_id": "425366c3-915c-43e2-8eae-45b8cf872c82",
+      "successor_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "a4ef9d7f-d703-4247-892f-1af26218ac00",
+      "predecessor_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "successor_id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "f7783114-12a8-4346-82cf-08cdb6485bc9",
+      "predecessor_id": "d910dac4-e5b6-4d3c-8f9f-702604e2aaf6",
+      "successor_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "2726b425-4276-4d44-89fc-b53e35d50864",
+      "predecessor_id": "7b764049-e09a-460f-83bf-3b63b2915612",
+      "successor_id": "2071cf29-c030-4076-8ed9-1a0f2fe98fd3",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "5540eed8-aca8-4d95-880d-919e36c4b5d1",
+      "predecessor_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "successor_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "17cff1d9-d130-4dd9-81da-9af7a80259ff",
+      "predecessor_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "successor_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "138ec911-5c8b-48ff-8410-cb508ff36b67",
+      "predecessor_id": "18a76130-12da-4db6-8474-751ac32ff4d8",
+      "successor_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "95b5a228-58a5-420b-8f49-951c0f72be24",
+      "predecessor_id": "44cf3294-22ac-4d92-893e-4f70b319ea0b",
+      "successor_id": "18a76130-12da-4db6-8474-751ac32ff4d8",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "66aaf5c1-7c00-4550-84d7-210ece5dbc39",
+      "predecessor_id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "successor_id": "885a2b52-0d0d-404c-8164-2b2339d66861",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "bf8d3980-d356-4320-8f67-8b06a2bd4602",
+      "predecessor_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "successor_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "d4a0b898-6748-45b5-8ac6-6d9442cf57b2",
+      "predecessor_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "successor_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "fed7aa1e-5c08-40bd-85b0-484f25615443",
+      "predecessor_id": "ac6aa28c-e704-4045-807f-311ed30aa712",
+      "successor_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "3b65d985-f13e-4e29-8d9e-799b22a16c91",
+      "predecessor_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "successor_id": "7b764049-e09a-460f-83bf-3b63b2915612",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "0f757ff4-8cec-411d-8e0f-4c8a2df4751f",
+      "predecessor_id": "b29756c4-3b19-4b91-8c6d-bfc2e54637d7",
+      "successor_id": "2071cf29-c030-4076-8ed9-1a0f2fe98fd3",
+      "created_at": "2026-11-24T19:11:48.80754"
+    },
+    {
+      "id": "2405030e-0960-4c8f-82f4-4c3a307084b1",
+      "predecessor_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "successor_id": "44cf3294-22ac-4d92-893e-4f70b319ea0b",
+      "created_at": "2026-11-24T19:11:48.80754"
+    }
+  ],
+  "task_deliveries": [
+    {
+      "id": "37f25de3-9ced-4d5f-8433-a017654791ff",
+      "task_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "branch_name": "demo/showcase-task-1",
+      "test_summary": "已按演示清单逐项记录。列出需演示的关键流程，以及每一步的成功条件。",
+      "submitted_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-13T10:00:00"
+    },
+    {
+      "id": "adff407b-6f98-4574-8d03-f2e3c5ea09e4",
+      "task_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "branch_name": "demo/showcase-task-2",
+      "test_summary": "已按演示清单逐项记录。明确组长、组员和导师看到的菜单和入口。",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-14T10:00:00"
+    },
+    {
+      "id": "cb3dbd1c-e3a5-416f-8fb6-001bb8ffd366",
+      "task_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "branch_name": "demo/task-1",
+      "test_summary": "演示记录：整理了三角色入口和逐项验收清单。",
+      "submitted_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-14T18:50:09.477"
+    },
+    {
+      "id": "b2ea82e0-975e-414c-843c-b7059c750a78",
+      "task_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "branch_name": "demo/showcase-task-3",
+      "test_summary": "已按演示清单逐项记录。记录待办、进行中、待验收和已完成之间的转换。",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_at": "2026-11-15T10:00:00"
+    },
+    {
+      "id": "2f59e0c1-168d-4428-8d5d-8d601809e381",
+      "task_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "branch_name": "demo/task-2",
+      "test_summary": "演示记录：串联项目入口、角色导航与任务详情，整理演示点击顺序。",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-15T18:50:09.524"
+    },
+    {
+      "id": "7653ff5d-7bec-4f37-8779-adbad50f7351",
+      "task_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "branch_name": "demo/showcase-task-4",
+      "test_summary": "已按演示清单逐项记录。整理普通、空状态和权限异常三类检查场景。",
+      "submitted_by_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_at": "2026-11-16T10:00:00"
+    },
+    {
+      "id": "58fed3a5-c72e-4728-8035-95a38312dc05",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "branch_name": "demo/task-3",
+      "test_summary": "演示记录：办公室显示四名成员的工位、桌宠和各自的工作状态。",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-19T18:50:09.527"
+    },
+    {
+      "id": "c6fb6a62-c047-4a83-866d-679280db4985",
+      "task_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "branch_name": "demo/showcase-task-5",
+      "test_summary": "已按演示清单逐项记录。校验短标题、长标题和窄屏导航可读性。",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-20T10:00:00"
+    },
+    {
+      "id": "764c2ab2-b989-4e92-8cdd-647e720bf81d",
+      "task_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "branch_name": "demo/showcase-task-6",
+      "test_summary": "已按演示清单逐项记录。对照任务详情确认提交说明和原始证据可以追溯。",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_at": "2026-11-21T10:00:00"
+    },
+    {
+      "id": "9a2eda41-8ab2-4bbe-81d3-3f94529c362a",
+      "task_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "branch_name": "demo/task-4",
+      "test_summary": "演示记录：整理出一条可从交付说明追溯到验收意见的示例记录。",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_at": "2026-11-21T18:50:09.529"
+    },
+    {
+      "id": "c97607a8-004c-4384-8cc0-e770f47fdb61",
+      "task_id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "branch_name": "demo/showcase-task-8",
+      "test_summary": "已按演示清单逐项记录。整理一条从退回原因到再次提交的演示路径。",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "bb3a268f-09d6-4b4c-8c38-8ac40e389dd6",
+      "task_id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "branch_name": "demo/showcase-task-7",
+      "test_summary": "已按演示清单逐项记录。检查开工、离座、队友互动和关闭面板的反馈。",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "5e2cd72e-882c-4ae5-85bf-51cbfc500fd0",
+      "task_id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "branch_name": "demo/task-5",
+      "test_summary": "演示记录：交付了档案分类和复盘笔记示例，等待组长确认。",
+      "submitted_by_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "created_at": "2026-11-23T18:50:09.532"
+    }
+  ],
+  "stage_integrations": [
+    {
+      "id": "29e8bd75-e144-4096-8c32-2b521a2186d9",
+      "stage_id": "a11a9142-c987-4a57-8371-79da1d5c4556",
+      "branch_name": "demo/baseline",
+      "test_summary": "演示记录：工作台入口和角色分工已完成基础核对。",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "reviewed_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "decision": "accepted",
+      "review_note": "演示验收：确认基础入口和第一阶段的分工。",
+      "created_at": "2026-11-17T10:00:00",
+      "reviewed_at": "2026-11-17T10:00:00"
+    }
+  ],
+  "blockers": [
+    {
+      "id": "d464fe4c-f121-4423-829f-2001cbc054f6",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "raised_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "reason": "resource",
+      "detail": "演示阻塞：交付材料缺少“链接失效”和“材料缺失”的测试样例，错误提示暂时无法验收。",
+      "help_needed": "请补充一条失效链接和一条缺少材料的示例记录，用来验证错误提示。",
+      "status": "resolved",
+      "resolved_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "resolution_note": "哈哈 哈哈哈",
+      "resolved_at": "2026-11-25T19:41:20.62312",
+      "created_at": "2026-11-24T19:35:53.776354"
+    },
+    {
+      "id": "5ffdf221-8b5c-48a3-8b30-f0a90878f235",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "raised_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "reason": "resource",
+      "detail": "验收前需要复现网络请求失败的场景，目前缺少可重复的测试数据。",
+      "help_needed": "请一位队友协助构造失败用例，一起检查错误提示和重试入口。",
+      "status": "open",
+      "resolved_by_id": null,
+      "resolution_note": null,
+      "resolved_at": null,
+      "created_at": "2026-11-25T19:45:00.000"
+    }
+  ],
+  "blocker_invites": [],
+  "evidence_items": [
+    {
+      "id": "bbc4e45f-e543-4308-8d55-18b03b6051d6",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "submitted_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。列出需演示的关键流程，以及每一步的成功条件。",
+      "created_at": "2026-11-13T10:00:00"
+    },
+    {
+      "id": "06dbcda1-a201-48f1-8c97-08583e1fa3f0",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。明确组长、组员和导师看到的菜单和入口。",
+      "created_at": "2026-11-14T10:00:00"
+    },
+    {
+      "id": "956adc35-537c-479e-8914-98c914261276",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "submitted_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "整理了三角色入口和逐项验收清单。",
+      "created_at": "2026-11-14T18:50:09.477"
+    },
+    {
+      "id": "ff3b7159-30c6-4473-8ad8-7994cbe28bba",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。记录待办、进行中、待验收和已完成之间的转换。",
+      "created_at": "2026-11-15T10:00:00"
+    },
+    {
+      "id": "79c26c42-8a7d-419f-8c7b-c0edc224ece5",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "串联项目入口、角色导航与任务详情，整理演示点击顺序。",
+      "created_at": "2026-11-15T18:50:09.524"
+    },
+    {
+      "id": "5fc7e9e2-75bf-44db-825e-1bf2122d459d",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "submitted_by_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。整理普通、空状态和权限异常三类检查场景。",
+      "created_at": "2026-11-16T10:00:00"
+    },
+    {
+      "id": "66922a23-7992-4199-8075-edae64c21ab8",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "办公室显示四名成员的工位、桌宠和各自的工作状态。",
+      "created_at": "2026-11-19T18:50:09.527"
+    },
+    {
+      "id": "eba6074d-1328-4640-8835-6e3a5ad6e159",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。校验短标题、长标题和窄屏导航可读性。",
+      "created_at": "2026-11-20T10:00:00"
+    },
+    {
+      "id": "6d3cd56c-4ca8-4f61-8b25-e5089e6465d4",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。对照任务详情确认提交说明和原始证据可以追溯。",
+      "created_at": "2026-11-21T10:00:00"
+    },
+    {
+      "id": "7ac1d6db-7bc7-4a33-8ae4-8b18fd19b431",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "整理出一条可从交付说明追溯到验收意见的示例记录。",
+      "created_at": "2026-11-21T18:50:09.529"
+    },
+    {
+      "id": "cf3edff2-b403-4d60-889b-5ade17b0cd6c",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "submitted_by_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。检查开工、离座、队友互动和关闭面板的反馈。",
+      "created_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "f9db1c03-da15-45c8-85fa-853e06b8def8",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "submitted_by_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "已按演示清单逐项记录。整理一条从退回原因到再次提交的演示路径。",
+      "created_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "d9d15735-c2db-4012-8422-d135d49196f5",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "submitted_by_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "type": "text",
+      "label": "演示交付说明",
+      "value": "交付了档案分类和复盘笔记示例，等待组长确认。",
+      "created_at": "2026-11-23T18:50:09.532"
+    }
+  ],
+  "project_entries": [
+    {
+      "id": "c122b65b-1075-4eed-8680-b1f7a6394a8c",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "type": "deliverable",
+      "title": "打通任务提交与验收记录",
+      "content": "整理出一条可从交付说明追溯到验收意见的示例记录。",
+      "author_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672",
+      "url": "{{DEMO_ORIGIN}}/demo/acceptance.html#c122b65b-1075-4eed-8680-b1f7a6394a8c"
+    },
+    {
+      "id": "21bd4932-0209-4d6c-855c-6c8ca5f42508",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "type": "deliverable",
+      "title": "确定角色分工与验收口径",
+      "content": "整理了三角色入口和逐项验收清单。",
+      "author_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672",
+      "url": "{{DEMO_ORIGIN}}/demo/acceptance.html#21bd4932-0209-4d6c-855c-6c8ca5f42508"
+    },
+    {
+      "id": "25579daa-7912-426e-8111-4de31013c32e",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "type": "feedback",
+      "title": "办公室演示验收意见",
+      "content": "四个工位都可定位，建议下轮补一份手机演示清单。",
+      "author_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672",
+      "url": null
+    },
+    {
+      "id": "bbb2a83f-6e69-4642-87fe-cc8b892ead26",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "type": "deliverable",
+      "title": "完成办公室工位与桌宠展示",
+      "content": "办公室显示四名成员的工位、桌宠和各自的工作状态。",
+      "author_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672",
+      "url": "{{DEMO_ORIGIN}}/demo/acceptance.html#bbb2a83f-6e69-4642-87fe-cc8b892ead26"
+    },
+    {
+      "id": "00c23b15-d8f7-40b9-8ec9-5d7278f39692",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "type": "deliverable",
+      "title": "搭建项目工作台和角色导航",
+      "content": "串联项目入口、角色导航与任务详情，整理演示点击顺序。",
+      "author_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672",
+      "url": "{{DEMO_ORIGIN}}/demo/acceptance.html#00c23b15-d8f7-40b9-8ec9-5d7278f39692"
+    },
+    {
+      "id": "7e52bb55-d1c6-471f-8551-0c3a1f1d4e56",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": null,
+      "type": "doc",
+      "title": "四人分工与演示路线",
+      "content": "演示组长：项目规划、分工与验收。\n聂翔：界面与办公室。\n哈哈哈：任务流程与数据。\n鱼乐：测试、归档与复盘。\n演示路径：办公室 → 项目推进台 → 分工与交付 → 成果验收 → 迭代 → 复盘。",
+      "author_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-25T14:33:54.432091",
+      "url": null
+    }
+  ],
+  "project_iterations": [
+    {
+      "id": "e0c4cc35-8de7-43f5-8003-4703497ed12e",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "version": "v0.1",
+      "title": "基础工作台与角色分工",
+      "goal": "",
+      "release_notes": "",
+      "status": "released",
+      "start_date": null,
+      "end_date": null,
+      "released_at": "2026-11-17T18:50:09.554",
+      "task_snapshot": null,
+      "base_iteration_id": null,
+      "features": [
+        {
+          "id": "4be995bc-e77f-40e7-8b5d-694149d4c7a5",
+          "name": "角色工作台",
+          "change": "added",
+          "summary": "建立项目入口、组长和组员导航，并可进入任务详情。"
+        }
+      ],
+      "module_snapshot": [
+        {
+          "id": "4be995bc-e77f-40e7-8b5d-694149d4c7a5",
+          "name": "角色工作台",
+          "context": "演示时从项目列表进入。",
+          "summary": "建立项目入口、组长和组员导航，并可进入任务详情。",
+          "resultUrl": "{{DEMO_ORIGIN}}/demo/acceptance.html#00c23b15-d8f7-40b9-8ec9-5d7278f39692"
+        }
+      ],
+      "outcome_snapshot": [
+        {
+          "title": "确定角色分工与验收口径",
+          "taskId": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+          "summary": "整理了三角色入口和逐项验收清单。",
+          "resultUrl": "{{DEMO_ORIGIN}}/demo/acceptance.html#21bd4932-0209-4d6c-855c-6c8ca5f42508",
+          "acceptedAt": "2026-11-14T13:50:09.477Z",
+          "submittedAt": "2026-11-14T10:50:09.477Z"
+        },
+        {
+          "title": "搭建项目工作台和角色导航",
+          "taskId": "1315d8e0-d45e-4540-8172-e5592ad66790",
+          "summary": "串联项目入口、角色导航与任务详情，整理演示点击顺序。",
+          "resultUrl": "{{DEMO_ORIGIN}}/demo/acceptance.html#00c23b15-d8f7-40b9-8ec9-5d7278f39692",
+          "acceptedAt": "2026-11-15T13:50:09.524Z",
+          "submittedAt": "2026-11-15T10:50:09.524Z"
+        }
+      ],
+      "execution_notes": "",
+      "validation_notes": "",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672"
+    },
+    {
+      "id": "4614cdac-d8de-4f25-8bc0-1a73948dc130",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "version": "v0.2",
+      "title": "办公室与协作闭环",
+      "goal": "",
+      "release_notes": "",
+      "status": "released",
+      "start_date": null,
+      "end_date": null,
+      "released_at": "2026-11-20T18:50:09.564",
+      "task_snapshot": null,
+      "base_iteration_id": "e0c4cc35-8de7-43f5-8003-4703497ed12e",
+      "features": [
+        {
+          "id": "cc794683-03c4-45a3-8592-4f9f235c797d",
+          "name": "项目办公室",
+          "change": "added",
+          "summary": "用四个工位展示团队成员，黑板可打开个人任务。"
+        }
+      ],
+      "module_snapshot": [
+        {
+          "id": "4be995bc-e77f-40e7-8b5d-694149d4c7a5",
+          "name": "角色工作台",
+          "context": "演示时从项目列表进入。",
+          "summary": "建立项目入口、组长和组员导航，并可进入任务详情。",
+          "resultUrl": "{{DEMO_ORIGIN}}/demo/acceptance.html#00c23b15-d8f7-40b9-8ec9-5d7278f39692"
+        },
+        {
+          "id": "cc794683-03c4-45a3-8592-4f9f235c797d",
+          "name": "项目办公室",
+          "context": "演示时先确认四个工位的状态。",
+          "summary": "用四个工位展示团队成员，黑板可打开个人任务。",
+          "resultUrl": "{{DEMO_ORIGIN}}/projects/8105edc1-aa72-4c56-8f23-7bcb5a3b091b"
+        }
+      ],
+      "outcome_snapshot": [
+        {
+          "title": "完成办公室工位与桌宠展示",
+          "taskId": "61e9534b-8e59-4305-8680-badc1467f21b",
+          "summary": "办公室显示四名成员的工位、桌宠和各自的工作状态。",
+          "resultUrl": "{{DEMO_ORIGIN}}/demo/acceptance.html#bbb2a83f-6e69-4642-87fe-cc8b892ead26",
+          "acceptedAt": "2026-11-19T13:50:09.527Z",
+          "submittedAt": "2026-11-19T10:50:09.527Z"
+        }
+      ],
+      "execution_notes": "",
+      "validation_notes": "",
+      "created_by_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "created_at": "2026-11-24T18:50:09.415672",
+      "updated_at": "2026-11-24T18:50:09.415672"
+    }
+  ],
+  "activity_events": [
+    {
+      "id": "a3536e4e-e96e-4bae-8b86-cabc72948d48",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：绘制三角色导航结构",
+      "payload": {
+        "title": "绘制三角色导航结构",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "73663ebd-068b-49d9-89f6-a3d39322092b",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "b29756c4-3b19-4b91-8c6d-bfc2e54637d7",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：核对迭代前后版本的成果对比",
+      "payload": {
+        "title": "核对迭代前后版本的成果对比",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "bd7e4068-b0a4-499d-8d90-2bd72e765065",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：整理演示范围和成功标准",
+      "payload": {
+        "title": "整理演示范围和成功标准",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "7bb6e5d7-583e-4a72-8cc0-398dec8af8c2",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：调整项目列表与手机端导航",
+      "payload": {
+        "title": "调整项目列表与手机端导航",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "c59de448-ba5f-46fb-8c9c-87fb41b10beb",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "2071cf29-c030-4076-8ed9-1a0f2fe98fd3",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：整理下一轮复盘结论和后续行动",
+      "payload": {
+        "title": "整理下一轮复盘结论和后续行动",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "15f412f4-3477-474b-8016-af40dfd7e9ee",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "ac6aa28c-e704-4045-807f-311ed30aa712",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：梳理发布演示的风险与检查顺序",
+      "payload": {
+        "title": "梳理发布演示的风险与检查顺序",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "6289d4ad-3f56-4a57-8296-099704eb6191",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：将交付证据关联到原任务",
+      "payload": {
+        "title": "将交付证据关联到原任务",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "c0e6f839-7226-49d0-8f4f-cd7c18cf4a50",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：梳理任务状态与数据字段",
+      "payload": {
+        "title": "梳理任务状态与数据字段",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "d4006b9c-22fe-45a0-8a59-60139666cfc4",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "18a76130-12da-4db6-8474-751ac32ff4d8",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：检查手机投屏上的关键页面",
+      "payload": {
+        "title": "检查手机投屏上的关键页面",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "a78fef12-7395-4b31-82b2-81e522732fec",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：补充任务退回与再次提交场景",
+      "payload": {
+        "title": "补充任务退回与再次提交场景",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "8f1058f5-b42b-4f1d-8840-da456b296c43",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：优化办公室的工位操作反馈",
+      "payload": {
+        "title": "优化办公室的工位操作反馈",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "9641ec76-ccbc-4d40-8121-927087fa768b",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "885a2b52-0d0d-404c-8164-2b2339d66861",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：复核最新版本的归档字段",
+      "payload": {
+        "title": "复核最新版本的归档字段",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "8105c461-d80a-4efa-8498-1df5b4343ef6",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：完善交付材料的空状态与错误反馈",
+      "payload": {
+        "title": "完善交付材料的空状态与错误反馈",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "39abfa8c-9a94-42c1-8228-dd89bd34da82",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "44cf3294-22ac-4d92-893e-4f70b319ea0b",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：调整工作台在窄屏下的卡片密度",
+      "payload": {
+        "title": "调整工作台在窄屏下的卡片密度",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "ac0e2546-8feb-4258-8e1d-5779bebdf5d0",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "dcde5c2a-9008-4ea1-8338-6fc4cf6df5b9",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：组织演示彩排并核对验收结果",
+      "payload": {
+        "title": "组织演示彩排并核对验收结果",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "f7e4b93e-450c-483c-8940-dcb3e75fae1c",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：编写第一轮验收清单",
+      "payload": {
+        "title": "编写第一轮验收清单",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "created_at": "2026-11-12T10:00:00"
+    },
+    {
+      "id": "81f3c2bc-7d6f-4acb-8756-c019bfcae75a",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：确定角色分工与验收口径",
+      "payload": {
+        "title": "确定角色分工与验收口径",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-12T18:50:09.49"
+    },
+    {
+      "id": "61af8046-57ea-4fde-8ecd-46abfe921673",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：搭建项目工作台和角色导航",
+      "payload": {
+        "title": "搭建项目工作台和角色导航",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T18:50:09.524"
+    },
+    {
+      "id": "78c8e695-f797-4c1a-888b-e25a192ec470",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：完成办公室工位与桌宠展示",
+      "payload": {
+        "title": "完成办公室工位与桌宠展示",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-12T18:50:09.528"
+    },
+    {
+      "id": "6f996278-94e5-43c9-81e4-32ca1f0abb14",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：打通任务提交与验收记录",
+      "payload": {
+        "title": "打通任务提交与验收记录",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T18:50:09.53"
+    },
+    {
+      "id": "91b2165c-7146-4a45-8528-4c2e2f2d0f76",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：整理成果档案与复盘示例",
+      "payload": {
+        "title": "整理成果档案与复盘示例",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "created_at": "2026-11-12T18:50:09.533"
+    },
+    {
+      "id": "87142f9d-b05a-4a00-88b9-fc895daa29df",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "d910dac4-e5b6-4d3c-8f9f-702604e2aaf6",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：补齐演示前的异常状态检查",
+      "payload": {
+        "title": "补齐演示前的异常状态检查",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-12T18:50:09.535"
+    },
+    {
+      "id": "c432ce37-cd3c-432b-8b61-dc63f48266cc",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "425366c3-915c-43e2-8eae-45b8cf872c82",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：核对组长与组员的操作视角",
+      "payload": {
+        "title": "核对组长与组员的操作视角",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-12T18:50:09.536"
+    },
+    {
+      "id": "3eca623c-58b4-4be9-84ae-b19135a16a8f",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "7b764049-e09a-460f-83bf-3b63b2915612",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_created",
+      "summary": "演示分工：准备演示讲解与操作清单",
+      "payload": {
+        "title": "准备演示讲解与操作清单",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "created_at": "2026-11-12T18:50:09.536"
+    },
+    {
+      "id": "a7b829ce-a681-470c-8ca5-d6a217b2c493",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_submitted",
+      "summary": "演示交付：整理演示范围和成功标准",
+      "payload": {
+        "title": "整理演示范围和成功标准",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+        "completionNote": "已按演示清单逐项记录。列出需演示的关键流程，以及每一步的成功条件。"
+      },
+      "created_at": "2026-11-13T10:00:00"
+    },
+    {
+      "id": "b7558aef-2922-4263-892a-f2a04e81bbc5",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "666e401f-cb0a-481f-8920-770d53943ddf",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：整理演示范围和成功标准",
+      "payload": {
+        "note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+        "title": "整理演示范围和成功标准",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-13T13:00:00"
+    },
+    {
+      "id": "7d6195fa-d25e-4e92-894d-6bfbccd94800",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "actor_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "task_submitted",
+      "summary": "演示交付：绘制三角色导航结构",
+      "payload": {
+        "title": "绘制三角色导航结构",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+        "completionNote": "已按演示清单逐项记录。明确组长、组员和导师看到的菜单和入口。"
+      },
+      "created_at": "2026-11-14T10:00:00"
+    },
+    {
+      "id": "ca817a3f-fc58-4d94-834c-6020742eda6a",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "377e2386-c0b2-4ea0-8f00-7af98f81eb26",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：绘制三角色导航结构",
+      "payload": {
+        "note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+        "title": "绘制三角色导航结构",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-14T13:00:00"
+    },
+    {
+      "id": "fbf8a9af-6c73-408d-8756-9af483365f35",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_submitted",
+      "summary": "演示交付：确定角色分工与验收口径",
+      "payload": {
+        "title": "确定角色分工与验收口径",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+        "completionNote": "整理了三角色入口和逐项验收清单。"
+      },
+      "created_at": "2026-11-14T18:50:09.477"
+    },
+    {
+      "id": "55f890fb-f136-4acf-880b-bbdc2d2099e8",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "dfd31b00-94fe-4011-83f7-37b8b5fdf5ea",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：确定角色分工与验收口径",
+      "payload": {
+        "note": "三类角色的操作边界清楚，按清单演示。",
+        "title": "确定角色分工与验收口径",
+        "assigneeId": "a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "created_at": "2026-11-14T21:50:09.477"
+    },
+    {
+      "id": "c8517521-69cb-4588-816a-978aefe6fb85",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "actor_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "task_submitted",
+      "summary": "演示交付：梳理任务状态与数据字段",
+      "payload": {
+        "title": "梳理任务状态与数据字段",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+        "completionNote": "已按演示清单逐项记录。记录待办、进行中、待验收和已完成之间的转换。"
+      },
+      "created_at": "2026-11-15T10:00:00"
+    },
+    {
+      "id": "36a0b98c-d188-49a2-8241-58f99043799a",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "a997f86c-a2f1-4677-83fb-b7d8294d1829",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：梳理任务状态与数据字段",
+      "payload": {
+        "note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+        "title": "梳理任务状态与数据字段",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-15T13:00:00"
+    },
+    {
+      "id": "890ee455-c1e9-4960-8e11-d44147320b02",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "actor_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "task_submitted",
+      "summary": "演示交付：搭建项目工作台和角色导航",
+      "payload": {
+        "title": "搭建项目工作台和角色导航",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+        "completionNote": "串联项目入口、角色导航与任务详情，整理演示点击顺序。"
+      },
+      "created_at": "2026-11-15T18:50:09.524"
+    },
+    {
+      "id": "21e6c61f-ecf7-4abe-8901-bfed111c2907",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "1315d8e0-d45e-4540-8172-e5592ad66790",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：搭建项目工作台和角色导航",
+      "payload": {
+        "note": "入口清楚，任务详情可从各工作台打开。",
+        "title": "搭建项目工作台和角色导航",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-15T21:50:09.524"
+    },
+    {
+      "id": "817b19a7-49a5-4b15-890d-c17d26acb285",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "actor_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "type": "task_submitted",
+      "summary": "演示交付：编写第一轮验收清单",
+      "payload": {
+        "title": "编写第一轮验收清单",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+        "completionNote": "已按演示清单逐项记录。整理普通、空状态和权限异常三类检查场景。"
+      },
+      "created_at": "2026-11-16T10:00:00"
+    },
+    {
+      "id": "288ea4a5-5f90-46b7-8394-63df9ab95b15",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "7eea0433-44a6-4071-8ba7-87a879c72769",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：编写第一轮验收清单",
+      "payload": {
+        "note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+        "title": "编写第一轮验收清单",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "created_at": "2026-11-16T13:00:00"
+    },
+    {
+      "id": "831b0327-c152-4b18-8d3a-983645e76386",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "actor_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "task_submitted",
+      "summary": "演示交付：完成办公室工位与桌宠展示",
+      "payload": {
+        "title": "完成办公室工位与桌宠展示",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+        "completionNote": "办公室显示四名成员的工位、桌宠和各自的工作状态。"
+      },
+      "created_at": "2026-11-19T18:50:09.527"
+    },
+    {
+      "id": "6fcac160-be8f-4fd7-83cf-55f1899bed44",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "61e9534b-8e59-4305-8680-badc1467f21b",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：完成办公室工位与桌宠展示",
+      "payload": {
+        "note": "四人工位可识别，黑板和桌宠入口可用。",
+        "title": "完成办公室工位与桌宠展示",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-19T21:50:09.527"
+    },
+    {
+      "id": "54797e8b-12b8-4dc8-854e-45c25d3bc118",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "actor_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "task_submitted",
+      "summary": "演示交付：调整项目列表与手机端导航",
+      "payload": {
+        "title": "调整项目列表与手机端导航",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+        "completionNote": "已按演示清单逐项记录。校验短标题、长标题和窄屏导航可读性。"
+      },
+      "created_at": "2026-11-20T10:00:00"
+    },
+    {
+      "id": "91dbbc6f-92b8-442c-8435-aa16b7a2d71b",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "759c8e65-19e9-4b83-8254-c918c889b5d2",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：调整项目列表与手机端导航",
+      "payload": {
+        "note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+        "title": "调整项目列表与手机端导航",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "created_at": "2026-11-20T13:00:00"
+    },
+    {
+      "id": "41447141-9cb3-43c5-8259-4ecd92501686",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "actor_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "task_submitted",
+      "summary": "演示交付：将交付证据关联到原任务",
+      "payload": {
+        "title": "将交付证据关联到原任务",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+        "completionNote": "已按演示清单逐项记录。对照任务详情确认提交说明和原始证据可以追溯。"
+      },
+      "created_at": "2026-11-21T10:00:00"
+    },
+    {
+      "id": "bf053c1b-0d91-464d-86ec-1223fec6d5e6",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "65fa71c7-fab6-45f1-857b-686ec0ca2c99",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：将交付证据关联到原任务",
+      "payload": {
+        "note": "演示验收通过。结果与完成条件一致，可用于复盘。",
+        "title": "将交付证据关联到原任务",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-21T13:00:00"
+    },
+    {
+      "id": "dcffb1ac-6da9-4cab-873b-e56dfe5f806f",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "actor_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "task_submitted",
+      "summary": "演示交付：打通任务提交与验收记录",
+      "payload": {
+        "title": "打通任务提交与验收记录",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+        "completionNote": "整理出一条可从交付说明追溯到验收意见的示例记录。"
+      },
+      "created_at": "2026-11-21T18:50:09.529"
+    },
+    {
+      "id": "1a219a6c-4229-4da2-8ad4-75f5ed6d1dd2",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "568838f8-0e80-4739-8bd4-3a85a45f9f1f",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "task_accepted",
+      "summary": "演示验收：打通任务提交与验收记录",
+      "payload": {
+        "note": "提交与反馈可以对照，建议把该记录归入下一版本。",
+        "title": "打通任务提交与验收记录",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "created_at": "2026-11-21T21:50:09.529"
+    },
+    {
+      "id": "5d2dd81d-49ca-4db7-88d2-73b23ccf79ea",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "907af40b-2159-4451-8bb7-2150a1fc0810",
+      "actor_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "task_submitted",
+      "summary": "演示交付：补充任务退回与再次提交场景",
+      "payload": {
+        "title": "补充任务退回与再次提交场景",
+        "assigneeId": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+        "completionNote": "已按演示清单逐项记录。整理一条从退回原因到再次提交的演示路径。"
+      },
+      "created_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "f980a5cf-463e-4acd-8db5-80673913dfdf",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "e73a1bdd-f965-498e-8cbc-f66ae64fc203",
+      "actor_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "type": "task_submitted",
+      "summary": "演示交付：优化办公室的工位操作反馈",
+      "payload": {
+        "title": "优化办公室的工位操作反馈",
+        "assigneeId": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+        "completionNote": "已按演示清单逐项记录。检查开工、离座、队友互动和关闭面板的反馈。"
+      },
+      "created_at": "2026-11-23T10:00:00"
+    },
+    {
+      "id": "12e035f0-d306-4bc3-831c-2f9965f15cca",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "9bd48ccd-dbff-40c4-8fa7-e98c5bd327ca",
+      "actor_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "type": "task_submitted",
+      "summary": "演示交付：整理成果档案与复盘示例",
+      "payload": {
+        "title": "整理成果档案与复盘示例",
+        "assigneeId": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+        "completionNote": "交付了档案分类和复盘笔记示例，等待组长确认。"
+      },
+      "created_at": "2026-11-23T18:50:09.532"
+    },
+    {
+      "id": "e0f6446f-ea8d-417f-8afb-46381fb097a9",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "actor_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "blocker_raised",
+      "summary": "演示求助：缺少交付材料错误提示的测试样例",
+      "payload": {
+        "detail": "演示阻塞：交付材料缺少“链接失效”和“材料缺失”的测试样例，错误提示暂时无法验收。",
+        "reason": "resource",
+        "helpNeeded": "请补充一条失效链接和一条缺少材料的示例记录，用来验证错误提示。",
+        "inviteeIds": []
+      },
+      "created_at": "2026-11-24T19:35:53.776354"
+    },
+    {
+      "id": "f4e8d3b7-3fbf-4866-893e-df22a9fcea58",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": null,
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "entry_created",
+      "summary": "留下文档「很爱很爱你」",
+      "payload": {
+        "title": "很爱很爱你",
+        "entryType": "doc"
+      },
+      "created_at": "2026-11-25T14:02:28.205539"
+    },
+    {
+      "id": "0d3c4d13-1787-49ad-89e2-eb136e3f53e4",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": null,
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "entry_deleted",
+      "summary": "删除了文档「很爱很爱你」",
+      "payload": {
+        "title": "很爱很爱你",
+        "entryType": "doc"
+      },
+      "created_at": "2026-11-25T14:02:30.906594"
+    },
+    {
+      "id": "c064760e-97b2-4bfd-86b4-f0772c049687",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "actor_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "type": "blocker_resolved",
+      "summary": "解决了一次求助（缺资源或设备）",
+      "payload": {
+        "note": "哈哈 哈哈哈"
+      },
+      "created_at": "2026-11-25T19:41:20.628747"
+    },
+    {
+      "id": "a3fd9e36-be50-4484-8ec4-a20062c8329a",
+      "project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "task_id": "3a4e4ed5-3539-46c9-8baf-90f2b36a8e93",
+      "actor_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "type": "blocker_raised",
+      "summary": "演示求助：缺少交付材料错误提示的测试样例",
+      "payload": {
+        "detail": "验收前需要复现网络请求失败的场景，目前缺少可重复的测试数据。",
+        "reason": "resource",
+        "helpNeeded": "请一位队友协助构造失败用例，一起检查错误提示和重试入口。",
+        "inviteeIds": []
+      },
+      "created_at": "2026-11-25T19:45:00.000"
+    }
+  ],
+  "home_profiles": [
+    {
+      "owner_id": "c682a12f-5d52-463d-8c6e-76cbbd378703",
+      "pet_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "pet": {
+        "name": "线条小狗",
+        "kind": "placeholder",
+        "petId": "web:c682a12f-5d52-463d-8c6e-76cbbd378703"
+      },
+      "web_pet": {
+        "preset": "puppy",
+        "name": "线条小狗"
+      }
+    },
+    {
+      "owner_id": "2e9f38b5-7af2-46ac-8ea2-16ebbbddd378",
+      "pet_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "pet": {
+        "name": "吃豆人",
+        "kind": "placeholder",
+        "petId": "web:2e9f38b5-7af2-46ac-8ea2-16ebbbddd378"
+      },
+      "web_pet": {
+        "preset": "pacman",
+        "name": "吃豆人"
+      }
+    },
+    {
+      "owner_id": "a6156c2a-1a49-4932-8e8a-1b0c3920dcb2",
+      "pet_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "pet": {
+        "name": "奶龙",
+        "kind": "placeholder",
+        "petId": "web:a6156c2a-1a49-4932-8e8a-1b0c3920dcb2"
+      },
+      "web_pet": {
+        "preset": "nailong",
+        "name": "奶龙"
+      }
+    },
+    {
+      "owner_id": "a9afd55a-75d0-442e-8de0-b26bf89b24e0",
+      "pet_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_team_id": "3a6ed5f7-862a-431d-85fe-8f2750bdfdc9",
+      "working_project_id": "8105edc1-aa72-4c56-8f23-7bcb5a3b091b",
+      "pet": {
+        "name": "西装伙伴",
+        "kind": "placeholder",
+        "petId": "web:a9afd55a-75d0-442e-8de0-b26bf89b24e0"
+      },
+      "web_pet": {
+        "preset": "mentor",
+        "name": "西装伙伴"
+      }
+    }
+  ]
+}

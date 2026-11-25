@@ -10,6 +10,7 @@ $runtimePath = Join-Path $projectPath '.runtime'
 $runtimeScript = Join-Path $PSScriptRoot 'production-runtime.mjs'
 $nodePath = (Get-Command node.exe).Source
 $url = "http://127.0.0.1:$Port"
+$demo = $env:AGILECAMPUS_DEMO_RUNTIME -eq '1'
 $hashTool = [Security.Cryptography.SHA256]::Create()
 $lockHash = [BitConverter]::ToString($hashTool.ComputeHash([Text.Encoding]::UTF8.GetBytes("$projectPath|$Port"))).Replace('-', '')
 $hashTool.Dispose()
@@ -39,12 +40,13 @@ try {
             try {
                 $record = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
                 $wrapper = Get-Process -Id $record.processId -ErrorAction SilentlyContinue
-                $reuse = $wrapper -and $record.mode -eq $Mode -and
+                $reuse = $wrapper -and $record.mode -eq $Mode -and [bool]$record.demo -eq $demo -and
                     $wrapper.StartTime.ToUniversalTime() -eq ([datetime]$record.startedAt).ToUniversalTime() -and
                     ($serverProcess.ProcessId -eq $record.processId -or $serverProcess.ParentProcessId -eq $record.processId) -and
                     -not $needsBuild
             } catch { $reuse = $false }
         }
+        if ([bool]$record.demo -ne $demo) { throw "Port $Port is used by a different AgileCampus runtime. Choose another port." }
         if (-not $reuse) {
             # Only replace the server whose absolute command path belongs to this
             # checkout. Other project previews and unrelated applications stay open.
@@ -67,7 +69,7 @@ try {
         $workspacePath = Split-Path -Parent $projectPath
         $pgControl = Join-Path $workspacePath '.local/pgsql/bin/pg_ctl.exe'
         $pgData = Join-Path $workspacePath '.local/pgdata'
-        if ((Test-Path -LiteralPath $pgControl) -and (Test-Path -LiteralPath $pgData)) {
+        if (-not $demo -and (Test-Path -LiteralPath $pgControl) -and (Test-Path -LiteralPath $pgData)) {
             & $pgControl -D $pgData status *> $null
             if ($LASTEXITCODE -ne 0) {
                 $databaseStart = Start-Process -FilePath $pgControl -ArgumentList '-D', ('"' + $pgData + '"'), '-l', ('"' + (Join-Path $workspacePath '.local/postgres.log') + '"'), '-w', 'start' -WindowStyle Hidden -PassThru
@@ -87,7 +89,7 @@ try {
             $arguments = @(('"' + $nextCli + '"'), 'dev', '--turbopack', '--port', [string]$Port, '--hostname', '127.0.0.1')
         }
         $started = Start-Process -FilePath $nodePath -ArgumentList $arguments -WorkingDirectory $projectPath -RedirectStandardOutput (Join-Path $runtimePath "server-$Port.log") -RedirectStandardError (Join-Path $runtimePath "server-$Port-error.log") -WindowStyle Hidden -PassThru
-        @{ processId = $started.Id; startedAt = $started.StartTime.ToUniversalTime().ToString('o'); mode = $Mode } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+        @{ processId = $started.Id; startedAt = $started.StartTime.ToUniversalTime().ToString('o'); mode = $Mode; demo = $demo } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
     }
 
     $ready = $false

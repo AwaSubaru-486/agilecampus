@@ -115,6 +115,14 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · PostgreSQL 16 + 
 
 已有数据库依次执行 `scripts/migrations/2026-11-01-project-iterations.sql`、`scripts/migrations/2026-11-04-iteration-features.sql`、`scripts/migrations/2026-11-04-iteration-workspace.sql` 和 `scripts/migrations/2026-11-18-iteration-outcomes.sql`。验收成果快照从下次保存版本开始记录。新建数据库可使用下方的 `db:push`。
 
+## 一键演示（Windows 10/11 x64）
+
+下载仓库 ZIP 并解压，双击 `start-demo.cmd`。首次启动需要联网下载便携运行环境和依赖，并编译网站。启动完成后会自动打开 [本地演示站](http://127.0.0.1:3110)。
+
+使用 **`leader@demo.invalid`** 登录，密码为 **`AgileCampusDemo2026`**。在「新手教程」中开始「敏捷开发平台」导览，也可以直接进入项目，展示办公室四人到岗、协作求助、任务依赖、成果验收、版本归档和项目复盘。
+
+组员账号为 `nie@demo.invalid`（聂翔）、`haha@demo.invalid`（哈哈哈）、`yule@demo.invalid`（鱼乐），教师账号为 `teacher@demo.invalid`（郭郭大人）。这些账号使用同一演示密码。启动器使用独立的本地演示数据库，后续双击会保留演示中做过的改动。首次载入时按当天平移演示日期，保留任务的相对截止时间。
+
 ## 本地启动
 
 ```bash
