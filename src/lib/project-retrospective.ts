@@ -6,6 +6,8 @@ import { listProjectEntries } from "./entry";
 import { ForbiddenError } from "./errors";
 import { getProjectForUser } from "./project";
 import { listProjectTasks } from "./task";
+import { listHumanMembers } from "./team";
+import type { TaskStatus } from "./task-status";
 
 export function listRetrospectiveProjects(actorId: string) {
   return db.select({ id: projects.id, name: projects.name, status: projects.status, teamName: teams.name, role: teamMembers.role })
@@ -97,6 +99,16 @@ export async function buildProjectRetrospective(actorId: string, projectId: stri
 
 export type ProjectRetrospective = Awaited<ReturnType<typeof buildProjectRetrospective>>;
 
+export type PersonalRetrospective = {
+  assignedCount: number;
+  deliveries: {
+    id: string; title: string; status: TaskStatus; at: Date;
+    submitted: string | null; feedback: string | null;
+    passed: boolean; returned: boolean; needsRevision: boolean; evidenceCount: number;
+  }[];
+  openHelp: { id: string; taskId: string; title: string; needed: string | null; detail: string | null }[];
+};
+
 export async function buildPersonalRetrospective(actorId: string, projectId: string, memberId = actorId) {
   const access = await getProjectForUser(actorId, projectId);
   if (!access || access.role === "teacher") throw new ForbiddenError();
@@ -104,38 +116,59 @@ export async function buildPersonalRetrospective(actorId: string, projectId: str
     throw new ForbiddenError();
   }
 
-  const scope = and(eq(taskTable.projectId, projectId), eq(taskTable.assigneeId, memberId), eq(taskTable.isTaskGroup, false));
-  const taskIds = db.select({ id: taskTable.id }).from(taskTable).where(scope);
+  return (await collectMemberRetrospectives(projectId, [memberId])).get(memberId)!;
+}
+
+export async function buildTeamMemberRetrospectives(actorId: string, projectId: string) {
+  const access = await getProjectForUser(actorId, projectId);
+  if (!access || access.role === "student") throw new ForbiddenError();
+  const roster = await listHumanMembers(access.project.teamId);
+  const roleOrder = { admin: 0, student: 1, teacher: 2 };
+  roster.sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || a.name.localeCompare(b.name, "zh-CN") || a.id.localeCompare(b.id));
+  const reports = await collectMemberRetrospectives(projectId, roster.map(member => member.id));
+  return roster.map(member => ({ ...member, report: reports.get(member.id)! }));
+}
+
+async function collectMemberRetrospectives(projectId: string, memberIds: string[]) {
+  const reports = new Map<string, PersonalRetrospective>(memberIds.map(id => [id, { assignedCount: 0, deliveries: [], openHelp: [] }]));
+  if (!reports.size) return reports;
+  const scope = and(eq(taskTable.projectId, projectId), inArray(taskTable.assigneeId, memberIds), eq(taskTable.isTaskGroup, false));
   const [assigned, events, materials, openHelp] = await Promise.all([
-    db.select({ id: taskTable.id, title: taskTable.title, status: taskTable.status, submittedAt: taskTable.submittedAt, updatedAt: taskTable.updatedAt })
+    db.select({ id: taskTable.id, memberId: taskTable.assigneeId, title: taskTable.title, status: taskTable.status, submittedAt: taskTable.submittedAt, updatedAt: taskTable.updatedAt })
       .from(taskTable).where(scope).orderBy(desc(taskTable.updatedAt), desc(taskTable.id)),
-    db.select({ taskId: activityEvents.taskId, type: activityEvents.type, payload: activityEvents.payload, at: activityEvents.createdAt })
-      .from(activityEvents).where(and(
-        eq(activityEvents.projectId, projectId), inArray(activityEvents.taskId, taskIds),
-        sql`${activityEvents.payload}->>'assigneeId' = ${memberId}`,
+    db.select({ taskId: activityEvents.taskId, memberId: taskTable.assigneeId, type: activityEvents.type, payload: activityEvents.payload, at: activityEvents.createdAt })
+      .from(activityEvents).innerJoin(taskTable, eq(activityEvents.taskId, taskTable.id)).where(and(
+        scope, eq(activityEvents.projectId, projectId),
+        sql`${activityEvents.payload}->>'assigneeId' = ${taskTable.assigneeId}::text`,
         or(inArray(activityEvents.type, ["task_submitted", "task_accepted", "task_rejected"]),
           and(eq(activityEvents.type, "task_updated"), sql`${activityEvents.payload}->>'recheck' = 'true'`)),
       )).orderBy(desc(activityEvents.createdAt), desc(activityEvents.id)),
-    db.select({ taskId: evidenceItems.taskId, count: sql<number>`count(*)::int` }).from(evidenceItems)
-      .where(and(eq(evidenceItems.projectId, projectId), eq(evidenceItems.submittedById, memberId), inArray(evidenceItems.taskId, taskIds)))
-      .groupBy(evidenceItems.taskId),
-    db.select({ id: blockers.id, taskId: taskTable.id, title: taskTable.title, needed: blockers.helpNeeded, detail: blockers.detail })
+    db.select({ taskId: evidenceItems.taskId, memberId: evidenceItems.submittedById, count: sql<number>`count(*)::int` }).from(evidenceItems)
+      .innerJoin(taskTable, eq(evidenceItems.taskId, taskTable.id))
+      .where(and(scope, eq(evidenceItems.projectId, projectId), eq(evidenceItems.submittedById, taskTable.assigneeId)))
+      .groupBy(evidenceItems.taskId, evidenceItems.submittedById),
+    db.select({ id: blockers.id, taskId: taskTable.id, memberId: blockers.raisedById, title: taskTable.title, needed: blockers.helpNeeded, detail: blockers.detail })
       .from(blockers).innerJoin(taskTable, eq(taskTable.id, blockers.taskId))
-      .where(and(scope, eq(blockers.projectId, projectId), eq(blockers.raisedById, memberId), eq(blockers.status, "open")))
+      .where(and(scope, eq(blockers.projectId, projectId), eq(blockers.raisedById, taskTable.assigneeId), eq(blockers.status, "open")))
       .orderBy(desc(blockers.createdAt), desc(blockers.id)),
   ]);
 
   const activityByTask = new Map<string, (typeof events)[number][]>();
   for (const event of events) {
     if (!event.taskId) continue;
-    const taskEvents = activityByTask.get(event.taskId) ?? [];
+    const key = `${event.taskId}:${event.memberId}`;
+    const taskEvents = activityByTask.get(key) ?? [];
     taskEvents.push(event);
-    activityByTask.set(event.taskId, taskEvents);
+    activityByTask.set(key, taskEvents);
   }
-  const materialCounts = new Map(materials.map(material => [material.taskId, material.count]));
+  const materialCounts = new Map(materials.map(material => [`${material.taskId}:${material.memberId}`, material.count]));
 
-  const deliveries = assigned.flatMap(task => {
-    const taskEvents = activityByTask.get(task.id) ?? [];
+  for (const task of assigned) {
+    const member = reports.get(task.memberId ?? "");
+    if (!member) continue;
+    member.assignedCount++;
+    const key = `${task.id}:${task.memberId}`;
+    const taskEvents = activityByTask.get(key) ?? [];
     const submission = taskEvents.find(event => event.type === "task_submitted");
     const currentEvents = taskEvents.filter(event => !task.submittedAt || event.at >= task.submittedAt);
     const currentSubmission = currentEvents.find(event => event.type === "task_submitted");
@@ -144,18 +177,18 @@ export async function buildPersonalRetrospective(actorId: string, projectId: str
     const passed = task.status === "done" && verdict?.type === "task_accepted";
     const returned = (task.status === "doing" || task.status === "todo") && verdict?.type === "task_rejected";
     const needsRevision = passed && recheck && recheck.at >= verdict.at && textField(recheck.payload, "decision") === "revise";
-    const evidenceCount = materialCounts.get(task.id) ?? 0;
-    if (!submission && !verdict && task.status !== "done" && task.status !== "review" && !evidenceCount) return [];
+    const evidenceCount = materialCounts.get(key) ?? 0;
+    if (!submission && !verdict && task.status !== "done" && task.status !== "review" && !evidenceCount) continue;
 
-    return [{
+    member.deliveries.push({
       id: task.id, title: task.title, status: task.status, at: currentSubmission?.at ?? verdict?.at ?? task.updatedAt,
       submitted: textField(currentSubmission?.payload, "completionNote"),
       feedback: needsRevision ? textField(recheck.payload, "note") : passed || returned ? textField(verdict.payload, "note") : null,
       passed, returned, needsRevision: Boolean(needsRevision), evidenceCount,
-    }];
-  });
-
-  return { deliveries, openHelp, assignedCount: assigned.length };
+    });
+  }
+  for (const { memberId, ...help } of openHelp) {
+    if (memberId) reports.get(memberId)?.openHelp.push(help);
+  }
+  return reports;
 }
-
-export type PersonalRetrospective = Awaited<ReturnType<typeof buildPersonalRetrospective>>;

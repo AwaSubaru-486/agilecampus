@@ -1,7 +1,8 @@
 import { beforeEach, expect, it } from "vitest";
 import { db } from "@/db";
 import { activityEvents, blockers, evidenceItems, projectEntries, tasks } from "@/db/schema";
-import { buildPersonalRetrospective, buildProjectRetrospective, listRetrospectiveProjects } from "@/lib/project-retrospective";
+import { buildPersonalRetrospective, buildProjectRetrospective, buildTeamMemberRetrospectives, listRetrospectiveProjects } from "@/lib/project-retrospective";
+import { memberPage, teamOverview } from "@/app/(app)/projects/[projectId]/retrospective/notebook-data";
 import { createProject } from "@/lib/project";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createUser } from "@/lib/user";
@@ -58,6 +59,9 @@ it("根据当前交付、最近验收意见和关联档案汇总对应项目", a
   expect(report.unarchived.map(item => item.id)).toEqual([gap.id]);
   expect(report.completedWithoutReview).toBe(1);
   expect(report.archives).toEqual({ doc: 1, feedback: 1, deliverable: 0 });
+  const overview = teamOverview(project.id, report, true);
+  expect(overview).toMatchObject({ id: "overview", title: "总体评价", nextAction: "按任务的完成条件核对提交和证据。" });
+  expect(overview.highlights?.map(item => item.title).sort()).toEqual(["存取记录", "库存查询"]);
 });
 
 it("只列出有权限的项目，空项目保留自己的复盘入口", async () => {
@@ -107,4 +111,14 @@ it("学生复盘只读取本人的任务、交付材料和对应验收记录", a
   expect(await buildPersonalRetrospective(owner.id, project.id, member.id)).toEqual(personal);
   await expect(buildPersonalRetrospective(member.id, project.id, owner.id)).rejects.toThrow();
   await expect(buildPersonalRetrospective(teacher.id, project.id)).rejects.toThrow();
+
+  const members = await buildTeamMemberRetrospectives(owner.id, project.id);
+  expect(members.map(item => item.id)).toEqual([owner.id, member.id, teacher.id]);
+  expect(members[1].report).toEqual(personal);
+  expect(members[2].report).toEqual({ assignedCount: 0, deliveries: [], openHelp: [] });
+  const visibleToTeacher = memberPage(`/projects/${project.id}`, members[1], "completed");
+  expect(visibleToTeacher.deliveries).toEqual([]);
+  expect(visibleToTeacher.followUps).toEqual([]);
+  expect(visibleToTeacher.nextAction).not.toContain("我的报名交付");
+  await expect(buildTeamMemberRetrospectives(member.id, project.id)).rejects.toThrow();
 });

@@ -47,6 +47,6 @@ export function buildWelcomeSteps(journey: TutorialJourney): TutorialStep[] {
       step(2, "integration", "检查阶段集成材料", "找到集成分支、测试记录和审核意见。阶段集成审核通过后，团队可以推进下一阶段。", `${work}&panel=list`, "stage-tasks"),
     ] : []),
     step(3, "versions", "比较每一轮的功能变化", "在迭代页查看每个版本交付了哪些模块。点开版本或模块，看看功能怎样一轮轮演进。", `${base}/iterations`, "project-iterations"),
-    step(3, "retrospective", "用成果和验收记录做复盘", "看看哪些工作已有验收证据，哪些问题需要在下一轮解决。以后可以从侧栏「项目复盘」按项目打开报告。", `${base}/retrospective`, "retrospective"),
+    step(3, "retrospective", "用成果和验收记录做复盘", "点击「生成报告」翻开笔记本，先看总体评价，再翻到个人页核对交付和反馈。以后可以从侧栏「项目复盘」按项目生成报告。", `${base}/retrospective`, "retrospective"),
   ];
 }
