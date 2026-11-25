@@ -12,16 +12,15 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
   const base = `/projects/${projectId}`;
   const workspace = PROJECT_ROLE_WORKSPACE[role];
   const section =
-    pathname.includes("/iterations") ? "versions" : pathname.includes("/task-tree") || pathname.includes("/timeline")
-      ? "iterations"
-      : role === "student" && pathname.endsWith("/retrospective") ? "personal-retrospective"
-      : pathname.includes("/activity") || pathname.includes("/retrospective")
-        ? "record"
-        : search.get("space") === "studio"
-          ? "studio"
-          : search.get("space") === "record"
-            ? "record"
-            : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? (search.get("view") === "manage" ? "manage" : "home") : role === "admin" && ["review", "completed"].includes(search.get("scope") ?? "") ? "acceptance" : search.get("scope") === "all" && role === "admin" ? "assignment" : "work";
+    pathname === `${base}/retrospective` ? null
+      : pathname.includes("/iterations") ? "versions"
+      : pathname.includes("/task-tree") || pathname.includes("/timeline") ? "iterations"
+      : pathname.includes("/activity") || search.get("space") === "record" ? "record"
+      : search.get("space") === "studio" ? "studio"
+      : pathname === base && isProjectHome(Object.fromEntries(search.entries())) ? (search.get("view") === "manage" ? "manage" : "home")
+      : role === "admin" && ["review", "completed"].includes(search.get("scope") ?? "") ? "acceptance"
+      : role === "admin" && search.get("scope") === "all" ? "assignment"
+      : "work";
   const spaceLink = (space: "work" | "studio" | "record") =>
     buildSpaceHref({
       projectId,
@@ -38,7 +37,6 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
       href: `${base}?space=work&scope=mine&panel=list`,
       tour: "nav-work",
     },
-    ...(role === "student" ? [{ id: "personal-retrospective", title: "任务复盘", href: `${base}/retrospective`, tour: "nav-retrospective" }] : []),
     {
       id: "versions",
       title: "迭代",
@@ -106,14 +104,6 @@ export function ProjectNavigation({ projectId, role }: { projectId: string; role
             aria-current={pathname === base ? "page" : undefined}
           >
             成果档案
-          </Link>
-          <Link
-            href={`${base}/retrospective`}
-            aria-current={
-              pathname.endsWith("/retrospective") ? "page" : undefined
-            }
-          >
-            复盘报告
           </Link>
           <Link
             href={`${base}/activity`}

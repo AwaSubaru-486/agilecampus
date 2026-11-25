@@ -11,6 +11,7 @@ import { webPetRuntime } from "@/lib/pets/web-pet-security";
 import { readWebPetConfig, webPetId } from "@/lib/pets/web-pet-config";
 import { currentWebHomePet } from "@/lib/pets/web-home-pet";
 import { readDesktopAsset } from "@/lib/pets/desktop-asset";
+import { authenticateDesktop, consumeDesktopPairing, createDesktopPairing, desktopState } from "@/lib/pets/desktop-session";
 import { POST as control } from "@/app/api/desktop-pet/control/route";
 import { GET as image } from "@/app/api/pets/web/[ownerId]/[assetKey]/route";
 import { resetDb } from "./helpers";
@@ -35,6 +36,29 @@ beforeEach(async () => { await resetDb(); });
 afterEach(async () => { for (const owner of owners.splice(0)) await rm(webPetRuntime(owner), { recursive: true, force: true }); session.actor = ""; });
 
 describe("网页桌宠与办公室联动", () => {
+  it("桌面连接直接跟随网页配置，换装后资源和状态使用相同版本", async () => {
+    const { owner } = await setup();
+    const invite = await createDesktopPairing(owner.id, "http://127.0.0.1:3106");
+    const ticket = new URL(invite.launchUrl).searchParams.get("ticket")!;
+    const { token } = await consumeDesktopPairing(ticket);
+    const record = await authenticateDesktop(new Request("http://127.0.0.1:3106/api/home/desktop/state", {
+      headers: { authorization: `Bearer ${token}` },
+    }));
+
+    expect((await ensureHome(owner.id)).pet.petId).toBeNull();
+    const before = await desktopState(record);
+    expect(before).toMatchObject({ status: "ready", pet: { id: webPetId(owner.id), name: "线条小狗" } });
+    expect((await readDesktopAsset(owner.id)).version).toBe(before.assetVersion);
+
+    expect((await configure({ preset: "mentor", name: "西装伙伴" })).status).toBe(200);
+    const after = await desktopState(record);
+    const picture = await readDesktopAsset(owner.id);
+    expect(after.pet).toMatchObject({ id: webPetId(owner.id), name: "西装伙伴" });
+    expect(after.assetVersion).not.toBe(before.assetVersion);
+    expect(picture.version).toBe(after.assetVersion);
+    expect(Buffer.from(picture.bytes)).toEqual(await readFile("public/desk-pet/frames/mentor_0.png"));
+  });
+
   it("换装、改名绑定同一个桌宠，开工状态保留，图像版本变化", async () => {
     const { owner, peer, team, project } = await setup();
     expect((await configure({ preset: "puppy", name: "小白" })).status).toBe(200);
@@ -49,8 +73,19 @@ describe("网页桌宠与办公室联动", () => {
     expect((await configure({ preset: "pacman", name: "豆豆" })).status).toBe(200);
     const home = await ensureHome(owner.id); expect(home.workingProjectId).toBe(project.id);
     const view = await getHomeView(peer.id, { view: "courtyard", team: team.id, projectId: project.id });
-    expect(view.workstations.find(seat => seat.ownerId === owner.id)?.pet?.name).toBe("豆豆");
+    const pacman = view.workstations.find(seat => seat.ownerId === owner.id)?.pet;
+    expect(pacman?.name).toBe("豆豆");
+    expect(pacman?.definition?.seatedScale).toBeUndefined();
     expect((await currentWebHomePet(owner.id)).appearance.src).not.toBe(first.appearance.src);
+    expect((await configure({ preset: "mentor", name: "小西" })).status).toBe(200);
+    const mentorOffice = await getHomeView(peer.id, { view: "courtyard", team: team.id, projectId: project.id });
+    expect(mentorOffice.workstations.find(seat => seat.ownerId === owner.id)?.pet).toMatchObject({
+      name: "小西", definition: { seatedScale: 1.18 },
+    });
+    const mentorPet = await currentWebHomePet(owner.id);
+    if (mentorPet.appearance.type !== "image") throw new Error("expected image");
+    expect(Buffer.from(await (await asset(owner.id)).arrayBuffer())).toEqual(await readFile("public/desk-pet/frames/mentor_0.png"));
+    expect(Buffer.from(await (await asset(owner.id, mentorPet.appearance.greetSrc!.split("/").at(-1)!)).arrayBuffer())).toEqual(await readFile("public/desk-pet/frames/mentor_3.png"));
   });
   it("图片只对本人或开工项目成员开放，收工后撤销，旧图片版本不再可读", async () => {
     const { owner, peer, stranger, team, project } = await setup(); await configure({ preset: "puppy", name: "小白" });

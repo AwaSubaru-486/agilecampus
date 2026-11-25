@@ -26,6 +26,7 @@ export const homePetAppearanceSchema = z.discriminatedUnion("type", [
 });
 export const homePetDefinitionSchema = z.object({
   id: homePetIdSchema, ownerId: z.uuid(), name: z.string().trim().min(1).max(40), appearance: homePetAppearanceSchema,
+  seatedScale: z.number().positive().max(2).optional(),
 });
 export type HomePetDefinition = z.infer<typeof homePetDefinitionSchema>;
 export type HomePetAppearance = z.infer<typeof homePetAppearanceSchema>;

@@ -1,55 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { buildWelcomeSteps, EMPTY_JOURNEY, welcomeResumeIndex } from "@/lib/tutorials/example-flow";
-import { findShowcaseProject } from "@/lib/tutorials/showcase";
+import { buildWelcomeSteps, WELCOME_CHAPTERS, WELCOME_VERSION } from "@/lib/tutorials/example-flow";
+import { findShowcaseProject, SHOWCASE_TEAM } from "@/lib/tutorials/showcase";
 
-const journey = { version: 6 as const, teamId: "demo-team", projectId: "demo-project", taskId: "first-task", role: "admin" as const };
-describe("汪汪队项目展示路线", () => {
-  it("使用同一已有项目，查看即可学习，没有创建、发布或交付门槛", () => {
+const journey = { version: WELCOME_VERSION, teamId: "demo-team", projectId: "demo-project", taskId: "blocked-task", helpTaskId: "blocked-task", role: "admin" } as const;
+
+describe("敏捷开发平台项目导览", () => {
+  it("从项目办公室走到对应的求助、交付和复盘，步骤无需写入业务数据", () => {
     const steps = buildWelcomeSteps(journey);
-    expect(steps[0].route).toBe("/tutorials");
+    expect(steps[0]).toMatchObject({ route: "/projects/demo-project", target: '[data-tour="project-office"]' });
     expect(steps[1].route).toBe("/teams/demo-team/members");
-    expect(steps.filter(step => step.route.startsWith("/projects/")).every(step => step.route.startsWith("/projects/demo-project"))).toBe(true);
-    expect(steps.some(step => ["team", "project", "generate", "publish", "claim", "submit"].includes(step.id))).toBe(false);
-    expect(steps.filter(step => step.action === "result").every(step => step.target === '[data-tour="project-view-switch"]')).toBe(true);
-    expect(steps.find(step => step.id === "select")?.route).toBe("/projects/demo-project?space=work&scope=all&task=first-task&panel=list");
-    expect(steps.find(step => step.id === "delivery")?.action).toBe("explore");
-    // 看板在默认关闭的 dialog 里，必须让学员点击黑板触发器，而不是直接定位隐藏内容。
-    expect(steps.find(step => step.id === "board")).toMatchObject({ target: '[data-tour="member-board-trigger"]', action: "click" });
+    expect(steps.find(step => step.id === "help")?.route).toBe("/collaboration?project=demo-project&task=blocked-task#task-blocked-task");
+    expect(steps.find(step => step.id === "delivery")).toMatchObject({
+      route: "/projects/demo-project?space=work&scope=all&task=blocked-task",
+      action: "explore",
+    });
+    expect(steps.at(-1)?.route).toBe("/projects/demo-project/retrospective");
+    expect(steps.filter(step => step.action !== "explore").map(step => step.id)).toEqual(["leader-start"]);
     expect(new Set(steps.map(step => step.id)).size).toBe(steps.length);
+    expect([...new Set(steps.map(step => step.chapter))]).toEqual(WELCOME_CHAPTERS.map((_, i) => i));
   });
-  it("按照真实角色显示课程，组员不进入记录，老师不进入执行和 AI", () => {
+
+  it("按角色展示交付和验收，缺少任务或阻塞时仍有同一条路线", () => {
     const member = buildWelcomeSteps({ ...journey, role: "student" });
     const teacher = buildWelcomeSteps({ ...journey, role: "teacher" });
-    expect(member.some(step => ["records", "activity", "assignments", "member-view", "review"].includes(step.id))).toBe(false);
-    expect(teacher.some(step => ["select", "delivery", "ai", "board", "member-view"].includes(step.id))).toBe(false);
-    expect(teacher.some(step => step.id === "integration")).toBe(true);
-    expect(member.find(step => step.id === "select")?.route).not.toContain("scope=all");
+    expect(member.some(step => ["leader-start", "acceptance", "review"].includes(step.id))).toBe(false);
+    expect(member.find(step => step.id === "delivery")?.route).toContain("scope=mine");
+    expect(teacher.some(step => ["delivery", "assignments", "leader-start"].includes(step.id))).toBe(false);
+    expect(teacher.find(step => step.id === "integration")?.target).toBe('[data-tour="stage-tasks"]');
+
+    const noTasks = buildWelcomeSteps({ ...journey, taskId: null, helpTaskId: null, role: "student" });
+    expect(noTasks.map(step => step.id)).toEqual(member.map(step => step.id));
+    expect(noTasks.find(step => step.id === "help")?.route).toBe("/collaboration?project=demo-project#help");
+    expect(noTasks.find(step => step.id === "delivery")?.target).toBe('[data-tour="execution-console"]');
   });
-  it("在真实任务上只读引导断点交接，不要求上传或启动插件", () => {
-    for (const role of ["admin", "student"] as const) {
-      const steps = buildWelcomeSteps({ ...journey, role });
-      expect(steps.at(-2)).toMatchObject({ id: "memory-handoff", action: "explore", target: '[data-tour="task-memory-handoff"]' });
-      expect(steps.at(-2)?.route).toContain("task=first-task");
-      expect(steps.at(-1)?.id).toBe("finish");
-    }
-    for (const item of [{ ...journey, role: "teacher" as const }, { ...journey, taskId: null }]) {
-      expect(buildWelcomeSteps(item).some(step => step.id === "memory-handoff")).toBe(false);
-    }
-  });
-  it("刷新后重新打开任务小界面，其他步骤从原位置恢复", () => {
-    for (const role of ["admin", "student", "teacher"] as const) {
-      const current = { ...journey, role };
-      const steps = buildWelcomeSteps(current);
-      const index = (id: string) => steps.findIndex(step => step.id === id);
-      expect(welcomeResumeIndex(index("timeline-detail"), current)).toBe(index("timeline-node"));
-      expect(welcomeResumeIndex(index("timeline-close"), current)).toBe(index("timeline-node"));
-      expect(welcomeResumeIndex(index("stages"), current)).toBe(index("stages"));
-    }
-    expect(buildWelcomeSteps(EMPTY_JOURNEY)[0].target).toBe('[data-tour="tutorial-showcase"]');
-  });
-  it("只在可访问的汪汪队项目中选择有任务的一份，不误选同名空项目", () => {
-    const project = { id: "full", name: "敏捷开发平台", teamId: "team", teamName: "汪汪队", role: "admin" as const, taskTotal: 42 };
-    expect(findShowcaseProject([{ ...project, id: "empty", taskTotal: 0 }, { ...project, id: "other", teamName: "其他团队", taskTotal: 99 }, project])?.id).toBe("full");
-    expect(findShowcaseProject([{ ...project, teamName: "其他团队" }])).toBeNull();
+
+  it("优先选择演示小组中的可用项目，旧团队只作为可访问的同名示例", () => {
+    const legacy = { id: "full", name: "敏捷开发平台", teamId: "team", teamName: "汪汪队", role: "admin" as const, taskTotal: 42 };
+    const demo = { ...legacy, id: "demo", teamName: SHOWCASE_TEAM, taskTotal: 20 };
+    expect(findShowcaseProject([legacy, demo])?.id).toBe("demo");
+    expect(findShowcaseProject([legacy, { ...demo, status: "archived" }])?.id).toBe("full");
+    expect(findShowcaseProject([{ ...legacy, id: "empty", taskTotal: 0 }, legacy])?.id).toBe("full");
+    expect(findShowcaseProject([{ ...legacy, teamName: "其他团队" }])).toBeNull();
   });
 });

@@ -116,7 +116,7 @@
 @media(prefers-reduced-motion:reduce){.interactionEmoji{display:none}}
 @keyframes pet-hello{0%,100%{transform:rotate(0)}35%{transform:rotate(-5deg)}70%{transform:rotate(5deg)}}
 .workstationTrigger:hover,.workstationTrigger:focus-visible{outline:2px solid var(--color-signal);outline-offset:2px;background:#21836d08}
-.presetChoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.presetChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .presetChoices button{padding:10px 5px;border:1px solid var(--color-stroke);border-radius:10px;background:var(--color-panel);font-size:11px;text-align:center;cursor:pointer}
 .presetChoices button[aria-pressed="true"]{border-color:var(--color-signal);background:var(--color-signal-soft);box-shadow:0 0 0 1px var(--color-signal)}
 .presetChoices img{width:58px;height:58px;object-fit:contain;margin:0 auto 8px}.presetChoices button:disabled{opacity:.6;cursor:wait}

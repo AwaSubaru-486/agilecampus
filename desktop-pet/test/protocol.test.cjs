@@ -5,9 +5,11 @@ const ticket = 'acpair_' + 'a'.repeat(43);
 test('deep links accept HTTPS and loopback only, with one purpose-bound ticket', () => {
   const url = 'agilecampus-pet://connect?server=' + encodeURIComponent('http://127.0.0.1:3000') + '&ticket=' + ticket;
   assert.equal(parseLaunch(url).origin, 'http://127.0.0.1:3000');
+  assert.deepEqual(parseLaunch(url.replace('connect?', 'connect/?')), parseLaunch(url));
   for (const value of ['file:///secret', 'http://remote.test', 'https://user:pass@test/', 'https://test/some/path']) assert.throws(() => serverOrigin(value));
   assert.throws(() => parseLaunch(url + '&ticket=' + ticket));
   assert.throws(() => parseLaunch(url.replace('connect?', 'execute?')));
+  assert.throws(() => parseLaunch(url.replace('connect?', 'connect/other?')));
   assert.throws(() => parseLaunch(url + '&command=anything'));
 });
 test('appearance validation strips remote URLs and bounds sprite frames', () => {

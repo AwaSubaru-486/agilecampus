@@ -18,7 +18,7 @@ export type TimelineTreeGroup = {
 type Draft = { id: string; payload: TaskTreePayload };
 
 export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, drafts }: { projectId: string; projectName: string; canAnalyse: boolean; groups: TimelineTreeGroup[]; drafts: Draft[] }) {
-  const [treeId, setTreeId] = useState(groups.some(group => !group.pending) ? "published" : groups[0]?.draftId ?? "");
+  const treeId = groups.some(group => !group.pending) ? "published" : groups[0]?.draftId ?? "";
   const [selected, setSelected] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (selected && dialog.current && !dialog.current.open) dialog.current.showModal(); }, [selected]);
@@ -84,21 +84,14 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, signature, canAnalyse]);
 
-  if (!groups.length) return <div className="ac-card p-8 text-sm text-ink-3">还没有任务树。发布阶段任务后可以在这里查看，组长也可以查看待确认草案。</div>;
+  if (!groups.length) return <div data-tour="timeline-tree" className="ac-card p-8 text-sm text-ink-3">还没有任务树。发布阶段任务后可以在这里查看，组长也可以查看待确认草案。</div>;
   const task = payload.stages.flatMap(stage => stage.tasks).find(item => item.key === selected);
   const detail = visible.flatMap(group => group.details).find(item => item.key === selected);
-  const pendingDrafts = drafts.filter(draft => groups.some(group => group.pending && group.draftId === draft.id));
   return <section className="space-y-4" aria-label="时间线任务树">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <label className="flex items-center gap-3 text-sm">查看任务链<select aria-label="选择任务链" className="ac-field" disabled={busy} value={treeId} onChange={event => { setTreeId(event.target.value); setFocusStage(0); setSelected(null); setStored(null); }}>
-        {groups.some(group => !group.pending) && <option value="published">整个项目，已发布任务</option>}
-        {pendingDrafts.map((draft, index) => <option key={draft.id} value={draft.id}>待确认草案 {index + 1}：{draft.payload.summary.slice(0, 35)}</option>)}
-      </select></label>
-      <div className="flex flex-wrap gap-3">{treeId !== "published" && <Link className="ac-btn-ghost" href={`/projects/${projectId}/task-tree?plan=1#planning`}>回到草案调整 →</Link>}
-        {canAnalyse && <button type="button" className="ac-btn-ghost" disabled={busy} onClick={() => void analyse()}>AI 分析整条任务链</button>}
-      </div>
-    </div>
-    <p className="text-xs leading-6 text-ink-3">从左向右推进，分支表示并行，连线表示需要的前置成果。竖向虚线划分阶段，跨阶段依赖会继续连线。</p>
+    {(treeId !== "published" || canAnalyse) && <div className="flex flex-wrap justify-end gap-3">
+      {treeId !== "published" && <Link className="ac-btn-ghost" href={`/projects/${projectId}/task-tree?plan=1#planning`}>回到草案调整 →</Link>}
+      {canAnalyse && <button type="button" className="ac-btn-ghost" disabled={busy} onClick={() => void analyse()}>AI 分析整条任务链</button>}
+    </div>}
     <nav data-tour="timeline-stages" aria-label="定位任务树阶段" className="flex flex-wrap gap-2">{payload.stages.map((stage, index) => <button data-tour="stage-link" type="button" key={index} className={`ac-tech-stage ${focusStage === index ? "is-active" : ""}`} aria-pressed={focusStage === index} onClick={() => setFocusStage(index)}>{index + 1}. {stage.title}</button>)}</nav>
     {busy && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-signal/20 bg-signal-soft p-4 text-sm text-signal"><LoadingProgress className="flex-1 min-w-48" label="AI 正在分析任务链…" detail="动画演示，任务与连线保持原样。" /><button type="button" className="ac-btn-ghost" onClick={stop}>停止分析</button></div>}
     {invalid && <p role="alert" className="text-sm text-risk">已忽略存在冲突的编排，显示项目已登记的关系。请在草案中核对任务关系。</p>}

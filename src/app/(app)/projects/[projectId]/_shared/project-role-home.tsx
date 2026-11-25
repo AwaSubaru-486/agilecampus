@@ -47,7 +47,6 @@ export async function ProjectRoleHome({ actorId, viewUserId = actorId, projectId
         <aside className="space-y-5 border-l-2 border-stroke pl-5">
           <p className="text-xs text-ink-3">{role === "teacher" ? "审核背景" : "本轮安排"}</p><h3 className="font-semibold text-ink">{activeStage?.title ?? "尚未开始第一轮"}</h3><p className="text-sm leading-6 text-ink-3">{activeStage ? "任务验收与阶段集成分别确认。查看阶段详情了解交付要求及尚缺的材料。" : role === "admin" ? "先写清项目目标，生成草案并确认分工。" : "组长发布任务后，阶段安排会出现在这里。"}</p>
           <Link className="block text-sm font-medium text-signal" href={`${base}/timeline`}>{current.iterations} →</Link><Link className="block text-sm text-ink-3" href={`${base}?space=record`}>{current.record} →</Link>
-          {role === "teacher" && <Link className="block text-sm text-ink-3" href={`${base}/retrospective`}>查看成员贡献与过程记录 →</Link>}
         </aside>
       </div>
     </section>

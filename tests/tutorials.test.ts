@@ -1,10 +1,11 @@
 import { beforeEach, describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { users, tasks, projects, teams, activityEvents } from "@/db/schema";
+import { users, tasks, projects, teams, activityEvents, blockers } from "@/db/schema";
 import { getTutorialProgress, updateTutorialProgress, recordTutorialCreation } from "@/lib/tutorials/progress";
 import { buildTutorialCourses } from "@/lib/tutorials/catalog";
-import { buildWelcomeSteps } from "@/lib/tutorials/example-flow";
+import { buildWelcomeSteps, WELCOME_VERSION } from "@/lib/tutorials/example-flow";
+import { SHOWCASE_TEAM } from "@/lib/tutorials/showcase";
 import { createUser } from "@/lib/user";
 import { createTeam, joinTeam, updateMemberRole } from "@/lib/team";
 import { createProject } from "@/lib/project";
@@ -14,7 +15,7 @@ import { resetDb } from "./helpers";
 const user = (name: string) => createUser({ name, email: `${name}@tutorial.test`, password: "password123" });
 const sample = { id: "00000000-0000-4000-8000-000000000001", teamId: "00000000-0000-4000-8000-000000000002", name: "项目", role: "admin" as const };
 async function showcase(actorId: string) {
-  const team = await createTeam(actorId, "汪汪队");
+  const team = await createTeam(actorId, SHOWCASE_TEAM);
   const project = await createProject(actorId, team.id, { name: "敏捷开发平台" });
   const [task] = await db.insert(tasks).values({ projectId: project.id, title: "确认项目验收标准", assigneeId: actorId }).returning();
   await createProject(actorId, team.id, { name: "敏捷开发平台" });
@@ -36,10 +37,14 @@ describe("展示教程与账号进度", () => {
     expect((await getTutorialProgress(b.id)).status).toBe("new");
     await expect(updateTutorialProgress(sample.id, { type: "dismiss" })).rejects.toThrow();
   });
-  it("默认绑定有任务的汪汪队项目，暂停与继续保存相同项目", async () => {
+  it("默认绑定演示小组项目，暂停与继续保存相同项目", async () => {
     const a = await user("a"); const { project, task } = await showcase(a.id);
+    const legacy = await createTeam(a.id, "汪汪队");
+    await createProject(a.id, legacy.id, { name: "敏捷开发平台" });
+    await db.insert(blockers).values({ projectId: project.id, taskId: task.id, raisedById: a.id, reason: "resource" });
     const start = await updateTutorialProgress(a.id, { type: "restart-example" });
     expect(start.journey?.projectId).toBe(project.id); expect(start.journey?.taskId).toBe(task.id);
+    expect(start.journey?.helpTaskId).toBe(task.id);
     await updateTutorialProgress(a.id, { type: "save", courseId: "welcome", step: 3, projectId: project.id });
     await updateTutorialProgress(a.id, { type: "pause" });
     const paused = await getTutorialProgress(a.id); expect(paused.active?.paused).toBe(true);
@@ -87,11 +92,11 @@ describe("展示教程与账号进度", () => {
   });
   it("旧主线重置并暂停，保留其他课程和旧团队项目", async () => {
     const a = await user("migration"); const { team, project } = await showcase(a.id);
-    for (const version of [4, 5] as const) {
+    for (const version of [4, 5, 6] as const) {
       await db.update(users).set({ tutorialProgress: { status: "completed", completed: ["welcome", "teams"], journey: { version, teamId: team.id, projectId: project.id }, active: { courseId: "welcome", step: 15, projectId: project.id, journeyVersion: version } } }).where(eq(users.id, a.id));
       const progress = await getTutorialProgress(a.id);
-      expect(progress.journey?.version).toBe(6); expect(progress.journey?.projectId).toBe(project.id);
-      expect(progress.active).toEqual({ courseId: "welcome", step: 0, projectId: project.id, paused: true, journeyVersion: 6 });
+      expect(progress.journey?.version).toBe(WELCOME_VERSION); expect(progress.journey?.projectId).toBe(project.id);
+      expect(progress.active).toEqual({ courseId: "welcome", step: 0, projectId: project.id, paused: true, journeyVersion: WELCOME_VERSION });
       expect(progress.completed).toEqual(["teams"]);
     }
     const other = await createProject(a.id, team.id, { name: "刚创建的普通项目" });

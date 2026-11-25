@@ -194,7 +194,6 @@ body {
 
 .ac-shell-main h1,
 .ac-project-card h2,
-.ac-tutorial-feature h2,
 .ac-auth-shell > aside > h2 {
   font-family: var(--font-display);
 }
@@ -304,11 +303,12 @@ html {
  .ac-shell-sidebar[data-collapsed="true"] .ac-brand-row {flex-direction:column;}
  .ac-shell-sidebar[data-collapsed="true"] .ac-brand-label,
  .ac-shell-sidebar[data-collapsed="true"] .ac-shell-switcher,
- .ac-shell-sidebar[data-collapsed="true"] .ac-navigation-support,
+ .ac-shell-sidebar[data-collapsed="true"] .ac-navigation-support > a[href="/teams"],
  .ac-shell-sidebar[data-collapsed="true"] .ac-nav-label,
  .ac-shell-sidebar[data-collapsed="true"] .ac-account-name,
  .ac-shell-sidebar[data-collapsed="true"] .ac-sidebar-tip {display:none;}
  .ac-shell-sidebar[data-collapsed="true"] .ac-nav-item {justify-content:center;padding:12px;}
+ .ac-shell-sidebar[data-collapsed="true"] .ac-navigation-support {margin-top:12px;padding-top:12px;}
  .ac-shell-sidebar[data-collapsed="true"] .ac-nav-count {display:none;}
  .ac-shell-sidebar[data-collapsed="true"] ~ .ac-shell-main {margin-left:76px;}
 }
@@ -628,14 +628,10 @@ html {
 /* 项目与教程：优先展示下一步行动，保留足够阅读空间。 */
 .ac-project-card { display:block; height:100%; padding:28px; border:1px solid var(--color-stroke); border-radius:var(--radius-panel); background:linear-gradient(145deg,var(--color-panel) 61%,var(--color-panel-hover)); box-shadow:var(--shadow-panel); transition:border-color 160ms,box-shadow 160ms,transform 160ms; }
 .ac-project-card:hover { border-color:var(--color-signal-ring); box-shadow:var(--shadow-float); transform:translateY(-2px); }
-.ac-tutorial-feature { display:flex; align-items:center; gap:32px; padding:32px; border:1px solid var(--color-signal-ring); border-radius:var(--radius-sheet); background:linear-gradient(115deg,var(--color-signal-soft),var(--color-panel)); }
-.ac-tutorial-symbol { display:grid; flex-shrink:0; width:84px; height:84px; place-items:center; border-radius:24px; background:var(--color-panel); color:var(--color-signal); font-size:32px; box-shadow:var(--shadow-panel); }
 .ac-shell-switcher { min-width:0; }
 .ac-shell-switcher button[aria-label="切换项目"] { max-width:100%; }
 .ac-shell-main { min-width:0; }
 @media(max-width:640px) {
-  .ac-tutorial-feature { align-items:flex-start; flex-direction:column; gap:18px; padding:24px; }
-  .ac-tutorial-symbol { width:52px; height:52px; border-radius:16px; font-size:24px; }
   .ac-project-card { padding:24px; }
   .ac-project-card h2 { font-family:var(--font-sans); }
 }

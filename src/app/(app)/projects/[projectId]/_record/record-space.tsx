@@ -13,7 +13,7 @@ import { DecisionLedger, type DecisionLedgerRow } from "./decision-ledger";
 // 「成果散落在不同工具中，难以形成完整的项目档案和可复用的过程资产」。
 //
 // 页面按 4.5 的次序排：成果与证据在前，过程记录在后。
-// 复盘与活动流已有独立路由，此处给入口而不重复渲染——
+// 活动流已有独立路由，此处给入口而不重复渲染——
 // 活动流动辄几百条，塞进这一页会把它淹掉。
 
 export async function RecordSpace({
@@ -93,7 +93,7 @@ export async function RecordSpace({
         entries={entries}
         tasks={projectTasks.map((t) => ({ id: t.id, title: t.title }))}
         canWrite={canWrite}
-        canGiveFeedback={role === "teacher" || role === "admin"}
+        canGiveFeedback={role === "teacher"}
       />
 
       <section className="overflow-hidden rounded-[var(--radius-panel)] border border-stroke bg-panel">
@@ -118,14 +118,6 @@ export async function RecordSpace({
             <li className="px-4 py-6 text-center text-sm text-ink-2">暂无过程记录。</li>
           )}
         </ul>
-        <div className="flex flex-wrap gap-3 border-t border-stroke bg-ground/30 px-4 py-2.5 text-xs">
-          <Link
-            href={`/projects/${projectId}/retrospective`}
-            className="rounded-[var(--radius-control)] text-signal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
-          >
-            项目复盘与贡献记录 →
-          </Link>
-        </div>
       </section>
     </div>
   );

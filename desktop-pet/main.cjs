@@ -4,30 +4,46 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { SCHEME, parseLaunch, serverOrigin, validateAppearance, clampBounds } = require('./lib/protocol.cjs');
 const { encryptToken, decryptToken } = require('./lib/secure-config.cjs');
+const webPresets = require('./lib/web-presets.cjs');
 
 const testMode = process.argv.includes('--test-mode');
 const page = path.join(__dirname, 'ui', 'index.html');
+const developmentOrigin = 'http://127.0.0.1:3000';
+const defaultOrigin = serverOrigin(require('./package.json').desktopHomeOrigin ?? developmentOrigin);
 let win, tray, timer, saveTimer, quitting = false, busy = false;
-let config = { origin: 'http://127.0.0.1:3000', token: null, expiresAt: null, bounds: null };
+let config = { origin: defaultOrigin, token: null, expiresAt: null, bounds: null, localPreset: null };
 let payload = { connected: false, status: 'offline', name: '', message: '在家园点击“开启桌面陪伴”连接当前账号。' };
 let assetCache = { key: '', fetchedAt: 0, data: null };
 let failures = 0, lastAck = 0, connecting = false, demoMode = false;
+let demoPet = null;
+let configWrite = Promise.resolve();
+const localPresets = new Map();
 const storeFile = () => path.join(app.getPath('userData'), 'connection.json');
 
-function publish() { if (win && !win.isDestroyed()) win.webContents.send('pet:state', payload); }
-async function saveConfig() {
-  if (testMode) return;
-  const stored = { origin: config.origin, expiresAt: config.expiresAt, bounds: config.bounds };
-  if (config.token) Object.assign(stored, await encryptToken(safeStorage, config.token));
-  await fs.mkdir(app.getPath('userData'), { recursive: true });
-  const temporary = storeFile() + '.tmp';
-  await fs.writeFile(temporary, JSON.stringify(stored), { mode: 0o600 });
-  await fs.rename(temporary, storeFile());
+function displayedPet() {
+  if (demoMode && demoPet) return demoPet;
+  const preset = config.token ? null : localPresets.get(config.localPreset ?? 'puppy');
+  return preset ? { ...payload, ...preset.state } : payload;
+}
+function publish() { if (win && !win.isDestroyed()) win.webContents.send('pet:state', displayedPet()); }
+function saveConfig() {
+  if (testMode) return Promise.resolve();
+  const { token, ...stored } = config;
+  configWrite = configWrite.catch(() => {}).then(async () => {
+    if (token) Object.assign(stored, await encryptToken(safeStorage, token));
+    await fs.mkdir(app.getPath('userData'), { recursive: true });
+    const temporary = storeFile() + '.tmp';
+    await fs.writeFile(temporary, JSON.stringify(stored), { mode: 0o600 });
+    await fs.rename(temporary, storeFile());
+  });
+  return configWrite;
 }
 async function restoreConfig() {
   try {
     const value = JSON.parse(await fs.readFile(storeFile(), 'utf8'));
-    config.origin = serverOrigin(value.origin);
+    if (Object.hasOwn(webPresets, value.localPreset)) config.localPreset = value.localPreset;
+    const storedOrigin = serverOrigin(value.origin);
+    if (storedOrigin !== developmentOrigin || value.encryptedToken || value.expiresAt) config.origin = storedOrigin;
     if (value.bounds && ['x', 'y', 'width', 'height'].every(k => Number.isFinite(value.bounds[k])) && value.bounds.width >= 180 && value.bounds.width <= 400 && value.bounds.height >= 200 && value.bounds.height <= 450) config.bounds = value.bounds;
     if (value.encryptedToken && Date.parse(value.expiresAt) > Date.now()) {
       const token = await decryptToken(safeStorage, value);
@@ -52,7 +68,7 @@ async function request(endpoint, options = {}) {
     ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}), ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers,
   } });
   if (response.status === 401) {
-    config.token = null; assetCache = { key: '', fetchedAt: 0, data: null }; void saveConfig();
+    config.token = null; assetCache = { key: '', fetchedAt: 0, data: null }; void saveConfig().catch(() => {});
     throw new Error('连接已失效，请从家园重新连接');
   }
   if (!response.ok) {
@@ -77,17 +93,24 @@ async function poll() {
     if (state.pet) {
       next.name = String(state.pet.name).slice(0, 40);
       next.appearance = validateAppearance(state.pet.appearance);
-      const key = JSON.stringify(state.pet);
+      const key = state.assetVersion ?? JSON.stringify(state.pet);
       try {
         if (assetCache.key !== key || Date.now() - assetCache.fetchedAt > 30000) {
           const asset = await request('/api/home/desktop/asset');
-          if (asset.headers.get('x-pet-id') !== state.pet.id) throw new Error('桌宠已切换，正在重新读取');
-          const mime = asset.headers.get('content-type')?.split(';')[0];
-          if (!['image/png', 'image/webp', 'image/gif', 'image/jpeg'].includes(mime)) throw new Error('桌宠图片格式不受支持');
-          const bytes = await limitedBody(asset, 5 * 1024 * 1024);
-          assetCache = { key, fetchedAt: Date.now(), data: `data:${mime};base64,${bytes.toString('base64')}` };
+          if (asset.headers.get('x-pet-id') !== state.pet.id || (state.assetVersion && asset.headers.get('x-pet-asset-version') !== state.assetVersion)) {
+            await asset.body?.cancel();
+            next.name = payload.name;
+            next.appearance = payload.appearance;
+            next.asset = payload.asset;
+            next.message = '桌宠已切换，正在重新读取';
+          } else {
+            const mime = asset.headers.get('content-type')?.split(';')[0];
+            if (!['image/png', 'image/webp', 'image/gif', 'image/jpeg'].includes(mime)) throw new Error('桌宠图片格式不受支持');
+            const bytes = await limitedBody(asset, 5 * 1024 * 1024);
+            assetCache = { key, fetchedAt: Date.now(), data: `data:${mime};base64,${bytes.toString('base64')}` };
+          }
         }
-        next.asset = assetCache.data;
+        if (!next.message) next.asset = assetCache.data;
       } catch (error) { next.message = error.message; next.appearance = null; }
     } else {
       assetCache = { key: '', fetchedAt: 0, data: null };
@@ -139,6 +162,40 @@ function resizePet(width, height) {
   win.setBounds({ ...win.getBounds(), width, height }); fitWindow();
   config.bounds = win.getBounds(); void saveConfig().catch(() => {});
 }
+function loadLocalPresets() {
+  const directory = app.isPackaged ? path.join(__dirname, 'ui', 'assets') : path.join(__dirname, '..', 'public', 'desk-pet', 'frames');
+  for (const [id, name] of Object.entries(webPresets)) {
+    const image = nativeImage.createFromPath(path.join(directory, `${id}_0.png`));
+    if (image.isEmpty()) continue;
+    localPresets.set(id, {
+      icon: image.resize({ width: 20 }),
+      state: { status: 'local', name, appearance: { type: 'image', ...image.getSize() }, asset: image.toDataURL() },
+    });
+  }
+}
+function chooseLocalPreset(id) {
+  const wasDemo = demoMode;
+  demoMode = false;
+  demoPet = null;
+  config.localPreset = id;
+  publish();
+  showPet();
+  void saveConfig().catch(() => {});
+  if (wasDemo && config.token) void poll();
+}
+function presetMenuItems() {
+  if (config.token) return [
+    { label: '跟随网页桌宠', type: 'checkbox', checked: !demoMode, click: () => chooseLocalPreset(null) },
+    { label: '到网页切换桌宠', click: () => void openHome() },
+  ];
+  return [
+    { label: '连接网页以同步', click: () => void openHome() },
+    { type: 'separator' },
+    ...[...localPresets].map(([id, preset]) => ({
+      label: webPresets[id], icon: preset.icon, type: 'radio', checked: !demoMode && (config.localPreset ?? 'puppy') === id, click: () => chooseLocalPreset(id),
+    })),
+  ];
+}
 async function loadDemo() {
   clearTimeout(timer);
   while (busy) await new Promise(resolve => setTimeout(resolve, 25));
@@ -148,15 +205,16 @@ async function loadDemo() {
   try {
     const filename = app.isPackaged ? path.join(__dirname, 'ui', 'assets', 'demo-qing-bot.png') : path.join(__dirname, '..', 'public', 'pets', 'demo', 'qing-bot.png');
     const bytes = await fs.readFile(filename);
-    payload = { connected: false, status: 'demo', name: '小青（演示）', message: '',
+    demoPet = { connected: false, status: 'demo', name: '小青（演示）', message: '',
       appearance: { type: 'image', width: 1214, height: 1295 }, asset: `data:image/png;base64,${bytes.toString('base64')}` };
-  } catch { payload = { connected: false, status: 'demo', name: '', message: '演示素材未安装，请使用最新客户端。' }; }
+  } catch { demoPet = { connected: false, status: 'demo', name: '', message: '演示素材未安装，请使用最新客户端。' }; }
   publish(); showPet();
 }
 function menuItems() {
   return [
+    { label: '切换桌宠', submenu: presetMenuItems() },
     { label: '体验演示桌宠：小青', click: () => void loadDemo() },
-    ...(demoMode && config.token ? [{ label: '恢复已连接桌宠', click: () => { demoMode = false; void poll(); } }] : []),
+    ...(demoMode && config.token ? [{ label: '恢复已连接桌宠', click: () => chooseLocalPreset(null) }] : []),
     { type: 'separator' },
     { label: '打开我的家园', click: () => void openHome() },
     { label: '前往团队庭院', click: () => void openHome(true) },
@@ -217,6 +275,7 @@ else {
       quitting = true; app.quit(); return;
     }
     if (!testMode) await restoreConfig();
+    loadLocalPresets();
     app.setAppUserModelId('org.agilecampus.desktop-pet');
     if (!testMode) {
       if (process.defaultApp) app.setAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(__dirname)]);
@@ -239,13 +298,14 @@ else {
     win.on('moved', () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { config.bounds = win.getBounds(); void saveConfig().catch(() => {}); }, 400); });
     screen.on('display-removed', fitWindow);
     const trusted = event => event.sender === win.webContents && event.senderFrame?.url === pathToFileURL(page).href;
-    ipcMain.handle('pet:ready', event => trusted(event) ? payload : null);
+    ipcMain.handle('pet:ready', event => trusted(event) ? displayedPet() : null);
     ipcMain.handle('pet:action', (event, action) => {
       if (!trusted(event)) return;
       if (action === 'home') return openHome();
       if (action === 'hide') { win.hide(); updateTray(); void heartbeat().catch(() => {}); }
       else if (action === 'quit') return quitApp();
       else if (action === 'menu') Menu.buildFromTemplate(menuItems()).popup({ window: win });
+      else if (action === 'presets') Menu.buildFromTemplate(presetMenuItems()).popup({ window: win });
       else if (action === 'capture') win.setIgnoreMouseEvents(false);
       else if (action === 'passthrough') win.setIgnoreMouseEvents(true, { forward: true });
     });
@@ -258,7 +318,7 @@ else {
     await win.loadFile(page); showPet();
     const link = process.argv.find(value => value.startsWith(`${SCHEME}://`));
     if (process.argv.includes('--demo')) await loadDemo(); else if (link) await connect(link); else if (config.token) await poll();
-    if (testMode) globalThis.desktopPetTest = { connect, poll, showPet, loadDemo, getWindow: () => win, getPayload: () => payload, quit: quitApp,
+    if (testMode) globalThis.desktopPetTest = { connect, poll, showPet, loadDemo, getWindow: () => win, getPayload: displayedPet, quit: quitApp,
       secureRoundTrip: async value => { const stored = await encryptToken(safeStorage, value); return { mode: stored.encryption, match: await decryptToken(safeStorage, stored) === value, containsPlainText: JSON.stringify(stored).includes(value) }; },
     };
   });

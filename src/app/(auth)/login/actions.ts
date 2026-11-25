@@ -23,7 +23,7 @@ export async function loginAction(
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/teams",
+      redirectTo: formData.get("returnTo") === "home" ? "/home" : "/teams",
     });
     return null;
   } catch (e) {

@@ -11,7 +11,9 @@ function LoginForm() {
     loginAction,
     null,
   );
-  const registered = useSearchParams().get("registered");
+  const search = useSearchParams();
+  const registered = search.get("registered");
+  const returnToHome = search.get("returnTo") === "home";
 
   return (
     <main className="mx-auto w-full max-w-md space-y-6 ac-focus-card p-7 sm:p-9">
@@ -20,6 +22,7 @@ function LoginForm() {
       </h1>
       {registered && <p className="text-sm text-done">注册成功，请登录。</p>}
       <form action={formAction} className="space-y-3">
+        {returnToHome && <input type="hidden" name="returnTo" value="home" />}
         <label className="block text-xs text-ink-2">
           邮箱
           <input
@@ -52,7 +55,7 @@ function LoginForm() {
           去注册
         </Link>
       </p>
-      <FeishuLogin />
+      <FeishuLogin returnToHome={returnToHome} />
     </main>
   );
 }

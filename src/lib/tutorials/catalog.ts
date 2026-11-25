@@ -1,6 +1,6 @@
 import { buildWelcomeSteps, EMPTY_JOURNEY, type TutorialJourney } from "./example-flow";
 export type TutorialRole = "admin" | "student" | "teacher";
-export type TutorialProject = { id: string; name: string; teamId: string; teamName?: string; taskTotal?: number; role: TutorialRole };
+export type TutorialProject = { id: string; name: string; teamId: string; teamName?: string; taskTotal?: number; status?: "active" | "archived"; role: TutorialRole };
 export type TutorialProgress = {
   journey?: TutorialJourney;
   example?: {version:1;phase:number;values:Record<string,string>;events:{phase:number;title:string;at:string}[]};
@@ -13,6 +13,7 @@ export const COURSE_IDS = ["welcome","api-config", "teams", "planning", "task-tr
 export type CourseId = (typeof COURSE_IDS)[number];
 export type TutorialStep = {
   id: string; title: string; instruction: string; route: string;
+  chapter?: number;
   target: string; completion?: string; action: "click" | "input" | "explore" | "result";
 };
 export type TutorialCourse = {
@@ -60,7 +61,7 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
       step("progress", "找到当前阶段", "进度区显示当前阶段、已验收任务与待处理事项。任务验收和阶段集成是两个不同的关口。", `${base}/timeline`, "stage-progress"),
       step("stage", "切换一个阶段", "点击高亮阶段导航，跳到对应任务。下一阶段只有在集成审核通过后才会解锁。", `${base}/timeline`, "stage-link", "click"),
       step("handoff", "查看执行与交接资料", "在执行台查看任务契约、运行记录与交接材料。分支信息是登记材料，网页不会自动合并代码。", work, "execution-console"),
-      step("retrospective", "回看任务交付", "选择一项交付，结合验收意见写下有效做法和下次要试的改进。", `${base}/retrospective`, "retrospective"),
+      step("retrospective", "回看任务交付", "从侧栏的「项目复盘」选择当前项目，结合验收意见回看任务交付。", "/library", "library"),
       step("activity", "追溯具体动作", "活动流按时间记录提交、审核、复核等动作，帮助你追溯阶段迭代。", `${base}/activity`, "activity"),
     ] },
     { id: "ai", roles: ["admin", "student"], title: "AI 协作与会话分支", category: "协作与沉淀", needsProject: true, description: "进入项目对话，认识共享会话和人工确认。", steps: [
@@ -107,8 +108,8 @@ export function buildTutorialCourses(project: TutorialProject | null, journey: T
     { id: "settings", title: "账号与飞书通知", category: "连接与工具", description: "找到账号设置和通知绑定入口。", steps: [step("settings", "查看账号设置", "在高亮设置区查看飞书绑定与通知配置。外部账号绑定按页面流程由你完成。", "/settings", "settings")] },
   ];
   const welcome: TutorialCourse = {
-    id:"welcome",title:"跟着汪汪队认识敏捷开发平台",category:"推荐起点",needsProject:true,description:"以现有项目展示成员分工、阶段任务、时间线、三角色界面与成果验收。",
-    steps:buildWelcomeSteps(journey.projectId ? journey : project ? {version:6,teamId:project.teamId,projectId:project.id,role:project.role} : EMPTY_JOURNEY),
+    id:"welcome",title:"敏捷开发平台导览",category:"推荐起点",needsProject:true,description:"从办公室出发，跟着实际任务看分工、求助、验收与复盘。",
+    steps:buildWelcomeSteps(journey.projectId ? journey : project ? {...EMPTY_JOURNEY,teamId:project.teamId,projectId:project.id,role:project.role} : EMPTY_JOURNEY),
   };
   return [welcome, ...courses.map(course => course.id === "iterations" && project?.role === "student" ? { ...course, steps: course.steps.filter(step => !step.route.endsWith("/activity")) } : course)];
 }
