@@ -49,7 +49,7 @@ export function RetrospectiveReport({ projectId, personal, showScopeSwitch }: {
             <h2>{personal ? "我的任务复盘" : "团队复盘"}</h2>
             <p className={book.coverIntro}>{personal ? "回看自己的交付与验收反馈。" : "先读总体评价，再逐页回看成员的交付与反馈。"}</p>
             <div className={book.coverActions}>
-              <button type="button" className={book.generate} disabled={pending} onClick={generate}>
+              <button type="button" data-tour="retrospective-generate" data-tour-report-ready={Boolean(report)} className={book.generate} disabled={pending} onClick={generate}>
                 {pending ? "正在生成报告…" : report ? "重新生成报告" : "生成报告"} <span aria-hidden>↗</span>
               </button>
               {error && <p className={book.error} role="alert">{error}</p>}
@@ -116,15 +116,15 @@ function NotebookView({ report }: { report: Notebook }) {
               </div>
               <p className={book.pageNumber}>{String(index + 1).padStart(2, "0")} <span>/ {String(report.pages.length).padStart(2, "0")}</span></p>
             </header>
-            <nav aria-label="报告翻页" className={book.pager}>
+            <nav aria-label="报告翻页" data-tour="retrospective-pages" data-tour-member-view={index > 0 || report.pages.length === 1} className={book.pager}>
               <button type="button" disabled={index === 0} onClick={() => turn(index - 1)}>← 上一页</button>
               <button type="button" disabled={index === report.pages.length - 1} onClick={() => turn(index + 1)}>下一页 →</button>
             </nav>
-            <p className={book.evaluation}>{page.evaluation}</p>
+            <p data-tour="retrospective-summary" className={book.evaluation}>{page.evaluation}</p>
             <dl className={book.reportMetrics}>
               {page.metrics.map(metric => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}
             </dl>
-            <section className={book.nextAction}>
+            <section data-tour="retrospective-action" className={book.nextAction}>
               <h4>下一步</h4><p>{page.nextAction}</p>
             </section>
             <NotebookRecords page={page} />

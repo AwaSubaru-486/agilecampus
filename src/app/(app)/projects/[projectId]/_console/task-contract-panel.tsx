@@ -148,7 +148,7 @@ export function TaskContractPanel({
   return (
     <div data-tour="tutorial-task-detail" data-tour-claimed={task.committedAt ? "true" : "false"} data-tour-submitted={isInReview(task.status) || task.status === "done" ? "true" : "false"} className="flex flex-col gap-0">
       {/* 头部：真实标题，无广告性副标题 */}
-      <div className="flex flex-wrap items-start gap-3 border-b border-stroke px-6 py-5">
+      <div data-tour="tutorial-task-heading" className="flex flex-wrap items-start gap-3 border-b border-stroke px-6 py-5">
         {/* 返回按钮（窄屏） */}
         <button
           onClick={onBack}
@@ -243,7 +243,7 @@ export function TaskContractPanel({
         )}
 
         {/* 任务目标 */}
-        <Section label="任务目标">
+        <Section label="任务目标" tour="tutorial-task-goal">
           {task.description ? (
             <p className="whitespace-pre-wrap text-sm text-ink">
               {task.description}
@@ -268,7 +268,7 @@ export function TaskContractPanel({
 
         {/* 完成条件 */}
         {task.doneCriteria && task.doneCriteria.length > 0 && (
-          <Section label="完成条件">
+          <Section label="完成条件" tour="tutorial-task-criteria">
             <ul className="space-y-1">
               {task.doneCriteria.map((c, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-ink">
@@ -332,7 +332,7 @@ export function TaskContractPanel({
           isInReview(task.status) ||
           task.status === "done" ||
           canSubmit) && (
-          <Section label="交付证据">
+          <Section label="交付证据" tour="tutorial-task-evidence">
             <EvidenceList evidence={task.evidence} projectId={projectId} />
           </Section>
         )}
@@ -494,9 +494,11 @@ export function TaskContractPanel({
 
 function Section({
   label,
+  tour,
   children,
 }: {
   label: string;
+  tour?: string;
   children: React.ReactNode;
 }) {
   if (
@@ -516,7 +518,7 @@ function Section({
     );
   }
   return (
-    <div className="space-y-2">
+    <div data-tour={tour} className="space-y-2">
       <h3 className="text-xs font-semibold text-ink-3">{label}</h3>
       {children}
     </div>

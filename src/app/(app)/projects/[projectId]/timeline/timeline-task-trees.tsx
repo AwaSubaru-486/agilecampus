@@ -84,7 +84,7 @@ export function TimelineTaskTrees({ projectId, projectName, canAnalyse, groups, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, signature, canAnalyse]);
 
-  if (!groups.length) return <div data-tour="timeline-tree" className="ac-card p-8 text-sm text-ink-3">还没有任务树。发布阶段任务后可以在这里查看，组长也可以查看待确认草案。</div>;
+  if (!payload.stages.some(stage => stage.tasks.length)) return <div data-tour="timeline-tree" data-tour-empty="true" className="ac-card p-8 text-sm text-ink-3">还没有任务树。发布阶段任务后可以在这里查看，组长也可以查看待确认草案。</div>;
   const task = payload.stages.flatMap(stage => stage.tasks).find(item => item.key === selected);
   const detail = visible.flatMap(group => group.details).find(item => item.key === selected);
   return <section className="space-y-4" aria-label="时间线任务树">

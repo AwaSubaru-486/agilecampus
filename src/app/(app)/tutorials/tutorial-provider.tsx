@@ -38,7 +38,6 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     : showcase?.id ?? pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? projects[0]?.id ?? "");
   const project = projects.find((item) => item.id === projectId) ?? null;
   const courses = useMemo(() => buildTutorialCourses(project, progress.journey), [project, progress.journey]);
-  useEffect(() => { const frame = requestAnimationFrame(() => setProgress(initialProgress)); return () => cancelAnimationFrame(frame); }, [initialProgress]);
   const [running, setRunning] = useState(Boolean(initialProgress.active && !initialProgress.active.paused));
   const [prompt, setPrompt] = useState(initialProgress.status === "new");
   const [finished, setFinished] = useState<string | null>(null);
@@ -57,6 +56,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const readyKey = useRef("");
   const [retry, setRetry] = useState(0);
   const [collapsedStep, setCollapsedStep] = useState("");
+  const [answers, setAnswers] = useState<Record<string, number>>({});
   const app = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null);
   const active = progress.active;
@@ -71,15 +71,22 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const collapsed = Boolean(guide && collapsedStep === stepKey);
   const stepRoute = step?.route;
   const stepTarget = step?.target;
+  const preferredTarget = step?.preferredTarget;
+  const fallbackTarget = step?.fallbackTarget;
   const stepAction = step?.action;
   const browseAcceptance = step?.browseAcceptance ?? false;
-  const exploreWelcome = Boolean(guide && stepAction === "explore");
+  const isWelcome = Boolean(guide);
   const reopenIndex = course && active ? tutorialReopenStep(course.steps, active.step) : null;
   const needsReopen = reopenIndex !== null && reopenIndex !== active?.step;
   const globalNavigation = stepTarget === '[data-tour="nav-today"]' || stepTarget === '[data-tour="nav-projects"]';
   const rect = locatedKey === stepKey ? measuredRect : null;
+  const targetReady = Boolean(rect || (isWelcome && locatedKey === stepKey));
   const fulfilled = actionKey === stepKey && actionDone;
   const emptyTaskList = Boolean(stepKey && emptyTaskKey === stepKey);
+  const check = guide?.check;
+  const answer = check?.choices[answers[stepKey]];
+  const correct = check !== undefined && answers[stepKey] === check.correct;
+  const canContinue = Boolean(!missing && (fulfilled || targetReady && (stepAction === "explore" || emptyTaskList)) && (!check || correct));
 
   useEffect(() => {
     const locate = () => setPortalRoot(document.querySelector<HTMLDialogElement>("dialog[open]") ?? document.body);
@@ -118,6 +125,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       setProjectId(selectedProject?.id ?? "");
       readyKey.current = "";
       setLocatedKey(""); setFulfilled(false); setMissing(false);
+      if (!resume) setAnswers({});
       window.dispatchEvent(new Event("agilecampus:tutorial-close-panels"));
       setPrompt(false); setFinished(null); setRunning(true);
     }
@@ -129,14 +137,17 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     }
   }
   async function advance(back = false) {
-    if (!course || !active || (!back && (!rect || step?.action !== "explore" && !fulfilled && !emptyTaskList))) return;
+    if (!course || !active || (!back && !canContinue)) return;
     if (!back && active.step === course.steps.length - 1) {
       if (await persist({ type: "complete", courseId: course.id })) {
         if (course.id === "welcome" && progress.journey?.projectId) setProjectId(progress.journey.projectId);
         setRunning(false); setFinished(course.title); router.push("/tutorials");
       }
     } else {
-      await persist({ type: "save", courseId: course.id, step: Math.max(0, active.step + (back ? -1 : 1)), projectId: course.id === "welcome" ? progress.journey?.projectId ?? null : project?.id ?? null });
+      const nextIndex = Math.max(0, active.step + (back ? -1 : 1));
+      const previous = course.steps[nextIndex];
+      const index = back && previous.reopenFrom && !findTutorialTarget(document, previous.target).element ? tutorialReopenStep(course.steps, nextIndex) : nextIndex;
+      await persist({ type: "save", courseId: course.id, step: index, projectId: course.id === "welcome" ? progress.journey?.projectId ?? null : project?.id ?? null });
     }
   }
 
@@ -177,23 +188,25 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   useEffect(() => {
     if (!stepRoute || !stepTarget) return;
     let located: HTMLElement | null = null;
-    const started = Date.now();
+    const started = window.performance.now();
     const measure = () => {
       setViewport((current) => current.width === window.innerWidth && current.height === window.innerHeight ? current : { width: window.innerWidth, height: window.innerHeight });
       // A successful click can open a dialog or jump to a new section. Let the user see it.
       if (fulfilled && stepAction === "click" && readyKey.current === stepKey) return;
       if (!tutorialRouteMatches(stepRoute, window.location.href, browseAcceptance)) {
         located = null; setRect(null);
-        if (!fulfilled && Date.now() - started > 8000) setMissing(true);
+        if (!fulfilled && window.performance.now() - started > 8000) setMissing(true);
         return;
       }
-      const resolved = findTutorialTarget(document, stepTarget);
-      const element = resolved.element;
+      const preferred = preferredTarget ? findTutorialTarget(document, preferredTarget) : null;
+      const resolved = preferred?.element ? preferred : findTutorialTarget(document, stepTarget);
+      const fallback = !resolved.element && fallbackTarget ? findTutorialTarget(document, fallbackTarget).element : null;
+      const element = resolved.element ?? fallback;
       if (stepAction === "result") {
         const complete = element?.getAttribute(step?.completion ?? "data-tour-complete") === "true";
         if (complete !== fulfilled) { setActionKey(stepKey); setFulfilled(complete); }
       }
-      setEmptyTaskKey(resolved.emptyTaskList ? stepKey : "");
+      setEmptyTaskKey(resolved.emptyTaskList || (fallback && stepAction === "click") ? stepKey : "");
       // Route changes close the mobile drawer asynchronously. Keep requesting
       // it while the target is hidden, rather than losing a one-shot event.
       if (globalNavigation && !element && !fulfilled) {
@@ -201,19 +214,20 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       }
       if (!element) {
         located = null; setRect(null);
-        if (!fulfilled && Date.now() - started > 5000) setMissing(true);
+        if (!fulfilled && window.performance.now() - started > 5000) setMissing(true);
         return;
       }
       if (located !== element) {
         located = element;
-        element.scrollIntoView({ block: browseAcceptance ? "start" : "center", inline: "nearest", behavior: "instant" });
+        if (!isWelcome || !fulfilled) element.scrollIntoView({ block: browseAcceptance ? "start" : "center", inline: "nearest", behavior: "instant" });
       }
       const bounds = element.getBoundingClientRect();
       const top = Math.max(8, bounds.top - 6), left = Math.max(8, bounds.left - 6);
       const width = Math.max(0, Math.min(window.innerWidth - 8, bounds.right + 6) - left);
       const height = Math.max(0, Math.min(window.innerHeight - 8, bounds.bottom + 6) - top);
       if ((!width || !height) && !browseAcceptance) {
-        located = null; setRect(null);
+        if (!isWelcome) located = null;
+        setRect(null);
         return;
       }
       const next = { top, left, width, height };
@@ -227,7 +241,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     window.addEventListener("scroll", measure, true);
     measure();
     return () => { clearInterval(interval); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [stepRoute, stepTarget, stepAction, stepKey, retry, fulfilled, browseAcceptance, globalNavigation, progress.journey, active?.step, course?.id, step?.id, step?.completion]);
+  }, [stepRoute, stepTarget, preferredTarget, fallbackTarget, stepAction, stepKey, retry, fulfilled, browseAcceptance, isWelcome, globalNavigation, progress.journey, active?.step, course?.id, step?.id, step?.completion]);
 
   useEffect(() => {
     if (!stepTarget || !stepAction) return;
@@ -267,7 +281,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         else if (finished) { setFinished(null); router.push("/tutorials"); }
       }
       if (event.key !== "Tab") return;
-      if (running && (browseAcceptance || exploreWelcome || (fulfilled && stepAction === "click"))) return;
+      if (running && (browseAcceptance || isWelcome || (fulfilled && stepAction === "click"))) return;
       const targets = step ? [...document.querySelectorAll<HTMLElement>(step.target)] : [];
       const focusables = [...targets.flatMap((target) => [target, ...target.querySelectorAll<HTMLElement>("a[href],button,input,textarea,select,[tabindex]")]), ...card.current?.querySelectorAll<HTMLElement>("a[href],button,input,select,[tabindex]") ?? []]
         .filter((node) => !node.hasAttribute("disabled") && node.tabIndex >= 0 && node.getBoundingClientRect().width > 0);
@@ -280,19 +294,23 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", onKey); };
   // Event handler uses the current progress and lesson.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, prompt, finished, running, stepKey, pending, fulfilled, stepAction, browseAcceptance, exploreWelcome]);
+  }, [mounted, prompt, finished, running, stepKey, pending, fulfilled, stepAction, browseAcceptance, isWelcome]);
 
   const modal = prompt || finished;
-  const cardWidth = Math.min(guide ? 392 : 360, viewport.width - 24);
+  const cardWidth = Math.min(check ? 428 : guide ? 392 : 360, viewport.width - 24);
   const mobile = viewport.width < 768;
-  const maskClass = exploreWelcome ? "bg-slate-950/25" : "bg-slate-950/60 pointer-events-auto";
+  const inNativeDialog = portalRoot?.tagName === "DIALOG";
+  const dockRight = !mobile && (inNativeDialog || !browseAcceptance && Boolean(rect && rect.left + rect.width / 2 < viewport.width / 2));
+  const maskClass = isWelcome ? "bg-slate-950/25" : "bg-slate-950/60 pointer-events-auto";
   const welcome = courses.find(item => item.id === "welcome")!;
   const rightSpace = rect && viewport.width - rect.left - rect.width;
   const leftSpace = rect?.left ?? 0;
   const hasSideSpace = Boolean(rect && (rightSpace && rightSpace > cardWidth + 24 || leftSpace > cardWidth + 24));
   const cardLeft = !mobile && rect && rightSpace && rightSpace > cardWidth + 24 ? rect.left + rect.width + 16
-    : !mobile && rect && leftSpace > cardWidth + 24 ? rect.left - cardWidth - 16 : viewport.width - cardWidth - 16;
-  const below = rect && rect.top + rect.height + 330 < viewport.height;
+    : !mobile && rect && leftSpace > cardWidth + 24 ? rect.left - cardWidth - 16 : rect ? viewport.width - cardWidth - 16 : 12;
+  const desktopCardHeight = Math.min(430, Math.floor(viewport.height * .55));
+  const lowestCardTop = viewport.height - desktopCardHeight - 16;
+  const below = rect && rect.top + rect.height + 16 <= lowestCardTop;
   const mobileSpaceAbove = rect ? Math.max(0, rect.top - 76) : 0;
   const mobileSpaceBelow = rect ? Math.max(0, viewport.height - rect.top - rect.height - 24) : 0;
   const mobileAbove = mobile && rect && mobileSpaceAbove > mobileSpaceBelow;
@@ -300,9 +318,9 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     ? Math.max(guide ? 230 : 170, Math.min(340, Math.max(mobileSpaceAbove, mobileSpaceBelow)))
     : Math.min(340, viewport.height * 0.55);
   const cardTop = mobile ? mobileAbove ? 64 : undefined
-    : rect && !hasSideSpace && rect.top > 356 ? rect.top - 340 - 16
+    : rect && !hasSideSpace && rect.top >= desktopCardHeight + 32 ? rect.top - desktopCardHeight - 16
     : rect && !hasSideSpace && below ? rect.top + rect.height + 16
-    : Math.max(16, Math.min(rect?.top ?? 80, viewport.height - 340));
+    : Math.max(16, Math.min(rect?.top ?? lowestCardTop, lowestCardTop));
 
   return <TutorialContext.Provider value={{ projects, project, showcase, courses, progress, pending, error, selectProject: setProjectId, start }}>
     <NavigationProgress active={pending} label="正在保存教程进度…" />
@@ -311,7 +329,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
       modal ? <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/65 p-4 backdrop-blur-sm">
         <div ref={card} role="dialog" aria-modal="true" aria-labelledby="tutorial-dialog-title" className="w-full max-w-lg rounded-2xl border border-stroke bg-panel p-6 shadow-2xl sm:p-8">
           <h2 id="tutorial-dialog-title" className="text-2xl font-semibold text-ink">{finished ? `已完成${finished}` : "用敏捷开发平台上手"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink-2">{finished === welcome.title ? "你已经走完一轮协作。下次接到任务，先看完成条件，再用对应证据交付，最后把验收意见带进下一轮分工。" : finished ? "可以回到教程目录，按功能继续学习。" : showcase ? `用约 ${welcomeMinutes(welcome.steps)} 分钟，从办公室的一条求助走到验收和项目复盘。随时暂停，下次可以从原步骤继续。` : "当前账号暂时无法访问敏捷开发平台。可以先在教程目录学习其他功能。"}</p>
+          <p className="mt-3 text-sm leading-6 text-ink-2">{finished === welcome.title ? "你已经从一条求助走到下一轮分工。下次接手任务，先确认完成条件，再附上能核对的证据，把收到的反馈写进下一轮。" : finished ? "可以回到教程目录，按功能继续学习。" : showcase ? `用约 ${welcomeMinutes(welcome.steps)} 分钟接手一项卡住的任务。打开真实记录，练习选择证据、给验收反馈，再从复盘里定一条下轮行动。` : "当前账号暂时无法访问敏捷开发平台。可以先在教程目录学习其他功能。"}</p>
           {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             {finished ? <button className="ac-btn" onClick={() => { setFinished(null); router.push("/tutorials"); }}>查看教程目录</button> : <>
@@ -322,7 +340,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           </div>
         </div>
       </div> : <div className="fixed inset-0 z-[100] pointer-events-none" aria-label="互动教程">
-        {browseAcceptance || (exploreWelcome && (collapsed || portalRoot?.tagName === "DIALOG")) || (fulfilled && stepAction === "click") ? null : rect && !missing ? <>
+        {browseAcceptance || (isWelcome && (collapsed || portalRoot?.tagName === "DIALOG")) || (fulfilled && stepAction === "click") ? null : rect && !missing ? <>
           {[
             { top: 0, left: 0, width: viewport.width, height: rect.top },
             { top: rect.top, left: 0, width: rect.left, height: rect.height },
@@ -332,36 +350,45 @@ export function TutorialProvider({ children, projects, initialProgress }: {
           <div className="absolute rounded-lg border-2 border-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,0.18),0_0_28px_rgba(56,189,248,0.3)] transition-[top,left,width,height] duration-150 motion-reduce:transition-none" style={rect} />
         </> : <div className={`absolute inset-0 ${maskClass}`} />}
         <div ref={card} role="dialog" aria-modal="false" aria-labelledby="tutorial-step-title" className="absolute pointer-events-auto flex max-h-[min(430px,55vh)] flex-col overflow-hidden rounded-2xl border border-stroke bg-panel p-4 shadow-2xl sm:p-5" style={collapsed
-          ? { width: cardWidth, ...(mobile || browseAcceptance ? { left: 12 } : { right: 12 }), bottom: 12 }
+          ? { width: cardWidth, ...(dockRight ? { right: 12 } : { left: 12 }), bottom: 12 }
           : browseAcceptance
           ? { width: cardWidth, maxHeight: mobile ? "min(280px, 40vh)" : "min(360px, 50vh)", left: 12, bottom: 12 }
-          : { width: cardWidth, maxHeight: mobile ? mobileCardHeight : undefined, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined }}>
+          : isWelcome && (!mobile || inNativeDialog)
+          ? { width: cardWidth, maxHeight: inNativeDialog ? "min(340px, 46vh)" : desktopCardHeight, ...(dockRight ? { right: 12 } : { left: 12 }), bottom: 12 }
+          : { width: cardWidth, maxHeight: mobile ? mobileCardHeight : desktopCardHeight, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined }}>
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="font-semibold text-signal">{chapter?.title ?? course?.title ?? "教程"}</span>
             <div className="flex flex-wrap justify-end gap-1">
-              {exploreWelcome && <button type="button" aria-expanded={!collapsed} aria-controls="tutorial-step-content" onClick={() => setCollapsedStep(collapsed ? "" : stepKey)} className="rounded px-2 py-1 text-signal hover:bg-sunken">{collapsed ? "展开讲解" : "收起讲解"}</button>}
+              {isWelcome && <button type="button" aria-expanded={!collapsed} aria-controls="tutorial-step-content" onClick={() => setCollapsedStep(collapsed ? "" : stepKey)} className="rounded px-2 py-1 text-signal hover:bg-sunken">{collapsed ? "展开讲解" : "收起讲解"}</button>}
               <button disabled={pending} onClick={() => void pause()} className="rounded px-2 py-1 text-ink-3 hover:bg-sunken">暂停 / 退出</button>
             </div>
           </div>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-label="教程进度" aria-valuemin={0} aria-valuemax={course?.steps.length ?? 1} aria-valuenow={(active?.step ?? 0) + 1}>
             <div className="h-full bg-signal transition-all motion-reduce:transition-none" style={{ width: `${((active?.step ?? 0) + 1) / (course?.steps.length ?? 1) * 100}%` }} />
           </div>
-          <p className="mt-3 text-xs text-ink-3">步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}{guide && <> <span aria-hidden>·</span> 约 {guide.seconds} 秒</>}</p>
+          <p className="mt-3 text-xs text-ink-3">{step?.chapter !== undefined && <>第 {step.chapter + 1} 章 / {WELCOME_CHAPTERS.length} <span aria-hidden>· </span></>}步骤 {(active?.step ?? 0) + 1} / {course?.steps.length ?? 1}</p>
           <h2 id="tutorial-step-title" className="mt-1 shrink-0 text-lg font-semibold text-ink">{step?.title ?? "先选择可用的项目"}</h2>
           <div key={stepKey} id="tutorial-step-content" hidden={collapsed} className="min-h-0 overflow-y-auto pr-1" tabIndex={0} role="region" aria-label="步骤讲解">
-            <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "当前任务列表为空。任务发布后会出现在这里，点击任务即可查看交接要求与提交入口。现在可以继续认识执行流程，无需先创建任务。" : missing ? needsReopen ? "这个面板还没打开。回到打开面板的步骤，打开后就能继续。" : "暂未找到这一步需要的入口。可以重新定位，也可以暂停后再继续。" : step?.instruction}</p>
-            {guide && allowed && !missing && <div className="mt-3 rounded-lg bg-signal-soft px-3 py-2 text-xs leading-5 text-ink-2">
+            <p className="mt-2 text-sm leading-6 text-ink-2">{!allowed ? "当前项目或角色已不可用。请返回教程目录选择你有权限的项目。" : emptyTaskList ? "这里还没有可以打开的任务。可以继续用后面的示例练习交付。" : missing ? needsReopen ? "这一步需要先打开内容。返回对应的打开步骤即可继续。" : "暂未找到这一步需要的入口。可以重新定位，也可以暂停后再继续。" : step?.instruction}</p>
+            {check && targetReady && !missing && <fieldset className="mt-3 space-y-1.5">
+              <legend className="mb-2 text-sm font-semibold text-ink">{check.question}</legend>
+              {check.choices.map((choice, index) => <button key={choice.text} type="button" aria-pressed={answers[stepKey] === index}
+                className="block w-full rounded-lg border border-stroke px-3 py-2 text-left text-xs leading-5 text-ink hover:bg-sunken aria-pressed:border-signal aria-pressed:bg-signal-soft"
+                onClick={() => setAnswers(current => ({ ...current, [stepKey]: index }))}>{choice.text}</button>)}
+              {answer && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-xs leading-5 ${correct ? "bg-success-soft text-success" : "bg-warn-soft text-warn"}`}>{answer.feedback}</p>}
+            </fieldset>}
+            {guide && allowed && !missing && (!check || correct) && <div className="mt-3 rounded-lg bg-signal-soft px-3 py-2 text-xs leading-5 text-ink-2">
               <p className="font-semibold text-signal">{nextChapter === undefined ? "带到下一轮" : nextChapter !== step?.chapter ? `下一章 · ${WELCOME_CHAPTERS[nextChapter]?.title}` : "接下来"}</p>
               <p>{guide.handoff}</p>
             </div>}
-            {((!browseAcceptance && !exploreWelcome) || !rect || missing || emptyTaskList) && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
-              {fulfilled ? "操作完成，可以继续。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "尚未定位到入口" : !rect ? "正在定位页面入口…" : step?.action === "click" ? "请点击亮起的入口" : step?.completion === "data-tour-conversation-open" ? "展开会话表单后继续" : step?.completion === "data-tour-conversation-closed" ? "收起会话表单后继续" : step?.action === "result" ? "完成亮起区域的操作后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "查看高亮区域后继续"}
+            {((!browseAcceptance && (!isWelcome || stepAction !== "explore")) || !targetReady || missing || emptyTaskList) && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${fulfilled ? "bg-success-soft text-success" : "bg-sunken text-ink-3"}`}>
+              {fulfilled ? "操作完成，可以继续。" : emptyTaskList ? "暂无任务，可以继续学习流程" : missing ? "尚未定位到入口" : !targetReady ? "正在定位页面入口…" : step?.action === "click" ? inNativeDialog && isWelcome ? "读完后，点击面板上的关闭按钮" : "请点击亮起的入口" : step?.completion === "data-tour-conversation-open" ? "展开会话表单后继续" : step?.completion === "data-tour-conversation-closed" ? "收起会话表单后继续" : step?.action === "result" ? "完成亮起区域的操作后继续" : step?.action === "input" ? "请在亮起的输入框中实际填写" : "查看高亮区域后继续"}
             </p>}
             {error && <p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
           </div>
           <div className="mt-3 flex shrink-0 items-center justify-between gap-2 border-t border-stroke pt-2">
             <button className="ac-btn-ghost" disabled={pending || !active?.step} onClick={() => void advance(true)}>上一步</button>
-            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={retryTarget}>{needsReopen ? "返回打开面板" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !rect || step?.action !== "explore" && !fulfilled && !emptyTaskList} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
+            {!allowed ? <button className="ac-btn" disabled={pending} onClick={() => void pause()}>返回教程目录</button> : missing ? <button className="ac-btn" disabled={pending} onClick={retryTarget}>{needsReopen ? "返回打开步骤" : "重新定位"}</button> : <button className="ac-btn" disabled={pending || !canContinue} onClick={() => void advance()}>{pending ? "保存中…" : active?.step === (course?.steps.length ?? 0) - 1 ? "完成教程 ✓" : "下一步 →"}</button>}
           </div>
         </div>
       </div>, portalRoot ?? document.body)}

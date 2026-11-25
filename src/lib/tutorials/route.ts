@@ -30,13 +30,18 @@ export function tutorialRouteMatches(route: string, current: string, browseAccep
 }
 /** Native dialogs don't survive navigation or reload. Let users reopen the original control. */
 export function tutorialReopenStep(steps: readonly TutorialStep[], index: number) {
+  const step = steps[index];
+  if (step?.reopenFrom) {
+    const opener = steps.findIndex(item => item.id === step.reopenFrom && item.route === step.route);
+    return opener >= 0 && opener < index ? opener : index;
+  }
   const openers: Record<string, string> = {
     "timeline-inspector": "timeline-node",
     "timeline-close": "timeline-node",
     "evaluation-close": "teacher-evaluation",
     "help-close": "help-button",
   };
-  const target = steps[index]?.target;
+  const target = step?.target;
   const name = target?.match(/^\[data-tour="([\w-]+)"\]$/)?.[1];
   const opener = name && openers[name];
   if (!opener) return index;

@@ -41,8 +41,8 @@ export default function TutorialsPage() {
         <div className={s.intro}>
           <p className={s.kicker}><WorkspaceIcon name="tutorials" className="size-4" /> 项目导览</p>
           <h2 id="welcome-title">敏捷开发平台</h2>
-          <p className={s.lead}>从办公室的一条求助出发，顺着分工、交付和验收走一轮，最后从复盘报告里选出下一轮要做的事。</p>
-          <p className={s.projectMeta}>约 {welcomeMinutes(welcome.steps)} 分钟 <span aria-hidden>·</span> {welcome.steps.length} 步{showcase && <> <span aria-hidden>·</span> {ROLE_NAMES[showcase.role]}视角</>}</p>
+          <p className={s.lead}>接手一项被卡住的任务。沿着实际求助找到交接要求，练习挑选交付证据和给验收反馈，再用报告定下下一轮要做的事。</p>
+          <p className={s.projectMeta}>约 {welcomeMinutes(welcome.steps)} 分钟 <span aria-hidden>·</span> {WELCOME_CHAPTERS.length} 章 {welcome.steps.length} 步{showcase && <> <span aria-hidden>·</span> {ROLE_NAMES[showcase.role]}视角</>}</p>
           {showcase ? (
             <>
               <div className={s.actions}>

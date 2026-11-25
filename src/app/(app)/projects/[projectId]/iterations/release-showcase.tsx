@@ -12,14 +12,14 @@ export function ReleaseShowcase({ releases, hasOutcomes, openVersion }: {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const latest = releases[0];
   const selected = releases.find(version => version.id === selectedId) ?? latest;
-  if (!selected) return <section className={styles.showcase} aria-labelledby="release-change-title">
+  if (!selected) return <section data-tour="iteration-history" className={styles.showcase} aria-labelledby="release-change-title">
     <div className={styles.showcaseHeader}>
       <div><h2 id="release-change-title">首个版本尚未归档</h2><p className={styles.showcaseSummary}>验收后的交付成果会自动显示在下方。</p></div>
       {hasOutcomes && <a className={styles.showcaseAction} href="#iteration-pending">查看已验收成果 <span aria-hidden>↓</span></a>}
     </div>
   </section>;
 
-  return <section className={styles.showcase} aria-labelledby="release-change-title">
+  return <section data-tour="iteration-history" className={styles.showcase} aria-labelledby="release-change-title">
     {releases.length > 1 && <nav className={styles.releasePicker} aria-label="切换归档版本">
       {releases.map(version => <button type="button" key={version.id} aria-pressed={version.id === selected.id}
         aria-label={`${version.version} · ${version.title}`} onClick={() => setSelectedId(version.id)}>

@@ -43,9 +43,10 @@ async function withShowcase(actorId: string, progress: TutorialProgress): Promis
       .leftJoin(taskStages, eq(tasks.stageId, taskStages.id))
       .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false), access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
       .orderBy(sql`${tasks.id} is distinct from ${helpTaskId}`, asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1),
-    access.role === "student" ? [] : db.select({ id: tasks.id, title: tasks.title, status: tasks.status }).from(tasks)
+    db.select({ id: tasks.id, title: tasks.title, status: tasks.status }).from(tasks)
       .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false),
-        access.role === "teacher" ? eq(tasks.status, "done") : inArray(tasks.status, ["review", "done"])))
+        access.role === "teacher" ? eq(tasks.status, "done") : inArray(tasks.status, ["review", "done"]),
+        access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
       .orderBy(sql`(${tasks.status} = 'review') desc`, ...(helpTaskId ? [sql`${tasks.assigneeId} is distinct from (
         select source.assignee_id from tasks as source where source.id = ${helpTaskId} and source.project_id = ${access.project.id}
       )`] : []), sql`${tasks.submittedAt} desc nulls last`, asc(tasks.sortOrder), asc(tasks.id)).limit(1),

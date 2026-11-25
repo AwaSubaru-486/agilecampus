@@ -32,7 +32,7 @@ function TaskNode({ task, point, group, selected, owner, zoom, ...props }: {
     <div className="ac-tech-node-head"><span>{group ? "任务分组" : "执行任务"}</span>
       {!group && !props.readOnly && <button ref={setActivatorNodeRef} type="button" {...attributes} {...listeners} className="ac-tech-handle" disabled={props.disabled} aria-label={`拖动任务：${task.title || "未命名"}`}>⠿</button>}
     </div>
-    <button type="button" data-tour={props.readOnly ? "timeline-node" : "draft-node"} className="ac-tech-node-title" disabled={props.disabled && !props.readOnly} aria-label={`${props.readOnly ? "查看" : "编辑"}任务：${task.title || "未命名"}`} onClick={props.onSelect}>{task.title || "给新任务起个名字"}</button>
+    <button type="button" data-tour={props.readOnly ? "timeline-node" : "draft-node"} data-tour-task-key={props.readOnly ? task.key : undefined} className="ac-tech-node-title" disabled={props.disabled && !props.readOnly} aria-label={`${props.readOnly ? "查看" : "编辑"}任务：${task.title || "未命名"}`} onClick={props.onSelect}>{task.title || "给新任务起个名字"}</button>
     <div className="ac-tech-node-foot"><span>{owner}</span><span>{task.doneCriteria.filter(text => text.trim()).length} 项验收标准</span></div>
     {!props.readOnly && <button type="button" data-tour={selected ? "draft-add-selected" : undefined} className="ac-tech-plus" disabled={props.disabled} aria-label={`在任务后新增：${task.title || "未命名"}`} onClick={props.onAdd}>＋</button>}
     {props.dragging && !isDragging && !group && <div className="ac-tech-targets">
