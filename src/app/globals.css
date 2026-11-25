@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Tiejili SC";
+  src: url("/fonts/TiejiliSC-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* Immediate feedback without blocking an action or replacing its result. */
 button:not(:disabled):active, a.ac-btn:active, a.ac-btn-ghost:active,
 .ac-shell-primary-nav a:active, .ac-project-navigation a:active {
@@ -124,10 +132,10 @@ button[aria-busy="true"] { cursor: wait; }
   --motion-spring: linear(0, 0.16 8%, 0.8 38%, 1.02 62%, 1 100%);
 
   /* ---------- 字体 ---------- */
-  /* 本机字体覆盖正文、标题、控件和数据，离线时也能使用。 */
+  /* 项目标题使用本站提供的字库，其余字体由系统提供。 */
   --font-sans: "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
   --font-display: Georgia, "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
-  --font-project-title: STHupo, "华文琥珀", YouYuan, "Yuanti SC", "Microsoft YaHei", var(--font-sans);
+  --font-project-title: "Tiejili SC", var(--font-sans);
   --font-label: "DengXian", var(--font-sans);
   --font-data: "Bahnschrift", "DIN Alternate", var(--font-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -200,21 +208,18 @@ body {
 
 .ac-shell-main .ac-project-title {
   font-family: var(--font-project-title);
+  font-weight: 400;
   font-synthesis: none;
   overflow-wrap: anywhere;
 }
 
 @supports (paint-order: stroke fill) {
   .ac-shell-main .ac-project-title {
-    --project-title-keyline: #34393f;
     color: #111;
     letter-spacing: .055em;
-    -webkit-text-stroke: .23em #fff;
+    -webkit-text-stroke: .1em #fff;
     paint-order: stroke fill;
-    filter: drop-shadow(.65px 0 0 var(--project-title-keyline))
-      drop-shadow(-.65px 0 0 var(--project-title-keyline))
-      drop-shadow(0 .65px 0 var(--project-title-keyline))
-      drop-shadow(0 -.65px 0 var(--project-title-keyline));
+    filter: drop-shadow(0 1px .6px #34393f42);
   }
 }
 
