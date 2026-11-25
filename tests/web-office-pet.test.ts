@@ -73,9 +73,15 @@ describe("网页桌宠与办公室联动", () => {
     expect((await configure({ preset: "pacman", name: "豆豆" })).status).toBe(200);
     const home = await ensureHome(owner.id); expect(home.workingProjectId).toBe(project.id);
     const view = await getHomeView(peer.id, { view: "courtyard", team: team.id, projectId: project.id });
-    expect(view.workstations.find(seat => seat.ownerId === owner.id)?.pet?.name).toBe("豆豆");
+    const pacman = view.workstations.find(seat => seat.ownerId === owner.id)?.pet;
+    expect(pacman?.name).toBe("豆豆");
+    expect(pacman?.definition?.seatedScale).toBeUndefined();
     expect((await currentWebHomePet(owner.id)).appearance.src).not.toBe(first.appearance.src);
-    expect((await configure({ preset: "mentor", name: "西装伙伴" })).status).toBe(200);
+    expect((await configure({ preset: "mentor", name: "小西" })).status).toBe(200);
+    const mentorOffice = await getHomeView(peer.id, { view: "courtyard", team: team.id, projectId: project.id });
+    expect(mentorOffice.workstations.find(seat => seat.ownerId === owner.id)?.pet).toMatchObject({
+      name: "小西", definition: { seatedScale: 1.18 },
+    });
     const mentorPet = await currentWebHomePet(owner.id);
     if (mentorPet.appearance.type !== "image") throw new Error("expected image");
     expect(Buffer.from(await (await asset(owner.id)).arrayBuffer())).toEqual(await readFile("public/desk-pet/frames/mentor_0.png"));

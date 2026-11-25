@@ -6,6 +6,7 @@ import s from "./home.module.css";
 
 /** Architectural space and modular objects; independent of the pet renderer. */
 export function WorkstationArt({ occupied = false, pet, greeting = false }: { occupied?: boolean; pet?: HomePetDisplay; greeting?: boolean }) {
+  const seatedScale = pet?.definition?.seatedScale ?? 1;
   return <svg viewBox="0 0 160 125" fill="none" aria-hidden="true">
     <ellipse cx="80" cy="112" rx="64" ry="9" fill="#244d5510" />
     <path d="M72 68V100M55 105L72 99L89 105" stroke="#78958f" strokeWidth="3" strokeLinecap="round" />
@@ -13,7 +14,10 @@ export function WorkstationArt({ occupied = false, pet, greeting = false }: { oc
     <rect x="52" y="15" width="40" height="34" rx="10" fill="#a9c1ba" />
     <path d="M48 50H96L102 67H42Z" fill="#799c91" />
     {occupied && pet && <g className={greeting ? undefined : s.typingBody} data-typing-body={!greeting}>
-      <svg x="43" y="8" width="58" height="64" viewBox="0 0 100 84" overflow="hidden" data-seated-pet><HomePetAvatar pet={pet} seated action={greeting ? "greet" : "idle"} /></svg>
+      <svg x="43" y="8" width="58" height="64" viewBox="0 0 100 84" overflow="hidden" data-seated-pet
+        transform={seatedScale === 1 ? undefined : `translate(72 57) scale(${seatedScale}) translate(-72 -57)`}>
+        <HomePetAvatar pet={pet} seated action={greeting ? "greet" : "idle"} />
+      </svg>
     </g>}
     <path d="M27 72V106M132 72V106" stroke="#8ba7a5" strokeWidth="6" />
     <path d="M17 61L128 54L147 75L35 84Z" fill="#e8f0ef" stroke="#c3d5d3" />
