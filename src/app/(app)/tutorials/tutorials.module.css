@@ -1,0 +1,117 @@
+.page {
+  max-width: 75rem;
+  margin-inline: auto;
+  padding-block: .25rem 4rem;
+}
+
+.header, .lessonHeader, .filters, .lessonFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header { margin-bottom: 1.25rem; }
+.header h1 { font-size: clamp(1.45rem, 2.6vw, 2rem); font-weight: 700; }
+.header a { font-size: .875rem; font-weight: 650; color: var(--color-signal); }
+.header a:hover, .open:hover { text-decoration: underline; text-underline-offset: .24em; }
+
+.hero {
+  --hero-muted: #bcd8d0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(17.5rem, .85fr);
+  align-items: center;
+  gap: clamp(1.75rem, 5vw, 4.25rem);
+  padding: clamp(1.5rem, 5vw, 4rem);
+  border: 1px solid #275148;
+  border-radius: clamp(1.25rem, 3vw, 2rem);
+  color: #f3fbf6;
+  background:
+    radial-gradient(ellipse at 5% 3%, #286052 0%, transparent 58%),
+    radial-gradient(circle at 1px 1px, #add7c516 1px, transparent 1.4px) 0 0 / 20px 20px,
+    linear-gradient(125deg, #173c33, #0b2725);
+  box-shadow: 0 20px 44px -32px #133b2a9c;
+}
+
+.kicker { display: flex; align-items: center; gap: .55rem; color: #b9dfbd; font-size: .875rem; font-weight: 650; }
+.intro h2 {
+  margin-block: .5rem .9rem;
+  font: 700 clamp(2.3rem, 5.5vw, 4.4rem)/1.13 var(--font-display);
+  letter-spacing: -.035em;
+}
+.lead { max-width: 31rem; color: #e0eee7; font-size: clamp(.95rem, 1.6vw, 1.125rem); line-height: 1.75; }
+.projectMeta { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1.5rem; color: var(--hero-muted); font-size: .825rem; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: .8rem 1.25rem; margin-top: .85rem; }
+.start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .65rem;
+  min-height: 2.9rem;
+  padding: .65rem 1.05rem;
+  border-radius: .7rem;
+  background: #dcf2be;
+  color: #153727;
+  font-weight: 750;
+  font-size: .9rem;
+}
+.start:not(:disabled):hover { background: #effbdc; }
+.start:disabled { opacity: .65; cursor: wait; }
+.open { color: #f2fbf3; font-size: .875rem; font-weight: 600; }
+.progressNote { margin-top: .7rem; color: var(--hero-muted); font-size: .8rem; }
+.unavailable { display: grid; justify-items: start; gap: .5rem; margin-top: 1.4rem; color: var(--hero-muted); font-size: .875rem; }
+
+.itinerary {
+  padding: clamp(1.1rem, 2.4vw, 1.65rem);
+  border: 1px solid #80b09a4d;
+  border-radius: 1.15rem;
+  background: #eaf3e9;
+  color: #152e27;
+  box-shadow: 0 14px 36px #071c1d35;
+}
+.itinerary h3 { padding-bottom: .75rem; border-bottom: 1px solid #cadbd0; color: #38574c; font-size: .8rem; font-weight: 700; }
+.itinerary ol { margin-top: .5rem; }
+.itinerary li { position: relative; display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .7rem; padding: .65rem 0; }
+.itinerary li:not(:last-child)::after { content: ""; position: absolute; left: .97rem; top: 2.65rem; bottom: -.65rem; border-left: 1px solid #a4bfb0; }
+.marker { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid #b7cfc0; border-radius: 50%; background: #f5fcf4; color: #35614d; font: 670 .8rem/1 var(--font-mono); }
+.itinerary li[aria-current="step"] .marker { background: #235545; color: #fff; border-color: #235545; }
+.itinerary h4 { margin-top: .05rem; font-size: .96rem; font-weight: 750; }
+.itinerary p { margin-top: .15rem; color: #415e56; font-size: .8rem; line-height: 1.55; }
+
+.lessons { margin-top: 2.8rem; scroll-margin-top: 6rem; }
+.lessonHeader { align-items: end; margin-bottom: 1.05rem; }
+.lessonHeader h2 { font: 700 1.55rem/1.35 var(--font-display); }
+.projectPicker { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; color: var(--color-ink-2); font-size: .8rem; }
+.projectPicker select { max-width: min(20rem, 100%); min-width: 0; font-size: .85rem; }
+.resumeLesson { margin-top: .55rem; color: var(--color-signal); font-size: .8rem; font-weight: 650; }
+.filters { align-items: stretch; padding-bottom: .9rem; border-bottom: 1px solid var(--color-stroke); }
+.filters nav { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .4rem; }
+.filters nav button { padding: .55rem .75rem; border-radius: .6rem; color: var(--color-ink-2); font-size: .84rem; }
+.filters nav button:hover { background: var(--color-panel-hover); }
+.filters nav button[aria-pressed="true"] { background: var(--color-signal-soft); color: var(--color-signal); font-weight: 700; }
+.filters input { width: min(100%, 16rem); font-size: .85rem; }
+.lessonGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem; margin-top: 1rem; }
+.lesson { display: flex; flex-direction: column; justify-content: space-between; padding: 1.15rem; border: 1px solid var(--color-stroke); border-radius: 1rem; background: var(--color-panel); }
+.lesson h3 { font-size: 1rem; font-weight: 700; }
+.lesson p { margin: .35rem 0 .85rem; color: var(--color-ink-2); font-size: .84rem; line-height: 1.6; }
+.lessonFooter { padding-top: .7rem; border-top: 1px solid var(--color-stroke); font-size: .78rem; color: var(--color-ink-3); }
+.lessonFooter button { display: inline-flex; align-items: center; gap: .35rem; color: var(--color-signal); font-weight: 700; }
+.lessonFooter button:not(:disabled):hover, .resumeLesson:hover { text-decoration: underline; }
+.lessonFooter button:disabled { color: var(--color-ink-3); opacity: .65; }
+.empty { padding: 1.5rem 0; color: var(--color-ink-2); font-size: .88rem; }
+.roles { display: flex; align-items: center; gap: .45rem; margin-top: .9rem; color: var(--color-ink-2); font-size: .8rem; }
+.page :is(a, button, input, select):focus-visible { outline: 2px solid var(--color-signal); outline-offset: 3px; }
+.hero :is(a, button):focus-visible { outline-color: #dcf2be; }
+
+@media (max-width: 850px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .lessonGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .hero { gap: 1.4rem; padding: 1.15rem; }
+  .intro h2 { font-size: clamp(1.85rem, 9vw, 2.5rem); }
+  .lessonGrid { grid-template-columns: minmax(0, 1fr); }
+  .filters input { width: 100%; }
+}

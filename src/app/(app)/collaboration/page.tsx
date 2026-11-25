@@ -94,7 +94,7 @@ export default async function CollaborationPage({ searchParams }: { searchParams
       {projectFilter && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stroke bg-panel p-4 text-sm"><p>正在查看项目内的求助。</p><Link href="/collaboration#help" className="text-signal">查看全部项目 →</Link></div>}
       {focusAnchor && !selectedGroup && <p role="status" className="rounded-xl border border-stroke bg-panel p-4 text-sm text-ink-3">这项求助已结束或当前不可见，可查看下方仍需帮助的任务。</p>}
 
-      <section id="help" className="ac-card scroll-mt-20 overflow-hidden">
+      <section id="help" data-tour="collaboration-help" className="ac-card scroll-mt-20 overflow-hidden">
         <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-stroke px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">需要协助的任务与求助</h2>
           <span className="text-xs tabular-nums text-ink-3">{openBlockerRows.length} 条求助</span>

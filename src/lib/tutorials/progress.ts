@@ -3,10 +3,11 @@ import { z } from "zod";
 import { db } from "@/db";
 import { users, tasks, taskStages } from "@/db/schema";
 import { ForbiddenError } from "@/lib/errors";
+import { listCollaborationHelp } from "@/lib/blocker";
 import { getProjectForUser, listMyProjects } from "@/lib/project";
 import { getTeamMembership } from "@/lib/team";
 import { buildTutorialCourses, COURSE_IDS, INITIAL_TUTORIAL_PROGRESS, type TutorialProgress } from "./catalog";
-import { EMPTY_JOURNEY } from "./example-flow";
+import { EMPTY_JOURNEY, WELCOME_VERSION } from "./example-flow";
 import { findShowcaseProject } from "./showcase";
 
 export const tutorialCommandSchema = z.discriminatedUnion("type", [
@@ -18,14 +19,14 @@ export const tutorialCommandSchema = z.discriminatedUnion("type", [
 export type TutorialCommand = z.infer<typeof tutorialCommandSchema>;
 
 function normalizeProgress(progress: TutorialProgress): TutorialProgress {
-  if (progress.journey?.version === 6) return progress;
-  // Old creation/submission steps have no equivalent in a project showcase.
+  if (progress.journey?.version === WELCOME_VERSION) return progress;
+  // Step numbers from earlier walkthroughs refer to a different route.
   return {
     ...progress, journey: { ...EMPTY_JOURNEY },
     completed: progress.completed.filter(id => id !== "welcome"),
     status: progress.status === "completed" ? "started" : progress.status,
     active: progress.active?.courseId === "welcome"
-      ? { courseId: "welcome", step: 0, projectId: null, paused: true, journeyVersion: 6 } : progress.active,
+      ? { courseId: "welcome", step: 0, projectId: null, paused: true, journeyVersion: WELCOME_VERSION } : progress.active,
   };
 }
 
@@ -34,14 +35,20 @@ async function withShowcase(actorId: string, progress: TutorialProgress): Promis
   const showcase = findShowcaseProject(accessible.map(project => ({ ...project, role: "student" as const })));
   const access = showcase ? await getProjectForUser(actorId, showcase.id) : null;
   if (!access) return { ...progress, journey: { ...EMPTY_JOURNEY } };
+  const help = await listCollaborationHelp(actorId, access.project.id);
+  const helpTaskId = help.find(request => request.taskId)?.taskId ?? null;
   const [task] = access.role === "teacher" ? [] : await db.select({ id: tasks.id }).from(tasks)
     .leftJoin(taskStages, eq(tasks.stageId, taskStages.id))
     .where(and(eq(tasks.projectId, access.project.id), eq(tasks.isTaskGroup, false), access.role === "student" ? eq(tasks.assigneeId, actorId) : undefined))
-    .orderBy(asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1);
+    .orderBy(sql`${tasks.id} is distinct from ${helpTaskId}`, asc(taskStages.position), asc(tasks.sortOrder), asc(tasks.id)).limit(1);
+  const changed = progress.journey?.projectId !== access.project.id || progress.journey.role !== access.role;
   return {
     ...progress,
-    journey: { version: 6, teamId: access.project.teamId, projectId: access.project.id, role: access.role, taskId: task?.id ?? null },
-    active: progress.active?.courseId === "welcome" ? { ...progress.active, projectId: access.project.id, journeyVersion: 6 } : progress.active,
+    journey: { version: WELCOME_VERSION, teamId: access.project.teamId, projectId: access.project.id, role: access.role, taskId: task?.id ?? null, helpTaskId },
+    active: progress.active?.courseId === "welcome" ? {
+      ...progress.active, projectId: access.project.id, journeyVersion: WELCOME_VERSION,
+      ...(changed ? { step: 0, paused: true } : {}),
+    } : progress.active,
   };
 }
 
@@ -73,9 +80,9 @@ export async function updateTutorialProgress(actorId: string, raw: unknown): Pro
     }
     const progress: TutorialProgress = command.type === "restart-example" ? {
       ...current, status: "started", completed: current.completed.filter(id => id !== "welcome"),
-      active: { courseId: "welcome", step: 0, projectId: current.journey!.projectId, journeyVersion: 6 },
+      active: { courseId: "welcome", step: 0, projectId: current.journey!.projectId, journeyVersion: WELCOME_VERSION },
     } : command.type === "save" ? {
-      ...current, status: "started", active: { courseId: command.courseId, step: command.step, projectId: command.projectId, ...(command.courseId === "welcome" ? { journeyVersion: 6 } : {}) },
+      ...current, status: "started", active: { courseId: command.courseId, step: command.step, projectId: command.projectId, ...(command.courseId === "welcome" ? { journeyVersion: WELCOME_VERSION } : {}) },
     } : command.type === "complete" ? {
       ...current, status: command.courseId === "welcome" ? "completed" : current.status === "new" ? "started" : current.status,
       active: null, completed: [...new Set([...current.completed, command.courseId])],

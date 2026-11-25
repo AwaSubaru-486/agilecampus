@@ -198,7 +198,7 @@ export function HomeSpace({ data, project, taskBoard, taskSummary, blockedMember
     </>}
     {notice && <p className={`${s.notice} ${notice.error ? s.error : ""}`} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
     {!team ? <div className={s.empty}><Mark name="leaf" /><h2>庭院，等大家一起开启。</h2><p>加入一个团队，就能带伙伴到共享庭院相聚。</p><Link className="ac-btn" href="/teams">前往我的团队 →</Link></div> : <div className={`${s.workspace} ${s.officeWorkspace}`}>
-      <section className={s.gardenCard} aria-label={project ? "项目办公室" : "团队共享庭院"}>
+      <section className={s.gardenCard} aria-label={project ? "项目办公室" : "团队共享庭院"} data-tour={project ? "project-office" : undefined}>
         {project ? <div className={s.officeToolbar}>{workingCount}{petButton}</div>
           : <div className={s.sceneHeader}><div><p>团队共享办公室</p><h2>{team.name}的庭院</h2></div>{workingCount}</div>}
         <div ref={sceneRef} className={`${s.scene} ${s.meadow}`}>

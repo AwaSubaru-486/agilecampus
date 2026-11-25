@@ -9,6 +9,7 @@ import type { TutorialCommand } from "@/lib/tutorials/progress";
 import { saveTutorialProgress } from "./actions";
 import { findTutorialTarget } from "@/lib/tutorials/target";
 import { findShowcaseProject } from "@/lib/tutorials/showcase";
+import { WELCOME_CHAPTERS } from "@/lib/tutorials/example-flow";
 import { NavigationProgress } from "@/components/navigation-progress";
 
 type TutorialContextValue = {
@@ -62,6 +63,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
   const allowed = course && (course.id === "welcome" ? showcase : !course.needsProject || project) && (!course.roles || project && course.roles.includes(project.role))
     && (course.id === "welcome" || !active?.projectId || active.projectId === project?.id) && (active?.step ?? 0) < course.steps.length;
   const step = running && allowed && course ? course.steps[active?.step ?? 0] : null;
+  const chapter = step?.chapter === undefined ? null : WELCOME_CHAPTERS[step.chapter];
   const stepKey = step ? `${course?.id}:${active?.step}:${projectId}` : "";
   const stepRoute = step?.route;
   const stepTarget = step?.target;
@@ -300,14 +302,13 @@ export function TutorialProvider({ children, projects, initialProgress }: {
     {mounted && (modal || running) && createPortal(
       modal ? <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/65 p-4 backdrop-blur-sm">
         <div ref={card} role="dialog" aria-modal="true" aria-labelledby="tutorial-dialog-title" className="w-full max-w-lg rounded-2xl border border-stroke bg-panel p-6 shadow-2xl sm:p-8">
-          <span className="text-xs font-semibold tracking-widest text-signal">AGILECAMPUS，互动教程</span>
-          <h2 id="tutorial-dialog-title" className="mt-3 text-2xl font-semibold text-ink">{finished ? `完成了：${finished}` : "跟着汪汪队认识敏捷开发平台"}</h2>
-          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "以后可以从“新手教程”按功能继续学习，或重新查看展示项目。" : "从汪汪队现有的成员与任务出发，认识看板、时间线、三角色分工、AI 对话与成果验收。可以随时暂停，之后继续查看。"}</p>
-          {!finished && <p className="mt-3 rounded-lg bg-sunken p-3 text-xs leading-5 text-ink-3">{showcase ? "点击查看实际页面即可学习，认领、提交和审核留到真实工作时操作。" : "展示教程需要加入汪汪队。你也可以先进入教程目录，选择可访问项目学习其他功能。"}</p>}
+          <h2 id="tutorial-dialog-title" className="text-2xl font-semibold text-ink">{finished ? `已完成${finished}` : "用敏捷开发平台上手"}</h2>
+          <p className="mt-3 text-sm leading-6 text-ink-2">{finished ? "可以回到教程目录，按功能继续学习。" : showcase ? "从办公室出发，跟着实际任务查看分工、协作求助、验收和复盘。随时暂停，下次接着看。" : "当前账号暂时无法访问敏捷开发平台。可以先在教程目录学习其他功能。"}</p>
           {error && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             {finished ? <button className="ac-btn" onClick={() => { setFinished(null); router.push("/tutorials"); }}>查看教程目录</button> : <>
-              <button className="ac-btn" disabled={pending || !showcase} onClick={() => void start("welcome")}>{pending ? "保存中…" : "开始项目导览 →"}</button>
+              {showcase ? <button className="ac-btn" disabled={pending} onClick={() => void start("welcome")}>{pending ? "保存中…" : "开始项目导览 →"}</button>
+                : <button className="ac-btn" disabled={pending} onClick={async () => { if (await persist({ type: "dismiss" })) { setPrompt(false); router.push("/tutorials"); } }}>查看教程目录</button>}
               <button className="ac-btn-ghost" disabled={pending} onClick={async () => { if (await persist({ type: "dismiss" })) setPrompt(false); }}>暂时跳过</button>
             </>}
           </div>
@@ -324,7 +325,7 @@ export function TutorialProvider({ children, projects, initialProgress }: {
         </> : <div className="absolute inset-0 bg-slate-950/60 pointer-events-auto" />}
         <div ref={card} role="dialog" aria-modal="false" aria-labelledby="tutorial-step-title" className="absolute pointer-events-auto max-h-[min(430px,55vh)] overflow-y-auto rounded-2xl border border-stroke bg-panel p-5 shadow-2xl" style={{ width: cardWidth, maxHeight: mobile ? mobileCardHeight : undefined, left: mobile ? 12 : cardLeft, top: cardTop, bottom: mobile && !mobileAbove ? 12 : undefined }}>
           <div className="flex items-center justify-between gap-3 text-xs">
-            <span className="font-semibold text-signal">{course?.title ?? "教程"}</span>
+            <span className="font-semibold text-signal">{chapter?.title ?? course?.title ?? "教程"}</span>
             <button disabled={pending} onClick={() => void pause()} className="rounded px-2 py-1 text-ink-3 hover:bg-sunken">暂停 / 退出</button>
           </div>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sunken" role="progressbar" aria-label="教程进度" aria-valuemin={0} aria-valuemax={course?.steps.length ?? 1} aria-valuenow={(active?.step ?? 0) + 1}>
